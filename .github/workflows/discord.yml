@@ -1,0 +1,160 @@
+name: GitHub → Discord
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, closed, reopened]
+  issues:
+    types: [opened, closed, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send message to Discord
+        env:
+          PUSH_WEBHOOK: ${{ secrets.DISCORD_PUSH_WEBHOOK }}
+          PR_WEBHOOK: ${{ secrets.DISCORD_PR_WEBHOOK }}
+          ISSUE_WEBHOOK: ${{ secrets.DISCORD_ISSUE_WEBHOOK }}
+
+        run: |
+          EVENT="$GITHUB_EVENT_NAME"
+          ACTION=$(jq -r .action "$GITHUB_EVENT_PATH")
+          ACTOR="$GITHUB_ACTOR"
+          REPO="$GITHUB_REPOSITORY"
+          REF="$GITHUB_REF"
+          SHA="$GITHUB_SHA"
+          AVATAR="https://github.com/$ACTOR.png"
+
+          ############################################################
+          # PUSH EVENT
+          ############################################################
+          if [ "$EVENT" = "push" ]; then
+            SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+            BRANCH=$(echo "$REF" | sed 's#refs/heads/##')
+
+            TITLE="📌 New commit $SHORT_SHA pushed to $BRANCH"
+            URL="https://github.com/$REPO/commit/$SHA"
+            COLOR=41983
+            DESCRIPTION="A new commit was pushed by **$ACTOR**."
+            WEBHOOK="$PUSH_WEBHOOK"
+
+          ############################################################
+          # PULL REQUEST EVENT
+          ############################################################
+          elif [ "$EVENT" = "pull_request" ]; then
+            PR_NUMBER=$(jq -r .pull_request.number "$GITHUB_EVENT_PATH")
+            PR_TITLE=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
+            URL="https://github.com/$REPO/pull/$PR_NUMBER"
+
+            if [ "$ACTION" = "opened" ]; then
+              COLOR=3066993
+              STATUS="🟢 Opened PR"
+            elif [ "$ACTION" = "closed" ]; then
+              MERGED=$(jq -r .pull_request.merged "$GITHUB_EVENT_PATH")
+              if [ "$MERGED" = "true" ]; then
+                COLOR=10181046    # tím
+                STATUS="🟣 Merged PR"
+              else
+                COLOR=15158332    # đỏ
+                STATUS="🔴 Closed PR"
+              fi
+            else
+              COLOR=3066993
+              STATUS="🟢 Reopened PR"
+            fi
+
+            TITLE="🔀 Pull Request #$PR_NUMBER"
+            DESCRIPTION="$STATUS: **$PR_TITLE**"
+            WEBHOOK="$PR_WEBHOOK"
+
+          ############################################################
+          # ISSUE EVENT
+          ############################################################
+          elif [ "$EVENT" = "issues" ]; then
+            ISSUE_NUMBER=$(jq -r .issue.number "$GITHUB_EVENT_PATH")
+            ISSUE_TITLE=$(jq -r .issue.title "$GITHUB_EVENT_PATH")
+            URL="https://github.com/$REPO/issues/$ISSUE_NUMBER"
+
+            if [ "$ACTION" = "opened" ]; then
+              COLOR=3447003
+              STATUS="🟦 Opened Issue"
+            elif [ "$ACTION" = "closed" ]; then
+              COLOR=15158332
+              STATUS="🔴 Closed Issue"
+            else
+              COLOR=10181046
+              STATUS="🟣 Reopened Issue"
+            fi
+
+            TITLE="📝 Issue #$ISSUE_NUMBER"
+            DESCRIPTION="$STATUS: **$ISSUE_TITLE**"
+            WEBHOOK="$ISSUE_WEBHOOK"
+
+          ############################################################
+          # ISSUE COMMENT EVENT
+          ############################################################
+          elif [ "$EVENT" = "issue_comment" ]; then
+            ISSUE_NUMBER=$(jq -r .issue.number "$GITHUB_EVENT_PATH")
+            COMMENT_BODY=$(jq -r .comment.body "$GITHUB_EVENT_PATH")
+            URL="https://github.com/$REPO/issues/$ISSUE_NUMBER#issuecomment-$(jq -r .comment.id "$GITHUB_EVENT_PATH")"
+
+            TITLE="💬 New Comment on Issue #$ISSUE_NUMBER"
+            DESCRIPTION="**$ACTOR** commented:\n> $COMMENT_BODY"
+            COLOR=16711680   
+            WEBHOOK="$ISSUE_WEBHOOK"
+          fi
+
+          ############################################################
+          # BUILD EMBED PAYLOAD
+          ############################################################
+          # Base fields (common)
+          FIELDS=$(jq -n \
+            --arg repo "$REPO" \
+            --arg ref "$REF" \
+            '[
+              {"name": "📦 Repository", "value": $repo, "inline": true},
+              {"name": "🔀 Ref / Branch", "value": $ref, "inline": true}
+            ]')
+
+          # Add commit SHA only for push event
+          if [ "$EVENT" = "push" ]; then
+            FIELDS=$(echo "$FIELDS" | jq --arg sha "$SHA" \
+              '. += [{"name": "🧩 Commit SHA", "value": $sha, "inline": false}]')
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESCRIPTION" \
+            --arg actor "$ACTOR" \
+            --arg avatar "$AVATAR" \
+            --arg url "$URL" \
+            --argjson color "$COLOR" \
+            --argjson fields "$FIELDS" \
+            '{
+              "username": "GitHub Bot",
+              "embeds": [{
+                "title": $title,
+                "url": $url,
+                "description": $desc,
+                "color": $color,
+                "author": {
+                  "name": $actor,
+                  "icon_url": $avatar
+                },
+                "fields": $fields,
+                "thumbnail": { "url": $avatar }
+              }]
+            }')
+
+          ############################################################
+          # SEND TO DISCORD
+          ############################################################
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "$PAYLOAD" \
+               "$WEBHOOK"
