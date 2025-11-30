@@ -1,11 +1,12 @@
-import { Route, Routes } from "react-router-dom"
-import Login from "../pages/auth/Login"
+import { Routes } from "react-router-dom"
+import PublicRoutesComponent from "./public-route"
+import PrivateRoutesComponent from "./private-route"
 
 const RouteComponent = () => {
     return (
         <Routes>
-            <Route path="/" element={<Login />} />
-
+            {PublicRoutesComponent()}
+            {PrivateRoutesComponent()}
         </Routes>
     )
 }
