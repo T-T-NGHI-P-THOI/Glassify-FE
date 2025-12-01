@@ -1,16 +1,38 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { logIn } from "../../auth/Reducer";
+import { PAGE_ENDPOINTS } from "../../api/endpoints";
 
 const Login = () => {
     const [email, setEmail] = useState<string>("");
     const [pwd, setPwd] = useState<string>("");
     const navigate = useNavigate();
+    const { dispatch } = useAuth();
 
     const handleLogin = () => {
         console.log("Login....")
+        
     }
 
+    useEffect(() => {
+      dispatch(logIn({
+           isAuthenticated: true,
+           isInitialized: true,
+           user: {
+            id: 1,
+            name: "Nguyen Van A",
+            email: "nguyenvana@example.com",
+            roles: ["admin"]
+           }
+        }));
+
+      localStorage.setItem('ACCESS_TOKEN', "");
+        
+      navigate(PAGE_ENDPOINTS.HOME);
+
+    })
     return (
         <Box sx={{ width: 300, margin: "50px auto" }}>
             <Typography variant="h4" mb={2}> Login </Typography>
