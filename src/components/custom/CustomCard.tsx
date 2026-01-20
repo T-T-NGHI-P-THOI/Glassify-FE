@@ -12,7 +12,7 @@ interface CustomCardProps {
 }
 
 export const CustomCard: FC<CustomCardProps> = ({
-  image = '/placeholder-image.jpg',
+  image,
   title,
   description,
   linkText = 'More Info',
@@ -23,7 +23,7 @@ export const CustomCard: FC<CustomCardProps> = ({
     <Card
       sx={{
         maxWidth: 280,
-        borderRadius: 0.5,
+        borderRadius: 1,
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         transition: 'all 0.3s ease',
         '&:hover': {
@@ -32,45 +32,57 @@ export const CustomCard: FC<CustomCardProps> = ({
         },
       }}
     >
-      {/* Image placeholder */}
-      <CardMedia
-        sx={{
-          height: 180,
-          backgroundColor: '#e5e7eb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box
+      {/* Image */}
+      {image ? (
+        <CardMedia
+          component="img"
+          height="180"
+          image={image}
+          alt={title}
           sx={{
-            width: 80,
-            height: 80,
-            border: '3px solid white',
-            borderRadius: 1,
-            position: 'relative',
-            '&::before, &::after': {
-              content: '""',
-              position: 'absolute',
-              backgroundColor: 'white',
-            },
-            '&::before': {
-              width: '100%',
-              height: '3px',
-              top: '50%',
-              left: 0,
-              transform: 'translateY(-50%) rotate(45deg)',
-            },
-            '&::after': {
-              width: '100%',
-              height: '3px',
-              top: '50%',
-              left: 0,
-              transform: 'translateY(-50%) rotate(-45deg)',
-            },
+            objectFit: 'cover',
           }}
         />
-      </CardMedia>
+      ) : (
+        <CardMedia
+          sx={{
+            height: 180,
+            backgroundColor: '#e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              border: '3px solid white',
+              borderRadius: 1,
+              position: 'relative',
+              '&::before, &::after': {
+                content: '""',
+                position: 'absolute',
+                backgroundColor: 'white',
+              },
+              '&::before': {
+                width: '100%',
+                height: '3px',
+                top: '50%',
+                left: 0,
+                transform: 'translateY(-50%) rotate(45deg)',
+              },
+              '&::after': {
+                width: '100%',
+                height: '3px',
+                top: '50%',
+                left: 0,
+                transform: 'translateY(-50%) rotate(-45deg)',
+              },
+            }}
+          />
+        </CardMedia>
+      )}
 
       <CardContent sx={{ p: 3 }}>
         {/* Title */}

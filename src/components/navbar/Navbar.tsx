@@ -1,0 +1,296 @@
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  IconButton,
+  TextField,
+  Badge,
+  Button,
+  Container,
+  InputAdornment,
+  Chip,
+} from '@mui/material';
+import {
+  Search,
+  ShoppingCart,
+  Person,
+  Favorite,
+  Help,
+} from '@mui/icons-material';
+import { useState } from 'react';
+
+export const Navbar = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const cartItemCount = 3;
+
+  const mainCategories = [
+    { label: 'Eyeglasses', path: '/eyeglass' },
+    { label: 'Sunglasses', path: '/sunglass' },
+    { label: 'Lenses', path: '/lens' },
+    { label: 'Sports', path: '/sports' },
+    { label: 'Collabs & Partners', path: '/collabs' },
+    { label: '✨ Discover', path: '/discover', special: true },
+    { label: '🏷️ Sale', path: '/sale', special: true },
+  ];
+
+  const filterTags = [
+    { icon: '💰', label: 'Under $30' },
+    { icon: '✨', label: 'New Arrivals' },
+    { icon: '🔥', label: 'Best Sellers' },
+    { icon: '⭐', label: 'Top Rated' },
+    { icon: '▭', label: 'Rectangle' },
+    { icon: '⬭', label: 'Oversized' },
+    { icon: '🐢', label: 'Tortoiseshell' },
+    { icon: '😺', label: 'Cat Eye' },
+    { icon: '💎', label: 'Premium' },
+    { icon: '🏷️', label: 'On Sale' },
+  ];
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Search:', searchQuery);
+  };
+
+  return (
+    <>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          backgroundColor: '#ffffff',
+          color: '#000000',
+          borderBottom: '1px solid #e5e7eb',
+        }}
+      >
+        <Container maxWidth="xl">
+          {/* Top Toolbar */}
+          <Toolbar
+            sx={{
+              justifyContent: 'space-between',
+              py: 1.5,
+              minHeight: '70px !important',
+            }}
+          >
+            {/* Logo */}
+            <Box
+              sx={{
+                fontWeight: 800,
+                fontSize: '25px',
+                color: '#000000',
+                cursor: 'pointer',
+              }}
+            >
+              GLASSIFY
+            </Box>
+
+            {/* Search Bar */}
+            <Box
+              component="form"
+              onSubmit={handleSearch}
+              sx={{
+                flexGrow: 1,
+                maxWidth: 500,
+                mx: 4,
+                display: { xs: 'none', md: 'block' },
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search glasses"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ color: '#6b7280', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                        <IconButton type="submit" sx={{ p: '6px' }}><Search sx={{ color: '#6b7280', fontSize: 20 }} /></IconButton> 
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '24px',
+                    backgroundColor: '#f9fafb',
+                    '& fieldset': {
+                      borderColor: '#e5e7eb',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: '#d1d5db',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#ffffff',
+                      borderWidth: '1px',
+                    },
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Right Icons */}
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <IconButton
+                size="small"
+                sx={{
+                  flexDirection: 'column',
+                  color: '#1f2937',
+                  borderRadius: 1,
+                }}
+              >
+                <Person sx={{ fontSize: 24 }} />
+                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Login</Box>
+              </IconButton>
+
+              <IconButton
+                size="small"
+                sx={{
+                  flexDirection: 'column',
+                  color: '#1f2937',
+                  borderRadius: 1,
+                }}
+              >
+                <Favorite sx={{ fontSize: 24 }} />
+                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Favorites</Box>
+              </IconButton>
+
+              <IconButton
+                size="small"
+                sx={{
+                  flexDirection: 'column',
+                  color: '#1f2937',
+                  borderRadius: 1,
+                }}
+              >
+                <Help sx={{ fontSize: 24 }} />
+                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Help</Box>
+              </IconButton>
+
+              <IconButton
+                size="small"
+                sx={{
+                  flexDirection: 'column',
+                  color: '#1f2937',
+                  borderRadius: 1,
+                }}
+              >
+                <Badge
+                  badgeContent={cartItemCount}
+                  color="error"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      backgroundColor: '#dc2626',
+                    },
+                  }}
+                >
+                  <ShoppingCart sx={{ fontSize: 24 }} />
+                </Badge>
+                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Cart</Box>
+              </IconButton>
+            </Box>
+          </Toolbar>
+
+          {/* Main Navigation */}
+          <Box
+            sx={{
+              display: { xs: 'none', md: 'flex' },
+              justifyContent: 'center',
+              gap: 0.5,
+              py: 1,
+              borderTop: '1px solid #e5e7eb',
+            }}
+          >
+            {mainCategories.map((item) => (
+              <Button
+                key={item.path}
+                sx={{
+                    backgroundColor: 'transparent',
+                  color: item.special ? '#000000' : '#000000',
+                  fontWeight: item.special ? 600 : 500,
+                  px: 2,
+                  py: 0.75,
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  boxShadow: 'none',
+                  ":hover": {
+                    boxShadow: 'none',
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '20px',
+                  }
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </Box>
+
+          {/* Filter Tags */}
+          <Box
+            sx={{
+              display: { xs: 'none', lg: 'flex' },
+              justifyContent: 'center',
+              gap: 1,
+              py: 1.5,
+              borderTop: '1px solid #e5e7eb',
+              flexWrap: 'wrap',
+            }}
+          >
+            {filterTags.map((tag, index) => (
+              <Chip
+                key={index}
+                icon={<span style={{ fontSize: '1rem' }}>{tag.icon}</span>}
+                label={tag.label}
+                variant="outlined"
+                sx={{
+                  borderColor: '#d1d5db',
+                  color: '#374151',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  '&:hover': {
+                    backgroundColor: '#f3f4f6',
+                    borderColor: '#0f766e',
+                    color: '#0f766e',
+                  },
+                }}
+              />
+            ))}
+          </Box>
+
+          {/* Mobile Search */}
+          <Box
+            component="form"
+            onSubmit={handleSearch}
+            sx={{
+              display: { xs: 'block', md: 'none' },
+              pb: 2,
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search glasses"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ color: '#9ca3af' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '24px',
+                  backgroundColor: '#f9fafb',
+                },
+              }}
+            />
+          </Box>
+        </Container>
+      </AppBar>
+    </>
+  );
+}
