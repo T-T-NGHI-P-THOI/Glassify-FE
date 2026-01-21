@@ -54,7 +54,7 @@ export const Navbar = () => {
   return (
     <>
       <AppBar
-        position="sticky"
+        position="static"
         elevation={0}
         sx={{
           backgroundColor: '#ffffff',
@@ -108,7 +108,7 @@ export const Navbar = () => {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                        <IconButton type="submit" sx={{ p: '6px' }}><Search sx={{ color: '#6b7280', fontSize: 20 }} /></IconButton> 
+                      <IconButton type="submit" sx={{ p: '6px' }}><Search sx={{ color: '#6b7280', fontSize: 20 }} /></IconButton>
                     </InputAdornment>
                   ),
                 }}
@@ -207,7 +207,7 @@ export const Navbar = () => {
               <Button
                 key={item.path}
                 sx={{
-                    backgroundColor: 'transparent',
+                  backgroundColor: 'transparent',
                   color: item.special ? '#000000' : '#000000',
                   fontWeight: item.special ? 600 : 500,
                   px: 2,
