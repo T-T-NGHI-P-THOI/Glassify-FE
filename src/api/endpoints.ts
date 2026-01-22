@@ -34,4 +34,12 @@ export const PAGE_ENDPOINTS = {
     REGISTER: `/register`,
   },
 
+  TRACKING: {
+    DELIVERY: `/tracking/delivery`,
+    SHIPMENT_DETAIL: `/tracking/delivery/:id`,
+    INTERNAL_TRANSFER: `/tracking/internal-transfer`,
+    INTERNAL_TRANSFER_DETAIL: `/tracking/internal-transfer/:id`,
+    BRANCH_DETAIL: `/tracking/branch-detail`,
+  },
+
 } as const;
