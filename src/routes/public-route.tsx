@@ -2,10 +2,14 @@ import { Route } from "react-router-dom";
 import GuestGuard from "../auth/guards/GuestGuard";
 import { PAGE_ENDPOINTS } from "../api/endpoints";
 import MyForm from "@/pages/MyForm";
+import DashboardPage from "@/pages/Dashboard/DashboardPage";
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage";
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage";
-import InternalTransferPage from "@/pages/Shipping/InternalTransferPage/InternalTransferPage";
-import InternalTransferDetailPage from "@/pages/Shipping/InternalTransferPage/InternalTransferDetailPage";
+import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage";
+import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
+import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
+import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
+import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
 
 const PublicRoutesComponent = () => {
     return (
@@ -23,6 +27,15 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <MyForm />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.DASHBOARD}
+                element={
+                    <GuestGuard>
+                        <DashboardPage />
                     </GuestGuard>
                 }
             />
@@ -46,19 +59,46 @@ const PublicRoutesComponent = () => {
             />
 
             <Route
-                path={PAGE_ENDPOINTS.TRACKING.INTERNAL_TRANSFER}
+                path={PAGE_ENDPOINTS.TRACKING.SHOPS}
                 element={
                     <GuestGuard>
-                        <InternalTransferPage />
+                        <ShopTrackingPage />
                     </GuestGuard>
                 }
             />
 
             <Route
-                path={PAGE_ENDPOINTS.TRACKING.INTERNAL_TRANSFER_DETAIL}
+                path={PAGE_ENDPOINTS.TRACKING.SHOP_DETAIL}
                 element={
                     <GuestGuard>
-                        <InternalTransferDetailPage />
+                        <ShopTrackingDetailPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.REGISTER}
+                element={
+                    <GuestGuard>
+                        <ShopRegistrationPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PROFILE}
+                element={
+                    <GuestGuard>
+                        <ShopProfilePage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}
+                element={
+                    <GuestGuard>
+                        <AdminShopApprovalPage />
                     </GuestGuard>
                 }
             />

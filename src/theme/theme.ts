@@ -137,7 +137,7 @@ export const theme = createTheme({
         root: () => ({
           borderRadius: 25,
           height: 45,
-          width: 120,
+          width: 'auto',
           padding: '0 32px',
           fontSize: '16px',
           fontWeight: 600,

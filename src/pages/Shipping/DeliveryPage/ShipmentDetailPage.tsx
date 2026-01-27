@@ -30,6 +30,11 @@ import {
   Inventory,
   Home,
   ReportProblem,
+  Phone,
+  Language,
+  Star,
+  StarBorder,
+  StarHalf,
 } from '@mui/icons-material';
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -114,6 +119,11 @@ interface ShipmentDetail {
     carrierCode: string;
     rating: number;
     contactHotline: string;
+    logoUrl: string;
+    website: string;
+    serviceType: 'EXPRESS' | 'STANDARD' | 'ECONOMY';
+    averageDeliveryDays: number;
+    trackingUrl: string;
   };
   customer: {
     customerId: number;
@@ -149,6 +159,11 @@ const mockShipmentDetail: ShipmentDetail = {
     carrierCode: 'GHTK',
     rating: 4.5,
     contactHotline: '1900-636-688',
+    logoUrl: '/carriers/ghtk-logo.png',
+    website: 'https://giaohangtietkiem.vn',
+    serviceType: 'STANDARD',
+    averageDeliveryDays: 3,
+    trackingUrl: 'https://giaohangtietkiem.vn/tracking',
   },
   customer: {
     customerId: 101,
@@ -297,6 +312,50 @@ const getActiveStep = (status: ShipmentStatus) => {
   return stepIndex >= 0 ? stepIndex : 0;
 };
 
+const getServiceTypeLabel = (type: 'EXPRESS' | 'STANDARD' | 'ECONOMY') => {
+  switch (type) {
+    case 'EXPRESS':
+      return 'Express';
+    case 'STANDARD':
+      return 'Standard';
+    case 'ECONOMY':
+      return 'Economy';
+    default:
+      return type;
+  }
+};
+
+const RatingStars = ({ rating, theme }: { rating: number; theme: Theme }) => {
+  const stars = [];
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating % 1 >= 0.5;
+
+  for (let i = 0; i < 5; i++) {
+    if (i < fullStars) {
+      stars.push(
+        <Star key={i} sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
+      );
+    } else if (i === fullStars && hasHalfStar) {
+      stars.push(
+        <StarHalf key={i} sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
+      );
+    } else {
+      stars.push(
+        <StarBorder key={i} sx={{ fontSize: 16, color: theme.palette.custom.neutral[300] }} />
+      );
+    }
+  }
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+      {stars}
+      <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[600], ml: 0.5 }}>
+        ({rating})
+      </Typography>
+    </Box>
+  );
+};
+
 const ShipmentDetailPage = () => {
   const theme = useTheme();
   const { setShowNavbar, setShowFooter } = useLayout();
@@ -417,7 +476,7 @@ const ShipmentDetailPage = () => {
         </Paper>
 
         {/* Information Grid */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 3, mb: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 3 }}>
           {/* Order Information */}
           <Paper
             elevation={0}
@@ -543,6 +602,110 @@ const ShipmentDetailPage = () => {
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
                 {shipment.customer.phone}
               </Typography>
+            </Box>
+          </Paper>
+
+          {/* Carrier Information */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.custom.border.light}`,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <LocalShipping sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>
+                Carrier Information
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Avatar
+                variant="rounded"
+                src={shipment.carrier.logoUrl}
+                sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[100] }}
+              >
+                {shipment.carrier.carrierCode}
+              </Avatar>
+              <Box>
+                <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                  {shipment.carrier.carrierName}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                  Code: {shipment.carrier.carrierCode}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
+                RATING
+              </Typography>
+              <RatingStars rating={shipment.carrier.rating} theme={theme} />
+            </Box>
+
+            <Box sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
+                SERVICE TYPE
+              </Typography>
+              <Chip
+                label={getServiceTypeLabel(shipment.carrier.serviceType)}
+                size="small"
+                sx={{
+                  backgroundColor:
+                    shipment.carrier.serviceType === 'EXPRESS'
+                      ? theme.palette.custom.status.error.light
+                      : shipment.carrier.serviceType === 'STANDARD'
+                      ? theme.palette.custom.status.info.light
+                      : theme.palette.custom.status.success.light,
+                  color:
+                    shipment.carrier.serviceType === 'EXPRESS'
+                      ? theme.palette.custom.status.error.main
+                      : shipment.carrier.serviceType === 'STANDARD'
+                      ? theme.palette.custom.status.info.main
+                      : theme.palette.custom.status.success.main,
+                  fontWeight: 500,
+                  fontSize: 12,
+                }}
+              />
+            </Box>
+
+            <Box sx={{ mb: 1.5 }}>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
+                HOTLINE
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Phone sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }} />
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.status.info.main }}>
+                  {shipment.carrier.contactHotline}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
+                WEBSITE
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Language sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }} />
+                <Typography
+                  component="a"
+                  href={shipment.carrier.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: theme.palette.custom.status.info.main,
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  {shipment.carrier.website.replace('https://', '')}
+                </Typography>
+              </Box>
             </Box>
           </Paper>
         </Box>

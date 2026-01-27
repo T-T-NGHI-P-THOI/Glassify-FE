@@ -22,6 +22,8 @@ import {
   HelpCenter,
   ExpandLess,
   ExpandMore,
+  AdminPanelSettings,
+  CardTravel,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -33,20 +35,30 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeMenu }: SidebarProps) => {
   const [trackingOpen, setTrackingOpen] = useState(true);
+  const [adminOpen, setAdminOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
 
   const menuItems = [
-    { icon: <Dashboard />, label: 'Dashboard', path: '/dashboard' },
+    { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.DASHBOARD },
     {
       icon: <LocalShipping />,
       label: 'Tracking',
       path: '/tracking',
+      key: 'tracking',
       subItems: [
         { label: 'Delivery', path: PAGE_ENDPOINTS.TRACKING.DELIVERY },
-        { label: 'Internal Transfer', path: PAGE_ENDPOINTS.TRACKING.INTERNAL_TRANSFER },
-        { label: 'Branch Detail', path: PAGE_ENDPOINTS.TRACKING.BRANCH_DETAIL },
+        { label: 'Shops', path: PAGE_ENDPOINTS.TRACKING.SHOPS },
+      ],
+    },
+    {
+      icon: <AdminPanelSettings />,
+      label: 'Admin',
+      path: '/admin',
+      key: 'admin',
+      subItems: [
+        { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
       ],
     },
     { icon: <Inventory />, label: 'Order', path: '/order' },
@@ -97,82 +109,91 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
 
       {/* Main Menu */}
       <List sx={{ flex: 1, px: 1 }}>
-        {menuItems.map((item) => (
-          <Box key={item.label}>
-            <ListItemButton
-              onClick={() => {
-                if (item.subItems) {
-                  setTrackingOpen(!trackingOpen);
-                } else {
-                  navigate(item.path);
-                }
-              }}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                backgroundColor: isActive(item.path)
-                  ? theme.palette.custom.neutral[100]
-                  : 'transparent',
-                '&:hover': {
-                  backgroundColor: theme.palette.custom.neutral[100],
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 36, color: theme.palette.text.secondary }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{
-                  fontSize: 14,
-                  fontWeight: isActive(item.path) ? 600 : 500,
-                  color: theme.palette.text.primary,
-                }}
-              />
-              {item.subItems &&
-                (trackingOpen ? (
-                  <ExpandLess sx={{ color: theme.palette.text.secondary }} />
-                ) : (
-                  <ExpandMore sx={{ color: theme.palette.text.secondary }} />
-                ))}
-            </ListItemButton>
+        {menuItems.map((item) => {
+          const isMenuOpen =
+            item.key === 'tracking' ? trackingOpen : item.key === 'admin' ? adminOpen : false;
+          const toggleMenu = () => {
+            if (item.key === 'tracking') setTrackingOpen(!trackingOpen);
+            else if (item.key === 'admin') setAdminOpen(!adminOpen);
+          };
 
-            {item.subItems && (
-              <Collapse in={trackingOpen} timeout="auto" unmountOnExit>
-                <List disablePadding>
-                  {item.subItems.map((subItem) => (
-                    <ListItemButton
-                      key={subItem.label}
-                      onClick={() => navigate(subItem.path)}
-                      sx={{
-                        pl: 6,
-                        py: 0.75,
-                        borderRadius: 2,
-                        backgroundColor: isActive(subItem.path)
-                          ? theme.palette.custom.neutral[100]
-                          : 'transparent',
-                        '&:hover': {
-                          backgroundColor: theme.palette.custom.neutral[100],
-                        },
-                      }}
-                    >
-                      <ListItemText
-                        primary={subItem.label}
-                        primaryTypographyProps={{
-                          fontSize: 14,
-                          fontWeight: isActive(subItem.path) ? 600 : 400,
-                          color: isActive(subItem.path)
-                            ? theme.palette.custom.status.black.main
-                            : theme.palette.text.secondary,
-                        }}
-                      />
-                    </ListItemButton>
+          return (
+            <Box key={item.label}>
+              <ListItemButton
+                onClick={() => {
+                  if (item.subItems) {
+                    toggleMenu();
+                  } else {
+                    navigate(item.path);
+                  }
+                }}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  backgroundColor: isActive(item.path)
+                    ? theme.palette.custom.neutral[100]
+                    : 'transparent',
+                  '&:hover': {
+                    backgroundColor: theme.palette.custom.neutral[100],
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36, color: theme.palette.text.secondary }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: 14,
+                    fontWeight: isActive(item.path) ? 600 : 500,
+                    color: theme.palette.text.primary,
+                  }}
+                />
+                {item.subItems &&
+                  (isMenuOpen ? (
+                    <ExpandLess sx={{ color: theme.palette.text.secondary }} />
+                  ) : (
+                    <ExpandMore sx={{ color: theme.palette.text.secondary }} />
                   ))}
-                </List>
-              </Collapse>
-            )}
-          </Box>
-        ))}
+              </ListItemButton>
+
+              {item.subItems && (
+                <Collapse in={isMenuOpen} timeout="auto" unmountOnExit>
+                  <List disablePadding>
+                    {item.subItems.map((subItem) => (
+                      <ListItemButton
+                        key={subItem.label}
+                        onClick={() => navigate(subItem.path)}
+                        sx={{
+                          pl: 6,
+                          py: 0.75,
+                          borderRadius: 2,
+                          backgroundColor: isActive(subItem.path)
+                            ? theme.palette.custom.neutral[100]
+                            : 'transparent',
+                          '&:hover': {
+                            backgroundColor: theme.palette.custom.neutral[100],
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={subItem.label}
+                          primaryTypographyProps={{
+                            fontSize: 14,
+                            fontWeight: isActive(subItem.path) ? 600 : 400,
+                            color: isActive(subItem.path)
+                              ? theme.palette.custom.status.black.main
+                              : theme.palette.text.secondary,
+                          }}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
+          );
+        })}
       </List>
 
       {/* Bottom Menu */}

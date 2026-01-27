@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
 export const PAGE_ENDPOINTS = {
   HOME: '/home',
   PERMISSION_DENIED_ENDPOINT: '/denied',
+  DASHBOARD: '/dashboard',
 
   AUTH: {
     LOGIN: `/login`,
@@ -37,9 +38,17 @@ export const PAGE_ENDPOINTS = {
   TRACKING: {
     DELIVERY: `/tracking/delivery`,
     SHIPMENT_DETAIL: `/tracking/delivery/:id`,
-    INTERNAL_TRANSFER: `/tracking/internal-transfer`,
-    INTERNAL_TRANSFER_DETAIL: `/tracking/internal-transfer/:id`,
-    BRANCH_DETAIL: `/tracking/branch-detail`,
+    SHOPS: `/tracking/shops`,
+    SHOP_DETAIL: `/tracking/shops/:id`,
+  },
+
+  SHOP: {
+    REGISTER: `/shop/register`,
+    PROFILE: `/shop/profile`,
+  },
+
+  ADMIN: {
+    SHOP_APPROVAL: `/admin/shop-approval`,
   },
 
 } as const;
