@@ -2,6 +2,7 @@ import { Route } from "react-router-dom";
 import GuestGuard from "../auth/guards/GuestGuard";
 import { PAGE_ENDPOINTS } from "../api/endpoints";
 import MyForm from "@/pages/MyForm";
+import MainPage from "@/pages/MainPage";
 import DashboardPage from "@/pages/Dashboard/DashboardPage";
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage";
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage";
@@ -14,6 +15,16 @@ import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
 const PublicRoutesComponent = () => {
     return (
         <>
+            {/* Home Page */}
+            <Route
+                path="/"
+                element={<MainPage />}
+            />
+            <Route
+                path={PAGE_ENDPOINTS.HOME}
+                element={<MainPage />}
+            />
+            
             {/* <Route
                 path={PAGE_ENDPOINTS.AUTH.LOGIN}
                 element={
