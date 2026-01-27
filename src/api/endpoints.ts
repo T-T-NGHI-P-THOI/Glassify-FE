@@ -45,6 +45,7 @@ export const PAGE_ENDPOINTS = {
   SHOP: {
     REGISTER: `/shop/register`,
     PROFILE: `/shop/profile`,
+    PRODUCT_FRAME: `/shop/product/frame`
   },
 
   ADMIN: {
