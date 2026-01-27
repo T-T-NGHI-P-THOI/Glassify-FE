@@ -316,6 +316,7 @@ const FrameProductPage = () => {
               textTransform: 'none',
               fontWeight: 600,
             }}
+            onClick={() => {navigate(PAGE_ENDPOINTS.SHOP.CREATE_FRAME)}}
           >
             Add Frame
           </CustomButton>

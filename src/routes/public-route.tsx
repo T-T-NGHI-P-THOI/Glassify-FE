@@ -11,6 +11,7 @@ import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
+import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 
 const PublicRoutesComponent = () => {
     return (
@@ -41,12 +42,21 @@ const PublicRoutesComponent = () => {
                 }
             />
 
-            
+
             <Route
                 path={PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME}
                 element={
                     <GuestGuard>
                         <FrameProductPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_FRAME}
+                element={
+                    <GuestGuard>
+                        <CreateFramePage />
                     </GuestGuard>
                 }
             />
