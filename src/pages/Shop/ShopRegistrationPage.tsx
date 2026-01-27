@@ -16,6 +16,13 @@ import {
   Select,
   MenuItem,
   Divider,
+  Checkbox,
+  FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Link,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import {
@@ -31,6 +38,7 @@ import {
   Person,
   Delete,
   InsertDriveFile,
+  LocalShipping,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -68,6 +76,7 @@ const UploadArea = styled(Box)(({ theme }) => ({
 const registrationSteps = [
   { label: 'Shop Information', key: 'SHOP_INFO' },
   { label: 'Business License', key: 'LICENSE' },
+  { label: 'Shipping', key: 'SHIPPING' },
   { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
@@ -111,6 +120,10 @@ const ShopRegistrationPage = () => {
     taxCode: '',
   });
   const [licenseFiles, setLicenseFiles] = useState<LicenseFile[]>([]);
+  const [selectedShippingPartners, setSelectedShippingPartners] = useState<string[]>([]);
+  const [policyAgreed, setPolicyAgreed] = useState(false);
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -160,8 +173,13 @@ const ShopRegistrationPage = () => {
   const handleSubmit = () => {
     // Submit registration
     console.log('Submitting:', { formData, licenseFiles });
-    // Navigate to shop profile after successful registration
-    navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
+    // Show success dialog
+    setSuccessDialogOpen(true);
+  };
+
+  const handleSuccessDialogClose = () => {
+    setSuccessDialogOpen(false);
+    navigate(PAGE_ENDPOINTS.DASHBOARD);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -501,6 +519,137 @@ const ShopRegistrationPage = () => {
     </Box>
   );
 
+  const shippingPartners = [
+    {
+      id: 'ghn',
+      name: 'Giao Hàng Nhanh',
+      logo: '/shipping/ghn-logo.png',
+      description: 'Dịch vụ giao hàng nhanh chóng, uy tín hàng đầu Việt Nam. Hỗ trợ giao hàng toàn quốc với thời gian 1-3 ngày.',
+      services: ['Giao hàng tiêu chuẩn', 'Giao hàng nhanh', 'Giao hàng thu tiền hộ (COD)'],
+    },
+  ];
+
+  const handleToggleShippingPartner = (partnerId: string) => {
+    setSelectedShippingPartners((prev) =>
+      prev.includes(partnerId) ? prev.filter((id) => id !== partnerId) : [...prev, partnerId]
+    );
+  };
+
+  const renderShipping = () => (
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 18,
+          fontWeight: 600,
+          color: theme.palette.custom.neutral[800],
+          mb: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+      >
+        <LocalShipping sx={{ color: theme.palette.primary.main }} />
+        Shipping Partners
+      </Typography>
+
+      <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
+        Select the shipping partners you want to use for delivering orders from your shop.
+      </Typography>
+
+      {shippingPartners.map((partner) => {
+        const isSelected = selectedShippingPartners.includes(partner.id);
+        return (
+          <Paper
+            key={partner.id}
+            elevation={0}
+            onClick={() => handleToggleShippingPartner(partner.id)}
+            sx={{
+              p: 3,
+              mb: 2,
+              borderRadius: 2,
+              border: `2px solid ${isSelected ? theme.palette.primary.main : theme.palette.custom.border.light}`,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              bgcolor: isSelected ? theme.palette.primary.main + '08' : 'transparent',
+              '&:hover': {
+                borderColor: isSelected ? theme.palette.primary.main : theme.palette.custom.neutral[300],
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+              <Checkbox
+                checked={isSelected}
+                sx={{
+                  mt: -0.5,
+                  color: theme.palette.custom.neutral[400],
+                  '&.Mui-checked': {
+                    color: theme.palette.primary.main,
+                  },
+                }}
+              />
+              <Avatar
+                variant="rounded"
+                src={partner.logo}
+                sx={{
+                  width: 56,
+                  height: 56,
+                  bgcolor: theme.palette.custom.status.warning.light,
+                }}
+              >
+                <LocalShipping sx={{ color: theme.palette.custom.status.warning.main }} />
+              </Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>
+                  {partner.name}
+                </Typography>
+                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2 }}>
+                  {partner.description}
+                </Typography>
+
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+                  Available Services:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {partner.services.map((service) => (
+                    <Box
+                      key={service}
+                      sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        bgcolor: theme.palette.custom.neutral[100],
+                        fontSize: 12,
+                        color: theme.palette.custom.neutral[700],
+                      }}
+                    >
+                      {service}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          </Paper>
+        );
+      })}
+
+      <Box
+        sx={{
+          mt: 3,
+          p: 2,
+          borderRadius: 2,
+          bgcolor: theme.palette.custom.status.info.light,
+        }}
+      >
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.5 }}>
+          Note:
+        </Typography>
+        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+          You must select at least one shipping partner. Shipping fees will be calculated based on the partner's rates and the delivery distance. You can change your shipping partners later in shop settings.
+        </Typography>
+      </Box>
+    </Box>
+  );
+
   const renderReview = () => (
     <Box>
       <Typography
@@ -671,6 +820,61 @@ const ShopRegistrationPage = () => {
             )}
           </Paper>
         </Grid>
+
+        {/* Shipping Partners Summary */}
+        <Grid size={{ xs: 12 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.custom.border.light}`,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: theme.palette.custom.neutral[500],
+                textTransform: 'uppercase',
+                mb: 2,
+              }}
+            >
+              Shipping Partners ({selectedShippingPartners.length})
+            </Typography>
+
+            {selectedShippingPartners.length === 0 ? (
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                No shipping partner selected
+              </Typography>
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {selectedShippingPartners.map((partnerId) => {
+                  const partner = shippingPartners.find((p) => p.id === partnerId);
+                  return partner ? (
+                    <Box
+                      key={partnerId}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2,
+                        py: 1,
+                        borderRadius: 1,
+                        bgcolor: theme.palette.custom.status.warning.light,
+                      }}
+                    >
+                      <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], fontWeight: 500 }}>
+                        {partner.name}
+                      </Typography>
+                    </Box>
+                  ) : null;
+                })}
+              </Box>
+            )}
+          </Paper>
+        </Grid>
       </Grid>
 
       <Box
@@ -691,21 +895,52 @@ const ShopRegistrationPage = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+      {/* Shop Owner Registration Navbar */}
+      <Box
+        sx={{
+          height: 56,
+          bgcolor: theme.palette.background.paper,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          px: 3,
+          gap: 1.5,
+          position: 'sticky',
+          top: 0,
+          zIndex: 1100,
+        }}
+      >
+        <IconButton onClick={() => navigate(-1)} size="small">
+          <ArrowBack />
+        </IconButton>
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            backgroundColor: theme.palette.primary.main,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Store sx={{ color: theme.palette.primary.contrastText, fontSize: 20 }} />
+        </Box>
+        <Typography sx={{ fontWeight: 700, fontSize: 16, color: theme.palette.text.primary }}>
+          Glassify Shop Owner Registration
+        </Typography>
+      </Box>
+
       {/* Main Content */}
       <Box sx={{ maxWidth: 900, mx: 'auto', p: 4 }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-          <IconButton onClick={() => navigate(-1)}>
-            <ArrowBack />
-          </IconButton>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-              Register Your Shop
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Complete the registration process to start selling on our platform
-            </Typography>
-          </Box>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+            Register Your Shop
+          </Typography>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+            Complete the registration process to start selling on our platform
+          </Typography>
         </Box>
 
         {/* Progress Stepper */}
@@ -776,7 +1011,59 @@ const ShopRegistrationPage = () => {
         >
           {activeStep === 0 && renderShopInfoForm()}
           {activeStep === 1 && renderLicenseUpload()}
-          {activeStep === 2 && renderReview()}
+          {activeStep === 2 && renderShipping()}
+          {activeStep === 3 && renderReview()}
+
+          {/* Policy Agreement */}
+          <Box
+            sx={{
+              mt: 4,
+              p: 2.5,
+              borderRadius: 2,
+              bgcolor: theme.palette.custom.neutral[50],
+              border: `1px solid ${theme.palette.custom.border.light}`,
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={policyAgreed}
+                  onChange={(e) => setPolicyAgreed(e.target.checked)}
+                  sx={{
+                    color: theme.palette.custom.neutral[400],
+                    '&.Mui-checked': {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                  I have read and agree to the{' '}
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPolicyDialogOpen(true);
+                    }}
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: theme.palette.primary.main,
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        color: theme.palette.primary.dark,
+                      },
+                    }}
+                  >
+                    Platform Seller Policy & Terms of Service
+                  </Link>
+                </Typography>
+              }
+            />
+          </Box>
 
           {/* Navigation Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 3, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
@@ -790,13 +1077,19 @@ const ShopRegistrationPage = () => {
             </Button>
 
             {activeStep < registrationSteps.length - 1 ? (
-              <Button variant="contained" onClick={handleNext} sx={{ px: 4 }}>
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={!policyAgreed}
+                sx={{ px: 4 }}
+              >
                 Continue
               </Button>
             ) : (
               <Button
                 variant="contained"
                 onClick={handleSubmit}
+                disabled={!policyAgreed}
                 sx={{
                   px: 4,
                   bgcolor: theme.palette.custom.status.success.main,
@@ -808,6 +1101,192 @@ const ShopRegistrationPage = () => {
             )}
           </Box>
         </Paper>
+
+        {/* Policy Dialog */}
+        <Dialog
+          open={policyDialogOpen}
+          onClose={() => setPolicyDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+          slotProps={{
+            paper: { sx: { borderRadius: 2 } },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              fontWeight: 700,
+              fontSize: 20,
+              borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+            }}
+          >
+            Platform Seller Policy & Terms of Service
+          </DialogTitle>
+          <DialogContent sx={{ py: 3 }}>
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              1. General Terms
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              By registering as a seller on Glassify platform, you agree to comply with all applicable laws and regulations. You must provide accurate and complete information during the registration process. Any false or misleading information may result in the rejection or termination of your seller account.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              2. Product Listing Requirements
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              All products listed on the platform must be authentic and comply with quality standards. Sellers are responsible for ensuring accurate product descriptions, images, and pricing. Counterfeit or prohibited items are strictly forbidden and will result in immediate account suspension.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              3. Order Fulfillment
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              Sellers must process and ship orders within the specified timeframe (typically 2-3 business days). Orders must be properly packaged to prevent damage during transit. Tracking information must be provided for all shipments.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              4. Customer Service
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              Sellers must respond to customer inquiries within 24 hours. Professional and courteous communication is required at all times. Disputes should be resolved amicably, and refunds/returns must be processed according to platform policies.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              5. Fees and Payments
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              Platform commission fees will be deducted from each sale. Payment settlements are processed on a bi-weekly basis. Sellers are responsible for their own tax obligations and reporting.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              6. Account Termination
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              The platform reserves the right to suspend or terminate seller accounts for violations of these terms, poor performance metrics, or fraudulent activities. Sellers may close their accounts with 30 days written notice.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              7. Data Privacy
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+              Seller information will be handled in accordance with our Privacy Policy. Customer data must be protected and used only for order fulfillment purposes. Sharing or selling customer data is strictly prohibited.
+            </Typography>
+
+            <Typography
+              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
+            >
+              8. Intellectual Property
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+              Sellers must have the right to sell all listed products and use associated trademarks. Any infringement claims will be taken seriously and may result in product removal and account suspension.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+            <Button onClick={() => setPolicyDialogOpen(false)} sx={{ px: 3 }}>
+              Close
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setPolicyAgreed(true);
+                setPolicyDialogOpen(false);
+              }}
+              sx={{ px: 3 }}
+            >
+              I Agree
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Success Dialog */}
+        <Dialog
+          open={successDialogOpen}
+          onClose={handleSuccessDialogClose}
+          maxWidth="sm"
+          fullWidth
+          slotProps={{
+            paper: { sx: { borderRadius: 2, textAlign: 'center' } },
+          }}
+        >
+          <DialogContent sx={{ py: 5, px: 4 }}>
+            <Box
+              sx={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                bgcolor: theme.palette.custom.status.success.light,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3,
+              }}
+            >
+              <CheckCircle sx={{ fontSize: 48, color: theme.palette.custom.status.success.main }} />
+            </Box>
+            <Typography
+              sx={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: theme.palette.custom.neutral[800],
+                mb: 2,
+              }}
+            >
+              Registration Submitted Successfully!
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 15,
+                color: theme.palette.custom.neutral[600],
+                mb: 1,
+              }}
+            >
+              Thank you for registering your shop on Glassify.
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: 15,
+                color: theme.palette.custom.neutral[600],
+                mb: 3,
+              }}
+            >
+              Our team will review your registration and you will receive a notification within the next few days regarding the status of your application.
+            </Typography>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: theme.palette.custom.status.info.light,
+              }}
+            >
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }}>
+                Please check your email <strong>{formData.ownerEmail || 'inbox'}</strong> for updates on your registration status.
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, pt: 0, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              onClick={handleSuccessDialogClose}
+              sx={{ px: 5, py: 1.2 }}
+            >
+              Back to Dashboard
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );
