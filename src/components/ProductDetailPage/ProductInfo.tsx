@@ -1,16 +1,36 @@
 import React, { useState } from 'react';
-import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close } from '@mui/icons-material';
+import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
 import type { Product } from '../../types/product';
 import './ProductInfo.css';
 
 interface ProductInfoProps {
   product: Product;
   onAddToFavorites: () => void;
+  onAddToCart?: (frameOnly: boolean) => void;
 }
 
-const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites }) => {
+const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart }) => {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [showRestrictions, setShowRestrictions] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<string>(
+    product.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Medium'
+  );
+
+  const handleSelectLenses = () => {
+    // TODO: Navigate to lens selection page or open lens configurator
+    console.log('Navigate to lens selection');
+    if (onAddToCart) {
+      onAddToCart(false); // with lenses
+    }
+  };
+
+  const handleAddToCart = () => {
+    // Add frame only to cart
+    console.log('Add frame only to cart');
+    if (onAddToCart) {
+      onAddToCart(true); // frame only
+    }
+  };
 
   return (
     <div className="product-info">
@@ -29,7 +49,19 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites }) 
       </div>
 
       <div className="size-selector">
-        <button className="size-btn active">Medium</button>
+        {product.sizes && product.sizes.length > 0 ? (
+          product.sizes.map((size) => (
+            <button 
+              key={size} 
+              className={`size-btn ${selectedSize === size ? 'active' : ''}`}
+              onClick={() => setSelectedSize(size)}
+            >
+              {size}
+            </button>
+          ))
+        ) : (
+          <button className="size-btn active">Medium</button>
+        )}
         <button className="size-chart-link" onClick={() => setShowSizeChart(true)}>
           <Straighten fontSize="small" /> Size Chart
         </button>
@@ -63,7 +95,22 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites }) 
         <p>Pay over time with PayPal, Affirm or Afterpay. <a href="#">Learn More</a></p>
       </div>
 
-      <button className="select-lenses-btn">Select Lenses</button>
+      <div className="action-buttons">
+        {product.category === 'eyeglasses' ? (
+          <>
+            <button className="select-lenses-btn" onClick={handleSelectLenses}>
+              Select Lenses
+            </button>
+            <button className="add-to-cart-btn-frame" onClick={handleAddToCart}>
+              <ShoppingCart /> Add to Cart (without lenses)
+            </button>
+          </>
+        ) : (
+          <button className="select-lenses-btn" onClick={handleAddToCart}>
+            <ShoppingCart /> Add to Cart
+          </button>
+        )}
+      </div>
       
       <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
         <Favorite /> Add to favorites

@@ -7,7 +7,9 @@ export interface Product {
   rating: number;
   reviewCount: number;
   shape: string;
+  category: 'eyeglasses' | 'sunglasses' | 'sports' | 'kids';
   colors: ProductColor[];
+  sizes?: string[];
   images: string[];
   frameMeasurements: FrameMeasurements;
   frameDetails: FrameDetails;
@@ -22,6 +24,9 @@ export interface ProductColor {
   name: string;
   code: string;
   image?: string;
+  images?: string[];
+  productId: string;
+  variantId: string;
 }
 
 export interface FrameMeasurements {
@@ -54,7 +59,8 @@ export interface PrescriptionDetails {
 export interface RecommendedProduct {
   id: string;
   slug: string;
-  variant: string;
+  productId: string;
+  variantId: string;
   name: string;
   price: number;
   rating: number;

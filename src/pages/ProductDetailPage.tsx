@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
 import ImageGallery from '../components/ProductDetailPage/ImageGallery';
 import ProductInfo from '../components/ProductDetailPage/ProductInfo';
@@ -9,10 +9,34 @@ import type { Product, RecommendedProduct } from '../types/product';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
-  const { slug, variant } = useParams<{ slug: string; variant: string }>();
+  const { slug, productId, variantId } = useParams<{ slug: string; productId: string; variantId: string }>();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<string>(variant || '');
+  const [selectedVariant, setSelectedVariant] = useState<string>(variantId || '');
+
+  // Product variant mapping - maps productId to default variantId
+  const productVariantMap: Record<string, string> = {
+    'PROD001': 'VAR001',
+    'PROD002': 'VAR004',
+    'PROD003': 'VAR006',
+    'PROD004': 'VAR009',
+    'PROD005': 'VAR012',
+    'PROD006': 'VAR014',
+    'PROD007': 'VAR017',
+    'PROD008': 'VAR019',
+  };
+
+  useEffect(() => {
+    // Redirect to first variant if variantId is missing
+    if (!variantId && productId && slug) {
+      const defaultVariantId = productVariantMap[productId];
+      if (defaultVariantId) {
+        navigate(`/product/${slug}/${productId}/${defaultVariantId}`, { replace: true });
+        return;
+      }
+    }
+  }, [slug, productId, variantId, navigate]);
 
   useEffect(() => {
     // TODO: Fetch product data from API using slug and variant
@@ -26,26 +50,60 @@ const ProductDetailPage: React.FC = () => {
       rating: 4.5,
       reviewCount: 831,
       shape: 'Rectangle',
+      category: 'eyeglasses',
+      sizes: ['Large', 'X-Large'],
       colors: [
         { 
           name: 'Black', 
           code: '#000000',
-          image: 'https://placehold.co/600x400/000000/FFFFFF?text=Black+Frame'
+          image: 'https://placehold.co/600x400/000000/FFFFFF?text=Black+Frame',
+          images: [
+            'https://placehold.co/600x400/000000/FFFFFF?text=Black+Front',
+            'https://placehold.co/600x400/1a1a1a/FFFFFF?text=Black+Side',
+            'https://placehold.co/600x400/333333/FFFFFF?text=Black+Top',
+            'https://placehold.co/600x400/4d4d4d/FFFFFF?text=Black+Detail'
+          ],
+          productId: 'PROD001',
+          variantId: 'VAR001'
         },
         { 
           name: 'Tortoise', 
           code: '#8B4513',
-          image: 'https://placehold.co/600x400/8B4513/FFFFFF?text=Tortoise+Frame'
+          image: 'https://placehold.co/600x400/8B4513/FFFFFF?text=Tortoise+Frame',
+          images: [
+            'https://placehold.co/600x400/8B4513/FFFFFF?text=Tortoise+Front',
+            'https://placehold.co/600x400/A0522D/FFFFFF?text=Tortoise+Side',
+            'https://placehold.co/600x400/CD853F/FFFFFF?text=Tortoise+Top',
+            'https://placehold.co/600x400/D2691E/FFFFFF?text=Tortoise+Detail'
+          ],
+          productId: 'PROD001',
+          variantId: 'VAR002'
         },
         { 
           name: 'Navy Blue', 
           code: '#000080',
-          image: 'https://placehold.co/600x400/000080/FFFFFF?text=Navy+Frame'
+          image: 'https://placehold.co/600x400/000080/FFFFFF?text=Navy+Frame',
+          images: [
+            'https://placehold.co/600x400/000080/FFFFFF?text=Navy+Front',
+            'https://placehold.co/600x400/0000CD/FFFFFF?text=Navy+Side',
+            'https://placehold.co/600x400/1E90FF/FFFFFF?text=Navy+Top',
+            'https://placehold.co/600x400/4169E1/FFFFFF?text=Navy+Detail'
+          ],
+          productId: 'PROD001',
+          variantId: 'VAR003'
         },
         { 
           name: 'Gray', 
           code: '#808080',
-          image: 'https://placehold.co/600x400/808080/FFFFFF?text=Gray+Frame'
+          image: 'https://placehold.co/600x400/808080/FFFFFF?text=Gray+Frame',
+          images: [
+            'https://placehold.co/600x400/808080/FFFFFF?text=Gray+Front',
+            'https://placehold.co/600x400/A9A9A9/FFFFFF?text=Gray+Side',
+            'https://placehold.co/600x400/C0C0C0/FFFFFF?text=Gray+Top',
+            'https://placehold.co/600x400/D3D3D3/FFFFFF?text=Gray+Detail'
+          ],
+          productId: 'PROD001',
+          variantId: 'VAR004'
         }
       ],
       images: [
@@ -85,12 +143,21 @@ const ProductDetailPage: React.FC = () => {
 
     setProduct(mockProduct);
 
-    // Mock recommended products with slug and variant
+    // Update images based on selected variant
+    if (variantId && mockProduct.colors) {
+      const selectedColor = mockProduct.colors.find(color => color.variantId === variantId);
+      if (selectedColor && selectedColor.images) {
+        mockProduct.images = selectedColor.images;
+      }
+    }
+
+    // Mock recommended products with slug, productId and variantId
     setRecommendedProducts([
       {
         id: '1',
         slug: 'classic-rectangle-glasses',
-        variant: '3217322',
+        productId: 'PROD001',
+        variantId: 'VAR002',
         name: 'Rectangle Glasses',
         price: 15.95,
         rating: 4.5,
@@ -103,7 +170,8 @@ const ProductDetailPage: React.FC = () => {
       {
         id: '2',
         slug: 'modern-round-glasses',
-        variant: '4328451',
+        productId: 'PROD002',
+        variantId: 'VAR004',
         name: 'Round Glasses',
         price: 18.95,
         rating: 4.7,
@@ -115,8 +183,9 @@ const ProductDetailPage: React.FC = () => {
       },
       {
         id: '3',
-        slug: 'square-frame-glasses',
-        variant: '5439562',
+        slug: 'square-titanium-frames',
+        productId: 'PROD003',
+        variantId: 'VAR006',
         name: 'Square Glasses',
         price: 19.95,
         rating: 4.6,
@@ -128,8 +197,9 @@ const ProductDetailPage: React.FC = () => {
       },
       {
         id: '4',
-        slug: 'retro-cat-eye-glasses',
-        variant: '6540673',
+        slug: 'cat-eye-acetate-glasses',
+        productId: 'PROD004',
+        variantId: 'VAR009',
         name: 'Cat Eye Glasses',
         price: 22.95,
         rating: 4.8,
@@ -142,7 +212,8 @@ const ProductDetailPage: React.FC = () => {
       {
         id: '5',
         slug: 'aviator-metal-glasses',
-        variant: '7651784',
+        productId: 'PROD005',
+        variantId: 'VAR012',
         name: 'Aviator Glasses',
         price: 24.95,
         rating: 4.9,
@@ -153,11 +224,26 @@ const ProductDetailPage: React.FC = () => {
         deliveryDate: 'Fri, Jan 23'
       }
     ]);
-  }, [slug, variant]);
+  }, [slug, productId, variantId]);
 
   const handleAddToFavorites = () => {
     // TODO: Implement add to favorites
     console.log('Added to favorites');
+  };
+
+  const handleColorClick = (color: { productId: string; variantId: string }) => {
+    navigate(`/product/${slug}/${color.productId}/${color.variantId}`);
+  };
+
+  const handleAddToCart = (frameOnly: boolean) => {
+    // TODO: Implement add to cart functionality
+    if (frameOnly) {
+      console.log('Added frame only to cart:', product?.name);
+      alert(`Added ${product?.name} (Frame Only) to cart!`);
+    } else {
+      console.log('Navigate to lens selection');
+      // Navigate to lens selection page
+    }
   };
 
   if (!product) {
@@ -171,28 +257,38 @@ const ProductDetailPage: React.FC = () => {
           <Home fontSize="small" />
         </a>
         <span> › </span>
-        <span>{slug} - {variant}</span>
+        <span>{slug} - {productId} - {variantId}</span>
       </nav>
 
       <div className="product-main">
-        <ImageGallery images={product.images} productName={product.name} />
-        <ProductInfo product={product} onAddToFavorites={handleAddToFavorites} />
-      </div>
-
-      <div className="color-selector-section">
-        <h3>Available Colors</h3>
-        <div className="color-thumbnails">
-          {product.colors.map((color, index) => (
-            <button 
-              key={index} 
-              className={`color-thumbnail ${selectedVariant === color.name ? 'active' : ''}`}
-              onClick={() => setSelectedVariant(color.name)}
-            >
-              <img src={color.image || product.images[0]} alt={color.name} />
-              <span className="color-name">{color.name}</span>
-            </button>
-          ))}
+        <div className="product-preview-column">
+          <ImageGallery 
+            images={product.images} 
+            productName={product.name}
+          />
+          {product.colors && product.colors.length > 0 && (
+            <div className="color-variants-section">
+              <div className="color-variants">
+                {product.colors.map((color, index) => (
+                  <button
+                    key={index}
+                    className={`color-variant-btn ${color.variantId === variantId ? 'active' : ''}`}
+                    onClick={() => handleColorClick(color)}
+                    title={color.name}
+                  >
+                    <img src={color.image || product.images[0]} alt={color.name} />
+                    <span className="variant-label">{color.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+        <ProductInfo 
+          product={product} 
+          onAddToFavorites={handleAddToFavorites}
+          onAddToCart={handleAddToCart}
+        />
       </div>
 
       <ProductDetails product={product} />

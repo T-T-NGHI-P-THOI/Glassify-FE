@@ -65,7 +65,7 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
           {products.map((product) => (
             <Link 
               key={product.id} 
-              to={`/product/${product.slug}/${product.variant}`}
+              to={`/product/${product.slug}/${product.productId}/${product.variantId}`}
               className="product-card"
             >
               <button className="favorite-btn" onClick={(e) => e.preventDefault()}>
