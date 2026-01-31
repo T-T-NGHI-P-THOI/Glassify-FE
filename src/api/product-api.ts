@@ -2,6 +2,20 @@ import api from './axios';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
 
+// Category type from API
+export interface ApiCategory {
+  id: string;
+  parentId: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  iconUrl: string | null;
+  bannerImageUrl: string | null;
+}
+
 // Response type từ API
 export interface ProductApiResponse {
   status: number;
@@ -146,6 +160,18 @@ export default class ProductAPI {
           total: 0
         }
       };
+    }
+  }
+
+  static async getCategories(): Promise<ApiCategory[]> {
+    try {
+      const response = await api.get<{ status: number; message: string; data: ApiCategory[] }>(
+        API_ENDPOINTS.CATEGORIES.GET_ALL
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
     }
   }
 }

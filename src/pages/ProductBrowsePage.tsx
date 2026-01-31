@@ -17,10 +17,10 @@ const ProductBrowsePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
-  const [filterOptions] = useState<FilterOptions>({
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     productTypes: ['EYEGLASSES', 'SUNGLASSES', 'ACCESSORIES'],
-    brands: [], // Will be populated from API if needed
-    categories: [], // Will be populated from API if needed
+    brands: [],
+    categories: [],
     priceRange: { min: 0, max: 500 },
     ratings: [5, 4, 3, 2, 1]
   });
@@ -36,9 +36,44 @@ const ProductBrowsePage: React.FC = () => {
     minRating: searchParams.get('minRating') ? parseInt(searchParams.get('minRating')!) : undefined,
   });
 
+  useEffect(() => {
+    const category = searchParams.get('category');
+    const productType = searchParams.get('productType');
+    const query = searchParams.get('q');
+    
+    // Only update if there are actual params in URL
+    if (category || productType || query) {
+      setActiveFilters(prev => ({
+        ...prev,
+        productType: (productType as ActiveFilters['productType']) || (category === 'Eyeglasses' ? 'EYEGLASSES' : category === 'Sunglasses' ? 'SUNGLASSES' : undefined),
+        searchQuery: query || '',
+        // Don't set categoryIds from category param - it's just for display, not a UUID
+      }));
+    }
+  }, [searchParams]);
+
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categories = await ProductAPI.getCategories();
+        setFilterOptions(prev => ({
+          ...prev,
+          categories: categories
+            .filter(cat => cat.isActive)
+            .map(cat => ({ id: cat.id, name: cat.name }))
+        }));
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
 
   // Fetch products from API with filters
   useEffect(() => {
@@ -141,6 +176,27 @@ const ProductBrowsePage: React.FC = () => {
 
   const handleFilterChange = (newFilters: ActiveFilters) => {
     setActiveFilters(newFilters);
+    
+    // Update URL params to match filters
+    const params = new URLSearchParams();
+    
+    // Convert productType to category name for URL
+    if (newFilters.productType) {
+      const categoryName = newFilters.productType === 'EYEGLASSES' ? 'Eyeglasses' 
+        : newFilters.productType === 'SUNGLASSES' ? 'Sunglasses' 
+        : newFilters.productType;
+      params.set('category', categoryName);
+    }
+    if (newFilters.searchQuery) params.set('q', newFilters.searchQuery);
+    if (newFilters.sortBy && newFilters.sortBy !== 'popular') params.set('sortBy', newFilters.sortBy);
+    if (newFilters.priceMin) params.set('minPrice', newFilters.priceMin.toString());
+    if (newFilters.priceMax) params.set('maxPrice', newFilters.priceMax.toString());
+    if (newFilters.minRating) params.set('minRating', newFilters.minRating.toString());
+    if (newFilters.brandIds && newFilters.brandIds.length > 0) {
+      params.set('brandId', newFilters.brandIds[0]);
+    }
+    
+    setSearchParams(params);
   };
 
   const handleClearFilters = () => {

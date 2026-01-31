@@ -188,19 +188,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               ) : null;
             })}
 
-            {/* Category tags */}
-            {activeFilters.categoryIds?.map(categoryId => {
-              const category = filterOptions.categories.find(c => c.id === categoryId);
-              return category ? (
-                <div key={categoryId} className="filter-tag">
-                  <span>{category.name}</span>
-                  <button onClick={() => handleRemoveCategory(categoryId)} className="filter-tag-remove">
-                    <Close fontSize="small" />
-                  </button>
-                </div>
-              ) : null;
-            })}
-
             {/* Price tag */}
             {(activeFilters.priceMin || activeFilters.priceMax) && (
               <div className="filter-tag">
@@ -219,16 +206,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               <div className="filter-tag">
                 <span>{activeFilters.minRating}+ Stars</span>
                 <button onClick={handleClearRating} className="filter-tag-remove">
-                  <Close fontSize="small" />
-                </button>
-              </div>
-            )}
-
-            {/* Product Type tag */}
-            {activeFilters.productType && (
-              <div className="filter-tag">
-                <span>{activeFilters.productType}</span>
-                <button onClick={() => onFilterChange({ ...activeFilters, productType: undefined })} className="filter-tag-remove">
                   <Close fontSize="small" />
                 </button>
               </div>
@@ -293,33 +270,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
           </div>
         )}
 
-        {/* Category Filter */}
-        {filterOptions.categories.length > 0 && (
-          <div className="filter-section">
-            <button 
-              className="filter-section-header"
-              onClick={() => toggleSection('category')}
-            >
-              <span>Category</span>
-              {expandedSections.category ? <ExpandLess /> : <ExpandMore />}
-            </button>
-            {expandedSections.category && (
-              <div className="filter-options">
-                {filterOptions.categories.map(category => (
-                  <label key={category.id} className="filter-option">
-                    <input
-                      type="checkbox"
-                      checked={activeFilters.categoryIds?.includes(category.id)}
-                      onChange={() => handleCategoryChange(category.id)}
-                    />
-                    <span>{category.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
+        
         {/* Rating Filter */}
         <div className="filter-section">
           <button 
