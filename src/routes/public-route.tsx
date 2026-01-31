@@ -11,6 +11,8 @@ import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
+import Login from "@/pages/auth/Login";
+import AuthPage from "@/pages/auth/Login";
 
 const PublicRoutesComponent = () => {
     return (
@@ -24,32 +26,24 @@ const PublicRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.HOME}
                 element={<MainPage />}
             />
-            
-            {/* <Route
-                path={PAGE_ENDPOINTS.AUTH.LOGIN}
-                element={
-                    <GuestGuard>
-                        <Login />
-                    </GuestGuard>
-                }
-            /> */}
+
             <Route
                 path={PAGE_ENDPOINTS.AUTH.LOGIN}
                 element={
                     <GuestGuard>
-                        <MyForm />
+                        <AuthPage />
                     </GuestGuard>
                 }
             />
 
-            <Route
-                path={PAGE_ENDPOINTS.DASHBOARD}
-                element={
-                    <GuestGuard>
-                        <DashboardPage />
-                    </GuestGuard>
-                }
-            />
+            {/*<Route*/}
+            {/*    path={PAGE_ENDPOINTS.DASHBOARD}*/}
+            {/*    element={*/}
+            {/*        <GuestGuard>*/}
+            {/*            <DashboardPage />*/}
+            {/*        </GuestGuard>*/}
+            {/*    }*/}
+            {/*/>*/}
 
             <Route
                 path={PAGE_ENDPOINTS.TRACKING.DELIVERY}
