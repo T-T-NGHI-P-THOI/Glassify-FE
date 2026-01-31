@@ -20,6 +20,7 @@ export interface ActiveFilters {
   sizes: string[];
   priceMin?: number;
   priceMax?: number;
+  minRating?: number;
   searchQuery?: string;
   sortBy?: 'price-asc' | 'price-desc' | 'rating' | 'newest' | 'popular';
 }

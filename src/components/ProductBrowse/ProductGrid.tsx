@@ -12,11 +12,11 @@ interface ProductGridProps {
 const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites }) => {
   const navigate = useNavigate();
 
-  const handleColorClick = (e: React.MouseEvent<HTMLButtonElement>, slug: string, productId: string, variantId: string) => {
+  const handleColorClick = (e: React.MouseEvent<HTMLButtonElement>, slug: string, sku: string) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Color clicked:', slug, productId, variantId);
-    navigate(`/product/${slug}/${productId}/${variantId}`);
+    console.log('Color clicked:', slug, sku);
+    navigate(`/product/${slug}/${sku}`);
   };
 
   return (
@@ -24,7 +24,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites })
       {products.map(product => (
         <div key={product.id} className="product-grid-card-wrapper">
           <Link 
-            to={`/product/${product.slug}/${product.productId}/${product.variantId}`}
+            to={`/product/${product.slug}/${product.sku}`}
             className="product-grid-card"
           >
             {product.isNew && <span className="badge badge-new">New</span>}
@@ -69,7 +69,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites })
                 key={index}
                 className={`color-dot-grid ${colorVariant.variantId === product.variantId ? 'active' : ''}`}
                 style={{ backgroundColor: colorVariant.colorCode }}
-                onClick={(e) => handleColorClick(e, colorVariant.slug, colorVariant.productId, colorVariant.variantId)}
+                onClick={(e) => handleColorClick(e, colorVariant.slug, product.sku)}
                 title={colorVariant.color}
               />
             ))}

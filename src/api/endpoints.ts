@@ -21,6 +21,12 @@ export const API_ENDPOINTS = {
     CREATE_WITH_CITIZEN_CARD: `${API_ENDPOINT}/account/create-with-citizen-card`,
     UPDATE: (id: string | number) => `${API_ENDPOINT}/account/${id}`,
     DELETE: (id: string | number) => `${API_ENDPOINT}/account/${id}`,
+  },
+  PRODUCTS: {
+    BASE: `${API_ENDPOINT}/products`,
+    GET_ALL: `${API_ENDPOINT}/products`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/products/${id}`,
+    GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/products/slug/${slug}`,
   }
 } as const;
 

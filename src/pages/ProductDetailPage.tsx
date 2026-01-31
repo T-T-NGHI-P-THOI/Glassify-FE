@@ -6,225 +6,116 @@ import ProductInfo from '../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../components/ProductDetailPage/RecommendedProducts';
 import type { Product, RecommendedProduct } from '../types/product';
+import ProductAPI from '../api/product-api';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
-  const { slug, productId, variantId } = useParams<{ slug: string; productId: string; variantId: string }>();
+  const { slug, sku } = useParams<{ slug: string; sku: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<string>(variantId || '');
-
-  // Product variant mapping - maps productId to default variantId
-  const productVariantMap: Record<string, string> = {
-    'PROD001': 'VAR001',
-    'PROD002': 'VAR004',
-    'PROD003': 'VAR006',
-    'PROD004': 'VAR009',
-    'PROD005': 'VAR012',
-    'PROD006': 'VAR014',
-    'PROD007': 'VAR017',
-    'PROD008': 'VAR019',
-  };
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect to first variant if variantId is missing
-    if (!variantId && productId && slug) {
-      const defaultVariantId = productVariantMap[productId];
-      if (defaultVariantId) {
-        navigate(`/product/${slug}/${productId}/${defaultVariantId}`, { replace: true });
-        return;
+    const fetchProduct = async () => {
+      if (!slug) return;
+
+      try {
+        setIsLoading(true);
+        const apiProduct = await ProductAPI.getProductBySlug(slug);
+        
+        // Transform API product to Product format
+        const transformedProduct: Product = {
+          id: apiProduct.id,
+          slug: apiProduct.slug,
+          name: apiProduct.name,
+          sku: apiProduct.sku,
+          price: apiProduct.basePrice,
+          rating: apiProduct.avgRating || 0,
+          reviewCount: apiProduct.reviewCount || 0,
+          shape: 'Rectangle', // Default - update if you have this data
+          category: apiProduct.productType === 'SUNGLASSES' ? 'sunglasses' : 'eyeglasses',
+          colors: [
+            {
+              name: 'Default',
+              code: '#000000',
+              image: 'https://placehold.co/600x400/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name),
+              images: [
+                'https://placehold.co/600x400/000000/FFFFFF?text=Front',
+                'https://placehold.co/600x400/333333/FFFFFF?text=Side',
+                'https://placehold.co/600x400/666666/FFFFFF?text=Top',
+                'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
+              ],
+              productId: apiProduct.id,
+              variantId: apiProduct.variantId || apiProduct.id
+            }
+          ],
+          images: [
+            'https://placehold.co/600x400/000000/FFFFFF?text=Front',
+            'https://placehold.co/600x400/333333/FFFFFF?text=Side',
+            'https://placehold.co/600x400/666666/FFFFFF?text=Top',
+            'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
+          ],
+          frameMeasurements: {
+            frameWidth: { mm: 130, inches: 5.1 },
+            bridge: { mm: 19, inches: 0.7 },
+            lensWidth: { mm: 54, inches: 2.1 },
+            lensHeight: { mm: 33, inches: 1.3 },
+            templeLength: { mm: 145, inches: 5.7 }
+          },
+          frameDetails: {
+            size: 'Medium',
+            sizeRange: '126 - 132 mm / 5.0 - 5.2 in',
+            material: 'Acetate',
+            weight: 'Lightweight',
+            weightGrams: 15,
+            rim: 'Full Rim',
+            shape: 'Rectangle'
+          },
+          prescriptionDetails: {
+            pdRange: '62 - 79 mm',
+            prescriptionRange: '-16.00 - +9.00',
+            progressive: true,
+            bifocal: true,
+            readers: false
+          },
+          description: apiProduct.description,
+          features: ['Nose Pads', 'Lightweight'],
+          deliveryDate: 'Fri, Jan 23'
+        };
+
+        setProduct(transformedProduct);
+
+        // Fetch recommended products
+        const allProducts = await ProductAPI.getAllProducts();
+        const recommended: RecommendedProduct[] = allProducts
+          .filter(p => p.slug !== slug)
+          .slice(0, 5)
+          .map(p => ({
+            id: p.id,
+            slug: p.slug,
+            productId: p.id,
+            variantId: p.variantId || p.id,
+            name: p.name,
+            price: p.basePrice / 1000,
+            rating: p.avgRating || 0,
+            reviewCount: p.reviewCount || 0,
+            shape: 'Rectangle',
+            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
+            colors: ['#000000'],
+            deliveryDate: 'Fri, Jan 23'
+          }));
+
+        setRecommendedProducts(recommended);
+      } catch (error) {
+        console.error('Error fetching product:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [slug, productId, variantId, navigate]);
-
-  useEffect(() => {
-    // TODO: Fetch product data from API using slug and variant
-    // Mock data for now with placeholder images
-    const mockProduct: Product = {
-      id: '32173',
-      slug: 'black-rectangle-glasses',
-      name: 'Black Rectangle Glasses #3217321',
-      sku: '3217321',
-      price: 15.95,
-      rating: 4.5,
-      reviewCount: 831,
-      shape: 'Rectangle',
-      category: 'eyeglasses',
-      sizes: ['Large', 'X-Large'],
-      colors: [
-        { 
-          name: 'Black', 
-          code: '#000000',
-          image: 'https://placehold.co/600x400/000000/FFFFFF?text=Black+Frame',
-          images: [
-            'https://placehold.co/600x400/000000/FFFFFF?text=Black+Front',
-            'https://placehold.co/600x400/1a1a1a/FFFFFF?text=Black+Side',
-            'https://placehold.co/600x400/333333/FFFFFF?text=Black+Top',
-            'https://placehold.co/600x400/4d4d4d/FFFFFF?text=Black+Detail'
-          ],
-          productId: 'PROD001',
-          variantId: 'VAR001'
-        },
-        { 
-          name: 'Tortoise', 
-          code: '#8B4513',
-          image: 'https://placehold.co/600x400/8B4513/FFFFFF?text=Tortoise+Frame',
-          images: [
-            'https://placehold.co/600x400/8B4513/FFFFFF?text=Tortoise+Front',
-            'https://placehold.co/600x400/A0522D/FFFFFF?text=Tortoise+Side',
-            'https://placehold.co/600x400/CD853F/FFFFFF?text=Tortoise+Top',
-            'https://placehold.co/600x400/D2691E/FFFFFF?text=Tortoise+Detail'
-          ],
-          productId: 'PROD001',
-          variantId: 'VAR002'
-        },
-        { 
-          name: 'Navy Blue', 
-          code: '#000080',
-          image: 'https://placehold.co/600x400/000080/FFFFFF?text=Navy+Frame',
-          images: [
-            'https://placehold.co/600x400/000080/FFFFFF?text=Navy+Front',
-            'https://placehold.co/600x400/0000CD/FFFFFF?text=Navy+Side',
-            'https://placehold.co/600x400/1E90FF/FFFFFF?text=Navy+Top',
-            'https://placehold.co/600x400/4169E1/FFFFFF?text=Navy+Detail'
-          ],
-          productId: 'PROD001',
-          variantId: 'VAR003'
-        },
-        { 
-          name: 'Gray', 
-          code: '#808080',
-          image: 'https://placehold.co/600x400/808080/FFFFFF?text=Gray+Frame',
-          images: [
-            'https://placehold.co/600x400/808080/FFFFFF?text=Gray+Front',
-            'https://placehold.co/600x400/A9A9A9/FFFFFF?text=Gray+Side',
-            'https://placehold.co/600x400/C0C0C0/FFFFFF?text=Gray+Top',
-            'https://placehold.co/600x400/D3D3D3/FFFFFF?text=Gray+Detail'
-          ],
-          productId: 'PROD001',
-          variantId: 'VAR004'
-        }
-      ],
-      images: [
-        'https://placehold.co/600x400/000000/FFFFFF?text=Front+View',
-        'https://placehold.co/600x400/333333/FFFFFF?text=Side+View',
-        'https://placehold.co/600x400/666666/FFFFFF?text=Top+View',
-        'https://placehold.co/600x400/999999/FFFFFF?text=Detail+View'
-      ],
-      frameMeasurements: {
-        frameWidth: { mm: 130, inches: 5.1 },
-        bridge: { mm: 19, inches: 0.7 },
-        lensWidth: { mm: 54, inches: 2.1 },
-        lensHeight: { mm: 33, inches: 1.3 },
-        templeLength: { mm: 145, inches: 5.7 }
-      },
-      frameDetails: {
-        size: 'Medium',
-        sizeRange: '126 - 132 mm / 5.0 - 5.2 in',
-        material: 'Stainless Steel',
-        weight: 'Lightweight',
-        weightGrams: 13,
-        rim: 'Half Rim',
-        shape: 'Rectangle'
-      },
-      prescriptionDetails: {
-        pdRange: '62 - 79 mm',
-        pdRangeNote: 'Additional cost for PDs outside this range',
-        prescriptionRange: '-16.00 - +9.00',
-        progressive: true,
-        bifocal: true,
-        readers: false
-      },
-      description: 'Discover the perfect blend of style and functionality with our Black Rectangle Glasses. Designed for the modern individual, these frames offer exceptional comfort and durability for everyday wear.',
-      features: ['Nose Pads', 'Lightweight'],
-      deliveryDate: 'Fri, Jan 23'
     };
 
-    setProduct(mockProduct);
-
-    // Update images based on selected variant
-    if (variantId && mockProduct.colors) {
-      const selectedColor = mockProduct.colors.find(color => color.variantId === variantId);
-      if (selectedColor && selectedColor.images) {
-        mockProduct.images = selectedColor.images;
-      }
-    }
-
-    // Mock recommended products with slug, productId and variantId
-    setRecommendedProducts([
-      {
-        id: '1',
-        slug: 'classic-rectangle-glasses',
-        productId: 'PROD001',
-        variantId: 'VAR002',
-        name: 'Rectangle Glasses',
-        price: 15.95,
-        rating: 4.5,
-        reviewCount: 760,
-        shape: 'Rectangle',
-        image: 'https://placehold.co/300x200/FF6B6B/FFFFFF?text=Product+1',
-        colors: ['#000000', '#8B4513'],
-        deliveryDate: 'Fri, Jan 23'
-      },
-      {
-        id: '2',
-        slug: 'modern-round-glasses',
-        productId: 'PROD002',
-        variantId: 'VAR004',
-        name: 'Round Glasses',
-        price: 18.95,
-        rating: 4.7,
-        reviewCount: 523,
-        shape: 'Round',
-        image: 'https://placehold.co/300x200/4ECDC4/FFFFFF?text=Product+2',
-        colors: ['#000000', '#C0C0C0'],
-        deliveryDate: 'Mon, Jan 26'
-      },
-      {
-        id: '3',
-        slug: 'square-titanium-frames',
-        productId: 'PROD003',
-        variantId: 'VAR006',
-        name: 'Square Glasses',
-        price: 19.95,
-        rating: 4.6,
-        reviewCount: 892,
-        shape: 'Square',
-        image: 'https://placehold.co/300x200/95E1D3/FFFFFF?text=Product+3',
-        colors: ['#000000', '#FFD700'],
-        deliveryDate: 'Fri, Jan 23'
-      },
-      {
-        id: '4',
-        slug: 'cat-eye-acetate-glasses',
-        productId: 'PROD004',
-        variantId: 'VAR009',
-        name: 'Cat Eye Glasses',
-        price: 22.95,
-        rating: 4.8,
-        reviewCount: 645,
-        shape: 'Cat Eye',
-        image: 'https://placehold.co/300x200/F38181/FFFFFF?text=Product+4',
-        colors: ['#8B4513', '#000000'],
-        deliveryDate: 'Tue, Jan 27'
-      },
-      {
-        id: '5',
-        slug: 'aviator-metal-glasses',
-        productId: 'PROD005',
-        variantId: 'VAR012',
-        name: 'Aviator Glasses',
-        price: 24.95,
-        rating: 4.9,
-        reviewCount: 1024,
-        shape: 'Aviator',
-        image: 'https://placehold.co/300x200/AA96DA/FFFFFF?text=Product+5',
-        colors: ['#C0C0C0', '#FFD700'],
-        deliveryDate: 'Fri, Jan 23'
-      }
-    ]);
-  }, [slug, productId, variantId]);
+    fetchProduct();
+  }, [slug, sku]);
 
   const handleAddToFavorites = () => {
     // TODO: Implement add to favorites
@@ -232,7 +123,8 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleColorClick = (color: { productId: string; variantId: string }) => {
-    navigate(`/product/${slug}/${color.productId}/${color.variantId}`);
+    // Navigate with slug and sku
+    navigate(`/product/${product?.slug}/${product?.sku || 'default'}`);
   };
 
   const handleAddToCart = (frameOnly: boolean) => {
@@ -246,7 +138,7 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  if (!product) {
+  if (!product || isLoading) {
     return <div className="loading">Loading...</div>;
   }
 
@@ -257,7 +149,7 @@ const ProductDetailPage: React.FC = () => {
           <Home fontSize="small" />
         </a>
         <span> › </span>
-        <span>{slug} - {productId} - {variantId}</span>
+        <span>{product.name} - SKU: {sku}</span>
       </nav>
 
       <div className="product-main">
@@ -272,7 +164,7 @@ const ProductDetailPage: React.FC = () => {
                 {product.colors.map((color, index) => (
                   <button
                     key={index}
-                    className={`color-variant-btn ${color.variantId === variantId ? 'active' : ''}`}
+                    className={`color-variant-btn ${color.variantId === product.id ? 'active' : ''}`}
                     onClick={() => handleColorClick(color)}
                     title={color.name}
                   >

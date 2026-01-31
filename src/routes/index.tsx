@@ -11,7 +11,7 @@ const RouteComponent = () => {
             {PrivateRoutesComponent()}
             <Route path="/products" element={<ProductBrowsePage />} />
             <Route path="/products/:category" element={<ProductBrowsePage />} />
-            <Route path="/product/:slug/:productId/:variantId?" element={<ProductDetailPage />} />
+            <Route path="/product/:slug/:sku" element={<ProductDetailPage />} />
         </Routes>
     )
 }
