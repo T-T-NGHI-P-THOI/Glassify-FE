@@ -1,4 +1,4 @@
-import api from './axios';
+import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
 

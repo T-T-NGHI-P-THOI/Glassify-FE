@@ -7,50 +7,52 @@ import {
 } from '@mui/material';
 import { CustomButton, CustomProductCarousel, CustomFeatureCarousel } from '../components/custom';
 import { Visibility, LocalShipping, Favorite, Loop } from '@mui/icons-material';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ProductAPI from '../api/product-api';
 
 import EmblaCarousel from '../components/custom/CustomEmblaCarousel'
 import type { EmblaOptionsType } from 'embla-carousel';
 
 const MainPage = () => {
+  const navigate = useNavigate();
+  const [bestSellerProducts, setBestSellerProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const bestSellerProducts = [
-    {
-      id: 1,
-      title: 'Bravo Browline',
-      price: '$15.95',
-      rating: 4.5,
-      reviews: '4K+',
-      shape: 'Bravo Browline',
-      image: 'https://picsum.photos/seed/glasses1/280/180',
-    },
-    {
-      id: 2,
-      title: 'Square Featherlite',
-      price: '$17.95',
-      rating: 4.5,
-      reviews: '2K+',
-      shape: 'Square',
-      image: 'https://picsum.photos/seed/glasses2/280/180',
-    },
-    {
-      id: 3,
-      title: 'Square Tortoiseshell',
-      price: '$27.95',
-      rating: 4.5,
-      reviews: '348',
-      shape: 'Square',
-      image: 'https://picsum.photos/seed/glasses3/280/180',
-    },
-    {
-      id: 4,
-      title: 'Square Clear Frame',
-      price: '$12.95',
-      rating: 4.6,
-      reviews: '3K+',
-      shape: 'Square',
-      image: 'https://picsum.photos/seed/glasses4/280/180',
-    },
-  ];
+  // Fetch best seller products from API
+  useEffect(() => {
+    const fetchBestSellers = async () => {
+      try {
+        setIsLoading(true);
+        const products = await ProductAPI.getAllProducts({
+          sortBy: 'soldCount',
+          sortDirection: 'DESC',
+          unitPerPage: 8,
+          page: 0
+        });
+
+        // Transform API products to carousel format
+        const transformedProducts = products.map((product) => ({
+          id: product.id,
+          title: product.name,
+          price: `$${product.basePrice.toFixed(2)}`,
+          rating: product.avgRating || 0,
+          reviews: product.reviewCount > 1000 ? `${Math.floor(product.reviewCount / 1000)}K+` : product.reviewCount.toString(),
+          shape: product.productType,
+          image: `https://placehold.co/280x180/000000/FFFFFF?text=${encodeURIComponent(product.name)}`,
+          slug: product.slug,
+        }));
+
+        setBestSellerProducts(transformedProducts);
+      } catch (error) {
+        console.error('Error fetching best sellers:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBestSellers();
+  }, []);
 
   const collections = [
     {
@@ -202,12 +204,22 @@ const MainPage = () => {
             >
               BEST SELLERS
             </Typography>
-            <CustomButton variant="contained" color="primary">
+            <CustomButton variant="contained" color="primary" onClick={() => navigate('/products')}>
               Shop all
             </CustomButton>
           </Box>
 
-          <CustomProductCarousel slides={bestSellerProducts} options={PRODUCT_OPTIONS} />
+          {isLoading ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>Loading products...</Typography>
+            </Box>
+          ) : bestSellerProducts.length > 0 ? (
+            <CustomProductCarousel slides={bestSellerProducts} options={PRODUCT_OPTIONS} />
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>No products available</Typography>
+            </Box>
+          )}
         </Container>
       </Box>
 
