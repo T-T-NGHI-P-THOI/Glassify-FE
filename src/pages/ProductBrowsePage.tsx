@@ -18,25 +18,22 @@ const ProductBrowsePage: React.FC = () => {
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions] = useState<FilterOptions>({
-    categories: ['Eyeglasses', 'Sunglasses', 'Reading Glasses', 'Blue Light Glasses'],
-    shapes: ['Rectangle', 'Round', 'Square', 'Cat Eye', 'Aviator', 'Oval', 'Browline'],
-    materials: ['Acetate', 'Metal', 'Titanium', 'Stainless Steel', 'Plastic', 'TR90'],
-    colors: ['Black', 'Brown', 'Tortoise', 'Blue', 'Navy', 'Gray', 'Silver', 'Gold', 'Clear'],
-    rimTypes: ['Full Rim', 'Half Rim', 'Rimless'],
-    sizes: ['Extra Small', 'Small', 'Medium', 'Large', 'Extra Large'],
-    priceRange: { min: 0, max: 200 }
+    productTypes: ['EYEGLASSES', 'SUNGLASSES', 'ACCESSORIES'],
+    brands: [], // Will be populated from API if needed
+    categories: [], // Will be populated from API if needed
+    priceRange: { min: 0, max: 500 },
+    ratings: [5, 4, 3, 2, 1]
   });
 
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-    category: searchParams.get('category') || undefined,
-    shapes: searchParams.get('shape') ? [searchParams.get('shape')!] : [],
-    materials: [],
-    colors: searchParams.get('color') ? [searchParams.get('color')!] : [],
-    rimTypes: [],
-    sizes: searchParams.get('size') ? [searchParams.get('size')!] : [],
+    productType: searchParams.get('productType') as ActiveFilters['productType'] || undefined,
+    brandIds: searchParams.get('brandId') ? [searchParams.get('brandId')!] : [],
+    categoryIds: searchParams.get('categoryId') ? [searchParams.get('categoryId')!] : [],
     searchQuery: searchParams.get('q') || '',
     sortBy: (searchParams.get('sortBy') as ActiveFilters['sortBy']) || 'popular',
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
+    priceMin: searchParams.get('minPrice') ? parseInt(searchParams.get('minPrice')!) : undefined,
+    minRating: searchParams.get('minRating') ? parseInt(searchParams.get('minRating')!) : undefined,
   });
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -52,11 +49,15 @@ const ProductBrowsePage: React.FC = () => {
         // Build filter params from activeFilters
         const filterParams: ProductFilterParams = {
           search: activeFilters.searchQuery || undefined,
-          minPrice: activeFilters.priceMin ? activeFilters.priceMin : undefined,
-          maxPrice: activeFilters.priceMax ? activeFilters.priceMax : undefined,
-          isActive: true, // Only show active products
+          minPrice: activeFilters.priceMin || undefined,
+          maxPrice: activeFilters.priceMax || undefined,
+          isActive: true,
           minRating: activeFilters.minRating || undefined,
-          productType: activeFilters.category ? mapCategoryToProductType(activeFilters.category) : undefined,
+          productType: activeFilters.productType,
+          brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
+          categoryId: activeFilters.categoryIds.length > 0 ? activeFilters.categoryIds[0] : undefined,
+          isFeatured: activeFilters.isFeatured,
+          isReturnable: activeFilters.isReturnable,
         };
 
         // Map sortBy to API params
@@ -96,18 +97,17 @@ const ProductBrowsePage: React.FC = () => {
           variantId: product.variantId || product.id,
           name: product.name,
           sku: product.sku,
-          price: product.basePrice, 
+          price: product.basePrice,
           rating: product.avgRating || 0,
           reviewCount: product.reviewCount || 0,
-          shape: 'Rectangle', // Default value - update if you have this data
-          material: 'Acetate', // Default value - update if you have this data
-          color: 'Black', // Default value - update if you have this data
-          rimType: 'Full Rim', // Default value - update if you have this data
-          size: 'Medium', // Default value - update if you have this data
+          productType: product.productType,
           image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(product.name),
           colorVariants: [],
-          isBestSeller: product.isFeatured,
-          isNew: false
+          isFeatured: product.isFeatured,
+          isNew: false,
+          stockQuantity: product.stockQuantity,
+          brandId: product.brandId,
+          categoryId: product.categoryId
         }));
 
         setProducts(transformedProducts);
@@ -120,39 +120,24 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.category]);
+  }, [
+    activeFilters.searchQuery, 
+    activeFilters.priceMin, 
+    activeFilters.priceMax, 
+    activeFilters.sortBy, 
+    activeFilters.minRating, 
+    activeFilters.productType, 
+    JSON.stringify(activeFilters.brandIds), 
+    JSON.stringify(activeFilters.categoryIds), 
+    activeFilters.isFeatured, 
+    activeFilters.isReturnable,
+    activeFilters.inStock
+  ]);
 
-  // Apply client-side filters for attributes not supported by backend
+  // No client-side filtering needed - all filtering done by API
   useEffect(() => {
-    let filtered = [...products];
-
-    // Shape filter (client-side only)
-    if (activeFilters.shapes.length > 0) {
-      filtered = filtered.filter(p => activeFilters.shapes.includes(p.shape));
-    }
-
-    // Material filter (client-side only)
-    if (activeFilters.materials.length > 0) {
-      filtered = filtered.filter(p => activeFilters.materials.includes(p.material));
-    }
-
-    // Color filter (client-side only)
-    if (activeFilters.colors.length > 0) {
-      filtered = filtered.filter(p => activeFilters.colors.includes(p.color));
-    }
-
-    // Rim type filter (client-side only)
-    if (activeFilters.rimTypes.length > 0) {
-      filtered = filtered.filter(p => activeFilters.rimTypes.includes(p.rimType));
-    }
-
-    // Size filter (client-side only)
-    if (activeFilters.sizes.length > 0) {
-      filtered = filtered.filter(p => activeFilters.sizes.includes(p.size));
-    }
-
-    setFilteredProducts(filtered);
-  }, [products, activeFilters.shapes, activeFilters.materials, activeFilters.colors, activeFilters.rimTypes, activeFilters.sizes]);
+    setFilteredProducts(products);
+  }, [products]);
 
   const handleFilterChange = (newFilters: ActiveFilters) => {
     setActiveFilters(newFilters);
@@ -160,12 +145,9 @@ const ProductBrowsePage: React.FC = () => {
 
   const handleClearFilters = () => {
     setActiveFilters({
-      category: undefined,
-      shapes: [],
-      materials: [],
-      colors: [],
-      rimTypes: [],
-      sizes: [],
+      productType: undefined,
+      brandIds: [],
+      categoryIds: [],
       searchQuery: '',
       sortBy: 'popular'
     });
@@ -185,26 +167,20 @@ const ProductBrowsePage: React.FC = () => {
     setActiveFilters(prev => ({ ...prev, sortBy }));
   };
 
-  const handleCategoryClick = (category: string | undefined) => {
-    setActiveFilters(prev => ({ ...prev, category }));
-    if (category) {
-      setSearchParams({ category });
+  const handleProductTypeClick = (productType: ActiveFilters['productType']) => {
+    const newFilters = { 
+      ...activeFilters, 
+      productType 
+    };
+    setActiveFilters(newFilters);
+    
+    if (productType) {
+      setSearchParams({ productType });
     } else {
       const params = new URLSearchParams(searchParams);
-      params.delete('category');
+      params.delete('productType');
       setSearchParams(params);
     }
-  };
-
-  // Map category name to API productType
-  const mapCategoryToProductType = (category: string): 'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES' | undefined => {
-    const categoryMap: Record<string, 'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES'> = {
-      'Eyeglasses': 'EYEGLASSES',
-      'Sunglasses': 'SUNGLASSES',
-      'Reading Glasses': 'EYEGLASSES',
-      'Blue Light Glasses': 'EYEGLASSES',
-    };
-    return categoryMap[category];
   };
 
   return (
@@ -229,27 +205,6 @@ const ProductBrowsePage: React.FC = () => {
         </aside>
 
         <main className="browse-main">
-          {/* Category Filter Buttons */}
-          <div className="category-filter-section">
-            {filterOptions.categories.map((category) => (
-              <button
-                key={category}
-                className={`category-filter-btn ${activeFilters.category === category ? 'active' : ''}`}
-                onClick={() => handleCategoryClick(category)}
-              >
-                {category}
-              </button>
-            ))}
-            {activeFilters.category && (
-              <button
-                className="category-filter-btn clear"
-                onClick={() => handleCategoryClick(undefined)}
-              >
-                Clear Category
-              </button>
-            )}
-          </div>
-
           <div className="browse-header">
             <div className="browse-search">
               <Search className="search-icon" />
@@ -304,7 +259,9 @@ const ProductBrowsePage: React.FC = () => {
 
           <div className="browse-results-info">
             <h1 className="results-title">
-              {activeFilters.category || 'All Eyeglasses'}
+              {activeFilters.productType 
+                ? `All ${activeFilters.productType.charAt(0) + activeFilters.productType.slice(1).toLowerCase()}`
+                : 'All Products'}
             </h1>
             <p className="results-count">
               Showing {filteredProducts.length} of {products.length} products
@@ -319,6 +276,7 @@ const ProductBrowsePage: React.FC = () => {
             <ProductGrid 
               products={filteredProducts}
               onAddToFavorites={(id) => console.log('Add to favorites:', id)}
+              viewMode={viewMode}
             />
           ) : (
             <div className="no-results">

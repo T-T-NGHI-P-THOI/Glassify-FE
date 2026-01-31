@@ -2,8 +2,9 @@ import React from 'react';
 import { 
   ExpandMore, 
   ExpandLess, 
-  Close 
+  Close
 } from '@mui/icons-material';
+import MuiSlider from '@mui/material/Slider';
 import type { FilterOptions, ActiveFilters } from '../../types/filter';
 import './FilterSidebar.css';
 
@@ -25,13 +26,25 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   onMobileClose
 }) => {
   const [expandedSections, setExpandedSections] = React.useState<{[key: string]: boolean}>({
-    shape: true,
-    material: true,
-    color: true,
-    rimType: true,
-    size: true,
-    price: true
+    brand: true,
+    category: true,
+    price: true,
+    rating: true,
+    features: true
   });
+
+  const [priceRange, setPriceRange] = React.useState<number[]>([
+    activeFilters.priceMin ?? filterOptions.priceRange.min,
+    activeFilters.priceMax ?? filterOptions.priceRange.max
+  ]);
+
+  // Update local state when activeFilters change
+  React.useEffect(() => {
+    setPriceRange([
+      activeFilters.priceMin ?? filterOptions.priceRange.min,
+      activeFilters.priceMax ?? filterOptions.priceRange.max
+    ]);
+  }, [activeFilters.priceMin, activeFilters.priceMax, filterOptions.priceRange]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -40,15 +53,27 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     }));
   };
 
-  const handleCheckboxChange = (filterType: keyof ActiveFilters, value: string) => {
-    const currentValues = activeFilters[filterType] as string[] || [];
-    const newValues = currentValues.includes(value)
-      ? currentValues.filter(v => v !== value)
-      : [...currentValues, value];
+  const handleBrandChange = (brandId: string) => {
+    const currentBrands = activeFilters.brandIds || [];
+    const newBrands = currentBrands.includes(brandId)
+      ? currentBrands.filter(id => id !== brandId)
+      : [...currentBrands, brandId];
     
     onFilterChange({
       ...activeFilters,
-      [filterType]: newValues
+      brandIds: newBrands
+    });
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    const currentCategories = activeFilters.categoryIds || [];
+    const newCategories = currentCategories.includes(categoryId)
+      ? currentCategories.filter(id => id !== categoryId)
+      : [...currentCategories, categoryId];
+    
+    onFilterChange({
+      ...activeFilters,
+      categoryIds: newCategories
     });
   };
 
@@ -60,14 +85,61 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     });
   };
 
+  const handleSliderChange = (event: Event, newValue: number | number[]) => {
+    setPriceRange(newValue as number[]);
+  };
+
+  const handleSliderCommitted = (event: Event | React.SyntheticEvent, newValue: number | number[]) => {
+    const [min, max] = newValue as number[];
+    onFilterChange({
+      ...activeFilters,
+      priceMin: min === filterOptions.priceRange.min ? undefined : min,
+      priceMax: max === filterOptions.priceRange.max ? undefined : max
+    });
+  };
+
+  const handleRatingChange = (rating: number) => {
+    onFilterChange({
+      ...activeFilters,
+      minRating: activeFilters.minRating === rating ? undefined : rating
+    });
+  };
+
+  const handleFeatureToggle = (feature: 'isFeatured' | 'isReturnable' | 'inStock') => {
+    const currentValue = activeFilters[feature];
+    onFilterChange({
+      ...activeFilters,
+      [feature]: currentValue ? undefined : true
+    });
+  };
+
+  const handleRemoveBrand = (brandId: string) => {
+    const newBrands = activeFilters.brandIds?.filter(id => id !== brandId) || [];
+    onFilterChange({ ...activeFilters, brandIds: newBrands });
+  };
+
+  const handleRemoveCategory = (categoryId: string) => {
+    const newCategories = activeFilters.categoryIds?.filter(id => id !== categoryId) || [];
+    onFilterChange({ ...activeFilters, categoryIds: newCategories });
+  };
+
+  const handleClearPrice = () => {
+    onFilterChange({ ...activeFilters, priceMin: undefined, priceMax: undefined });
+  };
+
+  const handleClearRating = () => {
+    onFilterChange({ ...activeFilters, minRating: undefined });
+  };
+
   const getActiveFiltersCount = () => {
     let count = 0;
-    if (activeFilters.shapes.length) count += activeFilters.shapes.length;
-    if (activeFilters.materials.length) count += activeFilters.materials.length;
-    if (activeFilters.colors.length) count += activeFilters.colors.length;
-    if (activeFilters.rimTypes.length) count += activeFilters.rimTypes.length;
-    if (activeFilters.sizes.length) count += activeFilters.sizes.length;
+    if (activeFilters.brandIds?.length) count += activeFilters.brandIds.length;
+    if (activeFilters.categoryIds?.length) count += activeFilters.categoryIds.length;
     if (activeFilters.priceMin || activeFilters.priceMax) count++;
+    if (activeFilters.minRating) count++;
+    if (activeFilters.isFeatured) count++;
+    if (activeFilters.isReturnable) count++;
+    if (activeFilters.inStock) count++;
     return count;
   };
 
@@ -96,134 +168,219 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         </div>
       </div>
 
+      {/* Active Filters Tags */}
+      {activeCount > 0 && (
+        <div className="active-filters-section">
+          <div className="active-filters-header">
+            <span className="active-filters-title">Active Filters:</span>
+          </div>
+          <div className="active-filters-tags">
+            {/* Brand tags */}
+            {activeFilters.brandIds?.map(brandId => {
+              const brand = filterOptions.brands.find(b => b.id === brandId);
+              return brand ? (
+                <div key={brandId} className="filter-tag">
+                  <span>{brand.name}</span>
+                  <button onClick={() => handleRemoveBrand(brandId)} className="filter-tag-remove">
+                    <Close fontSize="small" />
+                  </button>
+                </div>
+              ) : null;
+            })}
+
+            {/* Category tags */}
+            {activeFilters.categoryIds?.map(categoryId => {
+              const category = filterOptions.categories.find(c => c.id === categoryId);
+              return category ? (
+                <div key={categoryId} className="filter-tag">
+                  <span>{category.name}</span>
+                  <button onClick={() => handleRemoveCategory(categoryId)} className="filter-tag-remove">
+                    <Close fontSize="small" />
+                  </button>
+                </div>
+              ) : null;
+            })}
+
+            {/* Price tag */}
+            {(activeFilters.priceMin || activeFilters.priceMax) && (
+              <div className="filter-tag">
+                <span>
+                  ${activeFilters.priceMin ?? filterOptions.priceRange.min} - 
+                  ${activeFilters.priceMax ?? filterOptions.priceRange.max}
+                </span>
+                <button onClick={handleClearPrice} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+
+            {/* Rating tag */}
+            {activeFilters.minRating && (
+              <div className="filter-tag">
+                <span>{activeFilters.minRating}+ Stars</span>
+                <button onClick={handleClearRating} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+
+            {/* Product Type tag */}
+            {activeFilters.productType && (
+              <div className="filter-tag">
+                <span>{activeFilters.productType}</span>
+                <button onClick={() => onFilterChange({ ...activeFilters, productType: undefined })} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+
+            {/* Feature tags */}
+            {activeFilters.isFeatured && (
+              <div className="filter-tag">
+                <span>Featured</span>
+                <button onClick={() => handleFeatureToggle('isFeatured')} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+
+            {activeFilters.isReturnable && (
+              <div className="filter-tag">
+                <span>Returnable</span>
+                <button onClick={() => handleFeatureToggle('isReturnable')} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+
+            {activeFilters.inStock && (
+              <div className="filter-tag">
+                <span>In Stock</span>
+                <button onClick={() => handleFeatureToggle('inStock')} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="filter-content">
-        {/* Shape Filter */}
+        {/* Brand Filter */}
+        {filterOptions.brands.length > 0 && (
+          <div className="filter-section">
+            <button 
+              className="filter-section-header"
+              onClick={() => toggleSection('brand')}
+            >
+              <span>Brand</span>
+              {expandedSections.brand ? <ExpandLess /> : <ExpandMore />}
+            </button>
+            {expandedSections.brand && (
+              <div className="filter-options">
+                {filterOptions.brands.map(brand => (
+                  <label key={brand.id} className="filter-option">
+                    <input
+                      type="checkbox"
+                      checked={activeFilters.brandIds?.includes(brand.id)}
+                      onChange={() => handleBrandChange(brand.id)}
+                    />
+                    <span>{brand.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Category Filter */}
+        {filterOptions.categories.length > 0 && (
+          <div className="filter-section">
+            <button 
+              className="filter-section-header"
+              onClick={() => toggleSection('category')}
+            >
+              <span>Category</span>
+              {expandedSections.category ? <ExpandLess /> : <ExpandMore />}
+            </button>
+            {expandedSections.category && (
+              <div className="filter-options">
+                {filterOptions.categories.map(category => (
+                  <label key={category.id} className="filter-option">
+                    <input
+                      type="checkbox"
+                      checked={activeFilters.categoryIds?.includes(category.id)}
+                      onChange={() => handleCategoryChange(category.id)}
+                    />
+                    <span>{category.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Rating Filter */}
         <div className="filter-section">
           <button 
             className="filter-section-header"
-            onClick={() => toggleSection('shape')}
+            onClick={() => toggleSection('rating')}
           >
-            <span>Frame Shape</span>
-            {expandedSections.shape ? <ExpandLess /> : <ExpandMore />}
+            <span>Minimum Rating</span>
+            {expandedSections.rating ? <ExpandLess /> : <ExpandMore />}
           </button>
-          {expandedSections.shape && (
+          {expandedSections.rating && (
             <div className="filter-options">
-              {filterOptions.shapes.map(shape => (
-                <label key={shape} className="filter-option">
+              {filterOptions.ratings.map(rating => (
+                <label key={rating} className="filter-option">
                   <input
-                    type="checkbox"
-                    checked={activeFilters.shapes.includes(shape)}
-                    onChange={() => handleCheckboxChange('shapes', shape)}
+                    type="radio"
+                    name="rating"
+                    checked={activeFilters.minRating === rating}
+                    onChange={() => handleRatingChange(rating)}
                   />
-                  <span>{shape}</span>
+                  <span>{rating}+ Stars</span>
                 </label>
               ))}
             </div>
           )}
         </div>
 
-        {/* Material Filter */}
+        {/* Features Filter */}
         <div className="filter-section">
           <button 
             className="filter-section-header"
-            onClick={() => toggleSection('material')}
+            onClick={() => toggleSection('features')}
           >
-            <span>Material</span>
-            {expandedSections.material ? <ExpandLess /> : <ExpandMore />}
+            <span>Features</span>
+            {expandedSections.features ? <ExpandLess /> : <ExpandMore />}
           </button>
-          {expandedSections.material && (
+          {expandedSections.features && (
             <div className="filter-options">
-              {filterOptions.materials.map(material => (
-                <label key={material} className="filter-option">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.materials.includes(material)}
-                    onChange={() => handleCheckboxChange('materials', material)}
-                  />
-                  <span>{material}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Color Filter */}
-        <div className="filter-section">
-          <button 
-            className="filter-section-header"
-            onClick={() => toggleSection('color')}
-          >
-            <span>Color</span>
-            {expandedSections.color ? <ExpandLess /> : <ExpandMore />}
-          </button>
-          {expandedSections.color && (
-            <div className="filter-options">
-              {filterOptions.colors.map(color => (
-                <label key={color} className="filter-option">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.colors.includes(color)}
-                    onChange={() => handleCheckboxChange('colors', color)}
-                  />
-                  <span className="color-option">
-                    <span 
-                      className="color-swatch" 
-                      style={{ backgroundColor: getColorCode(color) }}
-                    ></span>
-                    {color}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Rim Type Filter */}
-        <div className="filter-section">
-          <button 
-            className="filter-section-header"
-            onClick={() => toggleSection('rimType')}
-          >
-            <span>Rim Type</span>
-            {expandedSections.rimType ? <ExpandLess /> : <ExpandMore />}
-          </button>
-          {expandedSections.rimType && (
-            <div className="filter-options">
-              {filterOptions.rimTypes.map(rimType => (
-                <label key={rimType} className="filter-option">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.rimTypes.includes(rimType)}
-                    onChange={() => handleCheckboxChange('rimTypes', rimType)}
-                  />
-                  <span>{rimType}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Size Filter */}
-        <div className="filter-section">
-          <button 
-            className="filter-section-header"
-            onClick={() => toggleSection('size')}
-          >
-            <span>Size</span>
-            {expandedSections.size ? <ExpandLess /> : <ExpandMore />}
-          </button>
-          {expandedSections.size && (
-            <div className="filter-options">
-              {filterOptions.sizes.map(size => (
-                <label key={size} className="filter-option">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.sizes.includes(size)}
-                    onChange={() => handleCheckboxChange('sizes', size)}
-                  />
-                  <span>{size}</span>
-                </label>
-              ))}
+              <label className="filter-option">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.isFeatured || false}
+                  onChange={() => handleFeatureToggle('isFeatured')}
+                />
+                <span>Featured Items</span>
+              </label>
+              <label className="filter-option">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.isReturnable || false}
+                  onChange={() => handleFeatureToggle('isReturnable')}
+                />
+                <span>Returnable</span>
+              </label>
+              <label className="filter-option">
+                <input
+                  type="checkbox"
+                  checked={activeFilters.inStock || false}
+                  onChange={() => handleFeatureToggle('inStock')}
+                />
+                <span>In Stock</span>
+              </label>
             </div>
           )}
         </div>
@@ -239,24 +396,60 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
           </button>
           {expandedSections.price && (
             <div className="filter-options">
+              <div className="price-slider-container">
+                <MuiSlider
+                  value={priceRange}
+                  onChange={handleSliderChange}
+                  onChangeCommitted={handleSliderCommitted}
+                  valueLabelDisplay="auto"
+                  min={filterOptions.priceRange.min}
+                  max={filterOptions.priceRange.max}
+                  valueLabelFormat={(value) => `$${value}`}
+                  sx={{
+                    color: '#1976d2',
+                    '& .MuiSlider-thumb': {
+                      width: 20,
+                      height: 20,
+                    },
+                    '& .MuiSlider-valueLabel': {
+                      fontSize: 12,
+                      fontWeight: 'normal',
+                      top: -6,
+                      backgroundColor: 'unset',
+                      color: '#1976d2',
+                      '&:before': {
+                        display: 'none',
+                      },
+                      '& *': {
+                        background: 'transparent',
+                        color: '#000',
+                      },
+                    },
+                  }}
+                />
+              </div>
               <div className="price-inputs">
-                <input
-                  type="number"
-                  placeholder={`Min $${filterOptions.priceRange.min}`}
-                  value={activeFilters.priceMin || ''}
-                  onChange={(e) => handlePriceChange('min', e.target.value)}
-                  min={filterOptions.priceRange.min}
-                  max={filterOptions.priceRange.max}
-                />
+                <div className="price-input-group">
+                  <label className="price-input-label">MIN</label>
+                  <input
+                    type="number"
+                    value={activeFilters.priceMin ?? priceRange[0]}
+                    onChange={(e) => handlePriceChange('min', e.target.value)}
+                    min={filterOptions.priceRange.min}
+                    max={filterOptions.priceRange.max}
+                  />
+                </div>
                 <span className="price-separator">-</span>
-                <input
-                  type="number"
-                  placeholder={`Max $${filterOptions.priceRange.max}`}
-                  value={activeFilters.priceMax || ''}
-                  onChange={(e) => handlePriceChange('max', e.target.value)}
-                  min={filterOptions.priceRange.min}
-                  max={filterOptions.priceRange.max}
-                />
+                <div className="price-input-group">
+                  <label className="price-input-label">MAX</label>
+                  <input
+                    type="number"
+                    value={activeFilters.priceMax ?? priceRange[1]}
+                    onChange={(e) => handlePriceChange('max', e.target.value)}
+                    min={filterOptions.priceRange.min}
+                    max={filterOptions.priceRange.max}
+                  />
+                </div>
               </div>
               <div className="price-quick-filters">
                 <button 
@@ -264,30 +457,30 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   onClick={() => onFilterChange({ 
                     ...activeFilters, 
                     priceMin: undefined, 
-                    priceMax: 20 
+                    priceMax: 100
                   })}
                 >
-                  Under $20
+                  Under $100
                 </button>
                 <button 
                   className="price-quick-btn"
                   onClick={() => onFilterChange({ 
                     ...activeFilters, 
-                    priceMin: 20, 
-                    priceMax: 50 
+                    priceMin: 100, 
+                    priceMax: 300
                   })}
                 >
-                  $20 - $50
+                  $100 - $300
                 </button>
                 <button 
                   className="price-quick-btn"
                   onClick={() => onFilterChange({ 
                     ...activeFilters, 
-                    priceMin: 50, 
+                    priceMin: 300, 
                     priceMax: undefined 
                   })}
                 >
-                  Over $50
+                  Over $300
                 </button>
               </div>
             </div>
@@ -296,26 +489,6 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
       </div>
     </div>
   );
-};
-
-// Helper function to get color codes
-const getColorCode = (colorName: string): string => {
-  const colorMap: {[key: string]: string} = {
-    'Black': '#000000',
-    'Brown': '#8B4513',
-    'Tortoise': '#D2691E',
-    'Blue': '#0000FF',
-    'Navy': '#000080',
-    'Gray': '#808080',
-    'Silver': '#C0C0C0',
-    'Gold': '#FFD700',
-    'Red': '#FF0000',
-    'Pink': '#FFC0CB',
-    'Purple': '#800080',
-    'Green': '#008000',
-    'Clear': '#FFFFFF'
-  };
-  return colorMap[colorName] || '#CCCCCC';
 };
 
 export default FilterSidebar;

@@ -1,28 +1,26 @@
 export interface FilterOptions {
-  categories: string[];
-  shapes: string[];
-  materials: string[];
-  colors: string[];
-  rimTypes: string[];
-  sizes: string[];
+  productTypes: Array<'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES'>;
+  brands: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string }>;
   priceRange: {
     min: number;
     max: number;
   };
+  ratings: number[];
 }
 
 export interface ActiveFilters {
-  category?: string;
-  shapes: string[];
-  materials: string[];
-  colors: string[];
-  rimTypes: string[];
-  sizes: string[];
+  productType?: 'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES';
+  brandIds: string[];
+  categoryIds: string[];
   priceMin?: number;
   priceMax?: number;
   minRating?: number;
   searchQuery?: string;
   sortBy?: 'price-asc' | 'price-desc' | 'rating' | 'newest' | 'popular';
+  isFeatured?: boolean;
+  isReturnable?: boolean;
+  inStock?: boolean;
 }
 
 export interface ColorVariant {
@@ -44,13 +42,12 @@ export interface BrowseProduct {
   price: number;
   rating: number;
   reviewCount: number;
-  shape: string;
-  material: string;
-  color: string;
-  rimType: string;
-  size: string;
+  productType: string;
   image: string;
   colorVariants: ColorVariant[];
+  isFeatured?: boolean;
   isNew?: boolean;
-  isBestSeller?: boolean;
+  stockQuantity: number;
+  brandId: string | null;
+  categoryId: string;
 }

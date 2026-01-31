@@ -97,7 +97,7 @@ const ProductDetailPage: React.FC = () => {
             productId: p.id,
             variantId: p.variantId || p.id,
             name: p.name,
-            price: p.basePrice / 1000,
+            price: p.basePrice,
             rating: p.avgRating || 0,
             reviewCount: p.reviewCount || 0,
             shape: 'Rectangle',

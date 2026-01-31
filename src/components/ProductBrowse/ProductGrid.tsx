@@ -7,9 +7,10 @@ import './ProductGrid.css';
 interface ProductGridProps {
   products: BrowseProduct[];
   onAddToFavorites?: (productId: string) => void;
+  viewMode?: 'grid' | 'list';
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites }) => {
+const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, viewMode = 'grid' }) => {
   const navigate = useNavigate();
 
   const handleColorClick = (e: React.MouseEvent<HTMLButtonElement>, slug: string, sku: string) => {
@@ -20,7 +21,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites })
   };
 
   return (
-    <div className="product-grid">
+    <div className={`product-grid ${viewMode === 'list' ? 'list-view' : 'grid-view'}`}>
       {products.map(product => (
         <div key={product.id} className="product-grid-card-wrapper">
           <Link 
@@ -54,9 +55,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites })
               </div>
 
               <div className="product-grid-details">
-                <span className="product-shape">{product.shape}</span>
-                <span className="separator">•</span>
-                <span className="product-material">{product.material}</span>
+                <span className="product-type">{product.productType}</span>
+                {product.stockQuantity > 0 && (
+                  <>
+                    <span className="separator">•</span>
+                    <span className="product-stock">In Stock</span>
+                  </>
+                )}
               </div>
 
               <p className="product-grid-price">${product.price.toFixed(2)}</p>
