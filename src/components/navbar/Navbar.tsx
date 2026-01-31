@@ -9,7 +9,7 @@ import {
   Container,
   InputAdornment,
   Chip,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Search,
   ShoppingCart,
@@ -99,30 +99,30 @@ export const Navbar = () => {
   return (
     <>
       <AppBar
-        position="sticky"
+        position="static"
         elevation={0}
         sx={{
-          backgroundColor: '#ffffff',
-          color: '#000000',
-          borderBottom: '1px solid #e5e7eb',
+          backgroundColor: "#ffffff",
+          color: "#000000",
+          borderBottom: "1px solid #e5e7eb",
         }}
       >
         <Container maxWidth="xl">
           {/* Top Toolbar */}
           <Toolbar
             sx={{
-              justifyContent: 'space-between',
+              justifyContent: "space-between",
               py: 1.5,
-              minHeight: '70px !important',
+              minHeight: "70px !important",
             }}
           >
             {/* Logo */}
             <Box
               sx={{
                 fontWeight: 800,
-                fontSize: '25px',
-                color: '#000000',
-                cursor: 'pointer',
+                fontSize: "25px",
+                color: "#000000",
+                cursor: "pointer",
               }}
             >
               GLASSIFY
@@ -136,7 +136,7 @@ export const Navbar = () => {
                 flexGrow: 1,
                 maxWidth: 500,
                 mx: 4,
-                display: { xs: 'none', md: 'block' },
+                display: { xs: "none", md: "block" },
               }}
             >
               <TextField
@@ -148,28 +148,30 @@ export const Navbar = () => {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Search sx={{ color: '#6b7280', fontSize: 20 }} />
+                      <Search sx={{ color: "#6b7280", fontSize: 20 }} />
                     </InputAdornment>
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                        <IconButton type="submit" sx={{ p: '6px' }}><Search sx={{ color: '#6b7280', fontSize: 20 }} /></IconButton> 
+                      <IconButton type="submit" sx={{ p: "6px" }}>
+                        <Search sx={{ color: "#6b7280", fontSize: 20 }} />
+                      </IconButton>
                     </InputAdornment>
                   ),
                 }}
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '24px',
-                    backgroundColor: '#f9fafb',
-                    '& fieldset': {
-                      borderColor: '#e5e7eb',
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "24px",
+                    backgroundColor: "#f9fafb",
+                    "& fieldset": {
+                      borderColor: "#e5e7eb",
                     },
-                    '&:hover fieldset': {
-                      borderColor: '#d1d5db',
+                    "&:hover fieldset": {
+                      borderColor: "#d1d5db",
                     },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#ffffff',
-                      borderWidth: '1px',
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#ffffff",
+                      borderWidth: "1px",
                     },
                   },
                 }}
@@ -177,48 +179,48 @@ export const Navbar = () => {
             </Box>
 
             {/* Right Icons */}
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
               <IconButton
                 size="small"
                 sx={{
-                  flexDirection: 'column',
-                  color: '#1f2937',
+                  flexDirection: "column",
+                  color: "#1f2937",
                   borderRadius: 1,
                 }}
               >
                 <Person sx={{ fontSize: 24 }} />
-                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Login</Box>
+                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Login</Box>
               </IconButton>
 
               <IconButton
                 size="small"
                 sx={{
-                  flexDirection: 'column',
-                  color: '#1f2937',
+                  flexDirection: "column",
+                  color: "#1f2937",
                   borderRadius: 1,
                 }}
               >
                 <Favorite sx={{ fontSize: 24 }} />
-                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Favorites</Box>
+                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Favorites</Box>
               </IconButton>
 
               <IconButton
                 size="small"
                 sx={{
-                  flexDirection: 'column',
-                  color: '#1f2937',
+                  flexDirection: "column",
+                  color: "#1f2937",
                   borderRadius: 1,
                 }}
               >
                 <Help sx={{ fontSize: 24 }} />
-                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Help</Box>
+                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Help</Box>
               </IconButton>
 
               <IconButton
                 size="small"
                 sx={{
-                  flexDirection: 'column',
-                  color: '#1f2937',
+                  flexDirection: "column",
+                  color: "#1f2937",
                   borderRadius: 1,
                 }}
               >
@@ -226,14 +228,14 @@ export const Navbar = () => {
                   badgeContent={cartItemCount}
                   color="error"
                   sx={{
-                    '& .MuiBadge-badge': {
-                      backgroundColor: '#dc2626',
+                    "& .MuiBadge-badge": {
+                      backgroundColor: "#dc2626",
                     },
                   }}
                 >
                   <ShoppingCart sx={{ fontSize: 24 }} />
                 </Badge>
-                <Box sx={{ fontSize: '0.7rem', mt: 0.25 }}>Cart</Box>
+                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Cart</Box>
               </IconButton>
             </Box>
           </Toolbar>
@@ -241,11 +243,11 @@ export const Navbar = () => {
           {/* Main Navigation */}
           <Box
             sx={{
-              display: { xs: 'none', md: 'flex' },
-              justifyContent: 'center',
+              display: { xs: "none", md: "flex" },
+              justifyContent: "center",
               gap: 0.5,
               py: 1,
-              borderTop: '1px solid #e5e7eb',
+              borderTop: "1px solid #e5e7eb",
             }}
           >
             {mainCategories.map((item) => (
@@ -253,19 +255,19 @@ export const Navbar = () => {
                 key={item.path + item.label}
                 onClick={() => handleCategoryClick(item)}
                 sx={{
-                    backgroundColor: 'transparent',
-                  color: item.special ? '#000000' : '#000000',
+                  backgroundColor: "transparent",
+                  color: item.special ? "#000000" : "#000000",
                   fontWeight: item.special ? 600 : 500,
                   px: 2,
                   py: 0.75,
-                  textTransform: 'none',
-                  fontSize: '0.95rem',
-                  boxShadow: 'none',
+                  textTransform: "none",
+                  fontSize: "0.95rem",
+                  boxShadow: "none",
                   ":hover": {
-                    boxShadow: 'none',
-                    backgroundColor: '#f3f4f6',
-                    borderRadius: '20px',
-                  }
+                    boxShadow: "none",
+                    backgroundColor: "#f3f4f6",
+                    borderRadius: "20px",
+                  },
                 }}
               >
                 {item.label}
@@ -276,24 +278,24 @@ export const Navbar = () => {
           {/* Filter Tags */}
           <Box
             sx={{
-              display: { xs: 'none', lg: 'flex' },
-              justifyContent: 'center',
+              display: { xs: "none", lg: "flex" },
+              justifyContent: "center",
               gap: 1,
               py: 1.5,
-              borderTop: '1px solid #e5e7eb',
-              flexWrap: 'wrap',
+              borderTop: "1px solid #e5e7eb",
+              flexWrap: "wrap",
             }}
           >
             {filterTags.map((tag, index) => (
               <Chip
                 key={index}
-                icon={<span style={{ fontSize: '1rem' }}>{tag.icon}</span>}
+                icon={<span style={{ fontSize: "1rem" }}>{tag.icon}</span>}
                 label={tag.label}
                 variant="outlined"
                 onClick={() => handleFilterTagClick(tag)}
                 sx={{
-                  borderColor: '#d1d5db',
-                  color: '#374151',
+                  borderColor: "#d1d5db",
+                  color: "#374151",
                   fontWeight: 500,
                   fontSize: '0.875rem',
                   cursor: 'pointer',
@@ -312,7 +314,7 @@ export const Navbar = () => {
             component="form"
             onSubmit={handleSearch}
             sx={{
-              display: { xs: 'block', md: 'none' },
+              display: { xs: "block", md: "none" },
               pb: 2,
             }}
           >
@@ -325,14 +327,14 @@ export const Navbar = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search sx={{ color: '#9ca3af' }} />
+                    <Search sx={{ color: "#9ca3af" }} />
                   </InputAdornment>
                 ),
               }}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '24px',
-                  backgroundColor: '#f9fafb',
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "24px",
+                  backgroundColor: "#f9fafb",
                 },
               }}
             />
@@ -341,4 +343,4 @@ export const Navbar = () => {
       </AppBar>
     </>
   );
-}
+};
