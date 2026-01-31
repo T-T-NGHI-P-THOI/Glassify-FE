@@ -6,7 +6,7 @@ import ProductInfo from '../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../components/ProductDetailPage/RecommendedProducts';
 import type { Product, RecommendedProduct } from '../types/product';
-import ProductAPI from '../api/product-api';
+import ProductAPI, { type ReviewResponse } from '../api/product-api';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
@@ -14,7 +14,10 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
+  const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [currentReviewPage, setCurrentReviewPage] = useState(1);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -86,6 +89,18 @@ const ProductDetailPage: React.FC = () => {
 
         setProduct(transformedProduct);
 
+        // Fetch reviews for this product
+        try {
+          setIsLoadingReviews(true);
+          const response = await ProductAPI.getProductReviews(apiProduct.id, { page: 1, unitPerPage: 10 });
+          setReviewData(response);
+        } catch (error) {
+          console.error('Error fetching reviews:', error);
+          setReviewData({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
+        } finally {
+          setIsLoadingReviews(false);
+        }
+
         // Fetch recommended products
         const allProducts = await ProductAPI.getAllProducts();
         const recommended: RecommendedProduct[] = allProducts
@@ -116,6 +131,27 @@ const ProductDetailPage: React.FC = () => {
 
     fetchProduct();
   }, [slug, sku]);
+
+  const loadMoreReviews = async () => {
+    if (!product || isLoadingReviews) return;
+    
+    try {
+      setIsLoadingReviews(true);
+      const nextPage = currentReviewPage + 1;
+      const response = await ProductAPI.getProductReviews(product.id, { page: nextPage, unitPerPage: 10 });
+      
+      // Append new reviews to existing ones
+      setReviewData(prev => ({
+        reviews: [...prev.reviews, ...response.reviews],
+        summary: response.summary // Keep the summary updated
+      }));
+      setCurrentReviewPage(nextPage);
+    } catch (error) {
+      console.error('Error loading more reviews:', error);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
 
   const handleAddToFavorites = () => {
     // TODO: Implement add to favorites
@@ -183,7 +219,7 @@ const ProductDetailPage: React.FC = () => {
         />
       </div>
 
-      <ProductDetails product={product} />
+      <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
 
       <div className="accessories-section">
         <h2>Accessories</h2>

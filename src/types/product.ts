@@ -73,11 +73,15 @@ export interface RecommendedProduct {
 
 export interface Review {
   id: string;
-  author: string;
+  productId: string;
+  userId: string;
   rating: number;
-  date: string;
   title: string;
   comment: string;
-  verified: boolean;
-  helpful: number;
+  imageUrls: string[];
+  isVerifiedPurchase: boolean;
+  isPublished: boolean;
+  shopResponse: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

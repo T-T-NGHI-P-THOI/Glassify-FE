@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     GET_ALL: `${API_ENDPOINT}/products`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/products/${id}`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/products/slug/${slug}`,
+    GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/products/${productId}/reviews`,
   }
 } as const;
 

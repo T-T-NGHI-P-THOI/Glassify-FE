@@ -1,14 +1,41 @@
 import React, { useState } from 'react';
-import { Info, Visibility, Star, StarBorder, ThumbUp } from '@mui/icons-material';
+import { Info, Visibility, Star, StarBorder } from '@mui/icons-material';
 import type { Product } from '../../types/product';
+import type { ReviewResponse } from '../../api/product-api';
 import './ProductDetails.css';
 
 interface ProductDetailsProps {
   product: Product;
+  reviewData?: ReviewResponse;
+  isLoadingReviews?: boolean;
+  onLoadMoreReviews?: () => void;
 }
 
-const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
+const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, isLoadingReviews = false, onLoadMoreReviews }) => {
+  const reviews = reviewData?.reviews || [];
+  const summary = reviewData?.summary || { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 };
   const [activeTab, setActiveTab] = useState<'details' | 'description' | 'reviews'>('details');
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+
+  const openGallery = (images: string[], index: number) => {
+    setGalleryImages(images);
+    setCurrentImageIndex(index);
+    setGalleryOpen(true);
+  };
+
+  const closeGallery = () => {
+    setGalleryOpen(false);
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  };
 
   return (
     <div className="product-details-section">
@@ -136,7 +163,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               </div>
               <div className="rating-bars">
                 {[5, 4, 3, 2, 1].map(stars => {
-                  const percentage = stars === 5 ? 65 : stars === 4 ? 25 : stars === 3 ? 8 : stars === 2 ? 2 : 0;
+                  const count = summary.counts[stars as keyof typeof summary.counts] || 0;
+                  const percentage = summary.total > 0 ? Math.round((count / summary.total) * 100) : 0;
                   return (
                     <div key={stars} className="rating-bar-item">
                       <span className="stars-label">{stars} <Star className="small-star" /></span>
@@ -151,86 +179,85 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
             </div>
           </div>
 
-          <div className="reviews-list">
-            {(product.reviews || [
-              {
-                id: '1',
-                author: 'Sarah M.',
-                rating: 5,
-                date: 'January 15, 2025',
-                title: 'Perfect fit and great quality!',
-                comment: 'These glasses exceeded my expectations. The frame is lightweight yet sturdy, and they fit perfectly. The anti-scratch coating works great and the UV protection gives me peace of mind. Highly recommend!',
-                verified: true,
-                helpful: 24
-              },
-              {
-                id: '2',
-                author: 'Michael R.',
-                rating: 5,
-                date: 'January 10, 2025',
-                title: 'Excellent value for money',
-                comment: 'I was skeptical about ordering glasses online, but these are fantastic! The quality is comparable to much more expensive brands. The delivery was fast and they came in a nice protective case.',
-                verified: true,
-                helpful: 18
-              },
-              {
-                id: '3',
-                author: 'Emily T.',
-                rating: 4,
-                date: 'January 8, 2025',
-                title: 'Great glasses, minor adjustment needed',
-                comment: 'Really happy with these glasses overall. The style is exactly what I wanted and they\'re very comfortable. Had to adjust the nose pads slightly but that\'s normal. Would definitely buy again.',
-                verified: true,
-                helpful: 12
-              },
-              {
-                id: '4',
-                author: 'David L.',
-                rating: 5,
-                date: 'January 5, 2025',
-                title: 'Stylish and comfortable',
-                comment: 'Love the rectangle shape - it suits my face perfectly. The black color is sleek and professional. I\'ve been wearing them for two weeks now and they\'re still as comfortable as day one.',
-                verified: true,
-                helpful: 9
-              },
-              {
-                id: '5',
-                author: 'Jessica K.',
-                rating: 5,
-                date: 'January 2, 2025',
-                title: 'Best online glasses purchase!',
-                comment: 'This is my third pair from Glassify and they never disappoint. The quality is consistent and the price can\'t be beat. The lightweight design means I can wear them all day without discomfort.',
-                verified: true,
-                helpful: 15
-              }
-            ]).map(review => (
-              <div key={review.id} className="review-item">
-                <div className="review-header">
-                  <div className="reviewer-info">
-                    <span className="reviewer-name">{review.author}</span>
-                    {review.verified && <span className="verified-badge">✓ Verified Purchase</span>}
+          {isLoadingReviews ? (
+            <div className="reviews-loading">Loading reviews...</div>
+          ) : !reviews || reviews.length === 0 ? (
+            <div className="no-reviews">No reviews yet. Be the first to review this product!</div>
+          ) : (
+            <div className="reviews-list">
+              {Array.isArray(reviews) && reviews.map(review => {
+                const reviewDate = new Date(review.createdAt).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                });
+                
+                return (
+                  <div key={review.id} className="review-item">
+                    <div className="review-header">
+                      <div className="reviewer-info">
+                        <span className="reviewer-name">User {review.userId.substring(0, 8)}</span>
+                        {review.isVerifiedPurchase && <span className="verified-badge">✓ Verified Purchase</span>}
+                      </div>
+                      <span className="review-date">{reviewDate}</span>
+                    </div>
+                    <div className="review-rating">
+                      {[...Array(5)].map((_, i) => (
+                        i < review.rating ? 
+                        <Star key={i} className="star filled" /> : 
+                        <StarBorder key={i} className="star" />
+                      ))}
+                    </div>
+                    <h4 className="review-title">{review.title}</h4>
+                    <p className="review-comment">{review.comment}</p>
+                    
+                    {review.imageUrls && review.imageUrls.length > 0 && review.imageUrls[0] !== "string" && (
+                      <div className="review-images">
+                        {review.imageUrls.map((imageUrl, index) => (
+                          <img 
+                            key={index} 
+                            src={imageUrl} 
+                            alt={`Review ${index + 1}`} 
+                            className="review-image-thumbnail"
+                            onClick={() => openGallery(review.imageUrls, index)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {review.shopResponse && (
+                      <div className="shop-response">
+                        <strong>Shop Response:</strong> {review.shopResponse}
+                      </div>
+                    )}
                   </div>
-                  <span className="review-date">{review.date}</span>
-                </div>
-                <div className="review-rating">
-                  {[...Array(5)].map((_, i) => (
-                    i < review.rating ? 
-                    <Star key={i} className="star filled" /> : 
-                    <StarBorder key={i} className="star" />
-                  ))}
-                </div>
-                <h4 className="review-title">{review.title}</h4>
-                <p className="review-comment">{review.comment}</p>
-                <div className="review-footer">
-                  <button className="helpful-btn">
-                    <ThumbUp fontSize="small" /> Helpful ({review.helpful})
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
-          <button className="load-more-btn">Load More Reviews</button>
+          {Array.isArray(reviews) && reviews.length > 0 && reviews.length < summary.total && (
+            <button 
+              className="load-more-btn" 
+              onClick={onLoadMoreReviews}
+              disabled={isLoadingReviews}
+            >
+              {isLoadingReviews ? 'Loading...' : 'Load More Reviews'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Image Gallery Modal */}
+      {galleryOpen && (
+        <div className="gallery-modal" onClick={closeGallery}>
+          <button className="gallery-close" onClick={closeGallery}>&times;</button>
+          <button className="gallery-prev" onClick={(e) => { e.stopPropagation(); prevImage(); }}>&lt;</button>
+          <div className="gallery-content" onClick={(e) => e.stopPropagation()}>
+            <img src={galleryImages[currentImageIndex]} alt="Review" className="gallery-image" />
+            <div className="gallery-counter">{currentImageIndex + 1} / {galleryImages.length}</div>
+          </div>
+          <button className="gallery-next" onClick={(e) => { e.stopPropagation(); nextImage(); }}>&gt;</button>
         </div>
       )}
     </div>

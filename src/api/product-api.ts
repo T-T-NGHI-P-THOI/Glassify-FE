@@ -1,5 +1,6 @@
 import api from './axios';
 import { API_ENDPOINTS } from './endpoints';
+import type { Review } from '../types/product';
 
 // Response type từ API
 export interface ProductApiResponse {
@@ -66,6 +67,27 @@ export interface ProductFilterParams {
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
 }
 
+// Review filter parameters
+export interface ReviewFilterParams {
+  page?: number;
+  unitPerPage?: number;
+}
+
+// Review API response
+export interface ReviewResponse {
+  reviews: Review[];
+  summary: {
+    counts: {
+      1: number;
+      2: number;
+      3: number;
+      4: number;
+      5: number;
+    };
+    total: number;
+  };
+}
+
 export default class ProductAPI {
 
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
@@ -102,6 +124,28 @@ export default class ProductAPI {
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
       throw error;
+    }
+  }
+
+  static async getProductReviews(productId: string, filters?: ReviewFilterParams): Promise<ReviewResponse> {
+    try {
+      const response = await api.get<{ status: number; message: string; data: ReviewResponse }>(
+        API_ENDPOINTS.PRODUCTS.GET_REVIEWS(productId),
+        {
+          params: filters
+        }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching reviews for product ${productId}:`, error);
+      // Return empty response structure on error
+      return {
+        reviews: [],
+        summary: {
+          counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          total: 0
+        }
+      };
     }
   }
 }
