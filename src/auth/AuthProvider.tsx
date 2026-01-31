@@ -2,20 +2,21 @@ import { type FC, type PropsWithChildren, useEffect, useReducer } from "react";
 import { initialize, reducer } from "./Reducer";
 import { AuthContext, initialState } from "./AuthContext";
 import AuthAPI from "../api/auth-api";
+import {TokenManager} from "@/api/axios.config.ts";
 
 const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
     (async () => {
-      const accessToken = localStorage.getItem('ACCESS_TOKEN');
+      const accessToken = TokenManager.getAccessToken();
       if (!accessToken) {
         return dispatch(initialize({ isAuthenticated: false, user: null }));
       }
 
       try {
         const user = await AuthAPI.getUserByToken();
-        dispatch(initialize({ isAuthenticated: true, user }));
+        dispatch(initialize({isInitialized: true, isAuthenticated: true, user }));
       } catch {
         dispatch(initialize({ isAuthenticated: false, user: null }));
       }
