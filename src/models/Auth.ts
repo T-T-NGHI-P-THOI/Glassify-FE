@@ -1,7 +1,8 @@
 // types/auth.types.ts
 
+import type { UserResponse } from "./User";
+
 // Response wrapper từ backend
-import type {UserResponse} from "@/models/User.ts";
 
 
 

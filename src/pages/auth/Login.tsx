@@ -21,22 +21,23 @@ import {
     ArrowBack,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import type { LoginRequest } from '@/models/Auth.ts';
 import { TokenManager } from '@/api/axios.config.ts';
 import { authApi } from '@/api/service/authApi.ts';
 import { useLayout } from '@/layouts/LayoutContext.tsx';
-import {useLayoutConfig} from "@/hooks/useLayoutConfig.ts";
-import {AuthActionType} from "@/types/auth-action-type.enum.ts";
-import {initialize, logIn} from "@/auth/Reducer.ts";
+import { useLayoutConfig } from "@/hooks/useLayoutConfig.ts";
+import { AuthActionType } from "@/types/auth-action-type.enum.ts";
+import { initialize, logIn } from "@/auth/Reducer.ts";
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
 /* ══════════════════════════════════════════════════
    THEME — extracted from admin page's palette
    ══════════════════════════════════════════════════ */
 const t = {
     // Neutrals (from theme.palette.custom.neutral)
-    n50:  '#F8FAFC',
+    n50: '#F8FAFC',
     n100: '#F1F5F9',
     n200: '#E2E8F0',
     n300: '#CBD5E1',
@@ -48,24 +49,24 @@ const t = {
     n900: '#0F172A',
 
     // Status colors (from theme.palette.custom.status)
-    successMain:  '#22C55E',
+    successMain: '#22C55E',
     successLight: '#F0FDF4',
-    errorMain:    '#EF4444',
-    errorLight:   '#FEF2F2',
-    warningMain:  '#F59E0B',
+    errorMain: '#EF4444',
+    errorLight: '#FEF2F2',
+    warningMain: '#F59E0B',
     warningLight: '#FFFBEB',
-    infoMain:     '#3B82F6',
-    infoLight:    '#EFF6FF',
-    pinkMain:     '#EC4899',
-    pinkLight:    '#FDF2F8',
+    infoMain: '#3B82F6',
+    infoLight: '#EFF6FF',
+    pinkMain: '#EC4899',
+    pinkLight: '#FDF2F8',
 
     // Borders (from theme.palette.custom.border)
     borderLight: '#E2E8F0',
-    borderMain:  '#CBD5E1',
+    borderMain: '#CBD5E1',
 
     // Brand accent — derived from the admin page's primary tones
-    accent:      '#3B82F6',
-    accentDark:  '#2563EB',
+    accent: '#3B82F6',
+    accentDark: '#2563EB',
     accentLight: '#DBEAFE',
 };
 
@@ -101,13 +102,14 @@ const injectKeyframes = () => {
    ══════════════════════════════════════════════════ */
 const AuthPage = () => {
     useLayoutConfig({ showNavbar: false, showFooter: false });
+    const location = useLocation();
 
 
     // const { setShowNavbar, setShowFooter } = useLayout();
     const navigate = useNavigate();
     const { isInitialized,    // boolean — app đã check token xong chưa
         isAuthenticated,  // boolean — user đã đăng nhập chưa
-        dispatch,  } = useAuth();
+        dispatch, } = useAuth();
 
     /* ── state ── */
     const [isRegister, setIsRegister] = useState(false);
@@ -175,9 +177,12 @@ const AuthPage = () => {
             // @ts-ignore
             const userData = result.data.user;
 
-            navigate('/dashboard');
+            console.log('Login successful, user:', userData);
 
-            dispatch(logIn({isInitialized: true, isAuthenticated: false, user: userData }));
+            dispatch(logIn({ isInitialized: true, isAuthenticated: false, user: userData }));
+
+            const from = location.state?.from?.pathname || PAGE_ENDPOINTS.DASHBOARD;
+            navigate(from, { replace: true });
 
         } catch (err: any) {
             const msgs: string[] =
