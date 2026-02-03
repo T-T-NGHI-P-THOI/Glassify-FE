@@ -6,7 +6,7 @@
 
 // ==================== CONFIGURATION ====================
 
-import {type AxiosError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig} from "axios";
+import { type AxiosError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 /**
@@ -28,7 +28,6 @@ const PUBLIC_ENDPOINTS = [
     '/auth/forgot-password',
     '/auth/google',
     '/products',
-    'users/me'
 ];
 
 // ==================== LOGGER ====================

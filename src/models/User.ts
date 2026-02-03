@@ -12,6 +12,7 @@ export const AuthProvider = {
     LOCAL: 'LOCAL',
     GOOGLE: 'GOOGLE',
     FACEBOOK: 'FACEBOOK',
+    EMAIL: 'EMAIL'
 } as const;
 
 // Type cho AuthProvider values
@@ -63,6 +64,7 @@ export interface UserResponse {
     roles: Role[];
     createdAt?: string;
     updatedAt?: string;
+    gender?: string;
 }
 
 /**
