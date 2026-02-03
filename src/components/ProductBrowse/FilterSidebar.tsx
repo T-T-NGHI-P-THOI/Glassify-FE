@@ -202,9 +202,9 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
             )}
 
             {/* Rating tag */}
-            {activeFilters.minRating && (
+            {activeFilters.minRating !== undefined && (
               <div className="filter-tag">
-                <span>{activeFilters.minRating}+ Stars</span>
+                <span>{activeFilters.minRating === 0 ? 'No stars' : `${activeFilters.minRating}+ sao`}</span>
                 <button onClick={handleClearRating} className="filter-tag-remove">
                   <Close fontSize="small" />
                 </button>
@@ -290,7 +290,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                     checked={activeFilters.minRating === rating}
                     onChange={() => handleRatingChange(rating)}
                   />
-                  <span>{rating}+ Stars</span>
+                  <span>{rating === 0 ? 'No stars' : `${rating}+ stars`}</span>
                 </label>
               ))}
             </div>

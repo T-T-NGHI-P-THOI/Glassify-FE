@@ -2,6 +2,7 @@ import React from 'react'
 import type { EmblaOptionsType } from 'embla-carousel'
 import useEmblaCarousel from 'embla-carousel-react'
 import { Box, Typography, Rating, Stack } from '@mui/material'
+import { Link } from 'react-router-dom'
 import {
   NextButton,
   PrevButton,
@@ -9,13 +10,15 @@ import {
 } from './CustomEmblaCarouselButtons'
 
 type ProductType = {
-  id: number
+  id: string
   title: string
   price: string
   rating: number
   reviews: string
   shape: string
   image: string
+  slug: string
+  sku: string
 }
 
 type PropType = {
@@ -40,20 +43,24 @@ const CustomProductCarousel = (props: PropType) => {
         <div className="embla__container">
           {slides.map((product) => (
             <div className="embla__slide embla__slide--product" key={product.id}>
-              <Box
-                sx={{
-                  bgcolor: 'white',
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  },
-                }}
+              <Link 
+                to={`/product/${product.slug}/${product.sku}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
               >
+                <Box
+                  sx={{
+                    bgcolor: 'white',
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    },
+                  }}
+                >
                 <Box
                   component="img"
                   src={product.image}
@@ -102,6 +109,7 @@ const CustomProductCarousel = (props: PropType) => {
                   </Typography>
                 </Box>
               </Box>
+              </Link>
             </div>
           ))}
         </div>

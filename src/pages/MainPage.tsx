@@ -16,7 +16,17 @@ import type { EmblaOptionsType } from 'embla-carousel';
 
 const MainPage = () => {
   const navigate = useNavigate();
-  const [bestSellerProducts, setBestSellerProducts] = useState<any[]>([]);
+  const [bestSellerProducts, setBestSellerProducts] = useState<Array<{
+    id: string;
+    title: string;
+    price: string;
+    rating: number;
+    reviews: string;
+    shape: string;
+    image: string;
+    slug: string;
+    sku: string;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch best seller products from API
@@ -41,6 +51,7 @@ const MainPage = () => {
           shape: product.productType,
           image: `https://placehold.co/280x180/000000/FFFFFF?text=${encodeURIComponent(product.name)}`,
           slug: product.slug,
+          sku: product.sku,
         }));
 
         setBestSellerProducts(transformedProducts);

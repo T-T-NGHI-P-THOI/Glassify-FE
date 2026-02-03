@@ -22,7 +22,7 @@ const ProductBrowsePage: React.FC = () => {
     brands: [],
     categories: [],
     priceRange: { min: 0, max: 500 },
-    ratings: [5, 4, 3, 2, 1]
+    ratings: [0, 1, 2, 3, 4]
   });
 
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({

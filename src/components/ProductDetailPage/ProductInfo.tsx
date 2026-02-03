@@ -96,7 +96,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
       </div>
 
       <div className="action-buttons">
-        {product.category === 'eyeglasses' ? (
+        {product.productType === 'FRAME' ? (
           <>
             <button className="select-lenses-btn" onClick={handleSelectLenses}>
               Select Lenses

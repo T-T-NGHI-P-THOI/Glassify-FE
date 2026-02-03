@@ -37,7 +37,8 @@ const ProductDetailPage: React.FC = () => {
           rating: apiProduct.avgRating || 0,
           reviewCount: apiProduct.reviewCount || 0,
           shape: 'Rectangle', // Default - update if you have this data
-          category: apiProduct.productType === 'SUNGLASSES' ? 'sunglasses' : 'eyeglasses',
+          category: apiProduct.productType === 'SUNGLASSES' ? 'sunglasses' : apiProduct.productType === 'EYEGLASSES' ? 'eyeglasses' : 'accessories',
+          productType: apiProduct.productType,
           colors: [
             {
               name: 'Default',
