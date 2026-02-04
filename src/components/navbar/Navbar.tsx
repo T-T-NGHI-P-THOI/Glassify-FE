@@ -7,8 +7,7 @@ import {
   Badge,
   Button,
   Container,
-  InputAdornment,
-  Chip,
+  InputAdornment
 } from "@mui/material";
 import {
   Search,
@@ -35,18 +34,18 @@ export const Navbar = () => {
     { label: '🏷️ Sale', path: '/sale', special: true, category: null },
   ];
 
-  const filterTags = [
-    { icon: '💰', label: 'Under $30', filter: 'price', value: '30' },
-    { icon: '✨', label: 'New Arrivals', filter: 'new', value: 'true' },
-    { icon: '🔥', label: 'Best Sellers', filter: 'sort', value: 'popular' },
-    { icon: '⭐', label: 'Top Rated', filter: 'sort', value: 'rating' },
-    { icon: '▭', label: 'Rectangle', filter: 'shape', value: 'Rectangle' },
-    { icon: '⬭', label: 'Oversized', filter: 'size', value: 'Oversized' },
-    { icon: '🐢', label: 'Tortoiseshell', filter: 'color', value: 'Tortoise' },
-    { icon: '😺', label: 'Cat Eye', filter: 'shape', value: 'Cat Eye' },
-    { icon: '💎', label: 'Premium', filter: 'featured', value: 'true' },
-    { icon: '🏷️', label: 'On Sale', filter: 'sale', value: 'true' },
-  ];
+  // const filterTags = [
+  //   { icon: "💰", label: "Under $30" },
+  //   { icon: "✨", label: "New Arrivals" },
+  //   { icon: "🔥", label: "Best Sellers" },
+  //   { icon: "⭐", label: "Top Rated" },
+  //   { icon: "▭", label: "Rectangle" },
+  //   { icon: "⬭", label: "Oversized" },
+  //   { icon: "🐢", label: "Tortoiseshell" },
+  //   { icon: "😺", label: "Cat Eye" },
+  //   { icon: "💎", label: "Premium" },
+  //   { icon: "🏷️", label: "On Sale" },
+  // ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,38 +62,38 @@ export const Navbar = () => {
     }
   };
 
-  const handleFilterTagClick = (tag: typeof filterTags[0]) => {
-    const params = new URLSearchParams();
-    
-    switch (tag.filter) {
-      case 'price':
-        params.set('maxPrice', tag.value);
-        break;
-      case 'new':
-        params.set('sortBy', 'newest');
-        break;
-      case 'sort':
-        params.set('sortBy', tag.value);
-        break;
-      case 'shape':
-        params.set('shape', tag.value);
-        break;
-      case 'size':
-        params.set('size', tag.value);
-        break;
-      case 'color':
-        params.set('color', tag.value);
-        break;
-      case 'featured':
-        params.set('featured', tag.value);
-        break;
-      case 'sale':
-        params.set('sale', tag.value);
-        break;
-    }
-    
-    navigate(`/products?${params.toString()}`);
-  };
+  // const handleFilterTagClick = (tag: typeof filterTags[0]) => {
+  //   const params = new URLSearchParams();
+  //
+  //   switch (tag.filter) {
+  //     case 'price':
+  //       params.set('maxPrice', tag.value);
+  //       break;
+  //     case 'new':
+  //       params.set('sortBy', 'newest');
+  //       break;
+  //     case 'sort':
+  //       params.set('sortBy', tag.value);
+  //       break;
+  //     case 'shape':
+  //       params.set('shape', tag.value);
+  //       break;
+  //     case 'size':
+  //       params.set('size', tag.value);
+  //       break;
+  //     case 'color':
+  //       params.set('color', tag.value);
+  //       break;
+  //     case 'featured':
+  //       params.set('featured', tag.value);
+  //       break;
+  //     case 'sale':
+  //       params.set('sale', tag.value);
+  //       break;
+  //   }
+  //
+  //   navigate(`/products?${params.toString()}`);
+  // };
 
   return (
     <>
@@ -276,7 +275,7 @@ export const Navbar = () => {
           </Box>
 
           {/* Filter Tags */}
-          <Box
+        {/* <Box
             sx={{
               display: { xs: "none", lg: "flex" },
               justifyContent: "center",
@@ -292,22 +291,20 @@ export const Navbar = () => {
                 icon={<span style={{ fontSize: "1rem" }}>{tag.icon}</span>}
                 label={tag.label}
                 variant="outlined"
-                onClick={() => handleFilterTagClick(tag)}
                 sx={{
                   borderColor: "#d1d5db",
                   color: "#374151",
                   fontWeight: 500,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    backgroundColor: '#f3f4f6',
-                    borderColor: '#0f766e',
-                    color: '#0f766e',
+                  fontSize: "0.875rem",
+                  "&:hover": {
+                    backgroundColor: "#f3f4f6",
+                    borderColor: "#0f766e",
+                    color: "#0f766e",
                   },
                 }}
               />
             ))}
-          </Box>
+          </Bo  x> */}
 
           {/* Mobile Search */}
           <Box
