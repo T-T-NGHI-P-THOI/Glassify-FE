@@ -61,7 +61,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
         { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
       ],
     },
-    { icon: <Inventory />, label: 'Order', path: '/order' },
+    { icon: <Inventory />, label: 'Order', path: PAGE_ENDPOINTS.ORDER.MY_ORDERS },
     { icon: <AccountBalance />, label: 'Cashflow', path: '/cashflow' },
     { icon: <Widgets />, label: 'Unit', path: '/unit' },
     { icon: <People />, label: 'Customers', path: '/customers' },
