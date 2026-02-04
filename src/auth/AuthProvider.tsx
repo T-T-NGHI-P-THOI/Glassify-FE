@@ -2,7 +2,11 @@ import { type FC, type PropsWithChildren, useEffect, useReducer } from "react";
 import { initialize, reducer } from "./Reducer";
 import { AuthContext, initialState } from "./AuthContext";
 import AuthAPI from "../api/auth-api";
-import {TokenManager} from "@/api/axios.config.ts";
+import { TokenManager } from "@/api/axios.config.ts";
+import { useAuth } from "@/hooks/useAuth";
+import userApi from "@/api/service/userApi";
+import { authApi } from "@/api/service/authApi";
+import Loading from "@/layouts/Loading";
 
 const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -11,18 +15,30 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
     (async () => {
       const accessToken = TokenManager.getAccessToken();
       if (!accessToken) {
-        return dispatch(initialize({ isAuthenticated: false, user: null }));
+        return dispatch(initialize({ isInitialized: true, isAuthenticated: false, user: null }));
       }
 
       try {
-        const user = await AuthAPI.getUserByToken();
-        dispatch(initialize({isInitialized: true, isAuthenticated: true, user }));
-      } catch {
-        dispatch(initialize({ isAuthenticated: false, user: null }));
+        const userProfile = await userApi.getMyProfile();
+
+        console.log('Fetched user profile:', userProfile);
+
+        // @ts-ignore
+          dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: userProfile.data ?? null }));
+      } catch (err) {
+        TokenManager.clearTokens();
+        dispatch(initialize({
+          isInitialized: true,
+          isAuthenticated: false,
+          user: null
+        }));
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (!state.isInitialized) {
+    return <Loading />; // hoặc null, hoặc spinner
+  }
 
   return (
     <AuthContext.Provider value={{ ...state, dispatch }}>

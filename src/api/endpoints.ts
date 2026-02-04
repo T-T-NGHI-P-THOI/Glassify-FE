@@ -62,4 +62,8 @@ export const PAGE_ENDPOINTS = {
     SHOP_APPROVAL: `/admin/shop-approval`,
   },
 
+  USER: {
+    PROFILE: `/users/me`,
+  }
+
 } as const;
