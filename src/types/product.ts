@@ -7,8 +7,8 @@ export interface Product {
   rating: number;
   reviewCount: number;
   shape: string;
-  category: 'eyeglasses' | 'sunglasses' | 'sports' | 'kids' | 'accessories';
-  productType?: string;
+  category: string;
+  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   colors: ProductColor[];
   sizes?: string[];
   images: string[];

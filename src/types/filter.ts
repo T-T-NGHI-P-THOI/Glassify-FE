@@ -1,5 +1,5 @@
 export interface FilterOptions {
-  productTypes: Array<'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES'>;
+  productTypes: Array<'FRAME' | 'LENS' | 'ACCESSORIES'>;
   brands: Array<{ id: string; name: string }>;
   categories: Array<{ id: string; name: string }>;
   priceRange: {
@@ -10,9 +10,9 @@ export interface FilterOptions {
 }
 
 export interface ActiveFilters {
-  productType?: 'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES';
+  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   brandIds: string[];
-  categoryIds: string[];
+  categoryNames: string[];
   priceMin?: number;
   priceMax?: number;
   minRating?: number;
@@ -42,12 +42,12 @@ export interface BrowseProduct {
   price: number;
   rating: number;
   reviewCount: number;
-  productType: string;
+  productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   image: string;
   colorVariants: ColorVariant[];
   isFeatured?: boolean;
   isNew?: boolean;
   stockQuantity: number;
   brandId: string | null;
-  categoryId: string;
+  categoryName?: string;
 }
