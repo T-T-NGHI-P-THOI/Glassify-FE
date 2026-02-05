@@ -11,6 +11,8 @@ import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
+import MyOrdersPage from "@/pages/Order/MyOrdersPage";
+import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
 
 const PublicRoutesComponent = () => {
@@ -94,6 +96,24 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <AdminShopApprovalPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
+                element={
+                    <GuestGuard>
+                        <MyOrdersPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.WARRANTY.MAIN}
+                element={
+                    <GuestGuard>
+                        <WarrantyPage />
                     </GuestGuard>
                 }
             />

@@ -7,8 +7,7 @@ import {
   Badge,
   Button,
   Container,
-  InputAdornment,
-  Chip,
+  InputAdornment
 } from "@mui/material";
 import {
   Search,
@@ -16,40 +15,85 @@ import {
   Person,
   Favorite,
   Help,
-} from "@mui/icons-material";
-import { useState } from "react";
+} from '@mui/icons-material';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const Navbar = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
   const cartItemCount = 3;
 
   const mainCategories = [
-    { label: "Eyeglasses", path: "/eyeglass" },
-    { label: "Sunglasses", path: "/sunglass" },
-    { label: "Lenses", path: "/lens" },
-    { label: "Sports", path: "/sports" },
-    { label: "Collabs & Partners", path: "/collabs" },
-    { label: "✨ Discover", path: "/discover", special: true },
-    { label: "🏷️ Sale", path: "/sale", special: true },
+    { label: 'Eyeglasses', path: '/products', category: 'Eyeglasses' },
+    { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
+    { label: 'Lenses', path: '/lens', category: null },
+    { label: 'Sports', path: '/sports', category: null },
+    { label: 'Collabs & Partners', path: '/collabs', category: null },
+    { label: '✨ Discover', path: '/discover', special: true, category: null },
+    { label: '🏷️ Sale', path: '/sale', special: true, category: null },
   ];
 
-  const filterTags = [
-    { icon: "💰", label: "Under $30" },
-    { icon: "✨", label: "New Arrivals" },
-    { icon: "🔥", label: "Best Sellers" },
-    { icon: "⭐", label: "Top Rated" },
-    { icon: "▭", label: "Rectangle" },
-    { icon: "⬭", label: "Oversized" },
-    { icon: "🐢", label: "Tortoiseshell" },
-    { icon: "😺", label: "Cat Eye" },
-    { icon: "💎", label: "Premium" },
-    { icon: "🏷️", label: "On Sale" },
-  ];
+  // const filterTags = [
+  //   { icon: "💰", label: "Under $30" },
+  //   { icon: "✨", label: "New Arrivals" },
+  //   { icon: "🔥", label: "Best Sellers" },
+  //   { icon: "⭐", label: "Top Rated" },
+  //   { icon: "▭", label: "Rectangle" },
+  //   { icon: "⬭", label: "Oversized" },
+  //   { icon: "🐢", label: "Tortoiseshell" },
+  //   { icon: "😺", label: "Cat Eye" },
+  //   { icon: "💎", label: "Premium" },
+  //   { icon: "🏷️", label: "On Sale" },
+  // ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Search:", searchQuery);
+    if (searchQuery.trim()) {
+      navigate(`/products?q=${encodeURIComponent(searchQuery)}`);
+    }
   };
+
+  const handleCategoryClick = (item: typeof mainCategories[0]) => {
+    if (item.category) {
+      navigate(`${item.path}?category=${encodeURIComponent(item.category)}`);
+    } else {
+      navigate(item.path);
+    }
+  };
+
+  // const handleFilterTagClick = (tag: typeof filterTags[0]) => {
+  //   const params = new URLSearchParams();
+  //
+  //   switch (tag.filter) {
+  //     case 'price':
+  //       params.set('maxPrice', tag.value);
+  //       break;
+  //     case 'new':
+  //       params.set('sortBy', 'newest');
+  //       break;
+  //     case 'sort':
+  //       params.set('sortBy', tag.value);
+  //       break;
+  //     case 'shape':
+  //       params.set('shape', tag.value);
+  //       break;
+  //     case 'size':
+  //       params.set('size', tag.value);
+  //       break;
+  //     case 'color':
+  //       params.set('color', tag.value);
+  //       break;
+  //     case 'featured':
+  //       params.set('featured', tag.value);
+  //       break;
+  //     case 'sale':
+  //       params.set('sale', tag.value);
+  //       break;
+  //   }
+  //
+  //   navigate(`/products?${params.toString()}`);
+  // };
 
   return (
     <>
@@ -207,7 +251,8 @@ export const Navbar = () => {
           >
             {mainCategories.map((item) => (
               <Button
-                key={item.path}
+                key={item.path + item.label}
+                onClick={() => handleCategoryClick(item)}
                 sx={{
                   backgroundColor: "transparent",
                   color: item.special ? "#000000" : "#000000",
@@ -230,7 +275,7 @@ export const Navbar = () => {
           </Box>
 
           {/* Filter Tags */}
-          <Box
+        {/* <Box
             sx={{
               display: { xs: "none", lg: "flex" },
               justifyContent: "center",
@@ -259,7 +304,7 @@ export const Navbar = () => {
                 }}
               />
             ))}
-          </Box>
+          </Bo  x> */}
 
           {/* Mobile Search */}
           <Box

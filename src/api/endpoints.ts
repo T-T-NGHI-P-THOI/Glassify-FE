@@ -21,6 +21,17 @@ export const API_ENDPOINTS = {
     CREATE_WITH_CITIZEN_CARD: `${API_ENDPOINT}/account/create-with-citizen-card`,
     UPDATE: (id: string | number) => `${API_ENDPOINT}/account/${id}`,
     DELETE: (id: string | number) => `${API_ENDPOINT}/account/${id}`,
+  },
+  PRODUCTS: {
+    BASE: `${API_ENDPOINT}/product`,
+    GET_ALL: `${API_ENDPOINT}/product`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
+    GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
+    GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
+  },
+  CATEGORIES: {
+    BASE: `${API_ENDPOINT}/categories`,
+    GET_ALL: `${API_ENDPOINT}/categories`,
   }
 } as const;
 
@@ -49,6 +60,14 @@ export const PAGE_ENDPOINTS = {
 
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
+  },
+
+  ORDER: {
+    MY_ORDERS: `/my-orders`,
+  },
+
+  WARRANTY: {
+    MAIN: `/warranty`,
   },
 
   USER: {
