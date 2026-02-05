@@ -23,6 +23,8 @@ import {
   DialogContent,
   DialogActions,
   Link,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import {
@@ -44,6 +46,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { shopApi } from '@/api/service/shopApi';
+import type { ShopRegisterRequest } from '@/models/Shop';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -80,6 +84,68 @@ const registrationSteps = [
   { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
+// ==================== LOCATION DATA (GHN) ====================
+interface LocationOption {
+  value: string;
+  name: string;
+  ghnId: number;
+}
+
+interface WardOption {
+  value: string;
+  name: string;
+  ghnCode: string;
+}
+
+const PROVINCES: LocationOption[] = [
+  { value: 'hanoi', name: 'Ha Noi', ghnId: 201 },
+  { value: 'hcm', name: 'Ho Chi Minh City', ghnId: 202 },
+  { value: 'danang', name: 'Da Nang', ghnId: 48 },
+  { value: 'haiphong', name: 'Hai Phong', ghnId: 203 },
+];
+
+const DISTRICTS: Record<string, LocationOption[]> = {
+  hanoi: [
+    { value: 'district1', name: 'Ba Dinh', ghnId: 1488 },
+    { value: 'district2', name: 'Hoan Kiem', ghnId: 1489 },
+    { value: 'district3', name: 'Cau Giay', ghnId: 1490 },
+  ],
+  hcm: [
+    { value: 'district1', name: 'District 1', ghnId: 1442 },
+    { value: 'district2', name: 'District 3', ghnId: 1443 },
+    { value: 'district3', name: 'Thu Duc', ghnId: 1444 },
+  ],
+  danang: [
+    { value: 'district1', name: 'Hai Chau', ghnId: 1535 },
+    { value: 'district2', name: 'Thanh Khe', ghnId: 1536 },
+    { value: 'district3', name: 'Son Tra', ghnId: 1537 },
+  ],
+  haiphong: [
+    { value: 'district1', name: 'Hong Bang', ghnId: 1560 },
+    { value: 'district2', name: 'Le Chan', ghnId: 1561 },
+    { value: 'district3', name: 'Ngo Quyen', ghnId: 1562 },
+  ],
+};
+
+const WARDS: Record<string, WardOption[]> = {
+  district1: [
+    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0101' },
+    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0102' },
+    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0103' },
+  ],
+  district2: [
+    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0201' },
+    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0202' },
+    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0203' },
+  ],
+  district3: [
+    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0301' },
+    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0302' },
+    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0303' },
+  ],
+};
+
+// ==================== FORM INTERFACES ====================
 interface ShopFormData {
   shopName: string;
   shopDescription: string;
@@ -92,6 +158,7 @@ interface ShopFormData {
   district: string;
   ward: string;
   taxCode: string;
+  businessLicense: string;
 }
 
 interface LicenseFile {
@@ -118,12 +185,15 @@ const ShopRegistrationPage = () => {
     district: '',
     ward: '',
     taxCode: '',
+    businessLicense: '',
   });
   const [licenseFiles, setLicenseFiles] = useState<LicenseFile[]>([]);
   const [selectedShippingPartners, setSelectedShippingPartners] = useState<string[]>([]);
   const [policyAgreed, setPolicyAgreed] = useState(false);
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -170,11 +240,44 @@ const ShopRegistrationPage = () => {
     setActiveStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleSubmit = () => {
-    // Submit registration
-    console.log('Submitting:', { formData, licenseFiles });
-    // Show success dialog
-    setSuccessDialogOpen(true);
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const province = PROVINCES.find((p) => p.value === formData.city);
+      const districtList = DISTRICTS[formData.city] || [];
+      const district = districtList.find((d) => d.value === formData.district);
+      const wardList = WARDS[formData.district] || [];
+      const ward = wardList.find((w) => w.value === formData.ward);
+
+      const requestData: ShopRegisterRequest = {
+        shopName: formData.shopName,
+        email: formData.ownerEmail,
+        phone: formData.ownerPhone,
+        address: formData.shopAddress,
+        city: province?.name || formData.city,
+        businessLicense: formData.businessLicense,
+        businessLicenseUrl: '',
+        logoUrl: '',
+        ghnProvinceId: province?.ghnId || 0,
+        ghnDistrictId: district?.ghnId || 0,
+        ghnWardCode: ward?.ghnCode || '',
+        provinceName: province?.name || '',
+        districtName: district?.name || '',
+        wardName: ward?.name || '',
+        taxId: formData.taxCode,
+      };
+
+      await shopApi.register(requestData);
+      setSuccessDialogOpen(true);
+    } catch (err: any) {
+      const message =
+        err?.message || err?.errors?.[0] || 'Registration failed. Please try again.';
+      setSubmitError(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSuccessDialogClose = () => {
@@ -357,12 +460,13 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.city}
               label="City/Province"
-              onChange={handleSelectChange('city')}
+              onChange={(e) => {
+                setFormData((prev) => ({ ...prev, city: e.target.value, district: '', ward: '' }));
+              }}
             >
-              <MenuItem value="hanoi">Ha Noi</MenuItem>
-              <MenuItem value="hcm">Ho Chi Minh City</MenuItem>
-              <MenuItem value="danang">Da Nang</MenuItem>
-              <MenuItem value="haiphong">Hai Phong</MenuItem>
+              {PROVINCES.map((p) => (
+                <MenuItem key={p.value} value={p.value}>{p.name}</MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -373,11 +477,14 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.district}
               label="District"
-              onChange={handleSelectChange('district')}
+              disabled={!formData.city}
+              onChange={(e) => {
+                setFormData((prev) => ({ ...prev, district: e.target.value, ward: '' }));
+              }}
             >
-              <MenuItem value="district1">District 1</MenuItem>
-              <MenuItem value="district2">District 2</MenuItem>
-              <MenuItem value="district3">District 3</MenuItem>
+              {(DISTRICTS[formData.city] || []).map((d) => (
+                <MenuItem key={d.value} value={d.value}>{d.name}</MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -385,10 +492,15 @@ const ShopRegistrationPage = () => {
         <Grid size={{ xs: 12, md: 4 }}>
           <FormControl fullWidth>
             <InputLabel>Ward</InputLabel>
-            <Select value={formData.ward} label="Ward" onChange={handleSelectChange('ward')}>
-              <MenuItem value="ward1">Ward 1</MenuItem>
-              <MenuItem value="ward2">Ward 2</MenuItem>
-              <MenuItem value="ward3">Ward 3</MenuItem>
+            <Select
+              value={formData.ward}
+              label="Ward"
+              disabled={!formData.district}
+              onChange={handleSelectChange('ward')}
+            >
+              {(WARDS[formData.district] || []).map((w) => (
+                <MenuItem key={w.value} value={w.value}>{w.name}</MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Grid>
@@ -1065,12 +1177,23 @@ const ShopRegistrationPage = () => {
             />
           </Box>
 
+          {/* Submit Error */}
+          {submitError && (
+            <Alert
+              severity="error"
+              onClose={() => setSubmitError(null)}
+              sx={{ mt: 3 }}
+            >
+              {submitError}
+            </Alert>
+          )}
+
           {/* Navigation Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 3, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
             <Button
               variant="outlined"
               onClick={handleBack}
-              disabled={activeStep === 0}
+              disabled={activeStep === 0 || submitting}
               sx={{ px: 4 }}
             >
               Back
@@ -1089,14 +1212,15 @@ const ShopRegistrationPage = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!policyAgreed}
+                disabled={!policyAgreed || submitting}
+                startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
                 sx={{
                   px: 4,
                   bgcolor: theme.palette.custom.status.success.main,
                   '&:hover': { bgcolor: '#15803d' },
                 }}
               >
-                Submit Registration
+                {submitting ? 'Submitting...' : 'Submit Registration'}
               </Button>
             )}
           </Box>
