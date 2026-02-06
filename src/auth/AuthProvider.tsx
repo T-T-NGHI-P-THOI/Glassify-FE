@@ -21,7 +21,7 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
       try {
         const userProfile = await userApi.getMyProfile();
 
-        console.log('Fetched user profile:', userProfile);
+        console.log('Fetched user profile:', userProfile.data);
 
         // @ts-ignore
           dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: userProfile.data ?? null }));
