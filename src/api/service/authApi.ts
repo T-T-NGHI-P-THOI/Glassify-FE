@@ -26,7 +26,7 @@ export interface RegisterRequest {
 export const authApi = {
     login: async (data: LoginRequest): Promise<ApiResponse<AuthResponse>> => {
         const response = await axiosInstance.post<ApiResponse<AuthResponse>>(
-            '/v1/auth/login',
+            'api/v1/auth/login',
             data
         );
         return response.data;
@@ -34,7 +34,7 @@ export const authApi = {
 
     register: async (data: RegisterRequest): Promise<ApiResponse<AuthResponse>> => {
         const response = await axiosInstance.post<ApiResponse<AuthResponse>>(
-            '/v1/auth/register',
+            'api/v1/auth/register',
             data
         )
         return response.data;
@@ -42,7 +42,7 @@ export const authApi = {
 
     loginWithGoogle: async (data: GoogleLoginRequest): Promise<ApiResponse<AuthResponse>> => {
         const response = await axiosInstance.post<ApiResponse<AuthResponse>>(
-            '/v1/auth/google',
+            'api/v1/auth/google',
             data
         )
         return response.data;

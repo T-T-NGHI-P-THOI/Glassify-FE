@@ -17,7 +17,7 @@ import type { ApiResponse } from "@/models/ApiResponse.ts";
 /**
  * Base URL cho user endpoints
  */
-const USER_BASE_URL = '/users';
+const USER_BASE_URL = '/api/users';
 
 export interface UserResponseTemp {
     id: number;
