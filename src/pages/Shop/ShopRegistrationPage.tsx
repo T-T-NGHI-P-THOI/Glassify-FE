@@ -37,7 +37,6 @@ import {
   LocationOn,
   Phone,
   Email,
-  Person,
   Delete,
   InsertDriveFile,
   LocalShipping,
@@ -148,17 +147,16 @@ const WARDS: Record<string, WardOption[]> = {
 // ==================== FORM INTERFACES ====================
 interface ShopFormData {
   shopName: string;
-  shopDescription: string;
-  businessType: string;
-  ownerName: string;
-  ownerPhone: string;
-  ownerEmail: string;
-  shopAddress: string;
+  email: string;
+  phone: string;
+  address: string;
   city: string;
   district: string;
   ward: string;
-  taxCode: string;
+  taxId: string;
   businessLicense: string;
+  businessLicenseUrl: string;
+  logoUrl: string;
 }
 
 interface LicenseFile {
@@ -175,17 +173,16 @@ const ShopRegistrationPage = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
-    shopDescription: '',
-    businessType: '',
-    ownerName: '',
-    ownerPhone: '',
-    ownerEmail: '',
-    shopAddress: '',
+    email: '',
+    phone: '',
+    address: '',
     city: '',
     district: '',
     ward: '',
-    taxCode: '',
+    taxId: '',
     businessLicense: '',
+    businessLicenseUrl: '',
+    logoUrl: '',
   });
   const [licenseFiles, setLicenseFiles] = useState<LicenseFile[]>([]);
   const [selectedShippingPartners, setSelectedShippingPartners] = useState<string[]>([]);
@@ -217,6 +214,7 @@ const ShopRegistrationPage = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+    console.log(files);
     if (files) {
       const newFiles: LicenseFile[] = Array.from(files).map((file) => ({
         name: file.name,
@@ -225,6 +223,7 @@ const ShopRegistrationPage = () => {
         preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
       }));
       setLicenseFiles((prev) => [...prev, ...newFiles]);
+      setFormData((prev) => ({ ...prev, businessLicenseUrl: newFiles[0].name }));
     }
   };
 
@@ -253,20 +252,20 @@ const ShopRegistrationPage = () => {
 
       const requestData: ShopRegisterRequest = {
         shopName: formData.shopName,
-        email: formData.ownerEmail,
-        phone: formData.ownerPhone,
-        address: formData.shopAddress,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
         city: province?.name || formData.city,
         businessLicense: formData.businessLicense,
-        businessLicenseUrl: '',
-        logoUrl: '',
+        businessLicenseUrl: formData.businessLicenseUrl,
+        logoUrl: formData.logoUrl,
         ghnProvinceId: province?.ghnId || 0,
         ghnDistrictId: district?.ghnId || 0,
         ghnWardCode: ward?.ghnCode || '',
         provinceName: province?.name || '',
         districtName: district?.name || '',
         wardName: ward?.name || '',
-        taxId: formData.taxCode,
+        taxId: formData.taxId,
       };
 
       await shopApi.register(requestData);
@@ -312,6 +311,7 @@ const ShopRegistrationPage = () => {
         <Grid size={{ xs: 12 }}>
           <TextField
             fullWidth
+            required
             label="Shop Name"
             value={formData.shopName}
             onChange={handleInputChange('shopName')}
@@ -322,75 +322,17 @@ const ShopRegistrationPage = () => {
           />
         </Grid>
 
-        <Grid size={{ xs: 12 }}>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Shop Description"
-            value={formData.shopDescription}
-            onChange={handleInputChange('shopDescription')}
-            placeholder="Describe your shop and products..."
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <FormControl fullWidth>
-            <InputLabel>Business Type</InputLabel>
-            <Select
-              value={formData.businessType}
-              label="Business Type"
-              onChange={handleSelectChange('businessType')}
-            >
-              <MenuItem value="individual">Individual/Sole Proprietor</MenuItem>
-              <MenuItem value="company">Company/Corporation</MenuItem>
-              <MenuItem value="partnership">Partnership</MenuItem>
-              <MenuItem value="household">Household Business</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
-            label="Tax Code"
-            value={formData.taxCode}
-            onChange={handleInputChange('taxCode')}
-            placeholder="Enter tax identification number"
+            required
+            label="Email Address"
+            type="email"
+            value={formData.email}
+            onChange={handleInputChange('email')}
+            placeholder="Enter email address"
             InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
-          />
-        </Grid>
-      </Grid>
-
-      <Divider sx={{ my: 4 }} />
-
-      <Typography
-        sx={{
-          fontSize: 18,
-          fontWeight: 600,
-          color: theme.palette.custom.neutral[800],
-          mb: 3,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-        }}
-      >
-        <Person sx={{ color: theme.palette.primary.main }} />
-        Owner Information
-      </Typography>
-
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Owner Full Name"
-            value={formData.ownerName}
-            onChange={handleInputChange('ownerName')}
-            placeholder="Enter owner's full name"
-            InputProps={{
-              startAdornment: <Person sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+              startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
           />
         </Grid>
@@ -398,9 +340,10 @@ const ShopRegistrationPage = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
+            required
             label="Phone Number"
-            value={formData.ownerPhone}
-            onChange={handleInputChange('ownerPhone')}
+            value={formData.phone}
+            onChange={handleInputChange('phone')}
             placeholder="Enter phone number"
             InputProps={{
               startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
@@ -408,17 +351,26 @@ const ShopRegistrationPage = () => {
           />
         </Grid>
 
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
-            label="Email Address"
-            type="email"
-            value={formData.ownerEmail}
-            onChange={handleInputChange('ownerEmail')}
-            placeholder="Enter email address"
+            label="Tax ID"
+            value={formData.taxId}
+            onChange={handleInputChange('taxId')}
+            placeholder="Enter tax identification number"
             InputProps={{
-              startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Logo URL"
+            value={formData.logoUrl}
+            onChange={handleInputChange('logoUrl')}
+            placeholder="Enter logo image URL"
           />
         </Grid>
       </Grid>
@@ -444,9 +396,10 @@ const ShopRegistrationPage = () => {
         <Grid size={{ xs: 12 }}>
           <TextField
             fullWidth
+            required
             label="Street Address"
-            value={formData.shopAddress}
-            onChange={handleInputChange('shopAddress')}
+            value={formData.address}
+            onChange={handleInputChange('address')}
             placeholder="Enter street address"
             InputProps={{
               startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
@@ -455,11 +408,11 @@ const ShopRegistrationPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required>
             <InputLabel>City/Province</InputLabel>
             <Select
               value={formData.city}
-              label="City/Province"
+              label="City/Province *"
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, city: e.target.value, district: '', ward: '' }));
               }}
@@ -526,8 +479,40 @@ const ShopRegistrationPage = () => {
       </Typography>
 
       <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-        Please upload your business license and related documents for verification. Accepted formats: PDF,
-        JPG, PNG (max 10MB each)
+        Please provide your business license information and upload related documents for verification.
+      </Typography>
+
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            required
+            label="Business License Number"
+            value={formData.businessLicense}
+            onChange={handleInputChange('businessLicense')}
+            placeholder="Enter business license number"
+            InputProps={{
+              startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Business License URL"
+            value={formData.businessLicenseUrl}
+            onChange={handleInputChange('businessLicenseUrl')}
+            placeholder="Enter license document URL (optional)"
+          />
+        </Grid>
+      </Grid>
+
+      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1.5 }}>
+        Upload License Documents
+      </Typography>
+      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
+        Accepted formats: PDF, JPG, PNG (max 10MB each)
       </Typography>
 
       <input
@@ -811,31 +796,29 @@ const ShopRegistrationPage = () => {
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                Business Type
-              </Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Email</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.businessType || '-'}
+                {formData.email || '-'}
               </Typography>
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Tax Code</Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Phone</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.taxCode || '-'}
+                {formData.phone || '-'}
               </Typography>
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Address</Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Tax ID</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.shopAddress || '-'}
+                {formData.taxId || '-'}
               </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        {/* Owner Info Summary */}
+        {/* Address Summary */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper
             elevation={0}
@@ -855,28 +838,75 @@ const ShopRegistrationPage = () => {
                 mb: 2,
               }}
             >
-              Owner Details
+              Address Details
             </Typography>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Full Name</Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Address</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.ownerName || '-'}
+                {formData.address || '-'}
               </Typography>
             </Box>
 
             <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Phone</Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>City/Province</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.ownerPhone || '-'}
+                {PROVINCES.find((p) => p.value === formData.city)?.name || '-'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>District</Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                {(DISTRICTS[formData.city] || []).find((d) => d.value === formData.district)?.name || '-'}
               </Typography>
             </Box>
 
             <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Email</Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Ward</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.ownerEmail || '-'}
+                {(WARDS[formData.district] || []).find((w) => w.value === formData.ward)?.name || '-'}
               </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* Business License Summary */}
+        <Grid size={{ xs: 12 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.custom.border.light}`,
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: theme.palette.custom.neutral[500],
+                textTransform: 'uppercase',
+                mb: 2,
+              }}
+            >
+              Business License
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <Box>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Number</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.businessLicense || '-'}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License URL</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.businessLicenseUrl || '-'}
+                </Typography>
+              </Box>
             </Box>
           </Paper>
         </Grid>
@@ -1397,7 +1427,7 @@ const ShopRegistrationPage = () => {
               }}
             >
               <Typography sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }}>
-                Please check your email <strong>{formData.ownerEmail || 'inbox'}</strong> for updates on your registration status.
+                Please check your email <strong>{formData.email || 'inbox'}</strong> for updates on your registration status.
               </Typography>
             </Box>
           </DialogContent>
