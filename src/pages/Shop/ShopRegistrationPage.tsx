@@ -46,8 +46,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { shopApi } from '@/api/service/shopApi';
 import type { ShopRegisterRequest } from '@/models/Shop';
+import { shopApi } from '@/api/shopApi';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({

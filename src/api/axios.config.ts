@@ -13,7 +13,7 @@ import axios from "axios";
  * Cấu hình base cho API
  */
 const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api',
     TIMEOUT: 30000, // 30 seconds
     RETRY_COUNT: 3,
     RETRY_DELAY: 1000, // 1 second

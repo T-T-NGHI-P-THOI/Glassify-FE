@@ -32,6 +32,7 @@ import {
   LocalOffer,
   Description,
   Store,
+  Visibility,
 } from '@mui/icons-material';
 import { useState } from 'react';
 
@@ -932,9 +933,19 @@ const MyOrdersPage = () => {
                                       {formatVariantInfo(item.variantInfo)}
                                       {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
                                     </Typography>
+                                    {item.prescriptionSnapshot && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                                        <Visibility sx={{ fontSize: 13, color: theme.palette.custom.status.info.main }} />
+                                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.info.main, fontWeight: 500 }}>
+                                          R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
+                                          {' / '}
+                                          L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
+                                          {item.prescriptionSnapshot.addPower != null && ` | ADD +${item.prescriptionSnapshot.addPower}`}
+                                        </Typography>
+                                      </Box>
+                                    )}
                                     <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
                                       x{item.quantity}
-                                      {item.productSku && <span style={{ marginLeft: 8, fontSize: 11, color: theme.palette.custom.neutral[400] }}>SKU: {item.productSku}</span>}
                                     </Typography>
                                   </Box>
                                   <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1292,8 +1303,39 @@ const MyOrdersPage = () => {
 
                                         <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
                                           x{item.quantity} | {formatCurrency(item.unitPrice)}/item
-                                          {item.productSku && <span style={{ marginLeft: 8, fontSize: 11, color: theme.palette.custom.neutral[400] }}>SKU: {item.productSku}</span>}
                                         </Typography>
+
+                                        {item.prescriptionSnapshot && (
+                                          <Box
+                                            sx={{
+                                              mt: 0.75,
+                                              p: 1,
+                                              borderRadius: '6px',
+                                              bgcolor: theme.palette.custom.status.info.light,
+                                              display: 'flex',
+                                              alignItems: 'flex-start',
+                                              gap: 0.75,
+                                            }}
+                                          >
+                                            <Visibility sx={{ fontSize: 14, color: theme.palette.custom.status.info.main, mt: 0.125 }} />
+                                            <Box>
+                                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.25 }}>
+                                                Prescription
+                                              </Typography>
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
+                                              </Typography>
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
+                                              </Typography>
+                                              {item.prescriptionSnapshot.addPower != null && (
+                                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                  ADD: +{item.prescriptionSnapshot.addPower}
+                                                </Typography>
+                                              )}
+                                            </Box>
+                                          </Box>
+                                        )}
 
                                         {item.giftNote && (
                                           <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontStyle: 'italic', mt: 0.25 }}>
