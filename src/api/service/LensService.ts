@@ -1,5 +1,6 @@
 import axiosInstance from '../axios.config';
-import type { LensSelection, Prescription } from '@/models/Lens';
+import type { LensSelection, Prescription, LensFrameValidationRequest, LensFrameValidationResponse, LensCatalogData } from '@/models/Lens';
+import { API_ENDPOINTS } from '../endpoints';
 
 export interface AddToCartWithLensRequest {
     product_id: string;
@@ -101,6 +102,34 @@ class LensService {
     private isValidCylinderValue(value: string): boolean {
         const num = parseFloat(value);
         return !isNaN(num) && num >= -4.0 && num <= 0.0;
+    }
+
+    /**
+     * Get lens catalog options for a specific frame variant
+     * Returns all available lenses, usages, features, tints, and progressive options for the frame
+     */
+    async getLensCatalogForFrame(frameVariantId: string): Promise<LensCatalogData> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.LENS.CATALOG_FOR_FRAME(frameVariantId));
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching lens catalog for frame:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Validate lens-frame compatibility
+     * Validates if a specific lens can be fitted into a frame variant with prescription values
+     */
+    async validateLensFrame(request: LensFrameValidationRequest): Promise<LensFrameValidationResponse> {
+        try {
+            const response = await axiosInstance.post(API_ENDPOINTS.VALIDATION.LENS_FRAME, request);
+            return response.data;
+        } catch (error) {
+            console.error('Error validating lens-frame compatibility:', error);
+            throw error;
+        }
     }
 }
 

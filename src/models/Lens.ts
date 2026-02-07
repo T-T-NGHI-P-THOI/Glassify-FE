@@ -1,9 +1,17 @@
 // Lens-related models for eyewear customization
 
+export type LensUsageType = 
+    | 'NON_PRESCRIPTION'
+    | 'SINGLE_VISION'
+    | 'READING'
+    | 'BIFOCAL'
+    | 'PROGRESSIVE';
+
 export interface LensUsage {
     id: string;
     name: string;
     description: string;
+    type?: LensUsageType;
     icon?: string;
 }
 
@@ -13,6 +21,7 @@ export interface LensType {
     description: string;
     price: number;
     isPrescription: boolean;
+    isProgressive?: boolean;
     usage_id: string;
 }
 
@@ -75,6 +84,20 @@ export const CYLINDER_VALUES = [
 
 export const ADD_VALUES = [
     '+0.75', '+1.00', '+1.25', '+1.50', '+1.75', '+2.00', '+2.25', '+2.50', '+2.75', '+3.00'
+];
+
+export const PD_VALUES = [
+    '56', '57', '58', '59', '60', '61', '62', '63', '64', '65',
+    '66', '67', '68', '69', '70', '71', '72', '73', '74', '75',
+    '76', '77', '78', '79'
+];
+
+export const PD_MONOCULAR_VALUES = [
+    '17.5', '18.0', '18.5', '19.0', '19.5', '20.0', '20.5', '21.0', '21.5', '22.0',
+    '22.5', '23.0', '23.5', '24.0', '24.5', '25.0', '25.5', '26.0', '26.5', '27.0',
+    '27.5', '28.0', '28.5', '29.0', '29.5', '30.0', '30.5', '31.0', '31.5', '32.0',
+    '32.5', '33.0', '33.5', '34.0', '34.5', '35.0', '35.5', '36.0', '36.5', '37.0',
+    '37.5', '38.0', '38.5', '39.0', '39.5', '40.0'
 ];
 
 // Sample data
@@ -282,3 +305,104 @@ export const SAMPLE_LENS_TINTS: LensTint[] = [
         opacity: 0.75,
     },
 ];
+
+// Lens-Frame Validation Types
+export interface LensFrameValidationRequest {
+    lensId: string;
+    frameVariantId: string;
+    featureIds: string[];
+    sphRight: number;
+    sphLeft: number;
+    cylRight: number;
+    cylLeft: number;
+    axisRight: number;
+    axisLeft: number;
+    addLeft: number;
+    addRight: number;
+    pdLeft: number;
+    pdRight: number;
+}
+
+export type ValidationSeverity = 'ERROR' | 'WARNING' | 'INFO';
+
+export interface ValidationIssue {
+    code: string;
+    path: string;
+    message: string;
+    severity: ValidationSeverity;
+    meta?: Record<string, any>;
+}
+
+export interface LensFrameValidationResponse {
+    valid: boolean;
+    issues: ValidationIssue[];
+}
+
+// Lens Catalog API Types
+export interface LensCatalogUsage {
+    usageId: string;
+    type: string;
+    name: string;
+    description: string;
+    allowTint: boolean;
+    allowProgressive: boolean;
+    minPriceAdjustment: number;
+}
+
+export interface LensCatalogFeature {
+    featureId: string;
+    sku: string;
+    name: string;
+    description: string;
+    extraPrice: number;
+    isDefault: boolean;
+    sphLimit: number;
+}
+
+export interface LensCatalogTint {
+    tintId: string;
+    code: string;
+    name: string;
+    cssValue: string;
+    opacity: number;
+    behavior: string;
+    basePrice: number;
+    extraPrice: number;
+    isDefault: boolean;
+}
+
+export interface LensCatalogProgressiveOption {
+    progressiveOptionId: string;
+    name: string;
+    description: string;
+    progressiveType: string;
+    maxViewDistanceFt: number;
+    extraPrice: number;
+    isRecommended: boolean;
+    isActive: boolean;
+}
+
+export interface LensCatalogLens {
+    lensId: string;
+    lensSku: string;
+    lensName: string;
+    basePrice: number;
+    isProgressive: boolean;
+    usages: LensCatalogUsage[];
+    features: LensCatalogFeature[];
+    tints: LensCatalogTint[];
+    progressiveOptions: LensCatalogProgressiveOption[];
+}
+
+export interface LensCatalogData {
+    frameVariantId: string;
+    frameVariantSku: string;
+    lenses: LensCatalogLens[];
+}
+
+export interface LensCatalogResponse {
+    status: number;
+    message: string;
+    data: LensCatalogData;
+    errors: string[];
+}

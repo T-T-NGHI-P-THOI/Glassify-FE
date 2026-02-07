@@ -53,6 +53,7 @@ const ProductDetailPage: React.FC = () => {
           shape: 'Rectangle', // Default - update if you have this data
           category: apiProduct.categoryName,
           productType: apiProduct.productType,
+          variantId: apiProduct.variantId,
           colors: [
             {
               name: 'Default',
@@ -202,7 +203,7 @@ const ProductDetailPage: React.FC = () => {
       });
 
       if (response.success) {
-        const totalPrice = product.price + selection.total_price;
+        const totalPrice = selection.total_price;
         alert(
           `Đã thêm ${product.name} với tròng kính tùy chỉnh vào giỏ hàng!\n\n` +
           `Loại kính: ${selection.lens_type.name}\n` +
@@ -280,6 +281,8 @@ const ProductDetailPage: React.FC = () => {
         onConfirm={handleLensSelection}
         productName={product.name}
         productId={product.id}
+        frameVariantId={product.variantId}
+        framePrice={product.price}
       />
       </div>
 

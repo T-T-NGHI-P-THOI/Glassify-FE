@@ -32,6 +32,14 @@ export const API_ENDPOINTS = {
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
     GET_ALL: `${API_ENDPOINT}/categories`,
+  },
+  LENS: {
+    BASE: `${API_ENDPOINT}/lens-catalog`,
+    CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+  },
+  VALIDATION: {
+    BASE: `${API_ENDPOINT}/validation`,
+    LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
   }
 } as const;
 

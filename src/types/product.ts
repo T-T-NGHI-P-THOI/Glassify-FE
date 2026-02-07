@@ -9,6 +9,7 @@ export interface Product {
   shape: string;
   category: string;
   productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  variantId?: string;
   colors: ProductColor[];
   sizes?: string[];
   images: string[];
