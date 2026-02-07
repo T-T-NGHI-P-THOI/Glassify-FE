@@ -45,8 +45,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import type { ShopRegisterRequest } from '@/models/Shop';
+import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
+import { ghnApi } from '@/api/ghnApi';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -82,67 +83,6 @@ const registrationSteps = [
   { label: 'Shipping', key: 'SHIPPING' },
   { label: 'Review & Submit', key: 'REVIEW' },
 ];
-
-// ==================== LOCATION DATA (GHN) ====================
-interface LocationOption {
-  value: string;
-  name: string;
-  ghnId: number;
-}
-
-interface WardOption {
-  value: string;
-  name: string;
-  ghnCode: string;
-}
-
-const PROVINCES: LocationOption[] = [
-  { value: 'hanoi', name: 'Ha Noi', ghnId: 201 },
-  { value: 'hcm', name: 'Ho Chi Minh City', ghnId: 202 },
-  { value: 'danang', name: 'Da Nang', ghnId: 48 },
-  { value: 'haiphong', name: 'Hai Phong', ghnId: 203 },
-];
-
-const DISTRICTS: Record<string, LocationOption[]> = {
-  hanoi: [
-    { value: 'district1', name: 'Ba Dinh', ghnId: 1488 },
-    { value: 'district2', name: 'Hoan Kiem', ghnId: 1489 },
-    { value: 'district3', name: 'Cau Giay', ghnId: 1490 },
-  ],
-  hcm: [
-    { value: 'district1', name: 'District 1', ghnId: 1442 },
-    { value: 'district2', name: 'District 3', ghnId: 1443 },
-    { value: 'district3', name: 'Thu Duc', ghnId: 1444 },
-  ],
-  danang: [
-    { value: 'district1', name: 'Hai Chau', ghnId: 1535 },
-    { value: 'district2', name: 'Thanh Khe', ghnId: 1536 },
-    { value: 'district3', name: 'Son Tra', ghnId: 1537 },
-  ],
-  haiphong: [
-    { value: 'district1', name: 'Hong Bang', ghnId: 1560 },
-    { value: 'district2', name: 'Le Chan', ghnId: 1561 },
-    { value: 'district3', name: 'Ngo Quyen', ghnId: 1562 },
-  ],
-};
-
-const WARDS: Record<string, WardOption[]> = {
-  district1: [
-    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0101' },
-    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0102' },
-    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0103' },
-  ],
-  district2: [
-    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0201' },
-    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0202' },
-    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0203' },
-  ],
-  district3: [
-    { value: 'ward1', name: 'Ward 1', ghnCode: '1A0301' },
-    { value: 'ward2', name: 'Ward 2', ghnCode: '1A0302' },
-    { value: 'ward3', name: 'Ward 3', ghnCode: '1A0303' },
-  ],
-};
 
 // ==================== FORM INTERFACES ====================
 interface ShopFormData {
@@ -192,6 +132,14 @@ const ShopRegistrationPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // GHN location state
+  const [provinces, setProvinces] = useState<GhnProvince[]>([]);
+  const [districts, setDistricts] = useState<GhnDistrict[]>([]);
+  const [wards, setWards] = useState<GhnWard[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(true);
@@ -201,6 +149,64 @@ const ShopRegistrationPage = () => {
       setShowFooter(true);
     };
   }, [setShowNavbar, setShowFooter]);
+
+  // Fetch provinces on mount
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        const res = await ghnApi.getProvinces();
+        setProvinces(res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch provinces:', err);
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
+  // Fetch districts when province changes
+  useEffect(() => {
+    if (!formData.city) {
+      setDistricts([]);
+      return;
+    }
+    const fetchDistricts = async () => {
+      setLoadingDistricts(true);
+      try {
+        const provinceId = Number(formData.city);
+        const res = await ghnApi.getDistricts(provinceId);
+        setDistricts(res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch districts:', err);
+      } finally {
+        setLoadingDistricts(false);
+      }
+    };
+    fetchDistricts();
+  }, [formData.city]);
+
+  // Fetch wards when district changes
+  useEffect(() => {
+    if (!formData.district) {
+      setWards([]);
+      return;
+    }
+    const fetchWards = async () => {
+      setLoadingWards(true);
+      try {
+        const districtId = Number(formData.district);
+        const res = await ghnApi.getWards(districtId);
+        setWards(res.data || []);
+      } catch (err) {
+        console.error('Failed to fetch wards:', err);
+      } finally {
+        setLoadingWards(false);
+      }
+    };
+    fetchWards();
+  }, [formData.district]);
 
   const handleInputChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -244,27 +250,25 @@ const ShopRegistrationPage = () => {
     setSubmitError(null);
 
     try {
-      const province = PROVINCES.find((p) => p.value === formData.city);
-      const districtList = DISTRICTS[formData.city] || [];
-      const district = districtList.find((d) => d.value === formData.district);
-      const wardList = WARDS[formData.district] || [];
-      const ward = wardList.find((w) => w.value === formData.ward);
+      const province = provinces.find((p) => p.ProvinceID === Number(formData.city));
+      const district = districts.find((d) => d.DistrictID === Number(formData.district));
+      const ward = wards.find((w) => w.WardCode === formData.ward);
 
       const requestData: ShopRegisterRequest = {
         shopName: formData.shopName,
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
-        city: province?.name || formData.city,
+        city: province?.ProvinceName || '',
         businessLicense: formData.businessLicense,
         businessLicenseUrl: formData.businessLicenseUrl,
         logoUrl: formData.logoUrl,
-        ghnProvinceId: province?.ghnId || 0,
-        ghnDistrictId: district?.ghnId || 0,
-        ghnWardCode: ward?.ghnCode || '',
-        provinceName: province?.name || '',
-        districtName: district?.name || '',
-        wardName: ward?.name || '',
+        ghnProvinceId: province?.ProvinceID || 0,
+        ghnDistrictId: district?.DistrictID || 0,
+        ghnWardCode: ward?.WardCode || '',
+        provinceName: province?.ProvinceName || '',
+        districtName: district?.DistrictName || '',
+        wardName: ward?.WardName || '',
         taxId: formData.taxId,
       };
 
@@ -413,12 +417,13 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.city}
               label="City/Province *"
+              disabled={loadingProvinces}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, city: e.target.value, district: '', ward: '' }));
               }}
             >
-              {PROVINCES.map((p) => (
-                <MenuItem key={p.value} value={p.value}>{p.name}</MenuItem>
+              {provinces.map((p) => (
+                <MenuItem key={p.ProvinceID} value={String(p.ProvinceID)}>{p.ProvinceName}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -430,13 +435,13 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.district}
               label="District"
-              disabled={!formData.city}
+              disabled={!formData.city || loadingDistricts}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, district: e.target.value, ward: '' }));
               }}
             >
-              {(DISTRICTS[formData.city] || []).map((d) => (
-                <MenuItem key={d.value} value={d.value}>{d.name}</MenuItem>
+              {districts.map((d) => (
+                <MenuItem key={d.DistrictID} value={String(d.DistrictID)}>{d.DistrictName}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -448,11 +453,11 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.ward}
               label="Ward"
-              disabled={!formData.district}
+              disabled={!formData.district || loadingWards}
               onChange={handleSelectChange('ward')}
             >
-              {(WARDS[formData.district] || []).map((w) => (
-                <MenuItem key={w.value} value={w.value}>{w.name}</MenuItem>
+              {wards.map((w) => (
+                <MenuItem key={w.WardCode} value={w.WardCode}>{w.WardName}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -851,21 +856,21 @@ const ShopRegistrationPage = () => {
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>City/Province</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {PROVINCES.find((p) => p.value === formData.city)?.name || '-'}
+                {provinces.find((p) => p.ProvinceID === Number(formData.city))?.ProvinceName || '-'}
               </Typography>
             </Box>
 
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>District</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {(DISTRICTS[formData.city] || []).find((d) => d.value === formData.district)?.name || '-'}
+                {districts.find((d) => d.DistrictID === Number(formData.district))?.DistrictName || '-'}
               </Typography>
             </Box>
 
             <Box>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Ward</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {(WARDS[formData.district] || []).find((w) => w.value === formData.ward)?.name || '-'}
+                {wards.find((w) => w.WardCode === formData.ward)?.WardName || '-'}
               </Typography>
             </Box>
           </Paper>

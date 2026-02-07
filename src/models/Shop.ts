@@ -1,3 +1,22 @@
+// ==================== GHN Location Types ====================
+export interface GhnProvince {
+  ProvinceID: number;
+  ProvinceName: string;
+}
+
+export interface GhnDistrict {
+  DistrictID: number;
+  ProvinceID: number;
+  DistrictName: string;
+}
+
+export interface GhnWard {
+  WardCode: string;
+  DistrictID: number;
+  WardName: string;
+}
+
+// ==================== Shop Types ====================
 export interface ShopRegisterRequest {
   shopName: string;
   email: string;

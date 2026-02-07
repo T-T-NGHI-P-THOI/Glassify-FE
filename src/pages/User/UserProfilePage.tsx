@@ -55,6 +55,7 @@ import {
     Delete,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useLayout } from '../../layouts/LayoutContext';
 import {
     AuthProvider,
@@ -1056,7 +1057,11 @@ const UserProfilePage = () => {
                                             >
                                                 You don't have a shop yet
                                             </Typography>
-                                            <Button variant="contained" startIcon={<Store />}>
+                                            <Button
+                                                variant="contained"
+                                                startIcon={<Store />}
+                                                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.REGISTER)}
+                                            >
                                                 Create Shop
                                             </Button>
                                         </Paper>
