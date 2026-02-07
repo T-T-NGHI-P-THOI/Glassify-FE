@@ -31,6 +31,8 @@ import {
   VerifiedUser,
   LocalOffer,
   Description,
+  Store,
+  Visibility,
 } from '@mui/icons-material';
 import { useState } from 'react';
 
@@ -62,6 +64,9 @@ interface OrderItem {
   timesReturned: number;
   timesWarrantyClaimed: number;
   itemType: ItemType;
+  shopId: string;
+  shopName: string;
+  shopLogoUrl?: string;
 }
 
 interface Order {
@@ -123,6 +128,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-001',
+        shopName: 'Luxury Eyewear Store',
+        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
       },
       {
         id: 'item-002',
@@ -138,6 +146,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'ACCESSORY',
+        shopId: 'shop-003',
+        shopName: 'Glasses Accessories Hub',
+        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
       },
     ],
   },
@@ -177,6 +188,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-002',
+        shopName: 'Sport Vision Pro',
+        shopLogoUrl: 'https://picsum.photos/seed/shop2/40/40',
       },
     ],
   },
@@ -216,6 +230,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-001',
+        shopName: 'Luxury Eyewear Store',
+        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
       },
       {
         id: 'item-005',
@@ -232,6 +249,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'ACCESSORY',
+        shopId: 'shop-001',
+        shopName: 'Luxury Eyewear Store',
+        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
       },
     ],
   },
@@ -271,6 +291,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-004',
+        shopName: 'Designer Frames Boutique',
+        shopLogoUrl: 'https://picsum.photos/seed/shop4/40/40',
       },
       {
         id: 'item-007',
@@ -290,6 +313,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'LENS',
+        shopId: 'shop-005',
+        shopName: 'LensCraft Vietnam',
+        shopLogoUrl: 'https://picsum.photos/seed/shop5/40/40',
       },
     ],
   },
@@ -326,6 +352,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-001',
+        shopName: 'Luxury Eyewear Store',
+        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
       },
       {
         id: 'item-009',
@@ -341,6 +370,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'ACCESSORY',
+        shopId: 'shop-003',
+        shopName: 'Glasses Accessories Hub',
+        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
       },
       {
         id: 'item-010',
@@ -356,6 +388,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'ACCESSORY',
+        shopId: 'shop-003',
+        shopName: 'Glasses Accessories Hub',
+        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
       },
     ],
   },
@@ -395,6 +430,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'FRAME',
+        shopId: 'shop-004',
+        shopName: 'Designer Frames Boutique',
+        shopLogoUrl: 'https://picsum.photos/seed/shop4/40/40',
       },
       {
         id: 'item-012',
@@ -415,6 +453,9 @@ const mockOrders: Order[] = [
         timesReturned: 0,
         timesWarrantyClaimed: 0,
         itemType: 'LENS',
+        shopId: 'shop-005',
+        shopName: 'LensCraft Vietnam',
+        shopLogoUrl: 'https://picsum.photos/seed/shop5/40/40',
       },
     ],
   },
@@ -467,6 +508,24 @@ const getItemTypeLabel = (type: ItemType) => {
 const formatVariantInfo = (variantInfo?: Record<string, any>) => {
   if (!variantInfo) return '';
   return Object.values(variantInfo).join(' / ');
+};
+
+const groupItemsByShop = (items: OrderItem[]) => {
+  const shopMap = new Map<string, { shopId: string; shopName: string; shopLogoUrl?: string; items: OrderItem[] }>();
+  items.forEach((item) => {
+    const existing = shopMap.get(item.shopId);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      shopMap.set(item.shopId, {
+        shopId: item.shopId,
+        shopName: item.shopName,
+        shopLogoUrl: item.shopLogoUrl,
+        items: [item],
+      });
+    }
+  });
+  return Array.from(shopMap.values());
 };
 
 // ==================== ORDER STEPPER ====================
@@ -791,79 +850,121 @@ const MyOrdersPage = () => {
 
                 {/* Card Body */}
                 <Box sx={{ px: 3, py: 2 }}>
-                  {/* Product Items */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-                    {order.items.map((item) => {
-                      const typeStyle = getItemTypeColor(item.itemType);
-                      return (
-                        <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar
-                            variant="rounded"
-                            src={item.productImageUrl}
-                            sx={{
-                              width: 64,
-                              height: 64,
-                              bgcolor: theme.palette.custom.neutral[100],
-                              border: `1px solid ${theme.palette.custom.border.light}`,
-                              borderRadius: '10px',
-                            }}
-                          >
-                            <ShoppingBag sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
-                          </Avatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }} noWrap>
-                                {item.productName}
+                  {/* Product Items grouped by Shop */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                    {(() => {
+                      const shopGroups = groupItemsByShop(order.items);
+                      const isMultiShop = shopGroups.length > 1;
+                      return shopGroups.map((shopGroup, groupIndex) => (
+                        <Box key={shopGroup.shopId}>
+                          {/* Shop Header - only show if multi-shop */}
+                          {isMultiShop && (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                mb: 1,
+                                ...(groupIndex > 0 && {
+                                  pt: 1.5,
+                                  borderTop: `1px dashed ${theme.palette.custom.border.light}`,
+                                }),
+                              }}
+                            >
+                              <Store sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
+                                {shopGroup.shopName}
                               </Typography>
-                              <Chip
-                                label={getItemTypeLabel(item.itemType)}
-                                size="small"
-                                sx={{
-                                  bgcolor: typeStyle.bg,
-                                  color: typeStyle.color,
-                                  fontWeight: 500,
-                                  fontSize: 11,
-                                  height: 20,
-                                  flexShrink: 0,
-                                }}
-                              />
-                              {item.isFree && (
-                                <Chip
-                                  label="FREE"
-                                  size="small"
-                                  sx={{
-                                    bgcolor: theme.palette.custom.status.success.light,
-                                    color: theme.palette.custom.status.success.main,
-                                    fontWeight: 700,
-                                    fontSize: 10,
-                                    height: 20,
-                                    flexShrink: 0,
-                                  }}
-                                />
-                              )}
                             </Box>
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
-                              {formatVariantInfo(item.variantInfo)}
-                              {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
-                            </Typography>
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                              x{item.quantity}
-                              {item.productSku && <span style={{ marginLeft: 8, fontSize: 11, color: theme.palette.custom.neutral[400] }}>SKU: {item.productSku}</span>}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                              {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
-                            </Typography>
-                            {item.discountAmount > 0 && (
-                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
-                                -{formatCurrency(item.discountAmount)}
-                              </Typography>
-                            )}
+                          )}
+
+                          {/* Items in this shop */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {shopGroup.items.map((item) => {
+                              const typeStyle = getItemTypeColor(item.itemType);
+                              return (
+                                <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                  <Avatar
+                                    variant="rounded"
+                                    src={item.productImageUrl}
+                                    sx={{
+                                      width: 64,
+                                      height: 64,
+                                      bgcolor: theme.palette.custom.neutral[100],
+                                      border: `1px solid ${theme.palette.custom.border.light}`,
+                                      borderRadius: '10px',
+                                    }}
+                                  >
+                                    <ShoppingBag sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
+                                  </Avatar>
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }} noWrap>
+                                        {item.productName}
+                                      </Typography>
+                                      <Chip
+                                        label={getItemTypeLabel(item.itemType)}
+                                        size="small"
+                                        sx={{
+                                          bgcolor: typeStyle.bg,
+                                          color: typeStyle.color,
+                                          fontWeight: 500,
+                                          fontSize: 11,
+                                          height: 20,
+                                          flexShrink: 0,
+                                        }}
+                                      />
+                                      {item.isFree && (
+                                        <Chip
+                                          label="FREE"
+                                          size="small"
+                                          sx={{
+                                            bgcolor: theme.palette.custom.status.success.light,
+                                            color: theme.palette.custom.status.success.main,
+                                            fontWeight: 700,
+                                            fontSize: 10,
+                                            height: 20,
+                                            flexShrink: 0,
+                                          }}
+                                        />
+                                      )}
+                                    </Box>
+                                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
+                                      {formatVariantInfo(item.variantInfo)}
+                                      {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
+                                    </Typography>
+                                    {item.prescriptionSnapshot && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                                        <Visibility sx={{ fontSize: 13, color: theme.palette.custom.status.info.main }} />
+                                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.info.main, fontWeight: 500 }}>
+                                          R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
+                                          {' / '}
+                                          L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
+                                          {item.prescriptionSnapshot.addPower != null && ` | ADD +${item.prescriptionSnapshot.addPower}`}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                                      x{item.quantity}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                      {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
+                                    </Typography>
+                                    {item.discountAmount > 0 && (
+                                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                        -{formatCurrency(item.discountAmount)}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Box>
+                              );
+                            })}
                           </Box>
                         </Box>
-                      );
-                    })}
+                      ));
+                    })()}
                   </Box>
 
                   {/* Tracking Number */}
@@ -1113,95 +1214,164 @@ const MyOrdersPage = () => {
                       </Typography>
                     </Box>
 
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      {selectedOrder.items.map((item) => {
-                        const typeStyle = getItemTypeColor(item.itemType);
-                        return (
-                          <Box
-                            key={item.id}
-                            sx={{
-                              p: 2,
-                              borderRadius: '10px',
-                              border: `1px solid ${theme.palette.custom.border.light}`,
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                              <Avatar
-                                variant="rounded"
-                                src={item.productImageUrl}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {(() => {
+                        const shopGroups = groupItemsByShop(selectedOrder.items);
+                        const isMultiShop = shopGroups.length > 1;
+                        return shopGroups.map((shopGroup) => (
+                          <Box key={shopGroup.shopId}>
+                            {/* Shop Header - only show if multi-shop */}
+                            {isMultiShop && (
+                              <Box
                                 sx={{
-                                  width: 56,
-                                  height: 56,
-                                  bgcolor: theme.palette.custom.neutral[100],
-                                  borderRadius: '8px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  mb: 1.5,
+                                  pb: 1,
+                                  borderBottom: `1px solid ${theme.palette.custom.border.light}`,
                                 }}
                               >
-                                <ShoppingBag sx={{ fontSize: 24 }} />
-                              </Avatar>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                                    {item.productName}
-                                  </Typography>
-                                  <Chip
-                                    label={getItemTypeLabel(item.itemType)}
-                                    size="small"
-                                    sx={{ bgcolor: typeStyle.bg, color: typeStyle.color, fontWeight: 500, fontSize: 11, height: 20 }}
-                                  />
-                                  {item.isFree && (
-                                    <Chip
-                                      label="FREE"
-                                      size="small"
-                                      sx={{ bgcolor: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main, fontWeight: 700, fontSize: 10, height: 20 }}
-                                    />
-                                  )}
-                                </Box>
-
-                                {/* Variant & Lens info */}
-                                {(formatVariantInfo(item.variantInfo) || item.lensName) && (
-                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
-                                    {formatVariantInfo(item.variantInfo)}
-                                    {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
-                                    {item.lensTintName && ` (${item.lensTintName})`}
-                                  </Typography>
-                                )}
-
-                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                                  x{item.quantity} | {formatCurrency(item.unitPrice)}/item
-                                  {item.productSku && <span style={{ marginLeft: 8, fontSize: 11, color: theme.palette.custom.neutral[400] }}>SKU: {item.productSku}</span>}
+                                <Avatar
+                                  src={shopGroup.shopLogoUrl}
+                                  sx={{
+                                    width: 24,
+                                    height: 24,
+                                    bgcolor: theme.palette.custom.neutral[200],
+                                  }}
+                                >
+                                  <Store sx={{ fontSize: 14 }} />
+                                </Avatar>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
+                                  {shopGroup.shopName}
                                 </Typography>
+                              </Box>
+                            )}
 
-                                {item.giftNote && (
-                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontStyle: 'italic', mt: 0.25 }}>
-                                    {item.giftNote}
-                                  </Typography>
-                                )}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                              {shopGroup.items.map((item) => {
+                                const typeStyle = getItemTypeColor(item.itemType);
+                                return (
+                                  <Box
+                                    key={item.id}
+                                    sx={{
+                                      p: 2,
+                                      borderRadius: '10px',
+                                      border: `1px solid ${theme.palette.custom.border.light}`,
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                      <Avatar
+                                        variant="rounded"
+                                        src={item.productImageUrl}
+                                        sx={{
+                                          width: 56,
+                                          height: 56,
+                                          bgcolor: theme.palette.custom.neutral[100],
+                                          borderRadius: '8px',
+                                        }}
+                                      >
+                                        <ShoppingBag sx={{ fontSize: 24 }} />
+                                      </Avatar>
+                                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                            {item.productName}
+                                          </Typography>
+                                          <Chip
+                                            label={getItemTypeLabel(item.itemType)}
+                                            size="small"
+                                            sx={{ bgcolor: typeStyle.bg, color: typeStyle.color, fontWeight: 500, fontSize: 11, height: 20 }}
+                                          />
+                                          {item.isFree && (
+                                            <Chip
+                                              label="FREE"
+                                              size="small"
+                                              sx={{ bgcolor: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main, fontWeight: 700, fontSize: 10, height: 20 }}
+                                            />
+                                          )}
+                                        </Box>
 
-                                {/* Warranty info */}
-                                {item.warrantyMonths > 0 && (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                    <VerifiedUser sx={{ fontSize: 13, color: theme.palette.custom.status.success.main }} />
-                                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
-                                      {item.warrantyMonths}-month warranty
-                                      {item.warrantyExpiresAt && ` (until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')})`}
-                                    </Typography>
+                                        {/* Variant & Lens info */}
+                                        {(formatVariantInfo(item.variantInfo) || item.lensName) && (
+                                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
+                                            {formatVariantInfo(item.variantInfo)}
+                                            {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
+                                            {item.lensTintName && ` (${item.lensTintName})`}
+                                          </Typography>
+                                        )}
+
+                                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                                          x{item.quantity} | {formatCurrency(item.unitPrice)}/item
+                                        </Typography>
+
+                                        {item.prescriptionSnapshot && (
+                                          <Box
+                                            sx={{
+                                              mt: 0.75,
+                                              p: 1,
+                                              borderRadius: '6px',
+                                              bgcolor: theme.palette.custom.status.info.light,
+                                              display: 'flex',
+                                              alignItems: 'flex-start',
+                                              gap: 0.75,
+                                            }}
+                                          >
+                                            <Visibility sx={{ fontSize: 14, color: theme.palette.custom.status.info.main, mt: 0.125 }} />
+                                            <Box>
+                                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.25 }}>
+                                                Prescription
+                                              </Typography>
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
+                                              </Typography>
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
+                                              </Typography>
+                                              {item.prescriptionSnapshot.addPower != null && (
+                                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
+                                                  ADD: +{item.prescriptionSnapshot.addPower}
+                                                </Typography>
+                                              )}
+                                            </Box>
+                                          </Box>
+                                        )}
+
+                                        {item.giftNote && (
+                                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontStyle: 'italic', mt: 0.25 }}>
+                                            {item.giftNote}
+                                          </Typography>
+                                        )}
+
+                                        {/* Warranty info */}
+                                        {item.warrantyMonths > 0 && (
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                            <VerifiedUser sx={{ fontSize: 13, color: theme.palette.custom.status.success.main }} />
+                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
+                                              {item.warrantyMonths}-month warranty
+                                              {item.warrantyExpiresAt && ` (until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')})`}
+                                            </Typography>
+                                          </Box>
+                                        )}
+                                      </Box>
+                                      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                                          {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
+                                        </Typography>
+                                        {item.discountAmount > 0 && (
+                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                            -{formatCurrency(item.discountAmount)}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
                                   </Box>
-                                )}
-                              </Box>
-                              <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                                <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                                  {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
-                                </Typography>
-                                {item.discountAmount > 0 && (
-                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
-                                    -{formatCurrency(item.discountAmount)}
-                                  </Typography>
-                                )}
-                              </Box>
+                                );
+                              })}
                             </Box>
                           </Box>
-                        );
-                      })}
+                        ));
+                      })()}
                     </Box>
 
                     {/* Price Breakdown */}

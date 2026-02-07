@@ -27,9 +27,9 @@ const PUBLIC_ENDPOINTS = [
     '/auth/register',
     '/auth/forgot-password',
     '/auth/google',
+    '/api/v1/auth/google',
     '/product',
-    '/categories',
-    'users/me'
+    '/categories'
 ];
 
 // ==================== LOGGER ====================

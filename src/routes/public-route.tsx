@@ -73,14 +73,14 @@ const PublicRoutesComponent = () => {
                 }
             />
 
-            <Route
-                path={PAGE_ENDPOINTS.SHOP.REGISTER}
-                element={
-                    <GuestGuard>
-                        <ShopRegistrationPage />
-                    </GuestGuard>
-                }
-            />
+            {/*<Route*/}
+            {/*    path={PAGE_ENDPOINTS.SHOP.REGISTER}*/}
+            {/*    element={*/}
+            {/*        <GuestGuard>*/}
+            {/*            <ShopRegistrationPage />*/}
+            {/*        </GuestGuard>*/}
+            {/*    }*/}
+            {/*/>*/}
 
             <Route
                 path={PAGE_ENDPOINTS.SHOP.PROFILE}
