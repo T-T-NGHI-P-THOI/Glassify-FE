@@ -29,7 +29,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, v
             className="product-grid-card"
           >
             {product.isNew && <span className="badge badge-new">New</span>}
-            {product.isBestSeller && <span className="badge badge-bestseller">Best Seller</span>}
+            {product.isFeatured && <span className="badge badge-bestseller">Best Seller</span>}
             
             <button 
               className="favorite-btn-grid"
