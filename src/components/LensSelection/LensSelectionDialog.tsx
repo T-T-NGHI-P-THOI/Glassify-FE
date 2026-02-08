@@ -14,7 +14,6 @@ import {
     CardContent,
     TextField,
     FormControl,
-    InputLabel,
     Select,
     MenuItem,
     Chip,
@@ -44,23 +43,27 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '@/hooks/useAuth';
 import type {
     LensUsage,
+    LensUsageType,
     LensType,
     LensFeature,
     LensTint,
     Prescription,
     LensSelection,
+    LensCatalogData,
+    ValidationIssue,
+    LensFrameValidationRequest,
+    PrescriptionValidationRequest,
 } from '@/models/Lens';
 import {
-    SAMPLE_LENS_USAGES,
-    SAMPLE_LENS_TYPES,
-    SAMPLE_LENS_FEATURES,
-    SAMPLE_LENS_TINTS,
     SPHERE_VALUES,
     CYLINDER_VALUES,
     ADD_VALUES,
+    PD_VALUES,
+    PD_MONOCULAR_VALUES,
 } from '@/models/Lens';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import lensService from '@/api/service/LensService';
 
 interface LensSelectionDialogProps {
     open: boolean;
@@ -68,6 +71,8 @@ interface LensSelectionDialogProps {
     onConfirm: (selection: LensSelection) => void;
     productName?: string;
     productId?: string;
+    frameVariantId?: string;
+    framePrice?: number;
 }
 
 const USAGE_ICONS: { [key: string]: React.ReactElement } = {
@@ -78,172 +83,7 @@ const USAGE_ICONS: { [key: string]: React.ReactElement } = {
     outdoor: <Terrain />,
 };
 
-const steps = ['Mục đích sử dụng', 'Loại kính', 'Độ kính (nếu có)', 'Màu kính', 'Tính năng bổ sung', 'Xác nhận'];
-
-// Separate EyePrescription component outside main component
-interface EyePrescriptionProps {
-    eye: 'left_eye' | 'right_eye';
-    label: string;
-    eyeData: {
-        sphere: string;
-        cylinder: string;
-        axis: string;
-        add: string;
-        pd: string;
-    };
-    syncData: {
-        sphere: boolean;
-        cylinder: boolean;
-        axis: boolean;
-        add: boolean;
-        pd: boolean;
-    };
-    onChange: (eye: 'left_eye' | 'right_eye', field: string, value: string) => void;
-}
-
-const EyePrescription: React.FC<EyePrescriptionProps> = React.memo(({ 
-    eye, 
-    label, 
-    eyeData, 
-    syncData, 
-    onChange 
-}) => (
-    <Paper sx={{ p: 3, mb: 2 }}>
-        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
-            {label}
-        </Typography>
-        <Stack spacing={2}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <FormControl sx={{ flex: '1 1 200px' }}>
-                    <InputLabel>SPH (Độ cận/viễn)</InputLabel>
-                    <Select
-                        value={eyeData.sphere}
-                        label="SPH (Độ cận/viễn)"
-                        onChange={(e) => onChange(eye, 'sphere', e.target.value)}
-                        disabled={eye === 'left_eye' && syncData.sphere}
-                    >
-                        {SPHERE_VALUES.map((value) => (
-                            <MenuItem key={value} value={value}>
-                                {value}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <FormControl sx={{ flex: '1 1 200px' }}>
-                    <InputLabel>CYL (Độ loạn)</InputLabel>
-                    <Select
-                        value={eyeData.cylinder || '0.00'}
-                        label="CYL (Độ loạn)"
-                        onChange={(e) => onChange(eye, 'cylinder', e.target.value)}
-                        disabled={eye === 'left_eye' && syncData.cylinder}
-                    >
-                        {CYLINDER_VALUES.map((value) => (
-                            <MenuItem key={value} value={value}>
-                                {value}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                    sx={{ flex: '1 1 150px' }}
-                    label="Axis (Trục)"
-                    type="text"
-                    inputProps={{ 
-                        pattern: '[0-9]*',
-                        inputMode: 'numeric',
-                    }}
-                    value={eyeData.axis || ''}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow empty or valid numbers
-                        if (value === '') {
-                            onChange(eye, 'axis', value);
-                            return;
-                        }
-                        // Only allow numbers
-                        if (/^\d+$/.test(value)) {
-                            const numValue = parseInt(value);
-                            // Allow any valid number during typing, validate on blur
-                            if (numValue >= 0 && numValue <= 999) {
-                                onChange(eye, 'axis', value);
-                            }
-                        }
-                    }}
-                    onBlur={(e) => {
-                        const value = e.target.value;
-                        if (value !== '' && (/^\d+$/.test(value))) {
-                            const numValue = parseInt(value);
-                            // Clamp value to valid range on blur
-                            if (numValue > 180) {
-                                onChange(eye, 'axis', '180');
-                            }
-                        }
-                    }}
-                    disabled={eye === 'left_eye' && syncData.axis}
-                    helperText="0-180°"
-                />
-                <FormControl sx={{ flex: '1 1 150px' }}>
-                    <InputLabel>ADD (Độ cộng)</InputLabel>
-                    <Select
-                        value={eyeData.add || ''}
-                        label="ADD (Độ cộng)"
-                        onChange={(e) => onChange(eye, 'add', e.target.value)}
-                        disabled={eye === 'left_eye' && syncData.add}
-                    >
-                        <MenuItem value="">Không</MenuItem>
-                        {ADD_VALUES.map((value) => (
-                            <MenuItem key={value} value={value}>
-                                {value}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <TextField
-                    sx={{ flex: '1 1 150px' }}
-                    label="PD (Khoảng cách đồng tử)"
-                    type="text"
-                    inputProps={{ 
-                        pattern: '[0-9]*',
-                        inputMode: 'numeric',
-                    }}
-                    value={eyeData.pd || ''}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow empty or valid numbers
-                        if (value === '') {
-                            onChange(eye, 'pd', value);
-                            return;
-                        }
-                        // Only allow numbers
-                        if (/^\d+$/.test(value)) {
-                            const numValue = parseInt(value);
-                            // Allow any valid number during typing, validate on blur
-                            if (numValue >= 0 && numValue <= 999) {
-                                onChange(eye, 'pd', value);
-                            }
-                        }
-                    }}
-                    onBlur={(e) => {
-                        const value = e.target.value;
-                        if (value !== '' && (/^\d+$/.test(value))) {
-                            const numValue = parseInt(value);
-                            // Clamp value to valid range on blur
-                            if (numValue < 54) {
-                                onChange(eye, 'pd', '54');
-                            } else if (numValue > 74) {
-                                onChange(eye, 'pd', '74');
-                            }
-                        }
-                    }}
-                    disabled={eye === 'left_eye' && syncData.pd}
-                    helperText="54-74mm"
-                />
-            </Box>
-        </Stack>
-    </Paper>
-));
+const steps = ['Mục đích sử dụng', 'Độ kính (nếu có)', 'Loại kính', 'Màu kính', 'Tính năng bổ sung', 'Xác nhận'];
 
 // Custom StepIcon component
 const CustomStepIcon: React.FC<StepIconProps & { isSkipped?: boolean }> = (props) => {
@@ -316,6 +156,8 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     onConfirm,
     productName = 'gọng kính',
     productId,
+    frameVariantId,
+    framePrice = 0,
 }) => {
     const theme = useTheme();
     const { isAuthenticated } = useAuth();
@@ -340,8 +182,22 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         add: false,
         pd: false,
     });
+    const [has2PD, setHas2PD] = useState(false);
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
     const [prescriptionName, setPrescriptionName] = useState('');
+    const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+    
+    // API data state
+    const [apiLensData, setApiLensData] = useState<LensCatalogData | null>(null);
+    const [isLoadingLensData, setIsLoadingLensData] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
+    
+    // Validation state
+    const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+    const [isValidating, setIsValidating] = useState(false);
+    const [warningConfirmOpen, setWarningConfirmOpen] = useState(false);
+    const [pendingWarnings, setPendingWarnings] = useState<ValidationIssue[]>([]);
+    const [warningsAcknowledged, setWarningsAcknowledged] = useState(false);
 
     const hasRestoredRef = useRef(false);
 
@@ -363,43 +219,122 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         },
     ]);
 
+    useEffect(() => {
+        const fetchLensCatalog = async () => {
+            if (!open || !frameVariantId) {
+                return;
+            }
+            
+            try {
+                setIsLoadingLensData(true);
+                setApiError(null);
+                const catalog = await lensService.getLensCatalogForFrame(frameVariantId);
+                setApiLensData(catalog);
+            } catch (error) {
+                console.error('Failed to load lens catalog:', error);
+                setApiError('Không thể tải dữ liệu tròng kính. Vui lòng thử lại.');
+            } finally {
+                setIsLoadingLensData(false);
+            }
+        };
+
+        fetchLensCatalog();
+    }, [open, frameVariantId]);
+
+    const availableUsages = useMemo(() => {
+        if (!apiLensData || apiLensData.lenses.length === 0) {
+            return [];
+        }
+        
+        const usageMap = new Map<string, LensUsage>();
+        
+        apiLensData.lenses.forEach(lens => {
+            lens.usages.forEach(usage => {
+                if (!usageMap.has(usage.usageId)) {
+                    usageMap.set(usage.usageId, {
+                        id: usage.usageId,
+                        name: usage.name,
+                        description: usage.description,
+                        type: usage.type as LensUsageType,
+                    });
+                }
+            });
+        });
+        
+        return Array.from(usageMap.values());
+    }, [apiLensData]);
+
     const availableLensTypes = useMemo(() => {
         if (!selectedUsage) return [];
-        return SAMPLE_LENS_TYPES.filter(
-            (type) => type.usage_id === selectedUsage.id || selectedUsage.id === 'everyday'
-        );
-    }, [selectedUsage]);
-
-    // Reset prescription when lens type changes between prescription and non-prescription
-    useEffect(() => {
-        if (selectedLensType) {
-            // Reset prescription state when switching lens type
-            setPrescription({
-                left_eye: { sphere: '0.00' },
-                right_eye: { sphere: '0.00' },
-            });
-            // Reset sync options
-            setSyncBothEyes({
-                sphere: false,
-                cylinder: false,
-                axis: false,
-                add: false,
-                pd: false,
-            });
+        
+        if (!apiLensData || apiLensData.lenses.length === 0) {
+            return [];
         }
-    }, [selectedLensType?.id]);
+        
+        return apiLensData.lenses
+            .filter(lens => lens.usages.some(u => u.usageId === selectedUsage.id))
+            .map(lens => {
+                const currentUsage = lens.usages.find(u => u.usageId === selectedUsage.id);
+                const isPrescription = currentUsage?.type !== 'NON_PRESCRIPTION';
+                
+                return {
+                    id: lens.lensId,
+                    name: lens.lensName,
+                    description: `SKU: ${lens.lensSku}`,
+                    price: lens.basePrice,
+                    isPrescription: isPrescription,
+                    isProgressive: lens.isProgressive,
+                    usage_id: selectedUsage.id,
+                };
+            });
+    }, [selectedUsage, apiLensData]);
 
-    // Restore dialog state when dialog opens (runs FIRST)
+    const availableTints = useMemo(() => {
+        if (!selectedLensType || !apiLensData) {
+            return [];
+        }
+        
+        const selectedLens = apiLensData.lenses.find(l => l.lensId === selectedLensType.id);
+        if (!selectedLens || selectedLens.tints.length === 0) {
+            return [];
+        }
+        
+        return selectedLens.tints.map(tint => ({
+            id: tint.tintId,
+            name: tint.name,
+            description: `${tint.behavior} - Code: ${tint.code}`,
+            price: tint.basePrice + tint.extraPrice,
+            cssValue: tint.cssValue,
+            opacity: tint.opacity,
+        }));
+    }, [selectedLensType, apiLensData]);
+
+    const availableFeatures = useMemo(() => {
+        if (!selectedLensType || !apiLensData) {
+            return [];
+        }
+        
+        const selectedLens = apiLensData.lenses.find(l => l.lensId === selectedLensType.id);
+        if (!selectedLens || selectedLens.features.length === 0) {
+            return [];
+        }
+        
+        return selectedLens.features.map(feature => ({
+            id: feature.featureId,
+            name: feature.name,
+            description: feature.description,
+            price: feature.extraPrice,
+            category: 'other' as const,
+        }));
+    }, [selectedLensType, apiLensData]);
+
     useEffect(() => {
         if (open && !hasRestoredRef.current) {
-            // Try to restore dialog state from localStorage
             const savedState = localStorage.getItem('lens_dialog_state');
             if (savedState) {
                 try {
                     const state = JSON.parse(savedState);
-                    // Only restore if saved within last hour AND for the same product
                     if (Date.now() - state.timestamp < 60 * 60 * 1000 && state.productId === productId) {
-                        // Only restore if we have meaningful state (not initial state)
                         if (state.activeStep > 0 || state.selectedUsage || state.selectedLensType) {
                             setActiveStep(state.activeStep || 0);
                             setSelectedUsage(state.selectedUsage || null);
@@ -412,7 +347,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             hasRestoredRef.current = true;
                         }
                     } else {
-                        // Clear expired or mismatched product state
                         localStorage.removeItem('lens_dialog_state');
                     }
                 } catch (error) {
@@ -420,21 +354,16 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     localStorage.removeItem('lens_dialog_state');
                 }
             }
-            // Mark as restored even if no saved state (to prevent trying again)
             hasRestoredRef.current = true;
         }
         
-        // Reset flag when dialog closes
         if (!open) {
             hasRestoredRef.current = false;
         }
     }, [open]);
 
-    // Save dialog state when it changes (runs AFTER restoration)
     useEffect(() => {
-        // Only save if dialog is open AND we've already attempted restoration
         if (open && hasRestoredRef.current) {
-            // Save current dialog state to localStorage
             const dialogState = {
                 productId,
                 activeStep,
@@ -451,7 +380,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         }
     }, [open, productId, activeStep, selectedUsage, selectedLensType, prescription, selectedTint, selectedFeatures, prescriptionMode, syncBothEyes]);
 
-    // Manage URL parameters
     useEffect(() => {
         setSearchParams(
             (prev) => {
@@ -459,16 +387,12 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 const hasLens = next.has('lens');
 
                 if (open) {
-                    // Add URL parameter to track dialog is open
                     if (hasLens && next.get('lens') === 'open') {
-                        // No change needed
                         return prev;
                     }
                     next.set('lens', 'open');
                 } else {
-                    // Remove URL parameter when dialog closes
                     if (!hasLens) {
-                        // No change needed
                         return prev;
                     }
                     next.delete('lens');
@@ -479,8 +403,231 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             { replace: true },
         );
     }, [open, setSearchParams]);
-    const handleNext = () => {
-        if (activeStep === 1 && selectedLensType && !selectedLensType.isPrescription) {
+
+    useEffect(() => {
+        const shouldAutoValidate = 
+            activeStep === 1 && 
+            selectedUsage && 
+            selectedUsage.type !== 'NON_PRESCRIPTION';
+
+        if (!shouldAutoValidate) {
+            return;
+        }
+
+        const addValue = prescription.right_eye.add || prescription.left_eye.add;
+        const hasAdd = !!(addValue && addValue !== '' && addValue !== '0' && addValue !== '0.0' && addValue !== '0.00');
+
+        if (!hasAdd) {
+            return;
+        }
+
+        let hasPD = false;
+        if (!has2PD) {
+            const pd = prescription.right_eye.pd || prescription.left_eye.pd;
+            hasPD = !!(pd && pd !== '0' && pd !== '0.0' && pd !== '0.00');
+        } else {
+            const pdRight = prescription.right_eye.pd;
+            const pdLeft = prescription.left_eye.pd;
+            hasPD = !!(pdRight && pdRight !== '0' && pdRight !== '0.0' && pdRight !== '0.00' &&
+                      pdLeft && pdLeft !== '0' && pdLeft !== '0.0' && pdLeft !== '0.00');
+        }
+
+        if (!hasPD) {
+            return;
+        }
+
+        const autoValidate = async () => {
+            try {
+                setIsValidating(true);
+                setValidationIssues([]);
+                setApiError(null);
+
+                const prescriptionRequest: PrescriptionValidationRequest = {
+                    sphRight: parseFloat(prescription.right_eye.sphere || '0'),
+                    sphLeft: parseFloat(prescription.left_eye.sphere || '0'),
+                    cylRight: parseFloat(prescription.right_eye.cylinder || '0'),
+                    cylLeft: parseFloat(prescription.left_eye.cylinder || '0'),
+                    axisRight: parseFloat(prescription.right_eye.axis || '0'),
+                    axisLeft: parseFloat(prescription.left_eye.axis || '0'),
+                    add: parseFloat(prescription.right_eye.add || prescription.left_eye.add || '0'),
+                    pd: has2PD ? undefined : parseFloat(prescription.right_eye.pd || prescription.left_eye.pd || '0'),
+                    pdLeft: has2PD ? parseFloat(prescription.left_eye.pd || '0') : undefined,
+                    pdRight: has2PD ? parseFloat(prescription.right_eye.pd || '0') : undefined,
+                };
+
+
+                const response = await lensService.validatePrescription(prescriptionRequest);
+
+                if (response.data && Array.isArray(response.data.issues) && response.data.issues.length > 0) {
+                    const issues: ValidationIssue[] = response.data.issues.map(issue => ({
+                        code: issue.code,
+                        path: issue.field,
+                        message: issue.message,
+                        severity: (issue.level === 'ERROR' ? 'ERROR' : issue.level === 'WARNING' ? 'WARNING' : 'INFO') as 'ERROR' | 'WARNING' | 'INFO',
+                        meta: issue.metadata || {}
+                    }));
+
+                    setValidationIssues(issues);
+                } else {
+                    setValidationIssues([]);
+                }
+            } catch (error) {
+                console.error('Auto-validation failed:', error);
+            } finally {
+                setIsValidating(false);
+            }
+        };
+
+        autoValidate();
+    }, [activeStep, selectedUsage, prescription.right_eye.add, prescription.left_eye.add, prescription.right_eye.pd, prescription.left_eye.pd, prescription.right_eye.sphere, prescription.left_eye.sphere, prescription.right_eye.cylinder, prescription.left_eye.cylinder, prescription.right_eye.axis, prescription.left_eye.axis, has2PD]);
+
+    const handleNext = async () => {
+        if (activeStep === 1 && selectedUsage && selectedUsage.type !== 'NON_PRESCRIPTION') {
+            
+            const addValue = prescription.right_eye.add || prescription.left_eye.add;
+            if (!addValue || addValue === '' || addValue === '0' || addValue === '0.0' || addValue === '0.00') {
+                setApiError('Vui lòng chọn độ cộng (ADD)');
+                return;
+            }
+            
+            if (!has2PD) {
+                const pd = prescription.right_eye.pd || prescription.left_eye.pd;
+                if (!pd || pd === '0' || pd === '0.0' || pd === '0.00') {
+                    setApiError('Vui lòng chọn khoảng cách đồng tử (PD)');
+                    return;
+                }
+            } else {
+                const pdRight = prescription.right_eye.pd;
+                const pdLeft = prescription.left_eye.pd;
+                if (!pdRight || pdRight === '0' || pdRight === '0.0' || pdRight === '0.00' ||
+                    !pdLeft || pdLeft === '0' || pdLeft === '0.0' || pdLeft === '0.00') {
+                    setApiError('Vui lòng chọn PD cho cả hai mắt');
+                    return;
+                }
+            }
+            
+            try {
+                setIsValidating(true);
+                setValidationIssues([]);
+                setApiError(null);
+                
+                const prescriptionRequest: PrescriptionValidationRequest = {
+                    sphRight: parseFloat(prescription.right_eye.sphere || '0'),
+                    sphLeft: parseFloat(prescription.left_eye.sphere || '0'),
+                    cylRight: parseFloat(prescription.right_eye.cylinder || '0'),
+                    cylLeft: parseFloat(prescription.left_eye.cylinder || '0'),
+                    axisRight: parseFloat(prescription.right_eye.axis || '0'),
+                    axisLeft: parseFloat(prescription.left_eye.axis || '0'),
+                    add: parseFloat(prescription.right_eye.add || prescription.left_eye.add || '0'),
+                    pd: has2PD ? undefined : parseFloat(prescription.right_eye.pd || prescription.left_eye.pd || '0'),
+                    pdLeft: has2PD ? parseFloat(prescription.left_eye.pd || '0') : undefined,
+                    pdRight: has2PD ? parseFloat(prescription.right_eye.pd || '0') : undefined,
+                };
+                                
+                const response = await lensService.validatePrescription(prescriptionRequest);
+                
+                if (response.data && Array.isArray(response.data.issues) && response.data.issues.length > 0) {
+                    const issues: ValidationIssue[] = response.data.issues.map(issue => ({
+                        code: issue.code,
+                        path: issue.field,
+                        message: issue.message,
+                        severity: (issue.level === 'ERROR' ? 'ERROR' : issue.level === 'WARNING' ? 'WARNING' : 'INFO') as 'ERROR' | 'WARNING' | 'INFO',
+                        meta: issue.metadata || {}
+                    }));
+                    
+                    setValidationIssues(issues);
+                    
+                    const hasErrors = issues.some(issue => issue.severity === 'ERROR');
+                    const hasWarnings = issues.some(issue => issue.severity === 'WARNING');
+                    
+                    if (hasErrors) {
+                        setIsValidating(false);
+                        return;
+                    }
+                    
+                    if (hasWarnings && !warningsAcknowledged) {
+                        setPendingWarnings(issues.filter(issue => issue.severity === 'WARNING'));
+                        setIsValidating(false);
+                        return;
+                    }
+                    
+                    if (hasWarnings && warningsAcknowledged) {
+                        setWarningConfirmOpen(true);
+                        setIsValidating(false);
+                        return;
+                    }
+                }
+                
+                setIsValidating(false);
+            } catch (error) {
+                console.error('Prescription validation error:', error);
+                setApiError('Không thể xác thực đơn thuốc. Vui lòng thử lại.');
+                setIsValidating(false);
+                return;
+            }
+        }
+        
+        if (activeStep === 4 && selectedLensType && frameVariantId) {
+            
+            try {
+                setIsValidating(true);
+                setValidationIssues([]);
+                setApiError(null);
+                
+                const lensFrameRequest: LensFrameValidationRequest = {
+                    lensId: selectedLensType.id,
+                    frameVariantId: frameVariantId,
+                    featureIds: selectedFeatures.map(f => f.id),
+                };
+                
+                
+                const response = await lensService.validateLensFrame(lensFrameRequest);
+                
+                if (response.issues && Array.isArray(response.issues) && response.issues.length > 0) {
+                    setValidationIssues(response.issues);
+                    
+                    const hasErrors = response.issues.some(issue => issue.severity === 'ERROR');
+                    const hasWarnings = response.issues.some(issue => issue.severity === 'WARNING');
+                    
+                    if (hasErrors) {
+                        setIsValidating(false);
+                        return;
+                    }
+                    
+                    if (hasWarnings && !warningsAcknowledged) {
+                        setPendingWarnings(response.issues.filter(issue => issue.severity === 'WARNING'));
+                        setIsValidating(false);
+                        return;
+                    }
+                    
+                    if (hasWarnings && warningsAcknowledged) {
+                        setWarningConfirmOpen(true);
+                        setIsValidating(false);
+                        return;
+                    }
+                }
+                
+                setIsValidating(false);
+            } catch (error) {
+                console.error('Lens-frame validation error:', error);
+                setApiError('Không thể xác thực tương thích tròng-gọng. Vui lòng thử lại.');
+                setIsValidating(false);
+                return;
+            }
+        }
+        
+        if (activeStep !== 1 && activeStep !== 4) {
+            setValidationIssues([]);
+            setWarningsAcknowledged(false);
+            setPendingWarnings([]);
+        }
+        
+        if (pendingWarnings.length > 0 && !warningsAcknowledged) {
+            setWarningsAcknowledged(true);
+            return;
+        }
+        
+        if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
             setActiveStep((prev) => prev + 2);
         } else {
             setActiveStep((prev) => prev + 1);
@@ -488,7 +635,27 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const handleBack = () => {
-        if (activeStep === 3 && selectedLensType && !selectedLensType.isPrescription) {
+        setValidationIssues([]);
+        setWarningsAcknowledged(false);
+        setPendingWarnings([]);
+        
+        switch (activeStep) {
+            case 1:
+                break;
+            case 2:
+                setSelectedLensType(null);
+                break;
+            case 3:
+                setSelectedTint(null);
+                break;
+            case 4:
+                setSelectedFeatures([]);
+                break;
+            case 5:
+                break;
+        }
+        
+        if (activeStep === 2 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
             setActiveStep((prev) => prev - 2);
         } else {
             setActiveStep((prev) => prev - 1);
@@ -506,9 +673,21 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         setSelectedTint(null);
         setSelectedFeatures([]);
         setPrescriptionMode('saved');
+        setValidationIssues([]);
+        setApiError(null);
     };
 
     const calculateTotalPrice = (): number => {
+        let total = framePrice;
+        total += selectedLensType?.price || 0;
+        if (selectedTint) total += selectedTint.price;
+        selectedFeatures.forEach((feature) => {
+            total += feature.price;
+        });
+        return total;
+    };
+
+    const calculateLensCustomizationPrice = (): number => {
         let total = selectedLensType?.price || 0;
         if (selectedTint) total += selectedTint.price;
         selectedFeatures.forEach((feature) => {
@@ -530,16 +709,34 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         };
 
         onConfirm(selection);
-        // Clear dialog state from localStorage
         localStorage.removeItem('lens_dialog_state');
         handleReset();
         onClose();
     };
 
     const handleDialogClose = () => {
-        // Clear dialog state from localStorage
         localStorage.removeItem('lens_dialog_state');
+        setValidationIssues([]);
+        setApiError(null);
         onClose();
+    };
+
+    const handleWarningConfirmProceed = () => {
+        setWarningConfirmOpen(false);
+        setPendingWarnings([]);
+        setValidationIssues([]);
+        setWarningsAcknowledged(false);
+        if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+            setActiveStep((prev) => prev + 2);
+        } else {
+            setActiveStep((prev) => prev + 1);
+        }
+    };
+
+    const handleWarningConfirmCancel = () => {
+        setWarningConfirmOpen(false);
+        setWarningsAcknowledged(false);
+
     };
 
     const toggleFeature = (feature: LensFeature) => {
@@ -553,46 +750,78 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         });
     };
 
-    // Check if a step is completed (for Stepper visual indicator)
     const isStepCompleted = (step: number): boolean => {
-        // Chỉ đánh dấu completed nếu step đó nằm trước activeStep VÀ đã có dữ liệu
         if (step >= activeStep) return false;
         
         switch (step) {
             case 0:
                 return selectedUsage !== null;
             case 1:
-                return selectedLensType !== null;
+                { 
+                    if (selectedUsage?.type === 'NON_PRESCRIPTION') {
+                    return true;
+                }
+                const addValue = prescription.right_eye.add || prescription.left_eye.add;
+                const hasAdd = !!(addValue && addValue !== '' && addValue !== '0' && addValue !== '0.0' && addValue !== '0.00');
+                
+                let hasPD = false;
+                if (!has2PD) {
+                    const pd = prescription.right_eye.pd || prescription.left_eye.pd;
+                    hasPD = !!(pd && pd !== '0' && pd !== '0.0' && pd !== '0.00');
+                } else {
+                    const pdRight = prescription.right_eye.pd;
+                    const pdLeft = prescription.left_eye.pd;
+                    hasPD = !!(pdRight && pdRight !== '0' && pdRight !== '0.0' && pdRight !== '0.00' &&
+                              pdLeft && pdLeft !== '0' && pdLeft !== '0.0' && pdLeft !== '0.00');
+                }
+                
+                return hasAdd && hasPD; 
+            }
             case 2:
-                return !selectedLensType?.isPrescription || true; // Skip prescription step for non-prescription
+                return selectedLensType !== null;
             case 3:
                 return selectedTint !== null;
             case 4:
-                return true; // Features step is always optional
+                return true;
             case 5:
-                return true; // Summary step
+                return true;
             default:
                 return false;
         }
     };
 
-    // Check if current step can proceed to next (for Next button)
     const canProceedToNextStep = (): boolean => {
         switch (activeStep) {
             case 0:
                 return selectedUsage !== null;
             case 1:
-                return selectedLensType !== null;
+                { 
+                    if (selectedUsage?.type === 'NON_PRESCRIPTION') {
+                    return true;
+                }
+                const addValue = prescription.right_eye.add || prescription.left_eye.add;
+                const hasAdd = !!(addValue && addValue !== '' && addValue !== '0' && addValue !== '0.0' && addValue !== '0.00');
+                
+                let hasPD = false;
+                if (!has2PD) {
+                    const pd = prescription.right_eye.pd || prescription.left_eye.pd;
+                    hasPD = !!(pd && pd !== '0' && pd !== '0.0' && pd !== '0.00');
+                } else {
+                    const pdRight = prescription.right_eye.pd;
+                    const pdLeft = prescription.left_eye.pd;
+                    hasPD = !!(pdRight && pdRight !== '0' && pdRight !== '0.0' && pdRight !== '0.00' &&
+                              pdLeft && pdLeft !== '0' && pdLeft !== '0.0' && pdLeft !== '0.00');
+                }
+                
+                return hasAdd && hasPD; 
+            }
             case 2:
-                // Prescription step is always optional, can always proceed
-                return true;
+                return selectedLensType !== null;
             case 3:
                 return selectedTint !== null;
             case 4:
-                // Features step is always optional
                 return true;
             case 5:
-                // Summary step - can always proceed to confirm
                 return true;
             default:
                 return false;
@@ -607,14 +836,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         }).format(amount);
     };
 
-    // Helper function to convert cssValue + opacity to proper rgba/gradient
     const getTintBackground = (cssValue: string, opacity: number) => {
-        // If transparent/clear
         if (cssValue === 'transparent' || opacity === 0) {
             return 'transparent';
         }
         
-        // If it's a hex color, convert to rgba
         if (cssValue.startsWith('#')) {
             const hex = cssValue.replace('#', '');
             const r = parseInt(hex.substring(0, 2), 16);
@@ -623,10 +849,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             return `rgba(${r}, ${g}, ${b}, ${opacity})`;
         }
         
-        // If it's a gradient, we need to handle it differently
         if (cssValue.includes('linear-gradient')) {
-            // Extract colors from gradient and apply opacity
-            // For simplicity, we'll create a new gradient with opacity applied to each color
             const gradientMatch = cssValue.match(/linear-gradient\(([^)]+)\)/);
             if (gradientMatch) {
                 const gradientContent = gradientMatch[1];
@@ -652,17 +875,26 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             }
         }
         
-        // For other formats, return as is
         return cssValue;
     };
 
     const renderUsageStep = () => (
         <Box sx={{ py: 3 }}>
+            {isLoadingLensData ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                    <Typography>Đang tải dữ liệu tròng kính...</Typography>
+                </Box>
+            ) : apiError ? (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {apiError}
+                </Alert>
+            ) : null}
+            
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 Bạn sẽ sử dụng kính cho mục đích gì?
             </Typography>
             <Stack spacing={2}>
-                {SAMPLE_LENS_USAGES.map((usage) => (
+                {availableUsages.map((usage) => (
                     <Card
                         key={usage.id}
                         sx={{
@@ -742,7 +974,15 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 boxShadow: 2,
                             },
                         }}
-                        onClick={() => setSelectedLensType(lensType)}
+                        onClick={() => {
+                            setSelectedLensType(lensType);
+                            if (lensType.isProgressive) {
+                                setPrescription(prev => ({
+                                    left_eye: { ...prev.left_eye, axis: '' },
+                                    right_eye: { ...prev.right_eye, axis: '' },
+                                }));
+                            }
+                        }}
                     >
                         <CardContent>
                             <Box
@@ -753,14 +993,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 }}
                             >
                                 <Box sx={{ flex: 1 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                            {lensType.name}
-                                        </Typography>
-                                        {lensType.isPrescription && (
-                                            <Chip label="Thuốc" size="small" color="info" />
-                                        )}
-                                    </Box>
+                                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                        {lensType.name}
+                                    </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                         {lensType.description}
                                     </Typography>
@@ -776,53 +1011,17 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     </Card>
                 ))}
             </Stack>
+            
+            {/* Info for non-prescription lenses */}
+            {selectedLensType && !selectedLensType.isPrescription && (
+                <Alert severity="success" sx={{ mt: 3 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        ✓ Bạn đã chọn loại tròng không cần đơn thuốc. Bước nhập chỉ số kính sẽ được bỏ qua.
+                    </Typography>
+                </Alert>
+            )}
         </Box>
     );
-
-    const handleSyncChange = (field: keyof typeof syncBothEyes, checked: boolean) => {
-        setSyncBothEyes((prev) => ({ ...prev, [field]: checked }));
-        
-        // If enabling sync, copy from right eye to left eye
-        if (checked) {
-            setPrescription((prev) => ({
-                ...prev,
-                left_eye: {
-                    ...prev.left_eye,
-                    [field]: prev.right_eye[field as keyof typeof prev.right_eye],
-                },
-            }));
-        }
-    };
-
-    const handleSyncAll = () => {
-        const allSynced = Object.values(syncBothEyes).every((val) => val === true);
-        
-        if (allSynced) {
-            // If all are synced, turn off all
-            setSyncBothEyes({
-                sphere: false,
-                cylinder: false,
-                axis: false,
-                add: false,
-                pd: false,
-            });
-        } else {
-            // Enable all sync options
-            setSyncBothEyes({
-                sphere: true,
-                cylinder: true,
-                axis: true,
-                add: true,
-                pd: true,
-            });
-
-            // Copy all values from right eye to left eye
-            setPrescription((prev) => ({
-                ...prev,
-                left_eye: { ...prev.right_eye },
-            }));
-        }
-    };
 
     const handleSavePrescription = () => {
         if (!prescriptionName.trim()) {
@@ -838,7 +1037,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             right_eye: prescription.right_eye,
         };
 
-        // In production, save to API
         setSavedPrescriptions((prev) => [newPrescription, ...prev]);
         setSaveDialogOpen(false);
         setPrescriptionName('');
@@ -846,7 +1044,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const handleLoginRedirect = () => {
-        // Save full dialog state before redirect
         const dialogState = {
             productId,
             activeStep,
@@ -861,7 +1058,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         };
         localStorage.setItem('lens_dialog_state', JSON.stringify(dialogState));
         
-        // Reset restoration flag so it will restore when coming back
         hasRestoredRef.current = false;
         
         navigate(PAGE_ENDPOINTS.AUTH.LOGIN);
@@ -878,7 +1074,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 [eye]: { ...prev[eye], [field]: value },
             };
 
-            // If syncing and changing right eye, also update left eye
             if (eye === 'right_eye' && syncBothEyes[field as keyof typeof syncBothEyes]) {
                 updated.left_eye = { ...updated.left_eye, [field]: value };
             }
@@ -887,12 +1082,180 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         });
     }, [syncBothEyes]);
 
+    const getIssueDescription = (issue: ValidationIssue): { description: string; suggestion?: string } => {
+        const message = issue.message.toLowerCase();
+        const code = issue.code.toUpperCase();
+        const path = issue.path.toLowerCase();
+        
+        if (message.includes('must be greater than or equal to')) {
+            const match = message.match(/must be greater than or equal to ([\d.]+)/);
+            const minValue = match ? match[1] : '';
+            
+            if (path.includes('pd') || message.includes('pd:')) {
+                return {
+                    description: `Khoảng cách đồng tử (PD) phải từ ${minValue}mm trở lên`,
+                    suggestion: 'PD tổng (binocular) thường dao động từ 56-79mm. Nếu bạn có 2 số PD riêng (monocular), mỗi bên thường từ 17.5-40mm. Vui lòng kiểm tra lại đơn thuốc của bạn.'
+                };
+            }
+            if (path.includes('sph') || message.includes('sph')) {
+                return {
+                    description: `Độ cận/viễn (SPH) phải từ ${minValue} trở lên`,
+                    suggestion: 'Vui lòng kiểm tra lại độ kính trong đơn thuốc.'
+                };
+            }
+            if (path.includes('cyl') || message.includes('cyl')) {
+                return {
+                    description: `Độ loạn (CYL) phải từ ${minValue} trở lên`,
+                    suggestion: 'Vui lòng kiểm tra lại độ loạn trong đơn thuốc.'
+                };
+            }
+            if (path.includes('add') || message.includes('add')) {
+                return {
+                    description: `Độ cộng (ADD) phải từ ${minValue} trở lên`,
+                    suggestion: 'ADD thường dao động từ +0.75 đến +3.00 cho kính đa tròng.'
+                };
+            }
+            if (path.includes('fittingheight') || message.includes('fitting')) {
+                return {
+                    description: `Chiều cao lắp kính phải từ ${minValue}mm trở lên`,
+                    suggestion: 'Chiều cao lắp kính ảnh hưởng đến vùng nhìn, đặc biệt với kính đa tròng.'
+                };
+            }
+        }
+        
+        if (message.includes('must be less than or equal to')) {
+            const match = message.match(/must be less than or equal to ([\d.]+)/);
+            const maxValue = match ? match[1] : '';
+            
+            if (path.includes('pd') || message.includes('pd:')) {
+                return {
+                    description: `Khoảng cách đồng tử (PD) không được vượt quá ${maxValue}mm`,
+                    suggestion: 'PD quá lớn. Vui lòng kiểm tra lại đơn thuốc của bạn.'
+                };
+            }
+            if (path.includes('sph') || message.includes('sph')) {
+                return {
+                    description: `Độ cận/viễn (SPH) không được vượt quá ${maxValue}`,
+                    suggestion: 'Độ kính này vượt quá giới hạn của gọng.'
+                };
+            }
+        }
+        
+        // Feature compatibility
+        if (code.includes('FEATURE') && code.includes('COMPATIBLE')) {
+            return {
+                description: 'Tính năng đã chọn không tương thích với gọng kính này',
+                suggestion: 'Vui lòng bỏ chọn tính năng này hoặc chọn gọng kính khác.'
+            };
+        }
+        
+        if (code.includes('LENS') && code.includes('COMPATIBLE')) {
+            return {
+                description: 'Loại tròng kính không tương thích với gọng này',
+                suggestion: 'Vui lòng chọn loại tròng kính khác hoặc gọng kính khác.'
+            };
+        }
+        
+        if (message.includes('out of range') || message.includes('not in range')) {
+            return {
+                description: 'Giá trị nằm ngoài phạm vi cho phép',
+                suggestion: 'Vui lòng kiểm tra lại các thông số trong đơn thuốc của bạn.'
+            };
+        }
+        
+        if (message.includes('axis') && (message.includes('required') || message.includes('must be'))) {
+            return {
+                description: 'Trục loạn (AXIS) không hợp lệ',
+                suggestion: 'AXIS phải từ 0 đến 180 độ và chỉ cần thiết khi có độ loạn (CYL).'
+            };
+        }
+        
+        // Default fallback
+        return {
+            description: issue.message,
+            suggestion: 'Vui lòng kiểm tra lại thông tin đã nhập.'
+        };
+    };
+
     const renderPrescriptionStep = () => {
         return (
             <Box sx={{ py: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                     Nhập độ kính của bạn
                 </Typography>
+                
+                {/* Debug info */}
+                {!frameVariantId && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Không có thông tin frame variant ID. Validation sẽ không hoạt động.
+                    </Alert>
+                )}
+                
+                {/* API Error Display */}
+                {apiError && (
+                    <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError(null)}>
+                        {apiError}
+                    </Alert>
+                )}
+                
+                {/* Validation Issues Display */}
+                {validationIssues.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                        <Stack spacing={1.5}>
+                            {validationIssues.map((issue, index) => {
+                                const issueInfo = getIssueDescription(issue);
+                                return (
+                                    <Alert 
+                                        key={index} 
+                                        severity={issue.severity === 'ERROR' ? 'error' : issue.severity === 'WARNING' ? 'warning' : 'info'}
+                                        sx={{ 
+                                            '& .MuiAlert-message': { width: '100%' }
+                                        }}
+                                    >
+                                        <Box>
+                                            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                                                {issueInfo.description}
+                                            </Typography>
+                                            
+                                            {issueInfo.suggestion && (
+                                                <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, borderLeft: 3, borderColor: issue.severity === 'ERROR' ? 'error.main' : 'warning.main' }}>
+                                                    <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
+                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                            
+                                            {issue.meta && Object.keys(issue.meta).length > 0 && (
+                                                <Box sx={{ mt: 1, p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                                        Thông tin chi tiết:
+                                                    </Typography>
+                                                    {Object.entries(issue.meta).map(([key, value]) => (
+                                                        <Typography key={key} variant="caption" sx={{ display: 'block' }}>
+                                                            • {key}: {JSON.stringify(value)}
+                                                        </Typography>
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    </Alert>
+                                );
+                            })}
+                        </Stack>
+                        {validationIssues.some(i => i.severity === 'ERROR') && (
+                            <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'error.main', fontStyle: 'italic' }}>
+                                * Bạn cần khắc phục các lỗi trên trước khi tiếp tục
+                            </Typography>
+                        )}
+                        {pendingWarnings.length > 0 && !warningsAcknowledged && validationIssues.every(i => i.severity !== 'ERROR') && (
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                    ⚠️ Vui lòng xem xét các cảnh báo trên. Nếu bạn đã kiểm tra và xác nhận thông số là chính xác, hãy nhấn <strong>"Tiếp tục"</strong> một lần nữa.
+                                </Typography>
+                            </Alert>
+                        )}
+                    </Box>
+                )}
                 
                 {/* Mode Selection */}
                 <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
@@ -1004,86 +1367,274 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     </Box>
                 ) : (
                     <Box>
-                        <Alert severity="info" sx={{ mb: 3 }}>
-                            <Typography variant="body2">
-                                Vui lòng nhập đúng độ kính theo đơn của bác sĩ nhãn khoa. Nếu chưa có đơn, bạn có thể bỏ qua
-                                bước này và đo độ tại cửa hàng.
+                        {/* Prescription Form - Compact Layout */}
+                        <Paper sx={{ p: 3, mb: 3 }}>
+                            <Typography variant="h6" sx={{ mb: 3, textAlign: 'center' }}>
+                                Fill in your prescription details
                             </Typography>
-                        </Alert>
 
-                        {/* Sync Options */}
-                        <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                    Hai mắt cùng chỉ số
+                            {/* Header Row */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 2 }}>
+                                <Box /> {/* Empty cell */}
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, textAlign: 'center' }}>
+                                    OD<br />Right Eye
                                 </Typography>
-                                <Button
-                                    size="small"
-                                    variant={Object.values(syncBothEyes).every((val) => val === true) ? 'contained' : 'outlined'}
-                                    onClick={handleSyncAll}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    {Object.values(syncBothEyes).every((val) => val === true) ? 'Bỏ trùng' : 'Trùng tất cả'}
-                                </Button>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, textAlign: 'center' }}>
+                                    OS<br />Left Eye
+                                </Typography>
                             </Box>
-                            <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Checkbox
-                                        checked={syncBothEyes.sphere}
-                                        onChange={(e) => handleSyncChange('sphere', e.target.checked)}
-                                        size="small"
-                                    />
-                                    <Typography variant="body2">SPH</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Checkbox
-                                        checked={syncBothEyes.cylinder}
-                                        onChange={(e) => handleSyncChange('cylinder', e.target.checked)}
-                                        size="small"
-                                    />
-                                    <Typography variant="body2">CYL</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Checkbox
-                                        checked={syncBothEyes.axis}
-                                        onChange={(e) => handleSyncChange('axis', e.target.checked)}
-                                        size="small"
-                                    />
-                                    <Typography variant="body2">Axis</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Checkbox
-                                        checked={syncBothEyes.add}
-                                        onChange={(e) => handleSyncChange('add', e.target.checked)}
-                                        size="small"
-                                    />
-                                    <Typography variant="body2">ADD</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Checkbox
-                                        checked={syncBothEyes.pd}
-                                        onChange={(e) => handleSyncChange('pd', e.target.checked)}
-                                        size="small"
-                                    />
-                                    <Typography variant="body2">PD</Typography>
-                                </Box>
-                            </Stack>
-                        </Paper>
 
-                        <EyePrescription 
-                            eye="right_eye" 
-                            label="Mắt phải (OD - Oculus Dexter)" 
-                            eyeData={prescription.right_eye}
-                            syncData={syncBothEyes}
-                            onChange={handlePrescriptionFieldChange}
-                        />
-                        <EyePrescription 
-                            eye="left_eye" 
-                            label="Mắt trái (OS - Oculus Sinister)" 
-                            eyeData={prescription.left_eye}
-                            syncData={syncBothEyes}
-                            onChange={handlePrescriptionFieldChange}
-                        />
+                            {/* SPH Row */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>SPH</Typography>
+                                </Box>
+                                <FormControl fullWidth size="small">
+                                    <Select
+                                        value={prescription.right_eye.sphere}
+                                        onChange={(e) => handlePrescriptionFieldChange('right_eye', 'sphere', e.target.value)}
+                                        displayEmpty
+                                    >
+                                        {SPHERE_VALUES.map((value) => (
+                                            <MenuItem key={value} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl fullWidth size="small">
+                                    <Select
+                                        value={prescription.left_eye.sphere}
+                                        onChange={(e) => handlePrescriptionFieldChange('left_eye', 'sphere', e.target.value)}
+                                        displayEmpty
+                                    >
+                                        {SPHERE_VALUES.map((value) => (
+                                            <MenuItem key={value} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+
+                            {/* CYL Row */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>CYL</Typography>
+                                </Box>
+                                <FormControl fullWidth size="small">
+                                    <Select
+                                        value={prescription.right_eye.cylinder || '0.00'}
+                                        onChange={(e) => handlePrescriptionFieldChange('right_eye', 'cylinder', e.target.value)}
+                                        displayEmpty
+                                    >
+                                        {CYLINDER_VALUES.map((value) => (
+                                            <MenuItem key={value} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl fullWidth size="small">
+                                    <Select
+                                        value={prescription.left_eye.cylinder || '0.00'}
+                                        onChange={(e) => handlePrescriptionFieldChange('left_eye', 'cylinder', e.target.value)}
+                                        displayEmpty
+                                    >
+                                        {CYLINDER_VALUES.map((value) => (
+                                            <MenuItem key={value} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+
+                            {/* Axis Row - Always visible for non-progressive lenses */}
+                            {!selectedLensType?.isProgressive && (
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 3 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Axis</Typography>
+                                    </Box>
+                                    <TextField
+                                        size="small"
+                                        fullWidth
+                                        placeholder="0"
+                                        type="text"
+                                        disabled={
+                                            prescription.right_eye.sphere === '0.00' || 
+                                            prescription.right_eye.cylinder === '0.00'
+                                        }
+                                        inputProps={{ 
+                                            pattern: '[0-9]*',
+                                            inputMode: 'numeric',
+                                        }}
+                                        value={prescription.right_eye.axis || ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '' || (/^\d+$/.test(value) && parseInt(value) <= 180)) {
+                                                handlePrescriptionFieldChange('right_eye', 'axis', value);
+                                            }
+                                        }}
+                                    />
+                                    <TextField
+                                        size="small"
+                                        fullWidth
+                                        placeholder="0"
+                                        type="text"
+                                        disabled={
+                                            prescription.left_eye.sphere === '0.00' || 
+                                            prescription.left_eye.cylinder === '0.00'
+                                        }
+                                        inputProps={{ 
+                                            pattern: '[0-9]*',
+                                            inputMode: 'numeric',
+                                        }}
+                                        value={prescription.left_eye.axis || ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === '' || (/^\d+$/.test(value) && parseInt(value) <= 180)) {
+                                                handlePrescriptionFieldChange('left_eye', 'axis', value);
+                                            }
+                                        }}
+                                    />
+                                </Box>
+                            )}
+
+                            {/* Note for progressive lenses */}
+                            {selectedLensType?.isProgressive && (
+                                <Alert severity="info" sx={{ mb: 2 }}>
+                                    <Typography variant="body2">
+                                        <strong>Progressive lenses:</strong> Axis is not required. Progressive lenses are designed to correct multiple vision zones without needing astigmatism correction.
+                                    </Typography>
+                                </Alert>
+                            )}
+
+                            <Divider sx={{ my: 2 }} />
+
+                            {/* ADD Row - Single Field */}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 2, mb: 2, maxWidth: '400px' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>ADD *</Typography>
+                                </Box>
+                                <FormControl fullWidth size="small">
+                                    <Select
+                                        value={prescription.right_eye.add || ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            handlePrescriptionFieldChange('right_eye', 'add', value);
+                                            handlePrescriptionFieldChange('left_eye', 'add', value);
+                                        }}
+                                        displayEmpty
+                                    >
+                                        <MenuItem value="">Select</MenuItem>
+                                        {ADD_VALUES.map((value) => (
+                                            <MenuItem key={value} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+
+                            {/* PD Row - Single or Double */}
+                            <Box sx={{ mb: 2 }}>
+                                <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 2, mb: 1, maxWidth: '400px' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                            PD *<br />
+                                            <Typography variant="caption" color="text.secondary">
+                                                Pupillary Distance
+                                            </Typography>
+                                        </Typography>
+                                    </Box>
+                                    {!has2PD ? (
+                                        <FormControl fullWidth size="small">
+                                            <Select
+                                                value={prescription.right_eye.pd || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                    handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                                }}
+                                                displayEmpty
+                                            >
+                                                <MenuItem value="">Enter your PD</MenuItem>
+                                                {PD_VALUES.map((value) => (
+                                                    <MenuItem key={value} value={value}>
+                                                        {value}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    ) : (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <FormControl size="small" sx={{ flex: 1 }}>
+                                                <Select
+                                                    value={prescription.right_eye.pd || ''}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                    }}
+                                                    displayEmpty
+                                                >
+                                                    <MenuItem value="">Right</MenuItem>
+                                                    {PD_MONOCULAR_VALUES.map((value) => (
+                                                        <MenuItem key={value} value={value}>
+                                                            {value}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                            <FormControl size="small" sx={{ flex: 1 }}>
+                                                <Select
+                                                    value={prescription.left_eye.pd || ''}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                                    }}
+                                                    displayEmpty
+                                                >
+                                                    <MenuItem value="">Left</MenuItem>
+                                                    {PD_MONOCULAR_VALUES.map((value) => (
+                                                        <MenuItem key={value} value={value}>
+                                                            {value}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </Box>
+                                    )}
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: '120px' }}>
+                                    <Checkbox
+                                        checked={has2PD}
+                                        onChange={(e) => {
+                                            setHas2PD(e.target.checked);
+                                            if (!e.target.checked) {
+                                                // When unchecking, sync left to right
+                                                handlePrescriptionFieldChange('left_eye', 'pd', prescription.right_eye.pd || '');
+                                            }
+                                        }}
+                                        size="small"
+                                    />
+                                    <Typography variant="body2">I have 2 PD numbers</Typography>
+                                    <Typography 
+                                        variant="body2" 
+                                        sx={{ 
+                                            ml: 'auto', 
+                                            color: 'primary.main', 
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline'
+                                        }}
+                                    >
+                                        Help me find my PD
+                                    </Typography>
+                                </Box>
+                            </Box>
+
+                            <Divider sx={{ my: 2 }} />
+                        </Paper>
 
                         {/* Save Prescription Button */}
                         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
@@ -1283,7 +1834,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                         size="small"
                                     />
                                     <Chip
-                                        label={`Độ mờ: ${Math.round(selectedTint.opacity * 100)}%`}
+                                        label={`Độ mờ: ${Math.round(selectedTint.opacity)}%`}
                                         variant="outlined"
                                         size="small"
                                     />
@@ -1298,7 +1849,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 </Typography>
 
                 <Stack spacing={2}>
-                    {SAMPLE_LENS_TINTS.map((tint) => (
+                    {availableTints.map((tint) => (
                         <Card
                             key={tint.id}
                             sx={{
@@ -1345,7 +1896,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             {tint.description}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                                            Độ mờ: {Math.round(tint.opacity * 100)}%
+                                            Độ mờ: {Math.round(tint.opacity)}%
                                         </Typography>
                                     </Box>
 
@@ -1362,7 +1913,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const renderFeaturesStep = () => {
-        const featuresByCategory = SAMPLE_LENS_FEATURES.reduce((acc, feature) => {
+        const featuresByCategory = availableFeatures.reduce((acc, feature) => {
             if (!acc[feature.category]) {
                 acc[feature.category] = [];
             }
@@ -1452,14 +2003,15 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                 />
                                             </Box>
                                         </CardContent>
-        return (
-            <Box>
-                <Typography variant="h6" gutterBottom>
-                    Xác nhận tùy chỉnh tròng kính
-                </Typography>
-                <Typography variant="h6" gutterBottom>
-                    Xác nhận tùy chỉnh tròng kính
-                </Typography>
+                                    </Card>
+                                );
+                            })}
+                        </Stack>
+                    </Box>
+                ))}
+            </Box>
+        );
+    };
 
     const renderSummaryStep = () => {
         const formatCurrency = (price: number) => {
@@ -1476,7 +2028,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 </Typography>
 
                 <Stack spacing={3}>
-                    {/* Usage */}
                     <Paper elevation={1} sx={{ p: 2 }}>
                         <Typography variant="subtitle2" color="primary" gutterBottom>
                             Mục đích sử dụng
@@ -1489,7 +2040,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Typography>
                     </Paper>
 
-                    {/* Lens Type */}
                     <Paper elevation={1} sx={{ p: 2 }}>
                         <Typography variant="subtitle2" color="primary" gutterBottom>
                             Loại kính
@@ -1507,7 +2057,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Box>
                     </Paper>
 
-                    {/* Prescription (if applicable) */}
                     {selectedLensType?.isPrescription && (
                         <Paper elevation={1} sx={{ p: 2 }}>
                             <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -1581,7 +2130,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Paper>
                     )}
 
-                    {/* Tint */}
                     <Paper elevation={1} sx={{ p: 2 }}>
                         <Typography variant="subtitle2" color="primary" gutterBottom>
                             Màu kính
@@ -1610,7 +2158,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Box>
                     </Paper>
 
-                    {/* Features */}
                     {selectedFeatures.length > 0 && (
                         <Paper elevation={1} sx={{ p: 2 }}>
                             <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -1634,7 +2181,34 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Paper>
                     )}
 
-                    {/* Total Price */}
+                    {/* Price Breakdown */}
+                    <Paper elevation={1} sx={{ p: 2 }}>
+                        <Typography variant="subtitle2" color="primary" gutterBottom>
+                            Chi tiết giá
+                        </Typography>
+                        <Stack spacing={1}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2">Gọng kính</Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                    {formatCurrency(framePrice)}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2">Tùy chỉnh tròng kính</Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                    {formatCurrency(calculateLensCustomizationPrice())}
+                                </Typography>
+                            </Box>
+                            <Divider />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body1" fontWeight="bold">Tổng cộng</Typography>
+                                <Typography variant="body1" fontWeight="bold" color="primary">
+                                    {formatCurrency(calculateTotalPrice())}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Paper>
+
                     <Paper 
                         elevation={3} 
                         sx={{ 
@@ -1645,10 +2219,13 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         }}
                     >
                         <Typography variant="subtitle2" sx={{ opacity: 0.9 }} gutterBottom>
-                            Tổng chi phí tròng kính
+                            Tổng chi phí
                         </Typography>
                         <Typography variant="h4" fontWeight="bold">
                             {formatCurrency(calculateTotalPrice())}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: 0.8, display: 'block', mt: 1 }}>
+                            Bao gồm gọng kính + tùy chỉnh tròng kính
                         </Typography>
                     </Paper>
                 </Stack>
@@ -1661,9 +2238,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             case 0:
                 return renderUsageStep();
             case 1:
-                return renderLensTypeStep();
-            case 2:
                 return renderPrescriptionStep();
+            case 2:
+                return renderLensTypeStep();
             case 3:
                 return renderTintStep();
             case 4:
@@ -1711,7 +2288,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
             <DialogContent sx={{ p: 0, flex: 1, overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', height: '100%' }}>
-                    {/* Left Sidebar - Stepper (20%) */}
                     <Box
                         sx={{
                             width: '20%',
@@ -1723,15 +2299,64 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             overflowY: 'auto',
                         }}
                     >
-                        <Stepper activeStep={activeStep} orientation="vertical">
+                        <Stepper 
+                            activeStep={activeStep} 
+                            orientation="vertical"
+                            sx={{
+                                '& .MuiStepLabel-root': {
+                                    color: 'text.primary !important',
+                                },
+                                '& .MuiStepLabel-label': {
+                                    color: 'text.primary !important',
+                                },
+                                '& .MuiStepLabel-root.Mui-active': {
+                                    color: 'primary.main !important',
+                                    fontWeight: 500,
+                                },
+                                '& .MuiStepLabel-label.Mui-active': {
+                                    color: 'primary.main !important',
+                                    fontWeight: 500,
+                                },
+                                '& .MuiStepLabel-label.Mui-completed': {
+                                    color: 'text.primary !important',
+                                },
+                                '& .MuiStepLabel-root.Mui-disabled': {
+                                    color: 'text.primary !important',
+                                },
+                                '& .MuiStepLabel-label.Mui-disabled': {
+                                    color: 'text.primary !important',
+                                },
+                            }}
+                        >
                             {steps.map((label, index) => {
-                                // Only show skipped state if we've already passed step 2 (prescription step)
-                                const isSkipped = index === 2 && 
-                                                  selectedLensType && 
-                                                  !selectedLensType.isPrescription && 
-                                                  activeStep > 2;
+                                const isSkipped = !!(index === 1 && 
+                                                  selectedUsage && 
+                                                  selectedUsage.type === 'NON_PRESCRIPTION' && 
+                                                  activeStep > 1);
                                 return (
-                                    <Step key={label} completed={isStepCompleted(index)}>
+                                    <Step 
+                                        key={label} 
+                                        completed={isStepCompleted(index)}
+                                        sx={{
+                                            '& .MuiStepLabel-root': {
+                                                color: 'text.primary !important',
+                                            },
+                                            '& .MuiStepLabel-label': {
+                                                color: 'text.primary !important',
+                                            },
+                                            '& .MuiStepLabel-label.Mui-completed': {
+                                                color: 'text.primary !important',
+                                                fontWeight: 400,
+                                            },
+                                            '& .MuiStepLabel-label.Mui-active': {
+                                                color: 'primary.main !important',
+                                                fontWeight: 500,
+                                            },
+                                            '& .MuiStepContent-root': {
+                                                borderLeftColor: 'divider',
+                                            },
+                                        }}
+                                    >
                                         <StepLabel
                                             StepIconComponent={(props) => (
                                                 <CustomStepIcon {...props} isSkipped={isSkipped} />
@@ -1752,7 +2377,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Stepper>
                     </Box>
 
-                    {/* Right Content Area (80%) */}
                     <Box
                         sx={{
                             flex: 1,
@@ -1769,11 +2393,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
             <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
                 <Box>
-                    {selectedLensType && (
-                        <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
-                            Tổng: {formatCurrency(calculateTotalPrice())}
-                        </Typography>
-                    )}
+                    <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
+                        Tổng: {formatCurrency(calculateTotalPrice())}
+                    </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button disabled={activeStep === 0} onClick={handleBack}>
@@ -1793,8 +2415,18 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             </span>
                         </Tooltip>
                     ) : (
-                        <Button variant="contained" onClick={handleNext} disabled={!canProceedToNextStep()}>
-                            Tiếp theo
+                        <Button 
+                            variant="contained" 
+                            onClick={handleNext} 
+                            disabled={!canProceedToNextStep() || isValidating}
+                            color={pendingWarnings.length > 0 && !warningsAcknowledged ? 'warning' : 'primary'}
+                        >
+                            {isValidating 
+                                ? 'Đang kiểm tra...' 
+                                : pendingWarnings.length > 0 && !warningsAcknowledged
+                                    ? 'Tôi đã kiểm tra, tiếp tục'
+                                    : 'Tiếp theo'
+                            }
                         </Button>
                     )}
                 </Box>
@@ -1909,6 +2541,143 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Dialog>
+
+            {/* Warning Confirmation Dialog */}
+            <Dialog 
+                open={warningConfirmOpen} 
+                onClose={handleWarningConfirmCancel} 
+                maxWidth="md" 
+                fullWidth
+            >
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Alert severity="warning" icon={false} sx={{ py: 0, px: 1 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                    Cảnh báo về đơn kính
+                                </Typography>
+                            </Alert>
+                        </Box>
+                        <IconButton onClick={handleWarningConfirmCancel} size="small">
+                            <Close />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Chúng tôi phát hiện một số cảnh báo về thông số kính của bạn. Vui lòng xem xét kỹ trước khi tiếp tục.
+                    </Typography>
+                    
+                    <Stack spacing={2}>
+                        {pendingWarnings.map((issue, index) => {
+                            const issueInfo = getIssueDescription(issue);
+                            return (
+                                <Paper 
+                                    key={index}
+                                    elevation={0}
+                                    sx={{ 
+                                        p: 2, 
+                                        border: 2, 
+                                        borderColor: 'warning.main',
+                                        borderRadius: 2,
+                                        bgcolor: 'warning.lighter'
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                                        <Box
+                                            sx={{
+                                                mt: 0.5,
+                                                width: 28,
+                                                height: 28,
+                                                borderRadius: '50%',
+                                                bgcolor: 'warning.main',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'white',
+                                                fontWeight: 700,
+                                                fontSize: '0.875rem',
+                                                flexShrink: 0
+                                            }}
+                                        >
+                                            {index + 1}
+                                        </Box>
+                                        <Box sx={{ flex: 1 }}>
+                                            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                                                {issueInfo.description}
+                                            </Typography>
+                                            
+                                            {issueInfo.suggestion && (
+                                                <Box 
+                                                    sx={{ 
+                                                        mt: 1.5, 
+                                                        p: 1.5, 
+                                                        bgcolor: 'background.paper', 
+                                                        borderRadius: 1,
+                                                        borderLeft: 3,
+                                                        borderColor: 'warning.dark'
+                                                    }}
+                                                >
+                                                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                            
+                                            {issue.meta && Object.keys(issue.meta).length > 0 && (
+                                                <Box 
+                                                    sx={{ 
+                                                        mt: 1.5, 
+                                                        p: 1.5, 
+                                                        bgcolor: 'background.paper', 
+                                                        borderRadius: 1 
+                                                    }}
+                                                >
+                                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                                        Thông tin chi tiết:
+                                                    </Typography>
+                                                    {Object.entries(issue.meta).map(([key, value]) => (
+                                                        <Typography key={key} variant="caption" sx={{ display: 'block' }}>
+                                                            • {key}: {JSON.stringify(value)}
+                                                        </Typography>
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                </Paper>
+                            );
+                        })}
+                    </Stack>
+
+                    <Alert severity="info" sx={{ mt: 3 }}>
+                        <Typography variant="body2">
+                            Bạn có thể quay lại để điều chỉnh các thông số, hoặc tiếp tục nếu bạn đã kiểm tra và xác nhận các giá trị này là chính xác.
+                        </Typography>
+                    </Alert>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+                    <Button 
+                        onClick={handleWarningConfirmCancel} 
+                        variant="outlined"
+                        size="large"
+                    >
+                        Quay lại điều chỉnh
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleWarningConfirmProceed}
+                        size="large"
+                        sx={{ 
+                            bgcolor: 'warning.main',
+                            '&:hover': { bgcolor: 'warning.dark' }
+                        }}
+                    >
+                        Tôi đã kiểm tra, tiếp tục
+                    </Button>
+                </DialogActions>
+            </Dialog>        </Dialog>
     );
 };
+
+export default LensSelectionDialog;

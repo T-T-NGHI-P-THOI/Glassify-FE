@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
   VALIDATION: {
     BASE: `${API_ENDPOINT}/validation`,
     LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
+    PRESCRIPTION: `${API_ENDPOINT}/prescriptions/validate`,
   }
 } as const;
 

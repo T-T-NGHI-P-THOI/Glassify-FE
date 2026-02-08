@@ -1,5 +1,12 @@
 import axiosInstance from '../axios.config';
-import type { LensSelection, Prescription, LensFrameValidationRequest, LensFrameValidationResponse, LensCatalogData } from '@/models/Lens';
+import type { 
+    LensSelection, 
+    LensFrameValidationRequest, 
+    LensFrameValidationResponse, 
+    LensCatalogData,
+    PrescriptionValidationRequest,
+    PrescriptionValidationResponse
+} from '@/models/Lens';
 import { API_ENDPOINTS } from '../endpoints';
 
 export interface AddToCartWithLensRequest {
@@ -47,36 +54,6 @@ class LensService {
     }
 
     /**
-     * Validate prescription values
-     */
-    validatePrescription(prescription: Prescription): LensValidationResult {
-        const errors: string[] = [];
-
-        // Validate right eye
-        if (!this.isValidSphereValue(prescription.right_eye.sphere)) {
-            errors.push('Độ cận/viễn mắt phải không hợp lệ');
-        }
-
-        if (prescription.right_eye.cylinder && !this.isValidCylinderValue(prescription.right_eye.cylinder)) {
-            errors.push('Độ loạn mắt phải không hợp lệ');
-        }
-
-        // Validate left eye
-        if (!this.isValidSphereValue(prescription.left_eye.sphere)) {
-            errors.push('Độ cận/viễn mắt trái không hợp lệ');
-        }
-
-        if (prescription.left_eye.cylinder && !this.isValidCylinderValue(prescription.left_eye.cylinder)) {
-            errors.push('Độ loạn mắt trái không hợp lệ');
-        }
-
-        return {
-            is_valid: errors.length === 0,
-            errors: errors.length > 0 ? errors : undefined,
-        };
-    }
-
-    /**
      * Calculate total lens price
      */
     calculateLensPrice(selection: LensSelection): number {
@@ -86,22 +63,6 @@ class LensService {
         });
         total += selection.tint?.price || 0;
         return total;
-    }
-
-    /**
-     * Helper: Validate sphere value
-     */
-    private isValidSphereValue(value: string): boolean {
-        const num = parseFloat(value);
-        return !isNaN(num) && num >= -10.0 && num <= 6.0;
-    }
-
-    /**
-     * Helper: Validate cylinder value
-     */
-    private isValidCylinderValue(value: string): boolean {
-        const num = parseFloat(value);
-        return !isNaN(num) && num >= -4.0 && num <= 0.0;
     }
 
     /**
@@ -120,7 +81,7 @@ class LensService {
 
     /**
      * Validate lens-frame compatibility
-     * Validates if a specific lens can be fitted into a frame variant with prescription values
+     * Validates if a specific lens can be fitted into a frame variant with features
      */
     async validateLensFrame(request: LensFrameValidationRequest): Promise<LensFrameValidationResponse> {
         try {
@@ -128,6 +89,20 @@ class LensService {
             return response.data;
         } catch (error) {
             console.error('Error validating lens-frame compatibility:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Validate prescription values
+     * Validates prescription data before lens selection
+     */
+    async validatePrescription(request: PrescriptionValidationRequest): Promise<PrescriptionValidationResponse> {
+        try {
+            const response = await axiosInstance.post(API_ENDPOINTS.VALIDATION.PRESCRIPTION, request);
+            return response.data;
+        } catch (error) {
+            console.error('Error validating prescription:', error);
             throw error;
         }
     }
