@@ -5,6 +5,7 @@ import MainPage from "../pages/MainPage"
 import { PAGE_ENDPOINTS } from "../api/endpoints"
 import DashboardPage from "@/pages/Dashboard/DashboardPage.tsx";
 import UserProfilePage from "@/pages/User/UserProfilePage"
+import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -24,7 +25,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.DASHBOARD}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={["admin", "staff", "customer"]}>
+                        <RoleBasedGuard accessibleRoles={["admin", "staff", 'CUSTOMER']}>
                             <DashboardPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -37,6 +38,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <UserProfilePage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.REGISTER}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopRegistrationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

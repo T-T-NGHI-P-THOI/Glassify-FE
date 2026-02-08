@@ -71,6 +71,14 @@ export const PAGE_ENDPOINTS = {
     SHOP_APPROVAL: `/admin/shop-approval`,
   },
 
+  ORDER: {
+    MY_ORDERS: `/my-orders`,
+  },
+
+  WARRANTY: {
+    MAIN: `/warranty`,
+  },
+
   USER: {
     PROFILE: `/users/me`,
   }
