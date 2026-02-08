@@ -56,6 +56,9 @@ export const PAGE_ENDPOINTS = {
   SHOP: {
     REGISTER: `/shop/register`,
     PROFILE: `/shop/profile`,
+    DASHBOARD: `/shop/dashboard`,
+    EDIT_PROFILE: `/shop/edit-profile`,
+    BANK_ACCOUNTS: `/shop/bank-accounts`,
   },
 
   ADMIN: {
