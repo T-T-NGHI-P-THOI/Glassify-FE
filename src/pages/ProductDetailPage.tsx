@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
+import { Snackbar, Alert } from '@mui/material';
 import ImageGallery from '../components/ProductDetailPage/ImageGallery';
 import ProductInfo from '../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../components/ProductDetailPage/ProductDetails';
@@ -9,13 +10,14 @@ import { LensSelectionDialog } from '../components/LensSelection/LensSelectionDi
 import type { Product, RecommendedProduct } from '../types/product';
 import type { LensSelection } from '../models/Lens';
 import ProductAPI, { type ReviewResponse } from '../api/product-api';
-import lensService from '../api/service/LensService';
+import { useCart } from '../hooks/useCart';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
   const { slug, sku } = useParams<{ slug: string; sku: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { addItem, addFrameWithLens } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
@@ -24,6 +26,10 @@ const ProductDetailPage: React.FC = () => {
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+
+  const editCartItemId = searchParams.get('editCartItemId');
+  const isEditMode = !!editCartItemId;
 
   // Auto-open lens dialog if URL has lens parameter (only check searchParams changes)
   useEffect(() => {
@@ -44,6 +50,7 @@ const ProductDetailPage: React.FC = () => {
         // Transform API product to Product format
         const transformedProduct: Product = {
           id: apiProduct.id,
+          shopId: apiProduct.shopId,
           slug: apiProduct.slug,
           name: apiProduct.name,
           sku: apiProduct.sku,
@@ -53,7 +60,7 @@ const ProductDetailPage: React.FC = () => {
           shape: 'Rectangle', // Default - update if you have this data
           category: apiProduct.categoryName,
           productType: apiProduct.productType,
-          variantId: apiProduct.variantId,
+          variantId: apiProduct.variantId ?? undefined,
           colors: [
             {
               name: 'Default',
@@ -179,10 +186,28 @@ const ProductDetailPage: React.FC = () => {
     navigate(`/product/${product?.slug}/${product?.sku || 'default'}`);
   };
 
-  const handleAddToCart = (frameOnly: boolean) => {
+  const handleAddToCart = async (frameOnly: boolean) => {
     if (frameOnly) {
-      console.log('Added frame only to cart:', product?.name);
-      alert(`Đã thêm ${product?.name} (chỉ gọng) vào giỏ hàng!`);
+      if (!product) return;
+      try {
+        await addItem({
+          productName: product.name,
+          productSlug: product.slug,
+          productId: product.id,
+          productType: product.productType || 'FRAME',
+          sku: product.sku,
+          imageUrl: product.images?.[0],
+          unitPrice: product.price,
+          itemType: 'FRAME',
+        });
+        setSnackbar({ open: true, message: `Đã thêm ${product.name} (chỉ gọng) vào giỏ hàng!`, severity: 'success' });
+        if (isEditMode) {
+          navigate('/cart');
+        }
+      } catch (error) {
+        console.error('Error adding frame to cart:', error);
+        setSnackbar({ open: true, message: 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!', severity: 'error' });
+      }
     } else {
       // Open lens selection dialog
       setLensDialogOpen(true);
@@ -194,26 +219,42 @@ const ProductDetailPage: React.FC = () => {
 
     try {
       setSelectedLens(selection);
-      
-      // Call API to add to cart with lens customization
-      const response = await lensService.addToCartWithLens({
-        product_id: product.id,
-        quantity: 1,
-        lens_selection: selection,
+
+      const frameParams = {
+        productName: product.name,
+        productSlug: product.slug,
+        productId: product.id,
+        productType: product.productType || 'FRAME',
+        sku: product.sku,
+        imageUrl: product.images?.[0],
+        unitPrice: product.price,
+        itemType: 'FRAME' as const,
+      };
+
+      const lensParams = {
+        productName: selection.lens_type.name,
+        productSlug: product.slug,
+        productId: selection.lens_type.id,
+        productType: 'LENS',
+        unitPrice: selection.total_price,
+        itemType: 'LENS' as const,
+      };
+
+      await addFrameWithLens(frameParams, lensParams);
+
+      const totalPrice = product.price + selection.total_price;
+      setSnackbar({
+        open: true,
+        message: `Đã thêm ${product.name} + ${selection.lens_type.name} vào giỏ hàng! Tổng: ${formatCurrency(totalPrice)}`,
+        severity: 'success',
       });
 
-      if (response.success) {
-        const totalPrice = selection.total_price;
-        alert(
-          `Đã thêm ${product.name} với tròng kính tùy chỉnh vào giỏ hàng!\n\n` +
-          `Loại kính: ${selection.lens_type.name}\n` +
-          `Tính năng: ${selection.features.map(f => f.name).join(', ') || 'Không có'}\n` +
-          `Tổng giá: ${formatCurrency(totalPrice)}`
-        );
+      if (isEditMode) {
+        navigate('/cart');
       }
     } catch (error) {
       console.error('Error adding to cart with lens:', error);
-      alert('Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!');
+      setSnackbar({ open: true, message: 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!', severity: 'error' });
     }
   };
 
@@ -263,10 +304,11 @@ const ProductDetailPage: React.FC = () => {
             </div>
           )}
         </div>
-        <ProductInfo 
-          product={product} 
+        <ProductInfo
+          product={product}
           onAddToFavorites={handleAddToFavorites}
           onAddToCart={handleAddToCart}
+          isEditMode={isEditMode}
         />
 
       <LensSelectionDialog
@@ -319,6 +361,21 @@ const ProductDetailPage: React.FC = () => {
           10% off only applies to full price items. Zenni reserves the right to modify or cancel at any time.
         </p>
       </div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%', bgcolor: snackbar.severity === 'success' ? '#2e3a2e' : undefined, color: snackbar.severity === 'success' ? '#fff' : undefined }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

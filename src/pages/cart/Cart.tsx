@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Typography,
@@ -22,9 +23,12 @@ import {
     CheckCircle as CheckCircleIcon,
     ArrowBack as ArrowBackIcon,
     Inventory2Outlined as AccessoryIcon,
+    Visibility as LensIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
-import type { CartItemWithDetails, CartResponse, CartSummary } from '@/api/service/Type';
-import { CartService } from '@/api/service/CartService';
+import type { CartItemWithDetails, ItemType } from '@/api/service/Type';
+import { useCart } from '@/hooks/useCart';
+
 // =====================================================
 // Quantity Selector Component
 // =====================================================
@@ -103,7 +107,72 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
 };
 
 // =====================================================
-// Child Item (Accessory/Gift) Component
+// Helper: get icon by item type
+// =====================================================
+const getChildIcon = (itemType?: ItemType, isGift?: boolean) => {
+    if (isGift || itemType === 'GIFT') return <GiftIcon sx={{ fontSize: 16, color: '#666' }} />;
+    if (itemType === 'LENS') return <LensIcon sx={{ fontSize: 16, color: '#00838f' }} />;
+    return <AccessoryIcon sx={{ fontSize: 16, color: '#888' }} />;
+};
+
+const getChildChip = (itemType?: ItemType, isGift?: boolean) => {
+    if (isGift || itemType === 'GIFT') {
+        return (
+            <Chip
+                label="GIFT"
+                size="small"
+                sx={{
+                    height: 18,
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                    bgcolor: '#222',
+                    color: '#fff',
+                    '& .MuiChip-label': { px: 1 },
+                }}
+            />
+        );
+    }
+    if (itemType === 'LENS') {
+        return (
+            <Chip
+                label="LENS"
+                size="small"
+                sx={{
+                    height: 18,
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                    bgcolor: '#00838f',
+                    color: '#fff',
+                    '& .MuiChip-label': { px: 1 },
+                }}
+            />
+        );
+    }
+    if (itemType === 'ACCESSORY') {
+        return (
+            <Chip
+                label="ADD-ON"
+                size="small"
+                sx={{
+                    height: 18,
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                    bgcolor: '#f5f5f5',
+                    color: '#666',
+                    border: '1px solid #e0e0e0',
+                    '& .MuiChip-label': { px: 1 },
+                }}
+            />
+        );
+    }
+    return null;
+};
+
+// =====================================================
+// Child Item (Lens/Accessory/Gift) Component
 // =====================================================
 interface ChildItemProps {
     item: CartItemWithDetails;
@@ -121,6 +190,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
     loading = false,
 }) => {
     const isGift = item.is_gift || item.unit_price === 0;
+    const isLens = item.item_type === 'LENS';
     const itemTotal = item.unit_price * item.quantity;
 
     return (
@@ -137,7 +207,8 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     top: 0,
                     bottom: isLast ? '50%' : 0,
                     width: '1px',
-                    bgcolor: '#ddd',
+                    bgcolor: isLens ? '#00838f' : '#ddd',
+                    opacity: isLens ? 0.4 : 1,
                 },
                 '&::after': {
                     content: '""',
@@ -146,7 +217,8 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     top: '50%',
                     width: '20px',
                     height: '1px',
-                    bgcolor: '#ddd',
+                    bgcolor: isLens ? '#00838f' : '#ddd',
+                    opacity: isLens ? 0.4 : 1,
                 },
             }}
         >
@@ -158,15 +230,15 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     ml: '28px',
                     py: 1.5,
                     px: 2,
-                    bgcolor: isGift ? '#fafafa' : '#fff',
+                    bgcolor: isGift ? '#fafafa' : isLens ? '#f0fafa' : '#fff',
                     border: '1px dashed',
-                    borderColor: '#ddd',
+                    borderColor: isLens ? 'rgba(0,131,143,0.3)' : '#ddd',
                     borderRadius: '8px',
                     gap: 2,
                     transition: 'all 0.2s',
                     '&:hover': {
-                        borderColor: '#bbb',
-                        bgcolor: '#f8f8f8',
+                        borderColor: isLens ? '#00838f' : '#bbb',
+                        bgcolor: isLens ? '#e8f5f5' : '#f8f8f8',
                     },
                 }}
             >
@@ -176,20 +248,16 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         width: 32,
                         height: 32,
                         borderRadius: '6px',
-                        bgcolor: isGift ? '#f0f0f0' : '#f5f5f5',
+                        bgcolor: isLens ? 'rgba(0,131,143,0.1)' : isGift ? '#f0f0f0' : '#f5f5f5',
                         border: '1px solid',
-                        borderColor: isGift ? '#e0e0e0' : '#eee',
+                        borderColor: isLens ? 'rgba(0,131,143,0.2)' : isGift ? '#e0e0e0' : '#eee',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
                     }}
                 >
-                    {isGift ? (
-                        <GiftIcon sx={{ fontSize: 16, color: '#666' }} />
-                    ) : (
-                        <AccessoryIcon sx={{ fontSize: 16, color: '#888' }} />
-                    )}
+                    {getChildIcon(item.item_type, isGift)}
                 </Box>
 
                 {/* Name + SKU + Tag */}
@@ -198,8 +266,8 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         <Typography
                             sx={{
                                 fontSize: '0.8rem',
-                                fontWeight: 500,
-                                color: '#555',
+                                fontWeight: isLens ? 600 : 500,
+                                color: isLens ? '#00838f' : '#555',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -207,21 +275,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         >
                             {item.product.name}
                         </Typography>
-                        {isGift && (
-                            <Chip
-                                label="GIFT"
-                                size="small"
-                                sx={{
-                                    height: 18,
-                                    fontSize: '0.6rem',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.5px',
-                                    bgcolor: '#222',
-                                    color: '#fff',
-                                    '& .MuiChip-label': { px: 1 },
-                                }}
-                            />
-                        )}
+                        {getChildChip(item.item_type, isGift)}
                     </Stack>
                     {item.variant_details?.sku && (
                         <Typography sx={{ fontSize: '0.7rem', color: '#999', mt: 0.25 }}>
@@ -235,7 +289,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     sx={{
                         fontSize: '0.8rem',
                         fontWeight: 500,
-                        color: isGift ? '#888' : '#555',
+                        color: isGift ? '#888' : isLens ? '#00838f' : '#555',
                         minWidth: 55,
                         textAlign: 'right',
                         fontStyle: isGift ? 'italic' : 'normal',
@@ -246,7 +300,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
 
                 {/* Quantity */}
                 <Box sx={{ minWidth: 80, display: 'flex', justifyContent: 'center' }}>
-                    {!isGift ? (
+                    {!isGift && !isLens ? (
                         <QuantitySelector
                             quantity={item.quantity}
                             onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
@@ -256,7 +310,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         />
                     ) : (
                         <Typography sx={{ fontSize: '0.75rem', color: '#999', fontStyle: 'italic' }}>
-                            ×1
+                            x{item.quantity}
                         </Typography>
                     )}
                 </Box>
@@ -266,7 +320,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     sx={{
                         fontSize: '0.8rem',
                         fontWeight: 600,
-                        color: isGift ? '#888' : '#333',
+                        color: isGift ? '#888' : isLens ? '#00838f' : '#333',
                         minWidth: 55,
                         textAlign: 'right',
                     }}
@@ -276,7 +330,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
 
                 {/* Remove button */}
                 <Box sx={{ width: 28, display: 'flex', justifyContent: 'center' }}>
-                    {!isGift && (
+                    {!isGift && !isLens && (
                         <IconButton
                             size="small"
                             onClick={() => onRemove(item.id)}
@@ -304,6 +358,7 @@ interface CartItemRowProps {
     onQuantityChange: (itemId: string, quantity: number) => void;
     onRemove: (itemId: string) => void;
     onFavorite: (itemId: string) => void;
+    onEdit: (item: CartItemWithDetails) => void;
     loading?: boolean;
 }
 
@@ -312,19 +367,26 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     onQuantityChange,
     onRemove,
     onFavorite,
+    onEdit,
     loading = false,
 }) => {
-    // Calculate totals including children
     const calculateItemTotal = (cartItem: CartItemWithDetails): number => {
         const selfTotal = cartItem.unit_price * cartItem.quantity;
         const childrenTotal = cartItem.children.reduce(
-            (sum: number, child: { unit_price: number; quantity: number; }) => sum + child.unit_price * child.quantity,
+            (sum: number, child: CartItemWithDetails) => sum + child.unit_price * child.quantity,
             0
         );
         return selfTotal + childrenTotal;
     };
 
     const itemTotal = calculateItemTotal(item);
+    const hasLens = item.children.some(c => c.item_type === 'LENS');
+
+    // Sort children: LENS first, then ACCESSORY, then GIFT
+    const sortedChildren = [...item.children].sort((a, b) => {
+        const order: Record<string, number> = { LENS: 0, ACCESSORY: 1, GIFT: 2 };
+        return (order[a.item_type || ''] ?? 3) - (order[b.item_type || ''] ?? 3);
+    });
 
     return (
         <Box sx={{ py: 2.5, px: 3 }}>
@@ -332,6 +394,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                 {/* Product Image */}
                 <Box
+                    onClick={() => onEdit(item)}
                     sx={{
                         width: 80,
                         height: 80,
@@ -344,6 +407,12 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         border: '1px solid #eee',
                         boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.03)',
                         overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                            borderColor: '#00838f',
+                            boxShadow: '0 0 0 2px rgba(0,131,143,0.15)',
+                        },
                     }}
                 >
                     {item.variant_details?.image_url ? (
@@ -369,19 +438,52 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
 
                 {/* Product Info */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography
-                        sx={{
-                            fontWeight: 600,
-                            fontSize: '1rem',
-                            color: '#111',
-                            mb: 0.25,
-                            cursor: 'pointer',
-                            transition: 'color 0.2s',
-                            '&:hover': { color: '#444' },
-                        }}
-                    >
-                        {item.product.name}
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography
+                            onClick={() => onEdit(item)}
+                            sx={{
+                                fontWeight: 600,
+                                fontSize: '1rem',
+                                color: '#111',
+                                mb: 0.25,
+                                cursor: 'pointer',
+                                transition: 'color 0.2s',
+                                '&:hover': { color: '#00838f' },
+                            }}
+                        >
+                            {item.product.name}
+                        </Typography>
+                        {item.item_type === 'FRAME' && (
+                            <Chip
+                                label="FRAME"
+                                size="small"
+                                sx={{
+                                    height: 20,
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.5px',
+                                    bgcolor: '#111',
+                                    color: '#fff',
+                                    '& .MuiChip-label': { px: 1 },
+                                }}
+                            />
+                        )}
+                        {hasLens && (
+                            <Chip
+                                label="+ LENS"
+                                size="small"
+                                sx={{
+                                    height: 20,
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.5px',
+                                    bgcolor: '#00838f',
+                                    color: '#fff',
+                                    '& .MuiChip-label': { px: 1 },
+                                }}
+                            />
+                        )}
+                    </Stack>
                     {item.product.brand && (
                         <Typography sx={{ fontSize: '0.75rem', color: '#888', mb: 0.25 }}>
                             {item.product.brand.name}
@@ -459,7 +561,20 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                 </Typography>
 
                 {/* Actions */}
-                <Stack direction="row" spacing={0.5} sx={{ minWidth: 64 }}>
+                <Stack direction="row" spacing={0.5} sx={{ minWidth: 88 }}>
+                    <IconButton
+                        size="small"
+                        onClick={() => onEdit(item)}
+                        disabled={loading}
+                        title="Edit item"
+                        sx={{
+                            color: '#ccc',
+                            transition: 'all 0.2s',
+                            '&:hover': { color: '#00838f', bgcolor: 'transparent' },
+                        }}
+                    >
+                        <EditIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
                     <IconButton
                         size="small"
                         onClick={() => onFavorite(item.id)}
@@ -487,14 +602,14 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                 </Stack>
             </Box>
 
-            {/* Child Items (Accessories/Gifts) */}
-            {item.children && item.children.length > 0 && (
+            {/* Child Items (Lens/Accessories/Gifts) */}
+            {sortedChildren.length > 0 && (
                 <Box sx={{ mt: 1.5 }}>
-                    {item.children.map((child: any, index: number) => (
+                    {sortedChildren.map((child: CartItemWithDetails, index: number) => (
                         <ChildItem
                             key={child.id}
                             item={child}
-                            isLast={index === item.children.length - 1}
+                            isLast={index === sortedChildren.length - 1}
                             onQuantityChange={onQuantityChange}
                             onRemove={onRemove}
                             loading={loading}
@@ -524,6 +639,7 @@ const CartItemSkeleton: React.FC = () => (
             <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Skeleton variant="circular" width={28} height={28} />
                 <Skeleton variant="circular" width={28} height={28} />
+                <Skeleton variant="circular" width={28} height={28} />
             </Box>
         </Box>
     </Box>
@@ -533,35 +649,24 @@ const CartItemSkeleton: React.FC = () => (
 // Main Shopping Cart Component
 // =====================================================
 const ShoppingCart: React.FC = () => {
-    const [cartData, setCartData] = useState<CartResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const {
+        cartData,
+        summary,
+        isLoading,
+        updateItemQuantity,
+        removeItem: removeCartItem,
+        applyCoupon,
+        removeCoupon,
+    } = useCart();
+
     const [updating, setUpdating] = useState(false);
-    const [promoCode, setPromoCode] = useState('');
+    const [promoCode, setPromoCode] = useState(summary.applied_coupon?.code || '');
     const [snackbar, setSnackbar] = useState<{
         open: boolean;
         message: string;
         severity: 'success' | 'error';
     }>({ open: false, message: '', severity: 'success' });
-
-    // Fetch cart data on mount
-    useEffect(() => {
-        loadCart();
-    }, []);
-
-    const loadCart = async () => {
-        try {
-            setLoading(true);
-            const data = await CartService.getCart();
-            setCartData(data);
-            if (data.summary.applied_coupon) {
-                setPromoCode(data.summary.applied_coupon.code);
-            }
-        } catch (error) {
-            showSnackbar('Failed to load cart', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const showSnackbar = (message: string, severity: 'success' | 'error') => {
         setSnackbar({ open: true, message, severity });
@@ -571,45 +676,49 @@ const ShoppingCart: React.FC = () => {
         if (quantity < 1) return;
         try {
             setUpdating(true);
-            const data = await CartService.updateItemQuantity(itemId, quantity);
-            setCartData(data);
-        } catch (error) {
+            await updateItemQuantity(itemId, quantity);
+        } catch {
             showSnackbar('Failed to update quantity', 'error');
         } finally {
             setUpdating(false);
         }
-    }, []);
+    }, [updateItemQuantity]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
         try {
             setUpdating(true);
-            const data = await CartService.removeItem(itemId);
-            setCartData(data);
+            await removeCartItem(itemId);
             showSnackbar('Item removed from cart', 'success');
-        } catch (error) {
+        } catch {
             showSnackbar('Failed to remove item', 'error');
         } finally {
             setUpdating(false);
         }
-    }, []);
+    }, [removeCartItem]);
 
-    const handleFavorite = useCallback((itemId: string) => {
-        // TODO: Implement wishlist API
+    const handleFavorite = useCallback((_itemId: string) => {
         showSnackbar('Added to wishlist', 'success');
     }, []);
+
+    const handleEditItem = useCallback((item: CartItemWithDetails) => {
+        const slug = item.product.slug;
+        const sku = item.variant_details?.sku || 'default';
+        const hasLens = item.children.some(c => c.item_type === 'LENS');
+        const params = new URLSearchParams();
+        params.set('editCartItemId', item.id);
+        if (hasLens) {
+            params.set('lens', 'open');
+        }
+        navigate(`/product/${slug}/${sku}?${params.toString()}`);
+    }, [navigate]);
 
     const handleApplyCoupon = async () => {
         if (!promoCode.trim()) return;
         try {
             setUpdating(true);
-            const result = await CartService.applyCoupon(promoCode);
-            if (result.success && result.data) {
-                setCartData(result.data);
-                showSnackbar(result.message, 'success');
-            } else {
-                showSnackbar(result.message, 'error');
-            }
-        } catch (error) {
+            const result = await applyCoupon(promoCode);
+            showSnackbar(result.message, result.success ? 'success' : 'error');
+        } catch {
             showSnackbar('Failed to apply coupon', 'error');
         } finally {
             setUpdating(false);
@@ -619,30 +728,19 @@ const ShoppingCart: React.FC = () => {
     const handleRemoveCoupon = async () => {
         try {
             setUpdating(true);
-            const data = await CartService.removeCoupon();
-            setCartData(data);
+            await removeCoupon();
             setPromoCode('');
             showSnackbar('Coupon removed', 'success');
-        } catch (error) {
+        } catch {
             showSnackbar('Failed to remove coupon', 'error');
         } finally {
             setUpdating(false);
         }
     };
 
-    const summary: CartSummary = cartData?.summary || {
-        items_count: 0,
-        items_subtotal: 0,
-        promotion_discount: 0,
-        coupon_discount: 0,
-        shipping_fee: 0,
-        tax_amount: 0,
-        total_amount: 0,
-        applied_promotions: [],
-    };
-
     const hasCoupon = !!summary.applied_coupon;
     const couponMatches = hasCoupon && summary.applied_coupon?.code === promoCode.toUpperCase();
+    const items = cartData?.items || [];
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f8f8f8', py: 5, px: 3 }}>
@@ -665,7 +763,7 @@ const ShoppingCart: React.FC = () => {
                         component="span"
                         sx={{ fontSize: '1.1rem', fontWeight: 400, color: '#999' }}
                     >
-                        {loading ? '...' : summary.items_count}
+                        {isLoading ? '...' : summary.items_count}
                     </Typography>
                 </Typography>
 
@@ -744,11 +842,11 @@ const ShoppingCart: React.FC = () => {
                         >
                             Total
                         </Typography>
-                        <Box sx={{ minWidth: 64 }} />
+                        <Box sx={{ minWidth: 88 }} />
                     </Box>
 
                     {/* Cart Items */}
-                    {loading ? (
+                    {isLoading ? (
                         <>
                             <CartItemSkeleton />
                             <Divider sx={{ borderColor: '#f0f0f0' }} />
@@ -756,12 +854,13 @@ const ShoppingCart: React.FC = () => {
                             <Divider sx={{ borderColor: '#f0f0f0' }} />
                             <CartItemSkeleton />
                         </>
-                    ) : cartData?.items.length === 0 ? (
+                    ) : items.length === 0 ? (
                         <Box sx={{ py: 8, textAlign: 'center' }}>
                             <Typography sx={{ color: '#999', fontSize: '1rem' }}>
                                 Your cart is empty
                             </Typography>
                             <Button
+                                onClick={() => navigate('/products')}
                                 sx={{
                                     mt: 2,
                                     color: '#333',
@@ -773,7 +872,7 @@ const ShoppingCart: React.FC = () => {
                             </Button>
                         </Box>
                     ) : (
-                        cartData?.items.map((item: any, index: number) => (
+                        items.map((item: CartItemWithDetails, index: number) => (
                             <React.Fragment key={item.id}>
                                 {index > 0 && <Divider sx={{ borderColor: '#f0f0f0' }} />}
                                 <CartItemRow
@@ -781,6 +880,7 @@ const ShoppingCart: React.FC = () => {
                                     onQuantityChange={handleQuantityChange}
                                     onRemove={handleRemoveItem}
                                     onFavorite={handleFavorite}
+                                    onEdit={handleEditItem}
                                     loading={updating}
                                 />
                             </React.Fragment>
@@ -824,7 +924,7 @@ const ShoppingCart: React.FC = () => {
                                     <CheckCircleIcon sx={{ color: '#333', fontSize: 20 }} />
                                 ),
                             }}
-                            onKeyPress={(e) => {
+                            onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleApplyCoupon();
                             }}
                         />
@@ -905,6 +1005,7 @@ const ShoppingCart: React.FC = () => {
                 >
                     <Button
                         startIcon={<ArrowBackIcon sx={{ fontSize: 18 }} />}
+                        onClick={() => navigate('/products')}
                         sx={{
                             color: '#888',
                             textTransform: 'none',
@@ -917,7 +1018,6 @@ const ShoppingCart: React.FC = () => {
                     </Button>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {/* Summary breakdown */}
                         <Stack spacing={0.5} sx={{ textAlign: 'right' }}>
                             <Typography sx={{ fontSize: '0.85rem', color: '#888' }}>
                                 Subtotal: ${summary.items_subtotal.toFixed(2)}
@@ -948,7 +1048,7 @@ const ShoppingCart: React.FC = () => {
                             variant="contained"
                             size="large"
                             disableElevation
-                            disabled={loading || updating || (cartData?.items.length || 0) === 0}
+                            disabled={isLoading || updating || items.length === 0}
                             sx={{
                                 bgcolor: '#111',
                                 color: '#fff',

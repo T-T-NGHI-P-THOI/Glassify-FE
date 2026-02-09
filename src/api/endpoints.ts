@@ -49,7 +49,16 @@ export const API_ENDPOINTS = {
     BASE: `${API_ENDPOINT}/validation`,
     LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
     PRESCRIPTION: `${API_ENDPOINT}/prescriptions/validate`,
-  }
+  },
+  CART: {
+    BASE: `${API_ENDPOINT}/cart`,
+    CREATE: `${API_ENDPOINT}/cart`,
+    GET_ACTIVE: `${API_ENDPOINT}/cart/active`,
+    ADD_ITEM: (cartId: string) => `${API_ENDPOINT}/cart/${cartId}/items`,
+    UPDATE_ITEM: (cartId: string, itemId: string) => `${API_ENDPOINT}/cart/${cartId}/items/${itemId}`,
+    REMOVE_ITEM: (cartId: string, itemId: string) => `${API_ENDPOINT}/cart/${cartId}/items/${itemId}`,
+    DELETE: (cartId: string) => `${API_ENDPOINT}/cart/${cartId}`,
+  },
 } as const;
 
 
@@ -92,6 +101,10 @@ export const PAGE_ENDPOINTS = {
 
   USER: {
     PROFILE: `/users/me`,
-  }
+  },
+
+  CART: {
+    MAIN: `/cart`,
+  },
 
 } as const;

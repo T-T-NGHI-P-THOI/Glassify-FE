@@ -7,9 +7,10 @@ interface ProductInfoProps {
   product: Product;
   onAddToFavorites: () => void;
   onAddToCart?: (frameOnly: boolean) => void;
+  isEditMode?: boolean;
 }
 
-const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart }) => {
+const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart, isEditMode }) => {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [showRestrictions, setShowRestrictions] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>(
@@ -99,15 +100,15 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
         {product.productType === 'FRAME' ? (
           <>
             <button className="select-lenses-btn" onClick={handleSelectLenses}>
-              Select Lenses
+              {isEditMode ? 'Update Lenses' : 'Select Lenses'}
             </button>
             <button className="add-to-cart-btn-frame" onClick={handleAddToCart}>
-              <ShoppingCart /> Add to Cart (without lenses)
+              <ShoppingCart /> {isEditMode ? 'Update Cart (without lenses)' : 'Add to Cart (without lenses)'}
             </button>
           </>
         ) : (
           <button className="select-lenses-btn" onClick={handleAddToCart}>
-            <ShoppingCart /> Add to Cart
+            <ShoppingCart /> {isEditMode ? 'Update Cart Item' : 'Add to Cart'}
           </button>
         )}
       </div>
