@@ -1,23 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
 import ImageGallery from '../components/ProductDetailPage/ImageGallery';
 import ProductInfo from '../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../components/ProductDetailPage/RecommendedProducts';
+import { LensSelectionDialog } from '../components/LensSelection/LensSelectionDialog';
 import type { Product, RecommendedProduct } from '../types/product';
+import type { LensSelection } from '../models/Lens';
 import ProductAPI, { type ReviewResponse } from '../api/product-api';
+import lensService from '../api/service/LensService';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
   const { slug, sku } = useParams<{ slug: string; sku: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const [lensDialogOpen, setLensDialogOpen] = useState(false);
+  const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
+
+  // Auto-open lens dialog if URL has lens parameter (only check searchParams changes)
+  useEffect(() => {
+    const lensParam = searchParams.get('lens');
+    if (lensParam === 'open') {
+      setLensDialogOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -37,8 +51,9 @@ const ProductDetailPage: React.FC = () => {
           rating: apiProduct.avgRating || 0,
           reviewCount: apiProduct.reviewCount || 0,
           shape: 'Rectangle', // Default - update if you have this data
-          category: apiProduct.productType === 'SUNGLASSES' ? 'sunglasses' : apiProduct.productType === 'EYEGLASSES' ? 'eyeglasses' : 'accessories',
+          category: apiProduct.categoryName,
           productType: apiProduct.productType,
+          variantId: apiProduct.variantId,
           colors: [
             {
               name: 'Default',
@@ -165,14 +180,49 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleAddToCart = (frameOnly: boolean) => {
-    // TODO: Implement add to cart functionality
     if (frameOnly) {
       console.log('Added frame only to cart:', product?.name);
-      alert(`Added ${product?.name} (Frame Only) to cart!`);
+      alert(`Đã thêm ${product?.name} (chỉ gọng) vào giỏ hàng!`);
     } else {
-      console.log('Navigate to lens selection');
-      // Navigate to lens selection page
+      // Open lens selection dialog
+      setLensDialogOpen(true);
     }
+  };
+
+  const handleLensSelection = async (selection: LensSelection) => {
+    if (!product) return;
+
+    try {
+      setSelectedLens(selection);
+      
+      // Call API to add to cart with lens customization
+      const response = await lensService.addToCartWithLens({
+        product_id: product.id,
+        quantity: 1,
+        lens_selection: selection,
+      });
+
+      if (response.success) {
+        const totalPrice = selection.total_price;
+        alert(
+          `Đã thêm ${product.name} với tròng kính tùy chỉnh vào giỏ hàng!\n\n` +
+          `Loại kính: ${selection.lens_type.name}\n` +
+          `Tính năng: ${selection.features.map(f => f.name).join(', ') || 'Không có'}\n` +
+          `Tổng giá: ${formatCurrency(totalPrice)}`
+        );
+      }
+    } catch (error) {
+      console.error('Error adding to cart with lens:', error);
+      alert('Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!');
+    }
+  };
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   if (!product || isLoading) {
@@ -218,6 +268,22 @@ const ProductDetailPage: React.FC = () => {
           onAddToFavorites={handleAddToFavorites}
           onAddToCart={handleAddToCart}
         />
+
+      <LensSelectionDialog
+        open={lensDialogOpen}
+        onClose={() => {
+          setLensDialogOpen(false);
+          // Remove lens parameter from URL when closing dialog
+          const newSearchParams = new URLSearchParams(searchParams);
+          newSearchParams.delete('lens');
+          navigate({ search: newSearchParams.toString() }, { replace: true });
+        }}
+        onConfirm={handleLensSelection}
+        productName={product.name}
+        productId={product.id}
+        frameVariantId={product.variantId}
+        framePrice={product.price}
+      />
       </div>
 
       <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />

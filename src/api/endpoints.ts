@@ -32,6 +32,23 @@ export const API_ENDPOINTS = {
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
     GET_ALL: `${API_ENDPOINT}/categories`,
+  },
+  LENS: {
+    BASE: `${API_ENDPOINT}/lens-catalog`,
+    CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+  },
+  PRESCRIPTIONS: {
+    BASE: `${API_ENDPOINT}/prescriptions`,
+    GET_MY_PRESCRIPTIONS: `${API_ENDPOINT}/prescriptions/me`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
+    CREATE: `${API_ENDPOINT}/prescriptions`,
+    UPDATE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
+    DELETE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
+  },
+  VALIDATION: {
+    BASE: `${API_ENDPOINT}/validation`,
+    LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
+    PRESCRIPTION: `${API_ENDPOINT}/prescriptions/validate`,
   }
 } as const;
 

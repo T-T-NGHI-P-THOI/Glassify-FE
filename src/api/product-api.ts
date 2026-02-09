@@ -30,6 +30,7 @@ export interface ApiProduct {
   shopId: string;
   brandId: string | null;
   categoryId: string;
+  categoryName: string;
   variantId: string | null;
   sku: string;
   name: string;
@@ -50,7 +51,7 @@ export interface ApiProduct {
   reviewCount: number;
   metaTitle: string;
   metaDescription: string;
-  productType: string;
+  productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
 }
@@ -61,7 +62,7 @@ export interface ProductFilterParams {
   unitPerPage?: number;
   shopId?: string;
   brandId?: string;
-  categoryId?: string;
+  categoryName?: string;
   name?: string;
   sku?: string;
   slug?: string;
@@ -71,7 +72,7 @@ export interface ProductFilterParams {
   isActive?: boolean;
   isFeatured?: boolean;
   isReturnable?: boolean;
-  productType?: 'EYEGLASSES' | 'SUNGLASSES' | 'ACCESSORIES';
+  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   minStock?: number;
   maxStock?: number;
   lowStockOnly?: boolean;

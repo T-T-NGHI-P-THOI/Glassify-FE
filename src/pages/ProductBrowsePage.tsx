@@ -18,7 +18,7 @@ const ProductBrowsePage: React.FC = () => {
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    productTypes: ['EYEGLASSES', 'SUNGLASSES', 'ACCESSORIES'],
+    productTypes: ['FRAME', 'LENS', 'ACCESSORIES'],
     brands: [],
     categories: [],
     priceRange: { min: 0, max: 500 },
@@ -28,7 +28,7 @@ const ProductBrowsePage: React.FC = () => {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
     productType: searchParams.get('productType') as ActiveFilters['productType'] || undefined,
     brandIds: searchParams.get('brandId') ? [searchParams.get('brandId')!] : [],
-    categoryIds: searchParams.get('categoryId') ? [searchParams.get('categoryId')!] : [],
+    categoryNames: searchParams.get('categoryName') ? [searchParams.get('categoryName')!] : [],
     searchQuery: searchParams.get('q') || '',
     sortBy: (searchParams.get('sortBy') as ActiveFilters['sortBy']) || 'popular',
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
@@ -43,12 +43,23 @@ const ProductBrowsePage: React.FC = () => {
     
     // Only update if there are actual params in URL
     if (category || productType || query) {
-      setActiveFilters(prev => ({
-        ...prev,
-        productType: (productType as ActiveFilters['productType']) || (category === 'Eyeglasses' ? 'EYEGLASSES' : category === 'Sunglasses' ? 'SUNGLASSES' : undefined),
-        searchQuery: query || '',
-        // Don't set categoryIds from category param - it's just for display, not a UUID
-      }));
+      setActiveFilters(prev => {
+        const updates: Partial<ActiveFilters> = {
+          searchQuery: query || '',
+        };
+        
+        // Handle productType (FRAME, LENS, ACCESSORIES)
+        if (productType) {
+          updates.productType = productType as ActiveFilters['productType'];
+        }
+        
+        // Handle category name - set it to categoryNames array for API filtering
+        if (category) {
+          updates.categoryNames = [category];
+        }
+        
+        return { ...prev, ...updates };
+      });
     }
   }, [searchParams]);
 
@@ -61,11 +72,13 @@ const ProductBrowsePage: React.FC = () => {
     const fetchCategories = async () => {
       try {
         const categories = await ProductAPI.getCategories();
+        const categoryOptions = categories
+          .filter(cat => cat.isActive)
+          .map(cat => ({ id: cat.id, name: cat.name }));
+        
         setFilterOptions(prev => ({
           ...prev,
-          categories: categories
-            .filter(cat => cat.isActive)
-            .map(cat => ({ id: cat.id, name: cat.name }))
+          categories: categoryOptions
         }));
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -90,7 +103,7 @@ const ProductBrowsePage: React.FC = () => {
           minRating: activeFilters.minRating || undefined,
           productType: activeFilters.productType,
           brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
-          categoryId: activeFilters.categoryIds.length > 0 ? activeFilters.categoryIds[0] : undefined,
+          categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
           isFeatured: activeFilters.isFeatured,
           isReturnable: activeFilters.isReturnable,
         };
@@ -142,7 +155,8 @@ const ProductBrowsePage: React.FC = () => {
           isNew: false,
           stockQuantity: product.stockQuantity,
           brandId: product.brandId,
-          categoryId: product.categoryId
+          categoryId: product.categoryId,
+          categoryName: product.categoryName
         }));
 
         setProducts(transformedProducts);
@@ -155,19 +169,7 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [
-    activeFilters.searchQuery, 
-    activeFilters.priceMin, 
-    activeFilters.priceMax, 
-    activeFilters.sortBy, 
-    activeFilters.minRating, 
-    activeFilters.productType, 
-    JSON.stringify(activeFilters.brandIds), 
-    JSON.stringify(activeFilters.categoryIds), 
-    activeFilters.isFeatured, 
-    activeFilters.isReturnable,
-    activeFilters.inStock
-  ]);
+  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames]);
 
   // No client-side filtering needed - all filtering done by API
   useEffect(() => {
@@ -182,10 +184,13 @@ const ProductBrowsePage: React.FC = () => {
     
     // Convert productType to category name for URL
     if (newFilters.productType) {
-      const categoryName = newFilters.productType === 'EYEGLASSES' ? 'Eyeglasses' 
-        : newFilters.productType === 'SUNGLASSES' ? 'Sunglasses' 
-        : newFilters.productType;
-      params.set('category', categoryName);
+      const categoryName = newFilters.categoryNames && newFilters.categoryNames.length > 0
+        ? newFilters.categoryNames[0]
+        : undefined;
+      params.set('productType', newFilters.productType);
+      if (categoryName) {
+        params.set('category', categoryName);
+      }
     }
     if (newFilters.searchQuery) params.set('q', newFilters.searchQuery);
     if (newFilters.sortBy && newFilters.sortBy !== 'popular') params.set('sortBy', newFilters.sortBy);
@@ -195,7 +200,9 @@ const ProductBrowsePage: React.FC = () => {
     if (newFilters.brandIds && newFilters.brandIds.length > 0) {
       params.set('brandId', newFilters.brandIds[0]);
     }
-    
+    if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
+      params.set('category', newFilters.categoryNames[0]);
+    }
     setSearchParams(params);
   };
 
@@ -203,7 +210,7 @@ const ProductBrowsePage: React.FC = () => {
     setActiveFilters({
       productType: undefined,
       brandIds: [],
-      categoryIds: [],
+      categoryNames: [],
       searchQuery: '',
       sortBy: 'popular'
     });
