@@ -149,6 +149,14 @@ const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [slug, sku]);
 
+  // Cleanup lens dialog state when leaving the product page
+  useEffect(() => {
+    return () => {
+      // Clear lens dialog state when component unmounts (navigating away)
+      localStorage.removeItem('lens_dialog_state');
+    };
+  }, []);
+
   const loadMoreReviews = async () => {
     if (!product || isLoadingReviews) return;
     

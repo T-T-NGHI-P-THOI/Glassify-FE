@@ -660,8 +660,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const handleDialogClose = () => {
-        localStorage.removeItem('lens_dialog_state');
-        handleReset(); // Reset all state to prevent data persistence
         onClose();
     };
 
@@ -1038,7 +1036,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 {selectedLensType && getAvailableTintsForLens(selectedLensType.id).length === 0 && (
                     <Alert severity="info" sx={{ mt: 2 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            ℹ️ Loại kính này không có tùy chọn màu. Bước chọn màu sẽ được bỏ qua.
+                            Loại kính này không có tùy chọn màu. Bước chọn màu sẽ được bỏ qua.
                         </Typography>
                     </Alert>
                 )}
@@ -1119,7 +1117,21 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         
         hasRestoredRef.current = false;
         
-        navigate(PAGE_ENDPOINTS.AUTH.LOGIN);
+        // Build return URL with lens=open parameter
+        const currentSearch = location.search || '';
+        const searchParams = new URLSearchParams(currentSearch);
+        searchParams.set('lens', 'open');
+        
+        // Navigate to login with state containing pathname and search separately
+        navigate(PAGE_ENDPOINTS.AUTH.LOGIN, { 
+            state: { 
+                from: { 
+                    pathname: location.pathname,
+                    search: `?${searchParams.toString()}`
+                } 
+            },
+            replace: false 
+        });
     };
 
     const handlePrescriptionFieldChange = useCallback((
@@ -1279,7 +1291,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             {issueInfo.suggestion && (
                                                 <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, borderLeft: 3, borderColor: issue.severity === 'ERROR' ? 'error.main' : 'warning.main' }}>
                                                     <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
-                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                        <strong>Gợi ý:</strong> {issueInfo.suggestion}
                                                     </Typography>
                                                 </Box>
                                             )}
@@ -1309,7 +1321,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         {pendingWarnings.length > 0 && !warningsAcknowledged && validationIssues.every(i => i.severity !== 'ERROR') && (
                             <Alert severity="info" sx={{ mt: 2 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    ⚠️ Vui lòng xem xét các cảnh báo trên. Nếu bạn đã kiểm tra và xác nhận thông số là chính xác, hãy nhấn <strong>"Tiếp tục"</strong> một lần nữa.
+                                    Vui lòng xem xét các cảnh báo trên. Nếu bạn đã kiểm tra và xác nhận thông số là chính xác, hãy nhấn <strong>"Tiếp tục"</strong> một lần nữa.
                                 </Typography>
                             </Alert>
                         )}
@@ -2773,7 +2785,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                     }}
                                                 >
                                                     <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                        <strong>Gợi ý:</strong> {issueInfo.suggestion}
                                                     </Typography>
                                                 </Box>
                                             )}
