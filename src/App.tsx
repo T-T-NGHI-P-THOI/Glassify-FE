@@ -4,7 +4,6 @@ import RouteComponent from './routes'
 import AuthProvider from './auth/AuthProvider'
 import { Layout } from './layouts/Layout'
 import { LayoutProvider } from './layouts/LayoutContext'
-import { CssBaseline } from '@mui/material'
 
 function App() {
   return (

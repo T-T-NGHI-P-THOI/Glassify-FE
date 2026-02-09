@@ -2,6 +2,7 @@ import { Route } from "react-router-dom";
 import GuestGuard from "../auth/guards/GuestGuard";
 import { PAGE_ENDPOINTS } from "../api/endpoints";
 import MyForm from "@/pages/MyForm";
+import MainPage from "@/pages/MainPage";
 import DashboardPage from "@/pages/Dashboard/DashboardPage";
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage";
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage";
@@ -12,32 +13,28 @@ import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
+import MyOrdersPage from "@/pages/Order/MyOrdersPage";
+import WarrantyPage from "@/pages/Warranty/WarrantyPage";
+import AuthPage from "@/pages/auth/Login";
 
 const PublicRoutesComponent = () => {
     return (
         <>
-            {/* <Route
-                path={PAGE_ENDPOINTS.AUTH.LOGIN}
-                element={
-                    <GuestGuard>
-                        <Login />
-                    </GuestGuard>
-                }
-            /> */}
+            {/* Home Page */}
             <Route
-                path={PAGE_ENDPOINTS.AUTH.LOGIN}
-                element={
-                    <GuestGuard>
-                        <MyForm />
-                    </GuestGuard>
-                }
+                path="/"
+                element={<MainPage />}
+            />
+            <Route
+                path={PAGE_ENDPOINTS.HOME}
+                element={<MainPage />}
             />
 
             <Route
-                path={PAGE_ENDPOINTS.DASHBOARD}
+                path={PAGE_ENDPOINTS.AUTH.LOGIN}
                 element={
                     <GuestGuard>
-                        <DashboardPage />
+                        <AuthPage />
                     </GuestGuard>
                 }
             />
@@ -97,14 +94,14 @@ const PublicRoutesComponent = () => {
                 }
             />
 
-            <Route
-                path={PAGE_ENDPOINTS.SHOP.REGISTER}
-                element={
-                    <GuestGuard>
-                        <ShopRegistrationPage />
-                    </GuestGuard>
-                }
-            />
+            {/*<Route*/}
+            {/*    path={PAGE_ENDPOINTS.SHOP.REGISTER}*/}
+            {/*    element={*/}
+            {/*        <GuestGuard>*/}
+            {/*            <ShopRegistrationPage />*/}
+            {/*        </GuestGuard>*/}
+            {/*    }*/}
+            {/*/>*/}
 
             <Route
                 path={PAGE_ENDPOINTS.SHOP.PROFILE}
@@ -120,6 +117,24 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <AdminShopApprovalPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
+                element={
+                    <GuestGuard>
+                        <MyOrdersPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.WARRANTY.MAIN}
+                element={
+                    <GuestGuard>
+                        <WarrantyPage />
                     </GuestGuard>
                 }
             />

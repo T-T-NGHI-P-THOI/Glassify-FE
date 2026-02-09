@@ -17,6 +17,15 @@ import {
   Button,
   Grid,
   Rating,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -35,6 +44,11 @@ import {
   Verified,
   AccessTime,
   Description,
+  Settings,
+  Block,
+  CheckCircle,
+  Warning,
+  Pause,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -42,7 +56,7 @@ import { Sidebar } from '../../components/sidebar/Sidebar';
 import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
-type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
+type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED' | 'WARNING';
 
 interface Product {
   productId: number;
@@ -287,9 +301,13 @@ const ShopTrackingDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState(0);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState<ShopStatus>('ACTIVE');
+  const [statusReason, setStatusReason] = useState('');
+  const [shopStatus, setShopStatus] = useState<ShopStatus>(mockShopDetail.status);
 
   // In real app, fetch shop by id
-  const shop = mockShopDetail;
+  const shop = { ...mockShopDetail, status: shopStatus };
 
   useEffect(() => {
     setShowNavbar(false);
@@ -301,11 +319,55 @@ const ShopTrackingDetailPage = () => {
     };
   }, [setShowNavbar, setShowFooter]);
 
-  const statusColor = {
-    ACTIVE: { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main },
-    INACTIVE: { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main },
-    PENDING: { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main },
-  }[shop.status];
+  const getStatusColor = (status: ShopStatus) => {
+    switch (status) {
+      case 'ACTIVE':
+        return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'INACTIVE':
+        return { bg: theme.palette.custom.neutral[200], color: theme.palette.custom.neutral[600] };
+      case 'PENDING':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
+      case 'SUSPENDED':
+        return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
+      case 'WARNING':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
+      default:
+        return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
+    }
+  };
+
+  const statusColor = getStatusColor(shop.status);
+
+  const getStatusLabel = (status: ShopStatus) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'Active';
+      case 'INACTIVE':
+        return 'Inactive';
+      case 'PENDING':
+        return 'Pending';
+      case 'SUSPENDED':
+        return 'Suspended';
+      case 'WARNING':
+        return 'Warning';
+      default:
+        return status;
+    }
+  };
+
+  const handleOpenStatusDialog = () => {
+    setNewStatus(shop.status);
+    setStatusReason('');
+    setStatusDialogOpen(true);
+  };
+
+  const handleStatusChange = () => {
+    // In real app, call API to update status
+    console.log('Updating status:', { newStatus, statusReason });
+    setShopStatus(newStatus);
+    setStatusDialogOpen(false);
+    setStatusReason('');
+  };
 
   const getOrderStatusStyle = (status: string) => {
     switch (status) {
@@ -348,7 +410,7 @@ const ShopTrackingDetailPage = () => {
                 <Verified sx={{ fontSize: 22, color: theme.palette.custom.status.info.main }} />
               )}
               <Chip
-                label={shop.status}
+                label={getStatusLabel(shop.status)}
                 size="small"
                 sx={{
                   backgroundColor: statusColor.bg,
@@ -372,6 +434,22 @@ const ShopTrackingDetailPage = () => {
               </Box>
             </Box>
           </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Settings />}
+            onClick={handleOpenStatusDialog}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderColor: theme.palette.custom.border.main,
+              color: theme.palette.custom.neutral[700],
+              '&:hover': {
+                borderColor: theme.palette.custom.neutral[400],
+              },
+            }}
+          >
+            Change Status
+          </Button>
           <Button
             variant="outlined"
             startIcon={<Edit />}
@@ -870,6 +948,159 @@ const ShopTrackingDetailPage = () => {
           )}
         </Paper>
       </Box>
+
+      {/* Change Status Dialog */}
+      <Dialog
+        open={statusDialogOpen}
+        onClose={() => setStatusDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: { sx: { borderRadius: 2 } },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 18, pb: 1 }}>
+          Change Shop Status
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+            Update the status of <strong>{shop.shopName}</strong>. Please provide a reason for the status change.
+          </Typography>
+
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel>New Status</InputLabel>
+            <Select
+              value={newStatus}
+              label="New Status"
+              onChange={(e) => setNewStatus(e.target.value as ShopStatus)}
+            >
+              <MenuItem value="ACTIVE">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CheckCircle sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />
+                  <Typography>Active</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="WARNING">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Warning sx={{ fontSize: 18, color: theme.palette.custom.status.warning.main }} />
+                  <Typography>Warning</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="SUSPENDED">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Block sx={{ fontSize: 18, color: theme.palette.custom.status.error.main }} />
+                  <Typography>Suspended</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="INACTIVE">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Pause sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
+                  <Typography>Inactive</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Status Description */}
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              mb: 3,
+              bgcolor:
+                newStatus === 'SUSPENDED'
+                  ? theme.palette.custom.status.error.light
+                  : newStatus === 'WARNING'
+                  ? theme.palette.custom.status.warning.light
+                  : newStatus === 'ACTIVE'
+                  ? theme.palette.custom.status.success.light
+                  : theme.palette.custom.neutral[100],
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 600,
+                color:
+                  newStatus === 'SUSPENDED'
+                    ? theme.palette.custom.status.error.main
+                    : newStatus === 'WARNING'
+                    ? theme.palette.custom.status.warning.main
+                    : newStatus === 'ACTIVE'
+                    ? theme.palette.custom.status.success.main
+                    : theme.palette.custom.neutral[600],
+                mb: 0.5,
+              }}
+            >
+              {newStatus === 'ACTIVE' && 'Shop will be fully operational'}
+              {newStatus === 'WARNING' && 'Shop will receive a warning notification'}
+              {newStatus === 'SUSPENDED' && 'Shop will be temporarily suspended'}
+              {newStatus === 'INACTIVE' && 'Shop will be marked as inactive'}
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>
+              {newStatus === 'ACTIVE' && 'The shop can list products, receive orders, and operate normally.'}
+              {newStatus === 'WARNING' && 'The shop owner will be notified about policy violations. Continued violations may lead to suspension.'}
+              {newStatus === 'SUSPENDED' && 'The shop will be hidden from customers. All listings will be temporarily unavailable. Shop owner must resolve issues to be reactivated.'}
+              {newStatus === 'INACTIVE' && 'The shop will be temporarily closed. No orders can be placed.'}
+            </Typography>
+          </Box>
+
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Reason for Status Change"
+            value={statusReason}
+            onChange={(e) => setStatusReason(e.target.value)}
+            placeholder={
+              newStatus === 'SUSPENDED'
+                ? 'Describe the violation or reason for suspension...'
+                : newStatus === 'WARNING'
+                ? 'Describe the warning reason...'
+                : 'Provide reason for this change...'
+            }
+            required={newStatus === 'SUSPENDED' || newStatus === 'WARNING'}
+          />
+
+          {(newStatus === 'SUSPENDED' || newStatus === 'WARNING') && (
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 1 }}>
+              * Reason is required for suspension and warning status changes
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+          <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleStatusChange}
+            disabled={
+              (newStatus === 'SUSPENDED' || newStatus === 'WARNING') && !statusReason.trim()
+            }
+            sx={{
+              bgcolor:
+                newStatus === 'SUSPENDED'
+                  ? theme.palette.custom.status.error.main
+                  : newStatus === 'WARNING'
+                  ? theme.palette.custom.status.warning.main
+                  : newStatus === 'ACTIVE'
+                  ? theme.palette.custom.status.success.main
+                  : theme.palette.primary.main,
+              '&:hover': {
+                bgcolor:
+                  newStatus === 'SUSPENDED'
+                    ? '#b91c1c'
+                    : newStatus === 'WARNING'
+                    ? '#d97706'
+                    : newStatus === 'ACTIVE'
+                    ? '#15803d'
+                    : theme.palette.primary.dark,
+              },
+            }}
+          >
+            {newStatus === 'SUSPENDED' ? 'Suspend Shop' : newStatus === 'WARNING' ? 'Send Warning' : 'Update Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

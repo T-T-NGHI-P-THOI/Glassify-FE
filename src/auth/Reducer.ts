@@ -1,6 +1,7 @@
 import { AuthActionType } from "../types/auth-action-type.enum";
 import type { AuthState } from "../types/auth-state.enum";
 import type { PayloadAction } from "./AuthContext";
+import {TokenManager} from "@/api/axios.config.ts";
 
 // Define supported actions and their reducers
 interface ReducerHandler {
@@ -65,7 +66,7 @@ export function logIn(payload: AuthState): PayloadAction<AuthState> {
 }
 
 export function logOut(): PayloadAction<AuthState> {
-  localStorage.removeItem('ACCESS_TOKEN');
+  TokenManager.clearTokens();
 
   return {
     type: AuthActionType.SIGN_OUT,
