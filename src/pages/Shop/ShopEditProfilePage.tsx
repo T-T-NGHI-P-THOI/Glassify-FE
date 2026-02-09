@@ -505,7 +505,12 @@ const ShopEditProfilePage = () => {
                 label="Business License"
                 fullWidth
                 value={formData.businessLicense}
-                onChange={handleChange('businessLicense')}
+                disabled
+                InputProps={{
+                  endAdornment: (
+                    <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
+                  ),
+                }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -513,7 +518,12 @@ const ShopEditProfilePage = () => {
                 label="Tax ID"
                 fullWidth
                 value={formData.taxId}
-                onChange={handleChange('taxId')}
+                disabled
+                InputProps={{
+                  endAdornment: (
+                    <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
+                  ),
+                }}
               />
             </Grid>
           </Grid>
