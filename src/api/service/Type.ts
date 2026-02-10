@@ -3,6 +3,7 @@
 // =====================================================
 
 import type { Product } from "@/models/Product";
+import type { LensSelection } from "@/models/Lens";
 
 // Enums matching PostgreSQL enums
 export type ProductType = 'frame' | 'lens' | 'accessory';
@@ -81,6 +82,7 @@ export interface CartItem {
     unit_price: number;
     added_at: string;
     updated_at: string;
+    item_type?: ItemType; // FRAME, LENS, ACCESSORY, GIFT
     // Populated fields (from JOINs)
     product?: Product;
     variant?: FrameVariant | AccessoryVariant;
@@ -136,6 +138,7 @@ export interface CartItemWithDetails extends CartItem {
     };
     is_gift: boolean;
     children: CartItemWithDetails[];
+    lens_selection?: LensSelection;
 }
 
 export interface CartSummary {
@@ -148,6 +151,99 @@ export interface CartSummary {
     total_amount: number;
     applied_coupon?: Coupon;
     applied_promotions: Promotion[];
+}
+
+// =====================================================
+// BE-aligned types (matches Java DTOs exactly)
+// =====================================================
+
+export type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'GIFT';
+export type BeCartStatus = 'ACTIVE' | 'ABANDONED' | 'CONVERTED' | 'EXPIRED';
+
+export interface BeCartItemResponse {
+    id: string;
+    cartId: string;
+    parentItemId: string | null;
+    shopId: string | null;
+    productId: string | null;
+    variantId: string | null;
+    lensId: string | null;
+    lensTintId: string | null;
+    lensFeatureIds: string[];
+    prescriptionId: string | null;
+    quantity: number;
+    unitPrice: number;
+    discountAmount: number;
+    lineTotal: number;
+    isFree: boolean;
+    promoRuleId: string | null;
+    giftNote: string | null;
+    itemType: ItemType;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface BeCartResponse {
+    id: string;
+    userId: string | null;
+    sessionId: string | null;
+    itemsCount: number;
+    subtotal: number;
+    expiresAt: string | null;
+    status: BeCartStatus;
+    createdAt: string;
+    updatedAt: string;
+    items: BeCartItemResponse[];
+}
+
+export interface BeCartItemRequest {
+    parentItemId?: string;
+    shopId: string;
+    productId?: string;
+    variantId?: string;
+    lensId?: string;
+    lensTintId?: string;
+    lensFeatureIds?: string[];
+    prescriptionId?: string;
+    quantity: number;
+    unitPrice: number;
+    discountAmount?: number;
+    lineTotal: number;
+    isFree?: boolean;
+    promoRuleId?: string;
+    giftNote?: string;
+    itemType: ItemType;
+}
+
+export interface BeCartCreateRequest {
+    userId?: string;
+    sessionId?: string;
+    status?: BeCartStatus;
+    expiresAt?: string;
+    items?: BeCartItemRequest[];
+}
+
+// Enriched types for FE rendering (BE data + display fields)
+export interface EnrichedCartItem extends BeCartItemResponse {
+    displayName: string;
+    displayDescription?: string;
+    displayImageUrl?: string;
+    displayBrandName?: string;
+    displaySku?: string;
+    displayColor?: string;
+    displaySize?: string;
+    displaySlug?: string;
+    children: EnrichedCartItem[];
+}
+
+export interface EnrichedCart {
+    id: string;
+    userId: string | null;
+    sessionId: string | null;
+    itemsCount: number;
+    subtotal: number;
+    status: BeCartStatus;
+    items: EnrichedCartItem[];
 }
 
 // =====================================================

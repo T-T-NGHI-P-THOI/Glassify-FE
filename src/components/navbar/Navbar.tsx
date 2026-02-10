@@ -18,11 +18,12 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '@/hooks/useCart';
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const cartItemCount = 3;
+  const { itemCount, isAnimating } = useCart();
 
   const mainCategories = [
     { label: 'Eyeglasses', path: '/products', category: 'Eyeglasses' },
@@ -33,19 +34,6 @@ export const Navbar = () => {
     { label: '✨ Discover', path: '/discover', special: true, category: null },
     { label: '🏷️ Sale', path: '/sale', special: true, category: null },
   ];
-
-  // const filterTags = [
-  //   { icon: "💰", label: "Under $30" },
-  //   { icon: "✨", label: "New Arrivals" },
-  //   { icon: "🔥", label: "Best Sellers" },
-  //   { icon: "⭐", label: "Top Rated" },
-  //   { icon: "▭", label: "Rectangle" },
-  //   { icon: "⬭", label: "Oversized" },
-  //   { icon: "🐢", label: "Tortoiseshell" },
-  //   { icon: "😺", label: "Cat Eye" },
-  //   { icon: "💎", label: "Premium" },
-  //   { icon: "🏷️", label: "On Sale" },
-  // ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,39 +49,6 @@ export const Navbar = () => {
       navigate(item.path);
     }
   };
-
-  // const handleFilterTagClick = (tag: typeof filterTags[0]) => {
-  //   const params = new URLSearchParams();
-  //
-  //   switch (tag.filter) {
-  //     case 'price':
-  //       params.set('maxPrice', tag.value);
-  //       break;
-  //     case 'new':
-  //       params.set('sortBy', 'newest');
-  //       break;
-  //     case 'sort':
-  //       params.set('sortBy', tag.value);
-  //       break;
-  //     case 'shape':
-  //       params.set('shape', tag.value);
-  //       break;
-  //     case 'size':
-  //       params.set('size', tag.value);
-  //       break;
-  //     case 'color':
-  //       params.set('color', tag.value);
-  //       break;
-  //     case 'featured':
-  //       params.set('featured', tag.value);
-  //       break;
-  //     case 'sale':
-  //       params.set('sale', tag.value);
-  //       break;
-  //   }
-  //
-  //   navigate(`/products?${params.toString()}`);
-  // };
 
   return (
     <>
@@ -117,6 +72,7 @@ export const Navbar = () => {
           >
             {/* Logo */}
             <Box
+              onClick={() => navigate('/')}
               sx={{
                 fontWeight: 800,
                 fontSize: "25px",
@@ -217,6 +173,7 @@ export const Navbar = () => {
 
               <IconButton
                 size="small"
+                onClick={() => navigate('/cart')}
                 sx={{
                   flexDirection: "column",
                   color: "#1f2937",
@@ -224,15 +181,33 @@ export const Navbar = () => {
                 }}
               >
                 <Badge
-                  badgeContent={cartItemCount}
+                  badgeContent={itemCount}
                   color="error"
                   sx={{
                     "& .MuiBadge-badge": {
                       backgroundColor: "#dc2626",
+                      animation: isAnimating ? 'cartBounce 0.6s ease-out' : 'none',
+                      '@keyframes cartBounce': {
+                        '0%': { transform: 'scale(1) translate(50%, -50%)' },
+                        '30%': { transform: 'scale(1.6) translate(50%, -50%)' },
+                        '50%': { transform: 'scale(0.8) translate(50%, -50%)' },
+                        '70%': { transform: 'scale(1.2) translate(50%, -50%)' },
+                        '100%': { transform: 'scale(1) translate(50%, -50%)' },
+                      },
                     },
                   }}
                 >
-                  <ShoppingCart sx={{ fontSize: 24 }} />
+                  <ShoppingCart sx={{
+                    fontSize: 24,
+                    animation: isAnimating ? 'cartShake 0.5s ease-in-out' : 'none',
+                    '@keyframes cartShake': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '25%': { transform: 'rotate(-12deg)' },
+                      '50%': { transform: 'rotate(12deg)' },
+                      '75%': { transform: 'rotate(-5deg)' },
+                      '100%': { transform: 'rotate(0deg)' },
+                    },
+                  }} />
                 </Badge>
                 <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Cart</Box>
               </IconButton>
@@ -273,38 +248,6 @@ export const Navbar = () => {
               </Button>
             ))}
           </Box>
-
-          {/* Filter Tags */}
-        {/* <Box
-            sx={{
-              display: { xs: "none", lg: "flex" },
-              justifyContent: "center",
-              gap: 1,
-              py: 1.5,
-              borderTop: "1px solid #e5e7eb",
-              flexWrap: "wrap",
-            }}
-          >
-            {filterTags.map((tag, index) => (
-              <Chip
-                key={index}
-                icon={<span style={{ fontSize: "1rem" }}>{tag.icon}</span>}
-                label={tag.label}
-                variant="outlined"
-                sx={{
-                  borderColor: "#d1d5db",
-                  color: "#374151",
-                  fontWeight: 500,
-                  fontSize: "0.875rem",
-                  "&:hover": {
-                    backgroundColor: "#f3f4f6",
-                    borderColor: "#0f766e",
-                    color: "#0f766e",
-                  },
-                }}
-              />
-            ))}
-          </Bo  x> */}
 
           {/* Mobile Search */}
           <Box

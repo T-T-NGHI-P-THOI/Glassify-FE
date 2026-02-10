@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
 import type { Product } from '../../types/product';
+import { formatCurrency } from '@/utils/formatCurrency';
 import './ProductInfo.css';
 
 interface ProductInfoProps {
   product: Product;
   onAddToFavorites: () => void;
   onAddToCart?: (frameOnly: boolean) => void;
+  isEditMode?: boolean;
 }
 
-const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart }) => {
+const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart, isEditMode }) => {
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [showRestrictions, setShowRestrictions] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>(
@@ -68,7 +70,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
       </div>
 
       <div className="price-section">
-        <h2 className="price">${product.price.toFixed(2)}</h2>
+        <h2 className="price">{formatCurrency(product.price)}</h2>
         <div className="price-includes">
           <p className="includes-title">GLASSIFY WOW PRICE INCLUDES:</p>
           <ul className="includes-list">
@@ -99,15 +101,15 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
         {product.productType === 'FRAME' ? (
           <>
             <button className="select-lenses-btn" onClick={handleSelectLenses}>
-              Select Lenses
+              {isEditMode ? 'Update Lenses' : 'Select Lenses'}
             </button>
             <button className="add-to-cart-btn-frame" onClick={handleAddToCart}>
-              <ShoppingCart /> Add to Cart (without lenses)
+              <ShoppingCart /> {isEditMode ? 'Update Cart (without lenses)' : 'Add to Cart (without lenses)'}
             </button>
           </>
         ) : (
           <button className="select-lenses-btn" onClick={handleAddToCart}>
-            <ShoppingCart /> Add to Cart
+            <ShoppingCart /> {isEditMode ? 'Update Cart Item' : 'Add to Cart'}
           </button>
         )}
       </div>

@@ -1,4 +1,7 @@
-import type { CartItemWithDetails, CartResponse } from "./Type";
+import type { CartItemWithDetails, CartResponse, ItemType } from "./Type";
+import type { LensSelection } from "@/models/Lens";
+
+let nextItemId = 100;
 
 const mockCartData: CartResponse = {
     cart: {
@@ -19,6 +22,7 @@ const mockCartData: CartResponse = {
             unit_price: 33.9,
             added_at: '2025-01-20T10:05:00Z',
             updated_at: '2025-01-20T10:05:00Z',
+            item_type: 'FRAME' as ItemType,
             product: {
                 id: 'prod-001',
                 product_type: 'frame',
@@ -46,6 +50,47 @@ const mockCartData: CartResponse = {
             is_gift: false,
             children: [
                 {
+                    id: 'ci-001-lens',
+                    cart_id: 'cart-001',
+                    product_id: 'prod-lens-001',
+                    parent_item_id: 'ci-001',
+                    quantity: 1,
+                    unit_price: 15.0,
+                    added_at: '2025-01-20T10:06:00Z',
+                    updated_at: '2025-01-20T10:06:00Z',
+                    item_type: 'LENS' as ItemType,
+                    product: {
+                        id: 'prod-lens-001',
+                        product_type: 'lens',
+                        name: 'Tròng kính cận Blue Light',
+                        slug: 'blue-light-lens',
+                        description: 'Blue light blocking prescription lens',
+                        is_active: true,
+                        is_featured: false,
+                        is_instock: true,
+                        created_at: '2025-01-01T00:00:00Z',
+                        updated_at: '2025-01-01T00:00:00Z',
+                    },
+                    variant_details: {
+                        sku: 'LENS-BL-001',
+                    },
+                    is_gift: false,
+                    children: [],
+                    lens_selection: {
+                        usage: { id: 'usage-sv', name: 'Kính cận thường', description: 'Sử dụng hàng ngày', type: 'SINGLE_VISION' },
+                        lens_type: { id: 'prod-lens-001', name: 'Tròng kính cận Blue Light', description: 'Blue light blocking prescription lens', price: 15.0, isPrescription: true, usage_id: 'usage-sv' },
+                        prescription: {
+                            right_eye: { sphere: '-2.00', cylinder: '-0.50', axis: '180', pd: '63' },
+                            left_eye: { sphere: '-1.75', cylinder: '-0.25', axis: '175', pd: '63' },
+                        },
+                        tint: { id: 'tint-clear', name: 'Trong suốt', description: 'Không màu', price: 0, cssValue: 'transparent', opacity: 0 },
+                        features: [
+                            { id: 'feat-as', name: 'Chống xước', description: 'Lớp phủ chống xước', price: 0, category: 'coating' as const },
+                        ],
+                        total_price: 15.0,
+                    },
+                },
+                {
                     id: 'ci-001a',
                     cart_id: 'cart-001',
                     product_id: 'prod-acc-001',
@@ -54,6 +99,7 @@ const mockCartData: CartResponse = {
                     unit_price: 5.0,
                     added_at: '2025-01-20T10:06:00Z',
                     updated_at: '2025-01-20T10:06:00Z',
+                    item_type: 'ACCESSORY' as ItemType,
                     product: {
                         id: 'prod-acc-001',
                         product_type: 'accessory',
@@ -81,6 +127,7 @@ const mockCartData: CartResponse = {
                     unit_price: 0,
                     added_at: '2025-01-20T10:06:00Z',
                     updated_at: '2025-01-20T10:06:00Z',
+                    item_type: 'GIFT' as ItemType,
                     product: {
                         id: 'prod-gift-001',
                         product_type: 'accessory',
@@ -109,6 +156,7 @@ const mockCartData: CartResponse = {
             unit_price: 14.9,
             added_at: '2025-01-20T11:00:00Z',
             updated_at: '2025-01-20T11:00:00Z',
+            item_type: 'FRAME' as ItemType,
             product: {
                 id: 'prod-002',
                 product_type: 'frame',
@@ -144,6 +192,7 @@ const mockCartData: CartResponse = {
             unit_price: 16.9,
             added_at: '2025-01-20T12:00:00Z',
             updated_at: '2025-01-20T12:00:00Z',
+            item_type: 'FRAME' as ItemType,
             product: {
                 id: 'prod-003',
                 product_type: 'frame',
@@ -171,6 +220,48 @@ const mockCartData: CartResponse = {
             is_gift: false,
             children: [
                 {
+                    id: 'ci-003-lens',
+                    cart_id: 'cart-001',
+                    product_id: 'prod-lens-002',
+                    parent_item_id: 'ci-003',
+                    quantity: 1,
+                    unit_price: 22.0,
+                    added_at: '2025-01-20T12:01:00Z',
+                    updated_at: '2025-01-20T12:01:00Z',
+                    item_type: 'LENS' as ItemType,
+                    product: {
+                        id: 'prod-lens-002',
+                        product_type: 'lens',
+                        name: 'Tròng kính đổi màu Progressive',
+                        slug: 'photochromic-progressive-lens',
+                        description: 'Photochromic progressive lens',
+                        is_active: true,
+                        is_featured: false,
+                        is_instock: true,
+                        created_at: '2025-01-01T00:00:00Z',
+                        updated_at: '2025-01-01T00:00:00Z',
+                    },
+                    variant_details: {
+                        sku: 'LENS-PC-002',
+                    },
+                    is_gift: false,
+                    children: [],
+                    lens_selection: {
+                        usage: { id: 'usage-prog', name: 'Đa tròng (Progressive)', description: 'Nhìn xa và gần', type: 'PROGRESSIVE' },
+                        lens_type: { id: 'prod-lens-002', name: 'Tròng kính đổi màu Progressive', description: 'Photochromic progressive lens', price: 18.0, isPrescription: true, isProgressive: true, usage_id: 'usage-prog' },
+                        prescription: {
+                            right_eye: { sphere: '-3.00', cylinder: '-1.00', axis: '90', add: '+2.00', pd: '31' },
+                            left_eye: { sphere: '-2.75', cylinder: '-0.75', axis: '85', add: '+2.00', pd: '31' },
+                        },
+                        tint: { id: 'tint-gray', name: 'Xám đổi màu', description: 'Tự động đổi màu theo ánh sáng', price: 4.0, cssValue: '#808080', opacity: 0.5 },
+                        features: [
+                            { id: 'feat-as', name: 'Chống xước', description: 'Lớp phủ chống xước', price: 0, category: 'coating' as const },
+                            { id: 'feat-uv', name: 'Chống UV 400', description: 'Bảo vệ mắt khỏi tia UV', price: 0, category: 'protection' as const },
+                        ],
+                        total_price: 22.0,
+                    },
+                },
+                {
                     id: 'ci-003a',
                     cart_id: 'cart-001',
                     product_id: 'prod-acc-002',
@@ -179,6 +270,7 @@ const mockCartData: CartResponse = {
                     unit_price: 3.5,
                     added_at: '2025-01-20T12:01:00Z',
                     updated_at: '2025-01-20T12:01:00Z',
+                    item_type: 'ACCESSORY' as ItemType,
                     product: {
                         id: 'prod-acc-002',
                         product_type: 'accessory',
@@ -203,12 +295,12 @@ const mockCartData: CartResponse = {
     ],
     summary: {
         items_count: 3,
-        items_subtotal: 74.2,
+        items_subtotal: 111.2,
         promotion_discount: 0,
-        coupon_discount: 7.42,
+        coupon_discount: 11.12,
         shipping_fee: 0,
         tax_amount: 0,
-        total_amount: 66.78,
+        total_amount: 100.08,
         applied_coupon: {
             id: 'coupon-001',
             code: 'HAPPY',
@@ -228,14 +320,90 @@ const mockCartData: CartResponse = {
     },
 };
 
+export interface AddToCartMockParams {
+    productName: string;
+    productSlug: string;
+    productId: string;
+    productType: string;
+    brandName?: string;
+    sku?: string;
+    color?: string;
+    size?: string;
+    imageUrl?: string;
+    unitPrice: number;
+    itemType: ItemType;
+    parentItemId?: string;
+    isFree?: boolean;
+    giftNote?: string;
+    lensSelection?: LensSelection;
+}
+
 export const CartService = {
-    // GET /api/v1/carts/{cartId} or /api/v1/carts/me (for current user)
     async getCart(): Promise<CartResponse> {
         await delay(300);
         return { ...mockCartData };
     },
 
-    // PUT /api/v1/carts/items/{itemId}
+    async addItem(params: AddToCartMockParams): Promise<{ cartResponse: CartResponse; createdItemId: string }> {
+        await delay(200);
+        const newId = `ci-mock-${nextItemId++}`;
+        const now = new Date().toISOString();
+
+        const newItem: CartItemWithDetails = {
+            id: newId,
+            cart_id: mockCartData.cart.id,
+            product_id: params.productId,
+            parent_item_id: params.parentItemId,
+            quantity: 1,
+            unit_price: params.unitPrice,
+            added_at: now,
+            updated_at: now,
+            item_type: params.itemType,
+            product: {
+                id: params.productId,
+                product_type: params.productType as 'frame' | 'lens' | 'accessory',
+                name: params.productName,
+                slug: params.productSlug,
+                description: '',
+                is_active: true,
+                is_featured: false,
+                is_instock: true,
+                brand: params.brandName ? { id: 'brand-mock', code: '', name: params.brandName, is_active: true } : undefined,
+                created_at: now,
+                updated_at: now,
+            },
+            variant_details: {
+                sku: params.sku || '',
+                color: params.color,
+                size: params.size,
+                image_url: params.imageUrl,
+            },
+            is_gift: params.isFree || false,
+            children: [],
+            lens_selection: params.lensSelection,
+        };
+
+        if (params.parentItemId) {
+            // Add as child of parent
+            const addChild = (items: CartItemWithDetails[]): boolean => {
+                for (const item of items) {
+                    if (item.id === params.parentItemId) {
+                        item.children.push(newItem);
+                        return true;
+                    }
+                    if (addChild(item.children)) return true;
+                }
+                return false;
+            };
+            addChild(mockCartData.items);
+        } else {
+            mockCartData.items.push(newItem);
+        }
+
+        recalculateSummary();
+        return { cartResponse: { ...mockCartData }, createdItemId: newId };
+    },
+
     async updateItemQuantity(itemId: string, quantity: number): Promise<CartResponse> {
         await delay(200);
         const updateItem = (items: CartItemWithDetails[]): CartItemWithDetails[] => {
@@ -254,7 +422,6 @@ export const CartService = {
         return { ...mockCartData };
     },
 
-    // DELETE /api/v1/carts/items/{itemId}
     async removeItem(itemId: string): Promise<CartResponse> {
         await delay(200);
         const removeFromItems = (items: CartItemWithDetails[]): CartItemWithDetails[] => {
@@ -270,7 +437,6 @@ export const CartService = {
         return { ...mockCartData };
     },
 
-    // POST /api/v1/carts/coupons
     async applyCoupon(code: string): Promise<{ success: boolean; message: string; data?: CartResponse }> {
         await delay(300);
         if (code.toUpperCase() === 'HAPPY') {
@@ -295,7 +461,6 @@ export const CartService = {
         return { success: false, message: 'Invalid coupon code' };
     },
 
-    // DELETE /api/v1/carts/coupons
     async removeCoupon(): Promise<CartResponse> {
         await delay(200);
         mockCartData.summary.applied_coupon = undefined;
@@ -305,7 +470,6 @@ export const CartService = {
     },
 };
 
-// Helper to recalculate summary
 function recalculateSummary() {
     const calculateItemTotal = (item: CartItemWithDetails): number => {
         const itemTotal = item.unit_price * item.quantity;

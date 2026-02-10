@@ -65,15 +65,15 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     });
   };
 
-  const handleCategoryChange = (categoryId: string) => {
-    const currentCategories = activeFilters.categoryIds || [];
-    const newCategories = currentCategories.includes(categoryId)
-      ? currentCategories.filter(id => id !== categoryId)
-      : [...currentCategories, categoryId];
+  const handleCategoryChange = (categoryName: string) => {
+    const currentCategories = activeFilters.categoryNames || [];
+    const newCategories = currentCategories.includes(categoryName)
+      ? currentCategories.filter(name => name !== categoryName)
+      : [...currentCategories, categoryName];
     
     onFilterChange({
       ...activeFilters,
-      categoryIds: newCategories
+      categoryNames: newCategories
     });
   };
 
@@ -118,9 +118,9 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     onFilterChange({ ...activeFilters, brandIds: newBrands });
   };
 
-  const handleRemoveCategory = (categoryId: string) => {
-    const newCategories = activeFilters.categoryIds?.filter(id => id !== categoryId) || [];
-    onFilterChange({ ...activeFilters, categoryIds: newCategories });
+  const handleRemoveCategory = (categoryName: string) => {
+    const newCategories = activeFilters.categoryNames?.filter(name => name !== categoryName) || [];
+    onFilterChange({ ...activeFilters, categoryNames: newCategories });
   };
 
   const handleClearPrice = () => {
@@ -134,7 +134,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   const getActiveFiltersCount = () => {
     let count = 0;
     if (activeFilters.brandIds?.length) count += activeFilters.brandIds.length;
-    if (activeFilters.categoryIds?.length) count += activeFilters.categoryIds.length;
+    if (activeFilters.categoryNames?.length) count += activeFilters.categoryNames.length;
     if (activeFilters.priceMin || activeFilters.priceMax) count++;
     if (activeFilters.minRating) count++;
     if (activeFilters.isFeatured) count++;
