@@ -76,6 +76,7 @@ interface LensSelectionDialogProps {
     productId?: string;
     frameVariantId?: string;
     framePrice?: number;
+    initialSelection?: LensSelection;
 }
 
 const USAGE_ICONS: { [key: string]: React.ReactElement } = {
@@ -161,6 +162,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     productId,
     frameVariantId,
     framePrice = 0,
+    initialSelection,
 }) => {
     const theme = useTheme();
     const { isAuthenticated } = useAuth();
@@ -341,8 +343,24 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         }));
     }, [selectedLensType, apiLensData]);
 
+    // Restore from initialSelection (edit mode) - takes priority over localStorage
     useEffect(() => {
-        if (open && !hasRestoredRef.current) {
+        if (open && initialSelection && !hasRestoredRef.current) {
+            setActiveStep(5); // Go to confirmation step so user sees full selection
+            setSelectedUsage(initialSelection.usage);
+            setSelectedLensType(initialSelection.lens_type);
+            if (initialSelection.prescription) {
+                setPrescription(initialSelection.prescription);
+                setPrescriptionMode('manual');
+            }
+            setSelectedTint(initialSelection.tint || null);
+            setSelectedFeatures(initialSelection.features || []);
+            hasRestoredRef.current = true;
+        }
+    }, [open, initialSelection]);
+
+    useEffect(() => {
+        if (open && !hasRestoredRef.current && !initialSelection) {
             const savedState = localStorage.getItem('lens_dialog_state');
             if (savedState) {
                 try {
