@@ -43,14 +43,16 @@
 
 
 .embla {
-  max-width: 70rem;
+  max-width: 100%;
   margin: auto;
   --slide-height: 19rem;
-  --slide-spacing: 1rem;
-  --slide-size: 90%;
+  --slide-spacing: 0rem;
+  --slide-size: 100%;
+  position: relative;
 }
 .embla__viewport {
   overflow: hidden;
+  border-radius: 0.5rem;
 }
 .embla__container {
   display: flex;
@@ -64,7 +66,7 @@
 }
 .embla__slide__number {
   border: 0.2rem solid var(--detail-medium-contrast);
-  border-radius: 1.8rem;
+  border-radius: 0.75rem;
   font-size: 4rem;
   font-weight: 600;
   display: flex;
@@ -74,22 +76,28 @@
   user-select: none;
 }
 .embla__controls {
-  display: flex;
-  justify-content: center;
-  gap: 1.2rem;
-  margin-top: 1.8rem;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+  padding: 0 0.75rem;
+  z-index: 2;
+  margin-top: 0;
 }
 .embla__buttons {
   display: flex;
   flex-direction: row;
-  gap: 0.6rem;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  pointer-events: none;
 }
 .embla__button {
   -webkit-tap-highlight-color: rgba(var(--text-high-contrast-rgb-value), 0.5);
   -webkit-appearance: none;
   appearance: none;
-  background-color: transparent;
   touch-action: manipulation;
   display: inline-flex;
   text-decoration: none;
@@ -97,19 +105,36 @@
   border: 0;
   padding: 0;
   margin: 0;
-  border: 0.2rem solid var(--detail-medium-contrast);
-  width: 3.6rem;
-  height: 3.6rem;
+  border: none;
+  width: 2rem;
+  height: 2rem;
   z-index: 1;
   border-radius: 50%;
-  color: var(--text-body);
+  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: rotate(0deg);
+  pointer-events: all;
+  background-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(4px);
+  opacity: 0.5;
+  transition: background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+}
+.embla__button:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+  opacity: 1;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .embla__button--disabled {
-  color: var(--detail-high-contrast);
+  opacity: 0.2;
+  cursor: default;
+}
+.embla__button--disabled:hover {
+  opacity: 0.2;
+  transform: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 .embla__button__svg {
   width: 35%;
