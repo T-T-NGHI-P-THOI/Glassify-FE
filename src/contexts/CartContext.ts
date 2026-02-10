@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { CartResponse, CartSummary, ItemType } from '@/api/service/Type';
+import type { LensSelection } from '@/models/Lens';
 
 export interface AddToCartParams {
     productName: string;
@@ -16,6 +17,7 @@ export interface AddToCartParams {
     parentItemId?: string;
     isFree?: boolean;
     giftNote?: string;
+    lensSelection?: LensSelection;
 }
 
 export interface CartContextType {

@@ -13,6 +13,10 @@ import {
     Skeleton,
     Snackbar,
     Alert,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -25,6 +29,7 @@ import {
     Inventory2Outlined as AccessoryIcon,
     Visibility as LensIcon,
     Edit as EditIcon,
+    Info as InfoIcon,
 } from '@mui/icons-material';
 import type { CartItemWithDetails, ItemType } from '@/api/service/Type';
 import { useCart } from '@/hooks/useCart';
@@ -179,6 +184,7 @@ interface ChildItemProps {
     isLast: boolean;
     onQuantityChange: (itemId: string, quantity: number) => void;
     onRemove: (itemId: string) => void;
+    onViewDetails?: () => void;
     loading?: boolean;
 }
 
@@ -187,6 +193,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
     isLast,
     onQuantityChange,
     onRemove,
+    onViewDetails,
     loading = false,
 }) => {
     const isGift = item.is_gift || item.unit_price === 0;
@@ -223,6 +230,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
             }}
         >
             <Box
+                onClick={isLens && onViewDetails ? onViewDetails : undefined}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -235,6 +243,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     borderColor: isLens ? 'rgba(0,131,143,0.3)' : '#ddd',
                     borderRadius: '8px',
                     gap: 2,
+                    cursor: isLens && onViewDetails ? 'pointer' : 'default',
                     transition: 'all 0.2s',
                     '&:hover': {
                         borderColor: isLens ? '#00838f' : '#bbb',
@@ -276,7 +285,19 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             {item.product.name}
                         </Typography>
                         {getChildChip(item.item_type, isGift)}
+                        {isLens && onViewDetails && (
+                            <InfoIcon sx={{ fontSize: 16, color: '#00838f', opacity: 0.6 }} />
+                        )}
                     </Stack>
+                    {isLens && item.lens_selection && (
+                        <Typography sx={{ fontSize: '0.7rem', color: '#00838f', opacity: 0.7, mt: 0.25 }}>
+                            {item.lens_selection.usage.name}
+                            {item.lens_selection.tint ? ` • ${item.lens_selection.tint.name}` : ''}
+                            {item.lens_selection.features.length > 0
+                                ? ` • ${item.lens_selection.features.length} tính năng`
+                                : ''}
+                        </Typography>
+                    )}
                     {item.variant_details?.sku && (
                         <Typography sx={{ fontSize: '0.7rem', color: '#999', mt: 0.25 }}>
                             SKU: {item.variant_details.sku}
@@ -359,6 +380,7 @@ interface CartItemRowProps {
     onRemove: (itemId: string) => void;
     onFavorite: (itemId: string) => void;
     onEdit: (item: CartItemWithDetails) => void;
+    onViewLensDetails: (lensItem: CartItemWithDetails, parentItem: CartItemWithDetails) => void;
     loading?: boolean;
 }
 
@@ -368,6 +390,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     onRemove,
     onFavorite,
     onEdit,
+    onViewLensDetails,
     loading = false,
 }) => {
     const calculateItemTotal = (cartItem: CartItemWithDetails): number => {
@@ -612,6 +635,11 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                             isLast={index === sortedChildren.length - 1}
                             onQuantityChange={onQuantityChange}
                             onRemove={onRemove}
+                            onViewDetails={
+                                child.item_type === 'LENS'
+                                    ? () => onViewLensDetails(child, item)
+                                    : undefined
+                            }
                             loading={loading}
                         />
                     ))}
@@ -646,6 +674,352 @@ const CartItemSkeleton: React.FC = () => (
 );
 
 // =====================================================
+// Lens Detail Dialog Component
+// =====================================================
+interface LensDetailDialogProps {
+    open: boolean;
+    onClose: () => void;
+    lensItem: CartItemWithDetails | null;
+    parentItem: CartItemWithDetails | null;
+    onEdit: (item: CartItemWithDetails) => void;
+}
+
+const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
+    open,
+    onClose,
+    lensItem,
+    parentItem,
+    onEdit,
+}) => {
+    if (!lensItem || !parentItem) return null;
+
+    const framePrice = parentItem.unit_price * parentItem.quantity;
+    const lensPrice = lensItem.unit_price * lensItem.quantity;
+    const totalPrice = framePrice + lensPrice;
+
+    return (
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                },
+            }}
+        >
+            <DialogTitle
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    bgcolor: '#fafafa',
+                    borderBottom: '1px solid #eee',
+                    py: 2,
+                    px: 3,
+                }}
+            >
+                <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#111' }}>
+                    Chi tiết tròng kính & gọng kính
+                </Typography>
+                <IconButton size="small" onClick={onClose} sx={{ color: '#999' }}>
+                    <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+            </DialogTitle>
+
+            <DialogContent sx={{ p: 3 }}>
+                {/* Frame Section */}
+                <Box sx={{ mb: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                        <Chip
+                            label="GỌNG KÍNH"
+                            size="small"
+                            sx={{
+                                height: 22,
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.5px',
+                                bgcolor: '#111',
+                                color: '#fff',
+                            }}
+                        />
+                    </Stack>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 2,
+                            borderRadius: '12px',
+                            borderColor: '#e5e5e5',
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            {/* Frame image */}
+                            <Box
+                                sx={{
+                                    width: 72,
+                                    height: 72,
+                                    bgcolor: '#f5f5f5',
+                                    borderRadius: '10px',
+                                    border: '1px solid #eee',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {parentItem.variant_details?.image_url ? (
+                                    <Box
+                                        component="img"
+                                        src={parentItem.variant_details.image_url}
+                                        alt={parentItem.product.name}
+                                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <Box
+                                        component="svg"
+                                        sx={{ width: 28, height: 28, color: '#ccc' }}
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            fill="currentColor"
+                                            d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#111', mb: 0.5 }}>
+                                    {parentItem.product.name}
+                                </Typography>
+                                {parentItem.product.brand && (
+                                    <Typography sx={{ fontSize: '0.8rem', color: '#888', mb: 0.5 }}>
+                                        {parentItem.product.brand.name}
+                                    </Typography>
+                                )}
+                                <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mb: 0.5 }}>
+                                    {parentItem.variant_details?.color && (
+                                        <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>
+                                            Màu: <strong>{parentItem.variant_details.color}</strong>
+                                        </Typography>
+                                    )}
+                                    {parentItem.variant_details?.size && (
+                                        <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>
+                                            Size: <strong>{parentItem.variant_details.size}</strong>
+                                        </Typography>
+                                    )}
+                                </Stack>
+                                {parentItem.variant_details?.sku && (
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#aaa' }}>
+                                        SKU: {parentItem.variant_details.sku}
+                                    </Typography>
+                                )}
+                            </Box>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#111', flexShrink: 0 }}>
+                                ${framePrice.toFixed(2)}
+                            </Typography>
+                        </Box>
+                    </Paper>
+                </Box>
+
+                {/* Lens Section */}
+                <Box sx={{ mb: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                        <Chip
+                            label="TRÒNG KÍNH"
+                            size="small"
+                            sx={{
+                                height: 22,
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.5px',
+                                bgcolor: '#00838f',
+                                color: '#fff',
+                            }}
+                        />
+                    </Stack>
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 2,
+                            borderRadius: '12px',
+                            borderColor: 'rgba(0,131,143,0.3)',
+                            bgcolor: '#f9fefe',
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Box
+                                sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: '8px',
+                                    bgcolor: 'rgba(0,131,143,0.1)',
+                                    border: '1px solid rgba(0,131,143,0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <LensIcon sx={{ fontSize: 20, color: '#00838f' }} />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#00838f', mb: 0.5 }}>
+                                    {lensItem.product.name}
+                                </Typography>
+
+                                {lensItem.lens_selection ? (
+                                    <>
+                                        {/* Usage */}
+                                        <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>
+                                            Mục đích: <strong>{lensItem.lens_selection.usage.name}</strong>
+                                        </Typography>
+
+                                        {/* Prescription */}
+                                        {lensItem.lens_selection.prescription && (
+                                            <Box sx={{ mb: 0.75, p: 1, bgcolor: 'rgba(0,131,143,0.04)', borderRadius: '6px' }}>
+                                                <Typography sx={{ fontSize: '0.75rem', color: '#555', fontWeight: 600, mb: 0.25 }}>
+                                                    Đơn kính:
+                                                </Typography>
+                                                <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
+                                                    Mắt phải: SPH {lensItem.lens_selection.prescription.right_eye.sphere}
+                                                    {lensItem.lens_selection.prescription.right_eye.cylinder
+                                                        ? ` / CYL ${lensItem.lens_selection.prescription.right_eye.cylinder}` : ''}
+                                                    {lensItem.lens_selection.prescription.right_eye.axis
+                                                        ? ` / Axis ${lensItem.lens_selection.prescription.right_eye.axis}°` : ''}
+                                                </Typography>
+                                                <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
+                                                    Mắt trái: SPH {lensItem.lens_selection.prescription.left_eye.sphere}
+                                                    {lensItem.lens_selection.prescription.left_eye.cylinder
+                                                        ? ` / CYL ${lensItem.lens_selection.prescription.left_eye.cylinder}` : ''}
+                                                    {lensItem.lens_selection.prescription.left_eye.axis
+                                                        ? ` / Axis ${lensItem.lens_selection.prescription.left_eye.axis}°` : ''}
+                                                </Typography>
+                                                {lensItem.lens_selection.prescription.right_eye.pd && (
+                                                    <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
+                                                        PD: {lensItem.lens_selection.prescription.right_eye.pd}mm
+                                                    </Typography>
+                                                )}
+                                                {lensItem.lens_selection.prescription.right_eye.add && (
+                                                    <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
+                                                        ADD: {lensItem.lens_selection.prescription.right_eye.add}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        )}
+
+                                        {/* Tint */}
+                                        {lensItem.lens_selection.tint && (
+                                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                                                <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>
+                                                    Màu kính: <strong>{lensItem.lens_selection.tint.name}</strong>
+                                                </Typography>
+                                                {lensItem.lens_selection.tint.cssValue !== 'transparent' && (
+                                                    <Box sx={{
+                                                        width: 14,
+                                                        height: 14,
+                                                        borderRadius: '50%',
+                                                        bgcolor: lensItem.lens_selection.tint.cssValue,
+                                                        border: '1px solid #ccc',
+                                                        opacity: lensItem.lens_selection.tint.opacity || 1,
+                                                    }} />
+                                                )}
+                                            </Stack>
+                                        )}
+
+                                        {/* Features */}
+                                        {lensItem.lens_selection.features.length > 0 && (
+                                            <Box sx={{ mb: 0.5 }}>
+                                                <Typography sx={{ fontSize: '0.8rem', color: '#666', fontWeight: 600, mb: 0.25 }}>
+                                                    Tính năng:
+                                                </Typography>
+                                                {lensItem.lens_selection.features.map(f => (
+                                                    <Typography key={f.id} sx={{ fontSize: '0.75rem', color: '#666', pl: 1 }}>
+                                                        • {f.name}{f.price > 0 ? ` (+$${f.price.toFixed(2)})` : ''}
+                                                    </Typography>
+                                                ))}
+                                            </Box>
+                                        )}
+                                    </>
+                                ) : (
+                                    lensItem.product.description && (
+                                        <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>
+                                            {lensItem.product.description}
+                                        </Typography>
+                                    )
+                                )}
+
+                                {lensItem.variant_details?.sku && (
+                                    <Typography sx={{ fontSize: '0.75rem', color: '#aaa' }}>
+                                        SKU: {lensItem.variant_details.sku}
+                                    </Typography>
+                                )}
+                            </Box>
+                            <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#00838f', flexShrink: 0 }}>
+                                ${lensPrice.toFixed(2)}
+                            </Typography>
+                        </Box>
+                    </Paper>
+                </Box>
+
+                {/* Total */}
+                <Divider sx={{ mb: 2 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontWeight: 500, fontSize: '0.95rem', color: '#666' }}>
+                        Tổng cộng
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#111' }}>
+                        ${totalPrice.toFixed(2)}
+                    </Typography>
+                </Box>
+            </DialogContent>
+
+            <DialogActions
+                sx={{
+                    px: 3,
+                    py: 2,
+                    borderTop: '1px solid #eee',
+                    bgcolor: '#fafafa',
+                }}
+            >
+                <Button
+                    onClick={onClose}
+                    sx={{
+                        color: '#888',
+                        textTransform: 'none',
+                        fontWeight: 500,
+                    }}
+                >
+                    Đóng
+                </Button>
+                <Button
+                    variant="contained"
+                    disableElevation
+                    onClick={() => {
+                        onClose();
+                        onEdit(parentItem);
+                    }}
+                    startIcon={<EditIcon sx={{ fontSize: 18 }} />}
+                    sx={{
+                        bgcolor: '#111',
+                        color: '#fff',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderRadius: '10px',
+                        px: 3,
+                        '&:hover': { bgcolor: '#333' },
+                    }}
+                >
+                    Chỉnh sửa
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+// =====================================================
 // Main Shopping Cart Component
 // =====================================================
 const ShoppingCart: React.FC = () => {
@@ -667,6 +1041,11 @@ const ShoppingCart: React.FC = () => {
         message: string;
         severity: 'success' | 'error';
     }>({ open: false, message: '', severity: 'success' });
+    const [detailDialog, setDetailDialog] = useState<{
+        open: boolean;
+        lensItem: CartItemWithDetails | null;
+        parentItem: CartItemWithDetails | null;
+    }>({ open: false, lensItem: null, parentItem: null });
 
     const showSnackbar = (message: string, severity: 'success' | 'error') => {
         setSnackbar({ open: true, message, severity });
@@ -698,6 +1077,10 @@ const ShoppingCart: React.FC = () => {
 
     const handleFavorite = useCallback((_itemId: string) => {
         showSnackbar('Added to wishlist', 'success');
+    }, []);
+
+    const handleViewLensDetails = useCallback((lensItem: CartItemWithDetails, parentItem: CartItemWithDetails) => {
+        setDetailDialog({ open: true, lensItem, parentItem });
     }, []);
 
     const handleEditItem = useCallback((item: CartItemWithDetails) => {
@@ -881,6 +1264,7 @@ const ShoppingCart: React.FC = () => {
                                     onRemove={handleRemoveItem}
                                     onFavorite={handleFavorite}
                                     onEdit={handleEditItem}
+                                    onViewLensDetails={handleViewLensDetails}
                                     loading={updating}
                                 />
                             </React.Fragment>
@@ -1069,6 +1453,15 @@ const ShoppingCart: React.FC = () => {
                     </Box>
                 </Box>
             </Box>
+
+            {/* Lens Detail Dialog */}
+            <LensDetailDialog
+                open={detailDialog.open}
+                onClose={() => setDetailDialog({ open: false, lensItem: null, parentItem: null })}
+                lensItem={detailDialog.lensItem}
+                parentItem={detailDialog.parentItem}
+                onEdit={handleEditItem}
+            />
 
             {/* Snackbar for notifications */}
             <Snackbar

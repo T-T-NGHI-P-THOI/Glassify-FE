@@ -3,6 +3,7 @@
 // =====================================================
 
 import type { Product } from "@/models/Product";
+import type { LensSelection } from "@/models/Lens";
 
 // Enums matching PostgreSQL enums
 export type ProductType = 'frame' | 'lens' | 'accessory';
@@ -137,6 +138,7 @@ export interface CartItemWithDetails extends CartItem {
     };
     is_gift: boolean;
     children: CartItemWithDetails[];
+    lens_selection?: LensSelection;
 }
 
 export interface CartSummary {

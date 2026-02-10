@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
 import { Snackbar, Alert } from '@mui/material';
@@ -17,7 +17,7 @@ const ProductDetailPage: React.FC = () => {
   const { slug, sku } = useParams<{ slug: string; sku: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { addItem, addFrameWithLens } = useCart();
+  const { addItem, addFrameWithLens, removeItem, cartData } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
@@ -30,6 +30,15 @@ const ProductDetailPage: React.FC = () => {
 
   const editCartItemId = searchParams.get('editCartItemId');
   const isEditMode = !!editCartItemId;
+
+  // Derive the existing lens selection from cart data when editing
+  const editLensSelection = useMemo(() => {
+    if (!isEditMode || !editCartItemId || !cartData) return undefined;
+    const parentItem = cartData.items.find(item => item.id === editCartItemId);
+    if (!parentItem) return undefined;
+    const lensChild = parentItem.children.find(c => c.item_type === 'LENS');
+    return lensChild?.lens_selection;
+  }, [isEditMode, editCartItemId, cartData]);
 
   // Auto-open lens dialog if URL has lens parameter (only check searchParams changes)
   useEffect(() => {
@@ -200,6 +209,10 @@ const ProductDetailPage: React.FC = () => {
           unitPrice: product.price,
           itemType: 'FRAME',
         });
+        // In edit mode, remove the old cart item after adding the new one
+        if (isEditMode && editCartItemId) {
+          await removeItem(editCartItemId);
+        }
         setSnackbar({ open: true, message: `Đã thêm ${product.name} (chỉ gọng) vào giỏ hàng!`, severity: 'success' });
         if (isEditMode) {
           navigate('/cart');
@@ -231,18 +244,27 @@ const ProductDetailPage: React.FC = () => {
         itemType: 'FRAME' as const,
       };
 
+      // Calculate lens-only price (total_price includes framePrice, so subtract it)
+      const lensOnlyPrice = selection.total_price - product.price;
+
       const lensParams = {
         productName: selection.lens_type.name,
         productSlug: product.slug,
         productId: selection.lens_type.id,
         productType: 'LENS',
-        unitPrice: selection.total_price,
+        unitPrice: lensOnlyPrice,
         itemType: 'LENS' as const,
+        lensSelection: selection,
       };
 
       await addFrameWithLens(frameParams, lensParams);
 
-      const totalPrice = product.price + selection.total_price;
+      // In edit mode, remove the old cart item after adding the new one
+      if (isEditMode && editCartItemId) {
+        await removeItem(editCartItemId);
+      }
+
+      const totalPrice = product.price + lensOnlyPrice;
       setSnackbar({
         open: true,
         message: `Đã thêm ${product.name} + ${selection.lens_type.name} vào giỏ hàng! Tổng: ${formatCurrency(totalPrice)}`,
@@ -315,7 +337,6 @@ const ProductDetailPage: React.FC = () => {
         open={lensDialogOpen}
         onClose={() => {
           setLensDialogOpen(false);
-          // Remove lens parameter from URL when closing dialog
           const newSearchParams = new URLSearchParams(searchParams);
           newSearchParams.delete('lens');
           navigate({ search: newSearchParams.toString() }, { replace: true });
@@ -325,6 +346,7 @@ const ProductDetailPage: React.FC = () => {
         productId={product.id}
         frameVariantId={product.variantId}
         framePrice={product.price}
+        initialSelection={editLensSelection}
       />
       </div>
 
