@@ -13,6 +13,7 @@ import ProductAPI from '../api/product-api';
 
 import EmblaCarousel from '../components/custom/CustomEmblaCarousel'
 import type { EmblaOptionsType } from 'embla-carousel';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 const MainPage = () => {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ const MainPage = () => {
         const transformedProducts = products.map((product) => ({
           id: product.id,
           title: product.name,
-          price: `$${product.basePrice.toFixed(2)}`,
+          price: `${formatCurrency(product.basePrice)}`,
           rating: product.avgRating || 0,
           reviews: product.reviewCount > 1000 ? `${Math.floor(product.reviewCount / 1000)}K+` : product.reviewCount.toString(),
           shape: product.productType,

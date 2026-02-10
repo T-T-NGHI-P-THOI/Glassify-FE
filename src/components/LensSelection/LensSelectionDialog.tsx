@@ -66,6 +66,7 @@ import {
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import lensService from '@/api/service/LensService';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 interface LensSelectionDialogProps {
     open: boolean;
@@ -567,6 +568,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         
         if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
             setActiveStep((prev) => prev + 2);
+        } else if (activeStep === 2 && availableTints.length === 0) {
+            // Skip color step if no tints available
+            setActiveStep((prev) => prev + 2);
         } else {
             setActiveStep((prev) => prev + 1);
         }
@@ -594,6 +598,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         }
         
         if (activeStep === 2 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+            setActiveStep((prev) => prev - 2);
+        } else if (activeStep === 4 && availableTints.length === 0) {
+            // Skip color step when going back if no tints available
             setActiveStep((prev) => prev - 2);
         } else {
             setActiveStep((prev) => prev - 1);
@@ -635,13 +642,13 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const handleConfirm = () => {
-        if (!selectedUsage || !selectedLensType || !selectedTint) return;
+        if (!selectedUsage || !selectedLensType || (!selectedTint && availableTints.length > 0)) return;
 
         const selection: LensSelection = {
             usage: selectedUsage,
             lens_type: selectedLensType,
             prescription: selectedLensType.isPrescription ? prescription : undefined,
-            tint: selectedTint,
+            tint: selectedTint ?? undefined,
             features: selectedFeatures,
             total_price: calculateTotalPrice(),
         };
@@ -653,8 +660,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const handleDialogClose = () => {
-        localStorage.removeItem('lens_dialog_state');
-        handleReset(); // Reset all state to prevent data persistence
         onClose();
     };
 
@@ -664,6 +669,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         setValidationIssues([]);
         setWarningsAcknowledged(false);
         if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+            setActiveStep((prev) => prev + 2);
+        } else if (activeStep === 2 && availableTints.length === 0) {
+            // Skip color step if no tints available
             setActiveStep((prev) => prev + 2);
         } else {
             setActiveStep((prev) => prev + 1);
@@ -717,7 +725,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             case 2:
                 return selectedLensType !== null;
             case 3:
-                return selectedTint !== null;
+                return selectedTint !== null || availableTints.length === 0;
             case 4:
                 return true;
             case 5:
@@ -755,7 +763,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             case 2:
                 return selectedLensType !== null;
             case 3:
-                return selectedTint !== null;
+                return selectedTint !== null || availableTints.length === 0;
             case 4:
                 return true;
             case 5:
@@ -763,14 +771,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             default:
                 return false;
         }
-    };
-
-    const formatCurrency = (amount: number): string => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-            maximumFractionDigits: 0,
-        }).format(amount);
     };
 
     const getTintBackground = (cssValue: string, opacity: number) => {
@@ -885,80 +885,164 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         </Box>
     );
 
-    const renderLensTypeStep = () => (
-        <Box sx={{ py: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Chọn loại tròng kính
-            </Typography>
-            <Stack spacing={2}>
-                {availableLensTypes.map((lensType) => (
-                    <Card
-                        key={lensType.id}
-                        sx={{
-                            cursor: 'pointer',
-                            border: `2px solid ${
-                                selectedLensType?.id === lensType.id
-                                    ? theme.palette.primary.main
-                                    : theme.palette.divider
-                            }`,
-                            bgcolor:
-                                selectedLensType?.id === lensType.id
-                                    ? theme.palette.primary.light + '20'
-                                    : 'transparent',
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                                borderColor: theme.palette.primary.main,
-                                boxShadow: 2,
-                            },
-                        }}
-                        onClick={() => {
-                            setSelectedLensType(lensType);
-                            if (lensType.isProgressive) {
-                                setPrescription(prev => ({
-                                    left_eye: { ...prev.left_eye, axis: '' },
-                                    right_eye: { ...prev.right_eye, axis: '' },
-                                }));
-                            }
-                        }}
-                    >
-                        <CardContent>
-                            <Box
+    const renderLensTypeStep = () => {
+        // Calculate available tints for preview
+        const getAvailableTintsForLens = (lensId: string) => {
+            if (!apiLensData) return [];
+            const selectedLens = apiLensData.lenses.find(l => l.lensId === lensId);
+            if (!selectedLens || selectedLens.tints.length === 0) return [];
+            return selectedLens.tints.map(tint => ({
+                id: tint.tintId,
+                name: tint.name,
+                cssValue: tint.cssValue,
+                opacity: tint.opacity,
+            }));
+        };
+
+        return (
+            <Box sx={{ py: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    Chọn loại tròng kính
+                </Typography>
+                <Stack spacing={2}>
+                    {availableLensTypes.map((lensType) => {
+                        const tintsPreview = getAvailableTintsForLens(lensType.id);
+                        return (
+                            <Card
+                                key={lensType.id}
                                 sx={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'flex-start',
+                                    cursor: 'pointer',
+                                    border: `2px solid ${
+                                        selectedLensType?.id === lensType.id
+                                            ? theme.palette.primary.main
+                                            : theme.palette.divider
+                                    }`,
+                                    bgcolor:
+                                        selectedLensType?.id === lensType.id
+                                            ? theme.palette.primary.light + '20'
+                                            : 'transparent',
+                                    transition: 'all 0.2s',
+                                    '&:hover': {
+                                        borderColor: theme.palette.primary.main,
+                                        boxShadow: 2,
+                                    },
+                                }}
+                                onClick={() => {
+                                    setSelectedLensType(lensType);
+                                    if (lensType.isProgressive) {
+                                        setPrescription(prev => ({
+                                            left_eye: { ...prev.left_eye, axis: '' },
+                                            right_eye: { ...prev.right_eye, axis: '' },
+                                        }));
+                                    }
                                 }}
                             >
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                        {lensType.name}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                        {lensType.description}
-                                    </Typography>
-                                    <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
-                                        {formatCurrency(lensType.price)}
-                                    </Typography>
-                                </Box>
-                                {selectedLensType?.id === lensType.id && (
-                                    <CheckCircle color="primary" sx={{ ml: 2 }} />
-                                )}
-                            </Box>
-                        </CardContent>
-                    </Card>
-                ))}
-            </Stack>
-            
-            {/* Info for non-prescription lenses */}
-            {selectedLensType && !selectedLensType.isPrescription && (
-                <Alert severity="success" sx={{ mt: 3 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        ✓ Bạn đã chọn loại tròng không cần đơn thuốc. Bước nhập chỉ số kính sẽ được bỏ qua.
-                    </Typography>
-                </Alert>
-            )}
-        </Box>
-    );
+                                <CardContent>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start',
+                                        }}
+                                    >
+                                        <Box sx={{ flex: 1 }}>
+                                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                {lensType.name}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                {lensType.description}
+                                            </Typography>
+                                            <Typography variant="h6" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
+                                                {formatCurrency(lensType.price)}
+                                            </Typography>
+                                            
+                                            {/* Color preview */}
+                                            {tintsPreview.length > 0 && (
+                                                <Box sx={{ mt: 1.5 }}>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                                        Màu có sẵn ({tintsPreview.length}):
+                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                                                        {tintsPreview.slice(0, 8).map((tint) => (
+                                                            <Tooltip key={tint.id} title={tint.name} arrow>
+                                                                <Box
+                                                                    sx={{
+                                                                        width: 28,
+                                                                        height: 28,
+                                                                        borderRadius: 1,
+                                                                        border: '2px solid',
+                                                                        borderColor: 'divider',
+                                                                        background: getTintBackground(tint.cssValue, tint.opacity),
+                                                                        flexShrink: 0,
+                                                                        boxShadow: 1,
+                                                                        cursor: 'pointer',
+                                                                    }}
+                                                                />
+                                                            </Tooltip>
+                                                        ))}
+                                                        {tintsPreview.length > 8 && (
+                                                            <Box
+                                                                sx={{
+                                                                    width: 28,
+                                                                    height: 28,
+                                                                    borderRadius: 1,
+                                                                    border: '2px solid',
+                                                                    borderColor: 'divider',
+                                                                    bgcolor: 'background.paper',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                }}
+                                                            >
+                                                                <Typography variant="caption" fontWeight="bold">
+                                                                    +{tintsPreview.length - 8}
+                                                                </Typography>
+                                                            </Box>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            )}
+                                            {tintsPreview.length === 0 && (
+                                                <Box sx={{ mt: 1.5 }}>
+                                                    <Chip 
+                                                        label="Không có màu kính" 
+                                                        size="small" 
+                                                        variant="outlined"
+                                                        sx={{ fontSize: '0.7rem' }}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </Box>
+                                        {selectedLensType?.id === lensType.id && (
+                                            <CheckCircle color="primary" sx={{ ml: 2 }} />
+                                        )}
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                </Stack>
+                
+                {/* Info for non-prescription lenses */}
+                {selectedLensType && !selectedLensType.isPrescription && (
+                    <Alert severity="success" sx={{ mt: 3 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            ✓ Bạn đã chọn loại tròng không cần đơn thuốc. Bước nhập chỉ số kính sẽ được bỏ qua.
+                        </Typography>
+                    </Alert>
+                )}
+                
+                {/* Info about no colors available */}
+                {selectedLensType && getAvailableTintsForLens(selectedLensType.id).length === 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            Loại kính này không có tùy chọn màu. Bước chọn màu sẽ được bỏ qua.
+                        </Typography>
+                    </Alert>
+                )}
+            </Box>
+        );
+    };
 
     const handleSavePrescription = async () => {
         if (!prescriptionName.trim()) {
@@ -1033,7 +1117,21 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         
         hasRestoredRef.current = false;
         
-        navigate(PAGE_ENDPOINTS.AUTH.LOGIN);
+        // Build return URL with lens=open parameter
+        const currentSearch = location.search || '';
+        const searchParams = new URLSearchParams(currentSearch);
+        searchParams.set('lens', 'open');
+        
+        // Navigate to login with state containing pathname and search separately
+        navigate(PAGE_ENDPOINTS.AUTH.LOGIN, { 
+            state: { 
+                from: { 
+                    pathname: location.pathname,
+                    search: `?${searchParams.toString()}`
+                } 
+            },
+            replace: false 
+        });
     };
 
     const handlePrescriptionFieldChange = useCallback((
@@ -1193,7 +1291,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             {issueInfo.suggestion && (
                                                 <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, borderLeft: 3, borderColor: issue.severity === 'ERROR' ? 'error.main' : 'warning.main' }}>
                                                     <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
-                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                        <strong>Gợi ý:</strong> {issueInfo.suggestion}
                                                     </Typography>
                                                 </Box>
                                             )}
@@ -1223,7 +1321,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         {pendingWarnings.length > 0 && !warningsAcknowledged && validationIssues.every(i => i.severity !== 'ERROR') && (
                             <Alert severity="info" sx={{ mt: 2 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    ⚠️ Vui lòng xem xét các cảnh báo trên. Nếu bạn đã kiểm tra và xác nhận thông số là chính xác, hãy nhấn <strong>"Tiếp tục"</strong> một lần nữa.
+                                    Vui lòng xem xét các cảnh báo trên. Nếu bạn đã kiểm tra và xác nhận thông số là chính xác, hãy nhấn <strong>"Tiếp tục"</strong> một lần nữa.
                                 </Typography>
                             </Alert>
                         )}
@@ -1892,8 +1990,13 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     Danh sách màu kính có sẵn
                 </Typography>
 
-                <Stack spacing={2}>
-                    {availableTints.map((tint) => (
+                {availableTints.length === 0 ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Tròng kính này không có tùy chọn màu. Bạn có thể bỏ qua bước này và tiếp tục.
+                    </Alert>
+                ) : (
+                    <Stack spacing={2}>
+                        {availableTints.map((tint) => (
                         <Card
                             key={tint.id}
                             sx={{
@@ -1950,8 +2053,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 </Box>
                             </CardContent>
                         </Card>
-                    ))}
-                </Stack>
+                        ))}
+                    </Stack>
+                )}
             </Box>
         );
     };
@@ -2058,10 +2162,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const renderSummaryStep = () => {
-        const formatCurrency = (price: number) => {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-        };
-
         return (
             <Box>
                 <Typography variant="h6" gutterBottom>
@@ -2182,28 +2282,34 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         <Typography variant="subtitle2" color="primary" gutterBottom>
                             Màu kính
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box
-                                sx={{
-                                    width: 50,
-                                    height: 50,
-                                    borderRadius: 2,
-                                    border: '2px solid',
-                                    borderColor: 'divider',
-                                    background: selectedTint ? getTintBackground(selectedTint.cssValue, selectedTint.opacity) : 'transparent',
-                                    flexShrink: 0,
-                                }}
-                            />
-                            <Box sx={{ flex: 1 }}>
-                                <Typography variant="body1" fontWeight="bold">
-                                    {selectedTint?.name}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {selectedTint?.description}
-                                </Typography>
+                        {selectedTint ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box
+                                    sx={{
+                                        width: 50,
+                                        height: 50,
+                                        borderRadius: 2,
+                                        border: '2px solid',
+                                        borderColor: 'divider',
+                                        background: getTintBackground(selectedTint.cssValue, selectedTint.opacity),
+                                        flexShrink: 0,
+                                    }}
+                                />
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="body1" fontWeight="bold">
+                                        {selectedTint.name}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {selectedTint.description}
+                                    </Typography>
+                                </Box>
+                                <Chip label={formatCurrency(selectedTint.price)} color="primary" size="small" />
                             </Box>
-                            <Chip label={formatCurrency(selectedTint?.price || 0)} color="primary" size="small" />
-                        </Box>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                Không có màu kính
+                            </Typography>
+                        )}
                     </Paper>
 
                     {selectedFeatures.length > 0 && (
@@ -2679,7 +2785,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                     }}
                                                 >
                                                     <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                                        💡 <strong>Gợi ý:</strong> {issueInfo.suggestion}
+                                                        <strong>Gợi ý:</strong> {issueInfo.suggestion}
                                                     </Typography>
                                                 </Box>
                                             )}

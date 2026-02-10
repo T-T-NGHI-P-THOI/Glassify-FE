@@ -10,6 +10,7 @@ import type { Product, RecommendedProduct } from '../types/product';
 import type { LensSelection } from '../models/Lens';
 import ProductAPI, { type ReviewResponse } from '../api/product-api';
 import lensService from '../api/service/LensService';
+import { formatCurrency } from '@/utils/formatCurrency';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
@@ -148,6 +149,14 @@ const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [slug, sku]);
 
+  // Cleanup lens dialog state when leaving the product page
+  useEffect(() => {
+    return () => {
+      // Clear lens dialog state when component unmounts (navigating away)
+      localStorage.removeItem('lens_dialog_state');
+    };
+  }, []);
+
   const loadMoreReviews = async () => {
     if (!product || isLoadingReviews) return;
     
@@ -215,14 +224,6 @@ const ProductDetailPage: React.FC = () => {
       console.error('Error adding to cart with lens:', error);
       alert('Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!');
     }
-  };
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   if (!product || isLoading) {
