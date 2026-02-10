@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FavoriteBorder, Star } from '@mui/icons-material';
 import type { RecommendedProduct } from '../../types/product';
+import { formatCurrency } from '@/utils/formatCurrency';
 import './RecommendedProducts.css';
 
 interface RecommendedProductsProps {
@@ -73,7 +74,7 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
               </button>
               <img src={product.image} alt={product.name} className="product-image" />
               <div className="product-card-info">
-                <p className="product-price">${product.price.toFixed(2)}</p>
+                <p className="product-price">{formatCurrency(product.price)}</p>
                 <div className="product-rating">
                   <Star className="star" />
                   <span>{product.rating}</span>

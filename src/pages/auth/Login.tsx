@@ -163,8 +163,19 @@ const AuthPage = () => {
             isAuthenticated: true,
             user: userData
         }));
-        const from = location.state?.from?.pathname || PAGE_ENDPOINTS.DASHBOARD;
-        navigate(from, { replace: true });
+        
+        // Redirect to the originally requested page using location.state
+        const from = location.state?.from;
+        if (from && from.pathname) {
+            // If we have both pathname and search, navigate to full URL
+            const redirectPath = from.pathname + (from.search || '');
+            console.log('Redirecting to:', redirectPath);
+            navigate(redirectPath, { replace: true });
+        } else {
+            // Default redirect to dashboard
+            console.log('No from state, redirecting to dashboard');
+            navigate(PAGE_ENDPOINTS.DASHBOARD, { replace: true });
+        }
     };
 
     // Email/Password Login
