@@ -15,6 +15,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -23,6 +29,7 @@ import {
   Lock,
   Info,
   CameraAlt,
+  PowerSettingsNew,
 } from '@mui/icons-material';
 import { useEffect, useRef, useState } from 'react';
 import { useLayout } from '../../layouts/LayoutContext';
@@ -44,6 +51,15 @@ const ShopEditProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [deactivateEndDate, setDeactivateEndDate] = useState('');
+  const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const [pendingDeactivation, setPendingDeactivation] = useState(false);
+  const [closeShopDialogOpen, setCloseShopDialogOpen] = useState(false);
+  const [closeShopReason, setCloseShopReason] = useState('');
+  const [closeShopConfirm, setCloseShopConfirm] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<UpdateShopRequest>({
@@ -156,6 +172,12 @@ const ShopEditProfilePage = () => {
           ghnDistrictId: response.data.ghnDistrictId,
           ghnWardCode: response.data.ghnWardCode || '',
         });
+        // Detect pending deactivation from backend status
+        if (response.data.status == 'PENDING') {
+          setPendingDeactivation(true);
+        } else {
+          setPendingDeactivation(false);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch shop:', error);
@@ -237,8 +259,123 @@ const ShopEditProfilePage = () => {
     }
   };
 
+  const handleToggleStatus = () => {
+    if (!shop) return;
+    if (shop.status === 'ACTIVE') {
+      setDeactivateDialogOpen(true);
+    } else if (shop.status === 'INACTIVE') {
+      setReactivateDialogOpen(true);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    if (!deactivateReason.trim()) {
+      toast.error('Please provide a reason for deactivation');
+      return;
+    }
+    if (!deactivateEndDate) {
+      toast.error('Please select an end date');
+      return;
+    }
+    try {
+      setTogglingStatus(true);
+      const response = await shopApi.deactivateRequest(deactivateReason, deactivateEndDate);
+      toast.success('Deactivation request submitted successfully');
+      setDeactivateDialogOpen(false);
+      setDeactivateReason('');
+      setDeactivateEndDate('');
+      if (response.data) {
+        setShop(response.data);
+      }
+      setPendingDeactivation(true);
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to submit deactivation request:', error);
+      toast.error('Failed to submit deactivation request');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    try {
+      setTogglingStatus(true);
+      await shopApi.reactivateRequest();
+      toast.success('Reactivation request submitted successfully');
+      setReactivateDialogOpen(false);
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to submit reactivation request:', error);
+      toast.error('Failed to submit reactivation request');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleCancelDeactivate = async () => {
+    if (!window.confirm('Are you sure you want to cancel the deactivation request?')) return;
+    try {
+      setTogglingStatus(true);
+      await shopApi.cancelDeactivate();
+      toast.success('Deactivation request cancelled');
+      setPendingDeactivation(false);
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to cancel deactivation:', error);
+      toast.error('Failed to cancel deactivation request');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleCloseShop = async () => {
+    if (!closeShopReason.trim()) {
+      toast.error('Please provide a reason for closing');
+      return;
+    }
+    if (!closeShopConfirm) {
+      toast.error('Please confirm that you understand this action');
+      return;
+    }
+    try {
+      setTogglingStatus(true);
+      const response = await shopApi.closeShop(closeShopReason, closeShopConfirm);
+      toast.success('Close shop request submitted successfully');
+      setCloseShopDialogOpen(false);
+      setCloseShopReason('');
+      setCloseShopConfirm(false);
+      if (response.data) {
+        setShop(response.data);
+      }
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to submit close shop request:', error);
+      toast.error('Failed to submit close shop request');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleCancelCloseShop = async () => {
+    if (!window.confirm('Are you sure you want to cancel the close shop request?')) return;
+    try {
+      setTogglingStatus(true);
+      await shopApi.cancelCloseShop();
+      toast.success('Close shop request cancelled');
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to cancel close shop:', error);
+      toast.error('Failed to cancel close shop request');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
   const nameChangeable = canChangeShopName();
   const daysLeft = getDaysUntilNameChange();
+  const isShopInactive = shop?.status === 'INACTIVE';
+  const isShopClosing = shop?.status === 'CLOSING';
+  const isShopDisabled = isShopInactive || isShopClosing;
 
   if (loading) {
     return (
@@ -288,25 +425,130 @@ const ShopEditProfilePage = () => {
       />
 
       <Box sx={{ flex: 1, p: 4 }}>
+        {/* Inactive Shop Alert */}
+        {isShopInactive && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Your shop is currently <strong>inactive</strong>. Please activate your shop to make changes.
+          </Alert>
+        )}
+
+        {/* CLOSING status alert */}
+        {isShopClosing && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            Your shop is scheduled to be <strong>permanently closed</strong> after 30 days.
+            All fields are disabled during this period. If you do not wish to close your shop, please click the <strong>Cancel Close</strong> button to cancel.
+          </Alert>
+        )}
+
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-              Edit Shop Profile
+        <Box sx={{ mb: 4 }}>
+          {/* Pending deactivation notice */}
+          {(shop.status === 'PENDING' || pendingDeactivation) && (
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.warning.main, fontWeight: 500, mb: 1.5 }}>
+              Your shop has a pending deactivation request. You can cancel it before it takes effect.
             </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Update your shop information
-            </Typography>
+          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Edit Shop Profile
+              </Typography>
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                Update your shop information
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              {shop.status === 'ACTIVE' && !pendingDeactivation && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={16} /> : <PowerSettingsNew />}
+                  onClick={handleToggleStatus}
+                  disabled={togglingStatus}
+                  sx={{
+                    height: 40,
+                    px: 3,
+                    borderColor: theme.palette.custom.status.error.main,
+                    color: theme.palette.custom.status.error.main,
+                    '&:hover': {
+                      borderColor: theme.palette.custom.status.error.main,
+                      bgcolor: theme.palette.custom.status.error.light,
+                    },
+                  }}
+                >
+                  Deactivate Shop
+                </Button>
+              )}
+              {(shop.status === 'PENDING' || pendingDeactivation) && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={16} /> : <PowerSettingsNew />}
+                  onClick={handleCancelDeactivate}
+                  disabled={togglingStatus}
+                  sx={{
+                    height: 40,
+                    px: 3,
+                    borderColor: theme.palette.custom.status.warning.main,
+                    color: theme.palette.custom.status.warning.main,
+                    '&:hover': {
+                      borderColor: theme.palette.custom.status.warning.main,
+                      bgcolor: theme.palette.custom.status.warning.light,
+                    },
+                  }}
+                >
+                  Cancel Request
+                </Button>
+              )}
+              {isShopClosing && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={16} /> : <PowerSettingsNew />}
+                  onClick={handleCancelCloseShop}
+                  disabled={togglingStatus}
+                  sx={{
+                    height: 40,
+                    px: 3,
+                    borderColor: theme.palette.custom.status.error.main,
+                    color: theme.palette.custom.status.error.main,
+                    '&:hover': {
+                      borderColor: theme.palette.custom.status.error.main,
+                      bgcolor: theme.palette.custom.status.error.light,
+                    },
+                  }}
+                >
+                  Cancel Close
+                </Button>
+              )}
+              {shop.status === 'INACTIVE' && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={16} /> : <PowerSettingsNew />}
+                  onClick={handleToggleStatus}
+                  disabled={togglingStatus}
+                  sx={{
+                    height: 40,
+                    px: 3,
+                    borderColor: theme.palette.custom.status.success.main,
+                    color: theme.palette.custom.status.success.main,
+                    '&:hover': {
+                      borderColor: theme.palette.custom.status.success.main,
+                      bgcolor: theme.palette.custom.status.success.light,
+                    },
+                  }}
+                >
+                  Reactivate Shop
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={16} /> : <Save />}
+                onClick={handleSave}
+                disabled={saving || isShopDisabled}
+                sx={{ height: 40, px: 3 }}
+              >
+                Save Changes
+              </Button>
+            </Box>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={16} /> : <Save />}
-            onClick={handleSave}
-            disabled={saving}
-            sx={{ height: 40, px: 3 }}
-          >
-            Save Changes
-          </Button>
         </Box>
 
         {/* Shop Header Card */}
@@ -329,36 +571,39 @@ const ShopEditProfilePage = () => {
               >
                 <Store sx={{ fontSize: 40 }} />
               </Avatar>
-              <Box
-                onClick={() => logoInputRef.current?.click()}
-                sx={{
-                  position: 'absolute',
-                  bottom: -4,
-                  right: -4,
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  bgcolor: theme.palette.primary.main,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  border: `2px solid ${theme.palette.background.paper}`,
-                  '&:hover': { bgcolor: theme.palette.custom.neutral[700] },
-                }}
-              >
-                {uploadingLogo ? (
-                  <CircularProgress size={14} sx={{ color: '#fff' }} />
-                ) : (
-                  <CameraAlt sx={{ fontSize: 14, color: '#fff' }} />
-                )}
-              </Box>
+              {!isShopDisabled && (
+                <Box
+                  onClick={() => logoInputRef.current?.click()}
+                  sx={{
+                    position: 'absolute',
+                    bottom: -4,
+                    right: -4,
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: theme.palette.primary.main,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    border: `2px solid ${theme.palette.background.paper}`,
+                    '&:hover': { bgcolor: theme.palette.custom.neutral[700] },
+                  }}
+                >
+                  {uploadingLogo ? (
+                    <CircularProgress size={14} sx={{ color: '#fff' }} />
+                  ) : (
+                    <CameraAlt sx={{ fontSize: 14, color: '#fff' }} />
+                  )}
+                </Box>
+              )}
               <input
                 ref={logoInputRef}
                 type="file"
                 hidden
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleLogoUpload}
+                disabled={isShopDisabled}
               />
             </Box>
             <Box>
@@ -410,9 +655,9 @@ const ShopEditProfilePage = () => {
               fullWidth
               value={formData.shopName}
               onChange={handleChange('shopName')}
-              disabled={!nameChangeable}
+              disabled={!nameChangeable || isShopDisabled}
               InputProps={{
-                endAdornment: !nameChangeable ? (
+                endAdornment: !nameChangeable || isShopInactive ? (
                   <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
                 ) : undefined,
               }}
@@ -440,6 +685,7 @@ const ShopEditProfilePage = () => {
                 fullWidth
                 value={formData.email}
                 onChange={handleChange('email')}
+                disabled={isShopDisabled}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -448,6 +694,7 @@ const ShopEditProfilePage = () => {
                 fullWidth
                 value={formData.phone}
                 onChange={handleChange('phone')}
+                disabled={isShopDisabled}
               />
             </Grid>
           </Grid>
@@ -473,6 +720,7 @@ const ShopEditProfilePage = () => {
                 fullWidth
                 value={formData.address}
                 onChange={handleChange('address')}
+                disabled={isShopDisabled}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -481,6 +729,7 @@ const ShopEditProfilePage = () => {
                 fullWidth
                 value={formData.city}
                 onChange={handleChange('city')}
+                disabled={isShopDisabled}
               />
             </Grid>
           </Grid>
@@ -566,7 +815,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnProvinceId ? String(formData.ghnProvinceId) : ''}
                   label="Province"
-                  disabled={loadingProvinces}
+                  disabled={loadingProvinces || isShopInactive}
                   onChange={(e) => {
                     const value = e.target.value ? Number(e.target.value) : undefined;
                     setFormData((prev) => ({
@@ -591,7 +840,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnDistrictId ? String(formData.ghnDistrictId) : ''}
                   label="District"
-                  disabled={!formData.ghnProvinceId || loadingDistricts}
+                  disabled={!formData.ghnProvinceId || loadingDistricts || isShopInactive}
                   onChange={(e) => {
                     const value = e.target.value ? Number(e.target.value) : undefined;
                     setFormData((prev) => ({
@@ -615,7 +864,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnWardCode || ''}
                   label="Ward"
-                  disabled={!formData.ghnDistrictId || loadingWards}
+                  disabled={!formData.ghnDistrictId || loadingWards || isShopInactive}
                   onChange={(e) => {
                     setFormData((prev) => ({
                       ...prev,
@@ -723,6 +972,161 @@ const ShopEditProfilePage = () => {
           </Grid>
         </Paper>
       </Box>
+
+      {/* Deactivate Confirmation Dialog */}
+      <Dialog
+        open={deactivateDialogOpen}
+        onClose={() => !togglingStatus && setDeactivateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Deactivate Shop</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+            Are you sure you want to deactivate your shop? This will prevent customers from viewing
+            and ordering from your shop.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Reason for deactivation"
+            placeholder="Please provide a reason..."
+            value={deactivateReason}
+            onChange={(e) => setDeactivateReason(e.target.value)}
+            disabled={togglingStatus}
+            required
+            sx={{ mb: 2.5 }}
+          />
+          <TextField
+            fullWidth
+            type="date"
+            label="End Date"
+            value={deactivateEndDate}
+            onChange={(e) => setDeactivateEndDate(e.target.value)}
+            disabled={togglingStatus}
+            required
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: new Date().toISOString().split('T')[0] }}
+            helperText="Select the date when the shop should be deactivated"
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, flexDirection: 'column', alignItems: 'stretch', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button onClick={() => setDeactivateDialogOpen(false)} disabled={togglingStatus}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleDeactivate}
+              disabled={togglingStatus || !deactivateReason.trim() || !deactivateEndDate}
+              startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}
+            >
+              {togglingStatus ? 'Submitting...' : 'Submit Deactivation'}
+            </Button>
+          </Box>
+          <Divider />
+          <Button
+            color="error"
+            onClick={() => {
+              setDeactivateDialogOpen(false);
+              setCloseShopDialogOpen(true);
+            }}
+            disabled={togglingStatus}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 13, alignSelf: 'flex-start' }}
+          >
+            Or close shop permanently...
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Close Shop Permanently Dialog */}
+      <Dialog
+        open={closeShopDialogOpen}
+        onClose={() => !togglingStatus && setCloseShopDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600, color: theme.palette.custom.status.error.main }}>
+          Close Shop
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            This action will permanently close your shop after 30 days. All products will be removed and customers will no longer be able to access your shop. This cannot be undone after the 30-day period.
+          </Alert>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Reason for closing"
+            placeholder="Please provide a reason for permanently closing your shop..."
+            value={closeShopReason}
+            onChange={(e) => setCloseShopReason(e.target.value)}
+            disabled={togglingStatus}
+            required
+            sx={{ mb: 2.5 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={closeShopConfirm}
+                onChange={(e) => setCloseShopConfirm(e.target.checked)}
+                disabled={togglingStatus}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+                I understand that my shop will be permanently closed after 30 days and this action cannot be reversed after that period.
+              </Typography>
+            }
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setCloseShopDialogOpen(false)} disabled={togglingStatus}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCloseShop}
+            disabled={togglingStatus || !closeShopReason.trim() || !closeShopConfirm}
+            startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}
+          >
+            {togglingStatus ? 'Submitting...' : 'Close Shop'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reactivate Confirmation Dialog */}
+      <Dialog
+        open={reactivateDialogOpen}
+        onClose={() => !togglingStatus && setReactivateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Reactivate Shop</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+            Are you sure you want to reactivate your shop? This will allow customers to view
+            and order from your shop again.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setReactivateDialogOpen(false)} disabled={togglingStatus}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleReactivate}
+            disabled={togglingStatus}
+            startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}
+          >
+            {togglingStatus ? 'Submitting...' : 'Reactivate Shop'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

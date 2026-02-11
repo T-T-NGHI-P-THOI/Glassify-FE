@@ -107,14 +107,18 @@ export const PlayPauseButton = ({ isPlaying, onClick }: PlayPauseButtonProps) =>
     <IconButton
       onClick={onClick}
       sx={{
-        width: '3.6rem',
-        height: '3.6rem',
-        border: '0.2rem solid #e5e7eb',
-        bgcolor: 'white',
+        width: '3rem',
+        height: '3rem',
+        border: 'none',
+        bgcolor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        pointerEvents: 'all',
+        transition: 'background-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease',
         '&:hover': {
-          bgcolor: '#3b82f6',
-          borderColor: '#3b82f6',
-          color: 'white',
+          bgcolor: '#fff',
+          transform: 'scale(1.1)',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
         },
       }}
     >

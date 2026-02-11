@@ -17,7 +17,7 @@ import {
   Help,
 } from '@mui/icons-material';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/hooks/useCart';
 
 export const Navbar = () => {
@@ -137,6 +137,8 @@ export const Navbar = () => {
             <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
               <IconButton
                 size="small"
+                component={Link}
+                to="/login"
                 sx={{
                   flexDirection: "column",
                   color: "#1f2937",

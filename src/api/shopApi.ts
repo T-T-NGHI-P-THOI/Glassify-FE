@@ -91,4 +91,41 @@ export const shopApi = {
     );
     return response.data;
   },
+
+  deactivateRequest: async (reason: string, endDate: string): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
+      `${SHOP_BASE_URL}/my-shop/deactivate-request`,
+      { reason, endDate },
+    );
+    return response.data;
+  },
+
+  cancelDeactivate: async (): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
+      `${SHOP_BASE_URL}/my-shop/deactivate/cancel`,
+    );
+    return response.data;
+  },
+
+  reactivateRequest: async (): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
+      `${SHOP_BASE_URL}/my-shop/reactivate-request`,
+    );
+    return response.data;
+  },
+
+  closeShop: async (reason: string, confirmUnderstand: boolean): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
+      `${SHOP_BASE_URL}/my-shop/close`,
+      { reason, confirmUnderstand },
+    );
+    return response.data;
+  },
+
+  cancelCloseShop: async (): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
+      `${SHOP_BASE_URL}/my-shop/close/cancel`,
+    );
+    return response.data;
+  },
 };

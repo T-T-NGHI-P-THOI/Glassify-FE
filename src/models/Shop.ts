@@ -17,7 +17,7 @@ export interface GhnWard {
 }
 
 // ==================== Shop Enums ====================
-export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
+export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'PENDING_DEACTIVATION' | 'CLOSING';
 export type ShopTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
 
 // ==================== Shop Detail Response ====================

@@ -72,7 +72,7 @@ const MainPage = () => {
       title: 'YEAR OF THE HORSE',
       subtitle: 'LUNAR NEW YEAR',
       description: 'Free Gift with purchase while supplies last',
-      image: 'https://picsum.photos/seed/collection1/600/400',
+      image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=1200&h=800&fit=crop',
       linkText: 'Shop collection',
     },
     {
@@ -80,7 +80,7 @@ const MainPage = () => {
       title: 'REDEFINING YOUR STYLE',
       subtitle: 'GLASSIFY x CHASE STOKES',
       description: 'NEW exclusive eyewear collection, where ease meets edge.',
-      image: 'https://picsum.photos/seed/collection2/600/400',
+      image: 'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=1200&h=800&fit=crop',
       linkText: 'Shop collection',
     },
     {
@@ -88,7 +88,7 @@ const MainPage = () => {
       title: 'THE BEST DAILY LENS',
       subtitle: 'EyeQLenz™',
       description: 'All-in-one lens shields your eyes from UV, blue light, and infrared.',
-      image: 'https://picsum.photos/seed/collection3/600/400',
+      image: 'https://images.unsplash.com/photo-1509695507497-903c140c43b0?w=1200&h=800&fit=crop',
       linkText: 'Learn more',
     },
   ];
@@ -97,28 +97,28 @@ const MainPage = () => {
   const features = [
     {
       id: 1,
-      image: 'https://picsum.photos/seed/feature1/500/300',
+      image: 'https://images.unsplash.com/photo-1577803645773-f96470509666?w=600&h=400&fit=crop',
       title: 'BLUE LIGHT DEFENSE',
       description: 'Filter blue light from sun to screen with Blokz®',
       linkText: 'Shop now',
     },
     {
       id: 2,
-      image: 'https://picsum.photos/seed/feature2/500/300',
+      image: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=600&h=400&fit=crop',
       title: '100% UV COVERAGE',
       description: 'Every lens. Every style. Complete UVA/UVB protection.',
       linkText: 'Shop now',
     },
     {
       id: 3,
-      image: 'https://picsum.photos/seed/feature3/500/300',
+      image: 'https://images.unsplash.com/photo-1508296695146-257a814070b4?w=600&h=400&fit=crop',
       title: 'ALL-IN-ONE PROTECTION',
       description: 'Infrared, UV, and blue light—EyeQLenz™ with Glassify ID Guard™ handles them all.',
       linkText: 'Shop now',
     },
     {
       id: 4,
-      image: 'https://picsum.photos/seed/feature4/500/300',
+      image: 'https://images.unsplash.com/photo-1591076482161-42ce6da69f67?w=600&h=400&fit=crop',
       title: 'NIGHT DRIVING CLARITY',
       description: 'Reduce glare for sharper vision at night.',
       linkText: 'Shop now',
@@ -133,7 +133,7 @@ const MainPage = () => {
   return (
     <Box sx={{ bgcolor: '#f9fafb' }}>
       {/* Hero Banner */}
-      <Box
+      {/* <Box
         sx={{
           bgcolor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)',
@@ -166,10 +166,10 @@ const MainPage = () => {
             Style & clarity made for you.
           </Typography>
         </Container>
-      </Box>
+      </Box> */}
 
       {/* Quick Categories */}
-      <Box sx={{ bgcolor: 'white', borderBottom: '1px solid #e5e7eb', py: 2 }}>
+      {/* <Box sx={{ bgcolor: 'white', borderBottom: '1px solid #e5e7eb', py: 2 }}>
         <Container maxWidth="lg">
           <Stack
             direction="row"
@@ -186,10 +186,10 @@ const MainPage = () => {
             >
           </Stack>
         </Container>
-      </Box>
+      </Box> */}
 
       {/* Featured Collections Carousel */}
-      <Box sx={{ bgcolor: 'white', py: 6 }}>
+      <Box sx={{ bgcolor: 'white', py: 2 }}>
         <Container maxWidth="lg">
           <EmblaCarousel slides={collections} options={OPTIONS}/>
         </Container>
@@ -267,52 +267,51 @@ const MainPage = () => {
       </Box>
 
       {/* Trust Badges */}
-      <Box sx={{ bgcolor: '#f9fafb', py: 6, borderTop: '1px solid #e5e7eb' }}>
+      <Box sx={{ bgcolor: '#f5f5f5', py: 7 }}>
         <Container maxWidth="lg">
           <Grid container spacing={4} justifyContent="center">
             <Grid item xs={6} md={3} sx={{ textAlign: 'center' }}>
-              <LocalShipping sx={{ fontSize: 48, color: '#3b82f6', mb: 1 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 88, height: 88, borderRadius: '50%', bgcolor: '#ececec', border: '1.5px solid #e0e0e0', mb: 2.5 }}>
+                <LocalShipping sx={{ fontSize: 38, color: '#2d2d2d' }} />
+              </Box>
+              <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.5, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.85rem' }}>
                 Free Shipping
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                Orders $89+
+              <Typography variant="body2" sx={{ color: '#888' }}>
+                You will love at great low prices
               </Typography>
             </Grid>
             <Grid item xs={6} md={3} sx={{ textAlign: 'center' }}>
-              <Favorite sx={{ fontSize: 48, color: '#ef4444', mb: 1 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 88, height: 88, borderRadius: '50%', bgcolor: '#ececec', border: '1.5px solid #e0e0e0', mb: 2.5 }}>
+                <Favorite sx={{ fontSize: 38, color: '#2d2d2d' }} />
+              </Box>
+              <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.5, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.85rem' }}>
                 150k+ Reviews
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: '#888' }}>
                 4.5 Rating
               </Typography>
             </Grid>
             <Grid item xs={6} md={3} sx={{ textAlign: 'center' }}>
-              <Box
-                sx={{
-                  fontSize: 48,
-                  mb: 1,
-                  display: 'flex',
-                  justifyContent: 'center',
-                }}
-              >
-                <Loop sx={{ fontSize: 48, color: '#f59e0b', mb: 1 }} />
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 88, height: 88, borderRadius: '50%', bgcolor: '#ececec', border: '1.5px solid #e0e0e0', mb: 2.5 }}>
+                <Loop sx={{ fontSize: 38, color: '#2d2d2d' }} />
               </Box>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                30-Day Returns
+              <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.5, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.85rem' }}>
+                Easy Return
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                Easy & Free
+              <Typography variant="body2" sx={{ color: '#888' }}>
+                Return Your Product Very Easily
               </Typography>
             </Grid>
             <Grid item xs={6} md={3} sx={{ textAlign: 'center' }}>
-              <Visibility sx={{ fontSize: 48, color: '#10b981', mb: 1 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                FSA/HSA Eligible
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 88, height: 88, borderRadius: '50%', bgcolor: '#ececec', border: '1.5px solid #e0e0e0', mb: 2.5 }}>
+                <Visibility sx={{ fontSize: 38, color: '#2d2d2d' }} />
+              </Box>
+              <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.5, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.85rem' }}>
+                Premium Quality
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                Vision Insurance
+              <Typography variant="body2" sx={{ color: '#888' }}>
+                Outstanding Product Quality
               </Typography>
             </Grid>
           </Grid>
