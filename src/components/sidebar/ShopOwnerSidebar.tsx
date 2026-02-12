@@ -28,6 +28,7 @@ interface ShopOwnerSidebarProps {
   shopLogo?: string;
   ownerName?: string;
   ownerEmail?: string;
+  ownerAvatar?: string;
 }
 
 export const ShopOwnerSidebar = ({
@@ -36,6 +37,7 @@ export const ShopOwnerSidebar = ({
   shopLogo,
   ownerName,
   ownerEmail,
+  ownerAvatar,
 }: ShopOwnerSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -200,6 +202,7 @@ export const ShopOwnerSidebar = ({
         }}
       >
         <Avatar
+          src={ownerAvatar}
           sx={{ width: 36, height: 36, bgcolor: theme.palette.custom.neutral[200] }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>

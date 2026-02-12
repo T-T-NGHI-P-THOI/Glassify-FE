@@ -59,6 +59,7 @@ const AdminShopApprovalPage = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [adminComment, setAdminComment] = useState('');
   const [approveComment, setApproveComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -160,7 +161,7 @@ const AdminShopApprovalPage = () => {
       const response = await adminApi.reviewShopRequest({
         requestId: registrationId,
         action: 'APPROVE',
-        comment: approveComment,
+        comment: approveComment || undefined,
       });
       if (response.data) {
         setRegistrations((prev) =>
@@ -180,6 +181,7 @@ const AdminShopApprovalPage = () => {
     setSelectedRegistration(registration);
     setRejectDialogOpen(true);
     setRejectionReason('');
+    setAdminComment('');
   };
 
   const handleReject = async () => {
@@ -189,7 +191,8 @@ const AdminShopApprovalPage = () => {
       const response = await adminApi.reviewShopRequest({
         requestId: selectedRegistration.id,
         action: 'REJECT',
-        comment: rejectionReason,
+        rejectionReason: rejectionReason,
+        comment: adminComment.trim() || undefined,
       });
       if (response.data) {
         setRegistrations((prev) =>
@@ -199,6 +202,7 @@ const AdminShopApprovalPage = () => {
       setRejectDialogOpen(false);
       setDetailDialogOpen(false);
       setRejectionReason('');
+      setAdminComment('');
     } catch (error) {
       console.error('Failed to reject shop request:', error);
     } finally {
@@ -377,6 +381,7 @@ const AdminShopApprovalPage = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Avatar
                               variant="rounded"
+                              src={registration.logoUrl}
                               sx={{ width: 44, height: 44, bgcolor: theme.palette.custom.neutral[100] }}
                             >
                               <Store />
@@ -489,6 +494,7 @@ const AdminShopApprovalPage = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Avatar
                   variant="rounded"
+                  src={selectedRegistration.logoUrl}
                   sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[100] }}
                 >
                   <Store />
@@ -836,11 +842,23 @@ const AdminShopApprovalPage = () => {
           <TextField
             fullWidth
             multiline
-            rows={4}
+            rows={3}
             label="Rejection Reason"
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
             placeholder="Enter the reason for rejection..."
+            required
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Admin Comment (Internal Note)"
+            value={adminComment}
+            onChange={(e) => setAdminComment(e.target.value)}
+            placeholder="Optional internal note for admin reference..."
+            helperText="This comment is for admin reference only"
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>

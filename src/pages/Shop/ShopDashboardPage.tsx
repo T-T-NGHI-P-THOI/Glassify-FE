@@ -183,9 +183,10 @@ const ShopDashboardPage = () => {
         <ShopOwnerSidebar
           activeMenu={PAGE_ENDPOINTS.SHOP.DASHBOARD}
           shopName={user?.shop?.shopName}
-          shopLogo={user?.shop?.shopLogo}
+          shopLogo={user?.shop?.logoUrl}
           ownerName={user?.fullName}
           ownerEmail={user?.email}
+          ownerAvatar={user?.avatarUrl}
         />
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <CircularProgress />
@@ -200,9 +201,10 @@ const ShopDashboardPage = () => {
         <ShopOwnerSidebar
           activeMenu={PAGE_ENDPOINTS.SHOP.DASHBOARD}
           shopName={user?.shop?.shopName}
-          shopLogo={user?.shop?.shopLogo}
+          shopLogo={user?.shop?.logoUrl}
           ownerName={user?.fullName}
           ownerEmail={user?.email}
+          ownerAvatar={user?.avatarUrl}
         />
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
           <Store sx={{ fontSize: 64, color: theme.palette.custom.neutral[300] }} />
@@ -253,6 +255,7 @@ const ShopDashboardPage = () => {
         shopLogo={shop.logoUrl}
         ownerName={shop.ownerName || user?.fullName}
         ownerEmail={shop.ownerEmail || user?.email}
+        ownerAvatar={user?.avatarUrl}
       />
 
       {/* Main Content */}

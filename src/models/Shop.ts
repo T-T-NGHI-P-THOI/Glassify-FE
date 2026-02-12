@@ -138,6 +138,7 @@ export interface ShopRequest {
   phone: string;
   address: string;
   city: string;
+  logoUrl: string;
   businessLicense: string;
   businessLicenseUrl: string;
   taxId: string;
@@ -160,5 +161,6 @@ export interface ShopRequestsResponse {
 export interface ReviewShopRequest {
   requestId: string;
   action: string;
-  comment: string;
+  comment?: string;
+  rejectionReason?: string;
 }
