@@ -13,6 +13,7 @@ import {
   Divider,
   CircularProgress,
   Rating,
+  Alert,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -31,8 +32,10 @@ import {
   LocalShipping,
   AccountBalance,
   TrendingUp,
+  Edit,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -44,6 +47,7 @@ import type { ShopDetailResponse, ShopStatus, ShopTier } from '@/models/Shop';
 const ShopDashboardPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { setShowNavbar, setShowFooter } = useLayout();
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -264,6 +268,55 @@ const ShopDashboardPage = () => {
             </Typography>
           </Box>
         </Box>
+
+        {/* Pending Review Banner - shop PENDING + request still PENDING */}
+        {shop.status === 'PENDING' && shop.latestRequestStatus !== 'REJECTED' && (
+          <Alert
+            severity="warning"
+            icon={<AccessTime />}
+            sx={{ mb: 3, borderRadius: 2 }}
+          >
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop registration is currently being reviewed by our admin team. You will receive a notification once your shop is approved.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Rejected Banner - shop PENDING + request REJECTED */}
+        {shop.status === 'PENDING' && shop.latestRequestStatus === 'REJECTED' && (
+          <Alert
+            severity="error"
+            sx={{ mb: 3, borderRadius: 2 }}
+            action={
+              <Button
+                color="error"
+                variant="outlined"
+                size="small"
+                startIcon={<Edit />}
+                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.EDIT_PROFILE)}
+                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                Edit & Resubmit
+              </Button>
+            }
+          >
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Registration Rejected</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop registration has been rejected. Please review the information below and update your shop details to resubmit.
+            </Typography>
+            {shop.rejectionReason && (
+              <Typography sx={{ fontSize: 14, mt: 1 }}>
+                <strong>Reason:</strong> {shop.rejectionReason}
+              </Typography>
+            )}
+            {shop.adminComment && (
+              <Typography sx={{ fontSize: 14, mt: 0.5 }}>
+                <strong>Admin comment:</strong> {shop.adminComment}
+              </Typography>
+            )}
+          </Alert>
+        )}
 
         {/* Stats Cards */}
         <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>

@@ -30,6 +30,8 @@ import {
   Info,
   CameraAlt,
   PowerSettingsNew,
+  Send,
+  AccessTime,
 } from '@mui/icons-material';
 import { useEffect, useRef, useState } from 'react';
 import { useLayout } from '../../layouts/LayoutContext';
@@ -38,7 +40,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
-import type { ShopDetailResponse, UpdateShopRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
+import type { ShopDetailResponse, UpdateShopRequest, ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { toast } from 'react-toastify';
 
 const SHOP_NAME_CHANGE_DAYS = 60;
@@ -60,6 +62,7 @@ const ShopEditProfilePage = () => {
   const [closeShopDialogOpen, setCloseShopDialogOpen] = useState(false);
   const [closeShopReason, setCloseShopReason] = useState('');
   const [closeShopConfirm, setCloseShopConfirm] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<UpdateShopRequest>({
@@ -173,7 +176,7 @@ const ShopEditProfilePage = () => {
           ghnWardCode: response.data.ghnWardCode || '',
         });
         // Detect pending deactivation from backend status
-        if (response.data.status == 'PENDING') {
+        if (response.data.status === 'PENDING_DEACTIVATION') {
           setPendingDeactivation(true);
         } else {
           setPendingDeactivation(false);
@@ -371,11 +374,52 @@ const ShopEditProfilePage = () => {
     }
   };
 
+  const handleResubmit = async () => {
+    try {
+      setResubmitting(true);
+
+      const selectedProvince = provinces.find((p) => p.ProvinceID === formData.ghnProvinceId);
+      const selectedDistrict = districts.find((d) => d.DistrictID === formData.ghnDistrictId);
+      const selectedWard = wards.find((w) => w.WardCode === formData.ghnWardCode);
+
+      const resubmitData: ShopRegisterRequest = {
+        shopName: formData.shopName || '',
+        email: formData.email || '',
+        phone: formData.phone || '',
+        address: formData.address || '',
+        city: formData.city || '',
+        businessLicense: formData.businessLicense || '',
+        businessLicenseUrl: '',
+        logoUrl: formData.logoUrl || '',
+        ghnProvinceId: formData.ghnProvinceId || 0,
+        ghnDistrictId: formData.ghnDistrictId || 0,
+        ghnWardCode: formData.ghnWardCode || '',
+        provinceName: selectedProvince?.ProvinceName || '',
+        districtName: selectedDistrict?.DistrictName || '',
+        wardName: selectedWard?.WardName || '',
+        taxId: formData.taxId || '',
+      };
+
+      await shopApi.resubmit(resubmitData);
+      toast.success('Shop registration resubmitted for review');
+      fetchShop();
+    } catch (error) {
+      console.error('Failed to resubmit shop registration:', error);
+      toast.error('Failed to resubmit shop registration');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
   const nameChangeable = canChangeShopName();
   const daysLeft = getDaysUntilNameChange();
   const isShopInactive = shop?.status === 'INACTIVE';
   const isShopClosing = shop?.status === 'CLOSING';
-  const isShopDisabled = isShopInactive || isShopClosing;
+  // Shop PENDING + request still pending review → disable editing
+  const isPendingReview = shop?.status === 'PENDING' && shop?.latestRequestStatus !== 'REJECTED';
+  // Shop PENDING + request rejected → allow editing + resubmit
+  const isRequestRejected = shop?.status === 'PENDING' && shop?.latestRequestStatus === 'REJECTED';
+  const isShopDisabled = isShopInactive || isShopClosing || isPendingReview;
 
   if (loading) {
     return (
@@ -440,10 +484,40 @@ const ShopEditProfilePage = () => {
           </Alert>
         )}
 
+        {/* Pending Review Alert - shop PENDING + request still pending */}
+        {isPendingReview && (
+          <Alert severity="warning" icon={<AccessTime />} sx={{ mb: 3, borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop registration is currently being reviewed. All fields are disabled until the review is complete.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Request Rejected Alert - shop PENDING + request REJECTED */}
+        {isRequestRejected && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Registration Rejected</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop registration has been rejected. Please update your information and resubmit.
+            </Typography>
+            {shop.rejectionReason && (
+              <Typography sx={{ fontSize: 14, mt: 1 }}>
+                <strong>Reason:</strong> {shop.rejectionReason}
+              </Typography>
+            )}
+            {shop.adminComment && (
+              <Typography sx={{ fontSize: 14, mt: 0.5 }}>
+                <strong>Admin comment:</strong> {shop.adminComment}
+              </Typography>
+            )}
+          </Alert>
+        )}
+
         {/* Header */}
         <Box sx={{ mb: 4 }}>
           {/* Pending deactivation notice */}
-          {(shop.status === 'PENDING' || pendingDeactivation) && (
+          {(shop.status === 'PENDING_DEACTIVATION' || pendingDeactivation) && (
             <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.warning.main, fontWeight: 500, mb: 1.5 }}>
               Your shop has a pending deactivation request. You can cancel it before it takes effect.
             </Typography>
@@ -478,7 +552,7 @@ const ShopEditProfilePage = () => {
                   Deactivate Shop
                 </Button>
               )}
-              {(shop.status === 'PENDING' || pendingDeactivation) && (
+              {(shop.status === 'PENDING_DEACTIVATION' || pendingDeactivation) && (
                 <Button
                   variant="outlined"
                   startIcon={togglingStatus ? <CircularProgress size={16} /> : <PowerSettingsNew />}
@@ -538,15 +612,29 @@ const ShopEditProfilePage = () => {
                   Reactivate Shop
                 </Button>
               )}
-              <Button
-                variant="contained"
-                startIcon={saving ? <CircularProgress size={16} /> : <Save />}
-                onClick={handleSave}
-                disabled={saving || isShopDisabled}
-                sx={{ height: 40, px: 3 }}
-              >
-                Save Changes
-              </Button>
+              {isRequestRejected && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={resubmitting ? <CircularProgress size={16} /> : <Send />}
+                  onClick={handleResubmit}
+                  disabled={resubmitting || saving}
+                  sx={{ height: 40, px: 3 }}
+                >
+                  {resubmitting ? 'Resubmitting...' : 'Resubmit for Review'}
+                </Button>
+              )}
+              {!isPendingReview && (
+                <Button
+                  variant={isRequestRejected ? 'outlined' : 'contained'}
+                  startIcon={saving ? <CircularProgress size={16} /> : <Save />}
+                  onClick={handleSave}
+                  disabled={saving || isShopDisabled || resubmitting}
+                  sx={{ height: 40, px: 3 }}
+                >
+                  Save Changes
+                </Button>
+              )}
             </Box>
           </Box>
         </Box>
@@ -635,7 +723,7 @@ const ShopEditProfilePage = () => {
             Shop Name
           </Typography>
 
-          {!nameChangeable && (
+          {!nameChangeable && !isRequestRejected && (
             <Alert
               severity="warning"
               icon={<Lock fontSize="small" />}
@@ -647,7 +735,7 @@ const ShopEditProfilePage = () => {
           )}
 
           <Tooltip
-            title={!nameChangeable ? `Available in ${daysLeft} days` : ''}
+            title={!nameChangeable && !isRequestRejected ? `Available in ${daysLeft} days` : ''}
             placement="top"
           >
             <TextField
@@ -655,9 +743,9 @@ const ShopEditProfilePage = () => {
               fullWidth
               value={formData.shopName}
               onChange={handleChange('shopName')}
-              disabled={!nameChangeable || isShopDisabled}
+              disabled={(!nameChangeable && !isRequestRejected) || isShopDisabled}
               InputProps={{
-                endAdornment: !nameChangeable || isShopInactive ? (
+                endAdornment: (!nameChangeable && !isRequestRejected) || isShopInactive ? (
                   <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
                 ) : undefined,
               }}
@@ -754,11 +842,12 @@ const ShopEditProfilePage = () => {
                 label="Business License"
                 fullWidth
                 value={formData.businessLicense}
-                disabled
+                onChange={handleChange('businessLicense')}
+                disabled={!isRequestRejected}
                 InputProps={{
-                  endAdornment: (
+                  endAdornment: !isRequestRejected ? (
                     <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
-                  ),
+                  ) : undefined,
                 }}
               />
             </Grid>
@@ -767,11 +856,12 @@ const ShopEditProfilePage = () => {
                 label="Tax ID"
                 fullWidth
                 value={formData.taxId}
-                disabled
+                onChange={handleChange('taxId')}
+                disabled={!isRequestRejected}
                 InputProps={{
-                  endAdornment: (
+                  endAdornment: !isRequestRejected ? (
                     <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
-                  ),
+                  ) : undefined,
                 }}
               />
             </Grid>
@@ -815,7 +905,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnProvinceId ? String(formData.ghnProvinceId) : ''}
                   label="Province"
-                  disabled={loadingProvinces || isShopInactive}
+                  disabled={loadingProvinces || isShopInactive || isPendingReview}
                   onChange={(e) => {
                     const value = e.target.value ? Number(e.target.value) : undefined;
                     setFormData((prev) => ({
@@ -840,7 +930,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnDistrictId ? String(formData.ghnDistrictId) : ''}
                   label="District"
-                  disabled={!formData.ghnProvinceId || loadingDistricts || isShopInactive}
+                  disabled={!formData.ghnProvinceId || loadingDistricts || isShopInactive || isPendingReview}
                   onChange={(e) => {
                     const value = e.target.value ? Number(e.target.value) : undefined;
                     setFormData((prev) => ({
@@ -864,7 +954,7 @@ const ShopEditProfilePage = () => {
                 <Select
                   value={formData.ghnWardCode || ''}
                   label="Ward"
-                  disabled={!formData.ghnDistrictId || loadingWards || isShopInactive}
+                  disabled={!formData.ghnDistrictId || loadingWards || isShopInactive || isPendingReview}
                   onChange={(e) => {
                     setFormData((prev) => ({
                       ...prev,
@@ -1011,9 +1101,14 @@ const ShopEditProfilePage = () => {
             helperText="Select the date when the shop should be deactivated"
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2, flexDirection: 'column', alignItems: 'stretch', gap: 1.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button onClick={() => setDeactivateDialogOpen(false)} disabled={togglingStatus}>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 0, flexDirection: 'column', alignItems: 'stretch', gap: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button
+              variant="outlined"
+              onClick={() => setDeactivateDialogOpen(false)}
+              disabled={togglingStatus}
+              sx={{ borderColor: theme.palette.custom.neutral[300], color: theme.palette.custom.neutral[700] }}
+            >
               Cancel
             </Button>
             <Button
@@ -1026,15 +1121,16 @@ const ShopEditProfilePage = () => {
               {togglingStatus ? 'Submitting...' : 'Submit Deactivation'}
             </Button>
           </Box>
-          <Divider />
+          <Divider sx={{ my: 0.5 }} />
           <Button
             color="error"
+            variant="text"
             onClick={() => {
               setDeactivateDialogOpen(false);
               setCloseShopDialogOpen(true);
             }}
             disabled={togglingStatus}
-            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 13, alignSelf: 'flex-start' }}
+            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 13, alignSelf: 'center' }}
           >
             Or close shop permanently...
           </Button>

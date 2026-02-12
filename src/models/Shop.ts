@@ -56,6 +56,11 @@ export interface ShopDetailResponse {
   ownerId: string;
   ownerName: string;
   ownerEmail: string;
+
+  // Latest registration request info (for PENDING shops)
+  latestRequestStatus?: string;
+  rejectionReason?: string;
+  adminComment?: string;
 }
 
 // ==================== Shop Types ====================
@@ -119,4 +124,41 @@ export interface CreateBankAccountRequest {
   accountNumber: string;
   accountHolder: string;
   isDefault?: boolean;
+}
+
+// ==================== Admin Shop Request Types ====================
+export interface ShopRequest {
+  id: string;
+  shopId: string;
+  shopCode: string;
+  status: string;
+  version: number;
+  shopName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  businessLicense: string;
+  businessLicenseUrl: string;
+  taxId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  reviewedByName: string;
+  reviewedAt: string;
+  adminComment: string;
+  rejectionReason: string;
+  submittedAt: string;
+  updatedAt: string;
+}
+
+export interface ShopRequestsResponse {
+  requests: ShopRequest[];
+  total: number;
+}
+
+export interface ReviewShopRequest {
+  requestId: string;
+  action: string;
+  comment: string;
 }

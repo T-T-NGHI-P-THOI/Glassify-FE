@@ -9,6 +9,7 @@ import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
 import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
+import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -85,6 +86,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopBankAccountPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminShopApprovalPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
