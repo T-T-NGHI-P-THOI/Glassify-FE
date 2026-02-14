@@ -181,9 +181,10 @@ const ShopBankAccountPage = () => {
       <ShopOwnerSidebar
         activeMenu={PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS}
         shopName={user?.shop?.shopName}
-        shopLogo={user?.shop?.shopLogo}
+        shopLogo={user?.shop?.logoUrl}
         ownerName={user?.fullName}
         ownerEmail={user?.email}
+        ownerAvatar={user?.avatarUrl}
       />
 
       <Box sx={{ flex: 1, p: 4 }}>

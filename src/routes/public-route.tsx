@@ -10,7 +10,7 @@ import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage";
 import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
-import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
+
 import MyOrdersPage from "@/pages/Order/MyOrdersPage";
 import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
@@ -87,15 +87,6 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <ShopProfilePage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}
-                element={
-                    <GuestGuard>
-                        <AdminShopApprovalPage />
                     </GuestGuard>
                 }
             />

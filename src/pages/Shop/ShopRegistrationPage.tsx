@@ -285,7 +285,7 @@ const ShopRegistrationPage = () => {
 
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
-    navigate(PAGE_ENDPOINTS.DASHBOARD);
+    navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD);
   };
 
   const formatFileSize = (bytes: number) => {
