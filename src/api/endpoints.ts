@@ -74,7 +74,7 @@ export const API_ENDPOINTS = {
 export const PAGE_ENDPOINTS = {
   HOME: '/home',
   PERMISSION_DENIED_ENDPOINT: '/denied',
-  DASHBOARD: 'admin/dashboard',
+  DASHBOARD: '/admin/dashboard',
 
   AUTH: {
     LOGIN: `/login`,
