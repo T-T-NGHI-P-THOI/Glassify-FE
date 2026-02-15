@@ -11,6 +11,13 @@ export default class CartAPI {
         return response.data.data!;
     }
 
+    static async getMyCart(): Promise<BeCartResponse> {
+        const response = await axiosInstance.get<ApiResponse<BeCartResponse>>(
+            API_ENDPOINTS.CART.GET_MY_CART
+        );
+        return response.data.data!;
+    }
+
     static async getActiveCart(userId?: string, sessionId?: string): Promise<BeCartResponse> {
         const params: Record<string, string> = {};
         if (userId) params.userId = userId;
@@ -42,10 +49,9 @@ export default class CartAPI {
         return response.data.data!;
     }
 
-    static async deleteCart(cartId: string): Promise<BeCartResponse> {
-        const response = await axiosInstance.delete<ApiResponse<BeCartResponse>>(
+    static async deleteCart(cartId: string): Promise<void> {
+        await axiosInstance.delete<ApiResponse<void>>(
             API_ENDPOINTS.CART.DELETE(cartId)
         );
-        return response.data.data!;
     }
 }

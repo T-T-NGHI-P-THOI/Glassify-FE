@@ -251,6 +251,7 @@ const ProductDetailPage: React.FC = () => {
         imageUrl: product.images?.[0],
         unitPrice: product.price,
         itemType: 'FRAME' as const,
+        shopId: product.shopId,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)
@@ -264,6 +265,7 @@ const ProductDetailPage: React.FC = () => {
         unitPrice: lensOnlyPrice,
         itemType: 'LENS' as const,
         lensSelection: selection,
+        shopId: product.shopId,
       };
 
       await addFrameWithLens(frameParams, lensParams);

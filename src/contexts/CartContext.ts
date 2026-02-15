@@ -17,6 +17,7 @@ export interface AddToCartParams {
     parentItemId?: string;
     isFree?: boolean;
     giftNote?: string;
+    shopId?: string;
     lensSelection?: LensSelection;
 }
 
@@ -28,7 +29,25 @@ export interface CartContextType {
     isAnimating: boolean;
     loadCart: () => Promise<void>;
     addItem: (params: AddToCartParams) => Promise<string>;
-    addFrameWithLens: (frameParams: AddToCartParams, lensParams: AddToCartParams) => Promise<void>;
+    addFrameWithLens: (frameParams: {
+        productName: string;
+        productSlug: string;
+        productId: string;
+        productType: "FRAME" | "LENS" | "ACCESSORIES";
+        sku: string;
+        imageUrl: string | undefined;
+        unitPrice: number;
+        itemType: string;
+        shopId: string | undefined;
+    }, lensParams: {
+        productName: string;
+        productSlug: string;
+        productType: string;
+        unitPrice: number;
+        itemType: string;
+        lensSelection: LensSelection;
+        shopId: string | undefined
+    }) => Promise<void>;
     updateItemQuantity: (itemId: string, quantity: number) => Promise<void>;
     removeItem: (itemId: string) => Promise<void>;
     applyCoupon: (code: string) => Promise<{ success: boolean; message: string }>;
