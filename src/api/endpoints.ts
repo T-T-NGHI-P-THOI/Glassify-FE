@@ -59,13 +59,22 @@ export const API_ENDPOINTS = {
     REMOVE_ITEM: (cartId: string, itemId: string) => `${API_ENDPOINT}/cart/${cartId}/items/${itemId}`,
     DELETE: (cartId: string) => `${API_ENDPOINT}/cart/${cartId}`,
   },
+  SHOPS: {
+    RESUBMIT: `${API_ENDPOINT}/shops/resubmit`,
+  },
+  ADMIN: {
+    SHOPS: {
+      REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
+      REVIEW: `${API_ENDPOINT}/admin/shops/review`,
+    },
+  },
 } as const;
 
 
 export const PAGE_ENDPOINTS = {
   HOME: '/home',
   PERMISSION_DENIED_ENDPOINT: '/denied',
-  DASHBOARD: '/dashboard',
+  DASHBOARD: '/admin/dashboard',
 
   AUTH: {
     LOGIN: `/login`,

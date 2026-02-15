@@ -8,6 +8,7 @@ import type {
 } from '@/models/Shop';
 import type { ApiResponse } from '@/models/ApiResponse';
 import axiosInstance from '@/api/axios.config';
+import { API_ENDPOINTS } from '@/api/endpoints';
 
 const SHOP_BASE_URL = '/api/v1/shops';
 
@@ -125,6 +126,14 @@ export const shopApi = {
   cancelCloseShop: async (): Promise<ApiResponse<ShopDetailResponse>> => {
     const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
       `${SHOP_BASE_URL}/my-shop/close/cancel`,
+    );
+    return response.data;
+  },
+
+  resubmit: async (data: ShopRegisterRequest): Promise<ApiResponse<ShopRegisterResponse>> => {
+    const response = await axiosInstance.put<ApiResponse<ShopRegisterResponse>>(
+      API_ENDPOINTS.SHOPS.RESUBMIT,
+      data,
     );
     return response.data;
   },

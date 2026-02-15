@@ -45,7 +45,7 @@ export interface UserAuthProvider {
 export interface ShopReference {
     id: number;
     shopName: string;
-    shopLogo?: string;
+    logoUrl?: string;
 }
 
 /**

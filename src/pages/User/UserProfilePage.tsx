@@ -995,7 +995,7 @@ const UserProfilePage = () => {
                                         >
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                                 <Avatar
-                                                    src={user.shop.shopLogo || undefined}
+                                                    src={user.shop.logoUrl || undefined}
                                                     variant="rounded"
                                                     sx={{
                                                         width: 56,
