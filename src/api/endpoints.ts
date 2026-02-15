@@ -61,11 +61,17 @@ export const API_ENDPOINTS = {
   },
   SHOPS: {
     RESUBMIT: `${API_ENDPOINT}/shops/resubmit`,
+    LIST: `${API_ENDPOINT}/shops`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/shops/${id}`,
   },
   ADMIN: {
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
+      DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/deactivate`,
+      REACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/reactivate`,
+      CLOSE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/close`,
+      CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/close/cancel`,
     },
   },
 } as const;

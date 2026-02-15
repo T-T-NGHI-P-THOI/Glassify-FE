@@ -158,6 +158,30 @@ export interface ShopRequestsResponse {
   total: number;
 }
 
+// ==================== Admin Shop List Types ====================
+export interface AdminShopItem {
+  id: string;
+  shopCode: string;
+  shopName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  logoUrl: string | null;
+  status: ShopStatus;
+  isVerified: boolean;
+  tier: ShopTier;
+  commissionRate: number;
+  totalOrders: number | null;
+  totalProducts: number | null;
+  avgRating: number | null;
+  joinedAt: string | null;
+  createdAt: string;
+  ownerId: string | null;
+  ownerName: string | null;
+  ownerEmail: string | null;
+}
+
 export interface ReviewShopRequest {
   requestId: string;
   action: string;
