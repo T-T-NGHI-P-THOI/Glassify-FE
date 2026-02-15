@@ -7,10 +7,10 @@ import {
   ViewList,
   Sort 
 } from '@mui/icons-material';
-import FilterSidebar from '../components/ProductBrowse/FilterSidebar';
-import ProductGrid from '../components/ProductBrowse/ProductGrid';
-import type { FilterOptions, ActiveFilters, BrowseProduct } from '../types/filter';
-import ProductAPI, { type ProductFilterParams } from '../api/product-api';
+import FilterSidebar from '../../components/ProductBrowse/FilterSidebar';
+import ProductGrid from '../../components/ProductBrowse/ProductGrid';
+import type { FilterOptions, ActiveFilters, BrowseProduct } from '../../types/filter';
+import ProductAPI, { type ProductFilterParams } from '../../api/product-api';
 import './ProductBrowsePage.css';
 
 const ProductBrowsePage: React.FC = () => {

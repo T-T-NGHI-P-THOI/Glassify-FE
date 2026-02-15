@@ -1,8 +1,8 @@
 import { Route, Routes } from "react-router-dom"
 import PublicRoutesComponent from "./public-route"
 import PrivateRoutesComponent from "./private-route"
-import ProductDetailPage from '../pages/ProductDetailPage';
-import ProductBrowsePage from '../pages/ProductBrowsePage';
+import ProductDetailPage from '../pages/Product/ProductDetailPage';
+import ProductBrowsePage from '../pages/Product/ProductBrowsePage';
 import ShoppingCart from '../pages/cart/Cart';
 
 const RouteComponent = () => {

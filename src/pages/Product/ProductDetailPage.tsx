@@ -2,16 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
 import { Snackbar, Alert } from '@mui/material';
-import ImageGallery from '../components/ProductDetailPage/ImageGallery';
-import ProductInfo from '../components/ProductDetailPage/ProductInfo';
-import ProductDetails from '../components/ProductDetailPage/ProductDetails';
-import RecommendedProducts from '../components/ProductDetailPage/RecommendedProducts';
-import { LensSelectionDialog } from '../components/LensSelection/LensSelectionDialog';
-import type { Product, RecommendedProduct } from '../types/product';
-import type { LensSelection } from '../models/Lens';
-import ProductAPI, { type ReviewResponse } from '../api/product-api';
+import ImageGallery from '../../components/ProductDetailPage/ImageGallery';
+import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
+import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
+import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
+import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
+import type { Product, RecommendedProduct } from '../../types/product';
+import type { LensSelection } from '../../models/Lens';
+import ProductAPI, { type ReviewResponse } from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { useCart } from '../hooks/useCart';
+import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
