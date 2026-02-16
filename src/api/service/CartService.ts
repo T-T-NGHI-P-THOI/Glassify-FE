@@ -1,6 +1,6 @@
 import CartAPI from '@/api/cart-api';
 import { TokenManager } from '@/api/axios.config';
-import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartResponse, ItemType } from './Type';
+import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartItemRequest, BeCartResponse, ItemType } from './Type';
 import type { LensSelection } from '@/models/Lens';
 
 // ==================== Display Metadata Cache ====================
@@ -270,6 +270,11 @@ export interface AddToCartMockParams {
     isFree?: boolean;
     giftNote?: string;
     shopId?: string;
+    variantId?: string;
+    lensId?: string;
+    lensTintId?: string;
+    lensFeatureIds?: string[];
+    prescriptionId?: string;
     lensSelection?: LensSelection;
 }
 
@@ -296,10 +301,15 @@ export const CartService = {
     async addItem(params: AddToCartMockParams): Promise<{ cartResponse: CartResponse; createdItemId: string }> {
         const cartId = await ensureCart();
 
-        const beRequest = {
+        const beRequest: BeCartItemRequest = {
             parentItemId: params.parentItemId,
             shopId: params.shopId || '',
-            productId: params.productId,
+            productId: params.itemType !== 'LENS' ? params.productId : undefined,
+            variantId: params.variantId,
+            lensId: params.lensId,
+            lensTintId: params.lensTintId,
+            lensFeatureIds: params.lensFeatureIds,
+            prescriptionId: params.prescriptionId,
             quantity: 1,
             unitPrice: params.unitPrice,
             lineTotal: params.unitPrice,

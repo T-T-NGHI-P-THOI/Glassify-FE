@@ -152,4 +152,12 @@ export const PAGE_ENDPOINTS = {
     MAIN: `/cart`,
   },
 
+  CHECKOUT: {
+    MAIN: `/checkout`,
+  },
+
+  PAYMENT: {
+    RESULT: `/payment/result`,
+  },
+
 } as const;
