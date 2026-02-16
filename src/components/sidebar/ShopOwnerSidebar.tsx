@@ -13,6 +13,7 @@ import {
   Inventory,
   ShoppingCart,
   AccountBalance,
+  AccountBalanceWallet,
   StorefrontOutlined,
   Settings,
   HelpCenter,
@@ -49,6 +50,7 @@ export const ShopOwnerSidebar = ({
     { icon: <Inventory />, label: 'Products', path: '/shop/products' },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
+    { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
   ];
 
   const isActive = (path: string) => {

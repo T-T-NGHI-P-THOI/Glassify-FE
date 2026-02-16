@@ -42,11 +42,18 @@ import {
   Image as ImageIcon,
   AttachMoney,
 } from '@mui/icons-material';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { warrantyApi } from '@/api/warranty-api';
+import { toast } from 'react-toastify';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // ==================== ENUMS (matching backend) ====================
-type WarrantyStatus = 'SUBMITTED' | 'APPROVED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'COMPLETED';
 type WarrantyIssueType =
+  | 'BROKEN_FRAME'
+  | 'BROKEN_LENS'
+  | 'LOOSE_HINGE'
+  | 'COATING_DAMAGE'
   | 'LENS_SCRATCHED'
   | 'LENS_COATING_PEELING'
   | 'FRAME_BROKEN'
@@ -57,27 +64,14 @@ type WarrantyIssueType =
   | 'OTHER';
 
 // ==================== INTERFACES (matching backend models) ====================
-interface WarrantyPolicy {
-  id: string;
-  shopName?: string;
-  name: string;
-  durationMonths: number;
-  coverageDescription: string;
-  excludedIssues: string[];
-  maxClaims?: number;
-  isDefault: boolean;
-  isActive: boolean;
-}
-
 interface WarrantyClaim {
   id: string;
   claimNumber: string;
   orderItemId: string;
-  shopOrderId: string;
-  shopId: string;
-  shopName: string;
   productName: string;
   productImageUrl?: string;
+  shopId: string;
+  shopName: string;
   issueType: WarrantyIssueType;
   issueDescription: string;
   issueImages: string[];
@@ -95,142 +89,7 @@ interface WarrantyClaim {
   warrantyExpiresAt?: string;
 }
 
-// ==================== MOCK DATA ====================
-const mockWarrantyPolicies: WarrantyPolicy[] = [
-  {
-    id: 'wp-001',
-    name: 'Standard Warranty',
-    durationMonths: 12,
-    coverageDescription: 'Covers manufacturing defects including frame breakage, hinge issues, and lens coating defects for 12 months from purchase date.',
-    excludedIssues: [
-      'Damage caused by accidents, misuse, or negligence',
-      'Normal wear and tear (scratches from daily use)',
-      'Unauthorized repairs or modifications',
-      'Color fading due to prolonged sun/chemical exposure',
-      'Lost or stolen products',
-      'Products purchased from unauthorized retailers',
-    ],
-    maxClaims: 3,
-    isDefault: true,
-    isActive: true,
-  },
-  {
-    id: 'wp-002',
-    name: 'Premium Warranty',
-    durationMonths: 24,
-    coverageDescription: 'Extended 24-month coverage including accidental damage protection, free repairs, and priority service for qualifying products.',
-    excludedIssues: [
-      'Intentional damage',
-      'Lost or stolen products',
-      'Products purchased from unauthorized retailers',
-    ],
-    maxClaims: 5,
-    isDefault: false,
-    isActive: true,
-  },
-];
-
-const mockWarrantyClaims: WarrantyClaim[] = [
-  {
-    id: 'wc-uuid-001',
-    claimNumber: 'WC-2024-001',
-    orderItemId: 'item-006',
-    shopOrderId: 'so-001',
-    shopId: 'shop-001',
-    shopName: 'Optical Vision Store',
-    productName: 'Tom Ford FT0237 Snowdon',
-    productImageUrl: 'https://picsum.photos/seed/tomford/80/80',
-    issueType: 'LENS_SCRATCHED',
-    issueDescription: 'Left lens has a deep scratch affecting visibility. Product was purchased 2 months ago and used with care.',
-    issueImages: ['https://picsum.photos/seed/scratch1/200/200', 'https://picsum.photos/seed/scratch2/200/200'],
-    status: 'SUBMITTED',
-    submittedAt: '2024-01-25T10:00:00Z',
-    warrantyExpiresAt: '2026-01-20',
-  },
-  {
-    id: 'wc-uuid-002',
-    claimNumber: 'WC-2024-002',
-    orderItemId: 'item-004',
-    shopOrderId: 'so-002',
-    shopId: 'shop-002',
-    shopName: 'Lens World',
-    productName: 'Gucci GG0061S',
-    productImageUrl: 'https://picsum.photos/seed/gucci/80/80',
-    issueType: 'FRAME_BROKEN',
-    issueDescription: 'Right temple arm broke near the hinge. Normal usage, no impact damage.',
-    issueImages: ['https://picsum.photos/seed/broken1/200/200'],
-    resolutionType: 'REPAIR',
-    repairCost: 350000,
-    customerPays: 0,
-    returnTrackingNumber: 'GHN-RET-001',
-    status: 'APPROVED',
-    submittedAt: '2024-01-20T14:30:00Z',
-    approvedAt: '2024-01-22T09:00:00Z',
-    warrantyExpiresAt: '2026-01-22',
-  },
-  {
-    id: 'wc-uuid-003',
-    claimNumber: 'WC-2024-003',
-    orderItemId: 'item-011',
-    shopOrderId: 'so-003',
-    shopId: 'shop-003',
-    shopName: 'EyeWear Plus',
-    productName: 'Prada PR 17WS',
-    productImageUrl: 'https://picsum.photos/seed/prada/80/80',
-    issueType: 'NOSE_PAD_REPLACEMENT',
-    issueDescription: 'Nose pads have worn out and need replacement. Causing discomfort when wearing.',
-    issueImages: ['https://picsum.photos/seed/nosepad1/200/200', 'https://picsum.photos/seed/nosepad2/200/200'],
-    resolutionType: 'REPAIR',
-    repairCost: 150000,
-    customerPays: 50000,
-    returnTrackingNumber: 'GHN-RET-002',
-    status: 'IN_PROGRESS',
-    submittedAt: '2024-01-15T08:00:00Z',
-    approvedAt: '2024-01-17T10:00:00Z',
-    warrantyExpiresAt: '2026-01-18',
-  },
-  {
-    id: 'wc-uuid-004',
-    claimNumber: 'WC-2024-004',
-    orderItemId: 'item-003',
-    shopOrderId: 'so-004',
-    shopId: 'shop-003',
-    shopName: 'EyeWear Plus',
-    productName: 'Oakley Holbrook OO9102',
-    productImageUrl: 'https://picsum.photos/seed/oakley/80/80',
-    issueType: 'LENS_COATING_PEELING',
-    issueDescription: 'Anti-reflective coating on both lenses is peeling off after 3 months of use.',
-    issueImages: ['https://picsum.photos/seed/coating1/200/200'],
-    resolutionType: 'REPLACE',
-    repairCost: 500000,
-    customerPays: 0,
-    returnTrackingNumber: 'GHN-RET-003',
-    replacementTrackingNumber: 'GHN-REP-003',
-    status: 'COMPLETED',
-    submittedAt: '2024-01-05T11:00:00Z',
-    approvedAt: '2024-01-07T09:00:00Z',
-    completedAt: '2024-01-18T16:00:00Z',
-    warrantyExpiresAt: '2025-01-24',
-  },
-  {
-    id: 'wc-uuid-005',
-    claimNumber: 'WC-2024-005',
-    orderItemId: 'item-008',
-    shopOrderId: 'so-005',
-    shopId: 'shop-004',
-    shopName: 'Sun Shades Co.',
-    productName: 'Versace VE4361',
-    productImageUrl: 'https://picsum.photos/seed/versace/80/80',
-    issueType: 'COLOR_FADING',
-    issueDescription: 'Frame color is fading unevenly after regular use.',
-    issueImages: ['https://picsum.photos/seed/fading1/200/200', 'https://picsum.photos/seed/fading2/200/200', 'https://picsum.photos/seed/fading3/200/200'],
-    status: 'REJECTED',
-    submittedAt: '2024-01-10T09:30:00Z',
-    rejectedAt: '2024-01-12T11:00:00Z',
-    rejectionReason: 'Color fading due to prolonged sun exposure is not covered under warranty. Please refer to our warranty policy for details.',
-    warrantyExpiresAt: '2024-01-21',
-  },
-];
+// Mock data removed - using real API
 
 // ==================== WARRANTY POLICY DISPLAY DATA ====================
 const policyFeatures = [
@@ -294,6 +153,10 @@ const maintenanceProcess = [
 // ==================== HELPERS ====================
 const getIssueTypeLabel = (type: WarrantyIssueType) => {
   switch (type) {
+    case 'BROKEN_FRAME': return 'Broken Frame';
+    case 'BROKEN_LENS': return 'Broken Lens';
+    case 'LOOSE_HINGE': return 'Loose Hinge';
+    case 'COATING_DAMAGE': return 'Coating Damage';
     case 'LENS_SCRATCHED': return 'Lens Scratched';
     case 'LENS_COATING_PEELING': return 'Lens Coating Peeling';
     case 'FRAME_BROKEN': return 'Frame Broken';
@@ -319,7 +182,9 @@ const getResolutionTypeLabel = (type?: string) => {
 const WarrantyPage = () => {
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
-  const [claims] = useState<WarrantyClaim[]>(mockWarrantyClaims);
+  const [claims, setClaims] = useState<WarrantyClaim[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<WarrantyClaim | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
@@ -331,13 +196,57 @@ const WarrantyPage = () => {
     issueDescription: '',
   });
 
+  const fetchClaims = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await warrantyApi.getMyClaims();
+      if (response.data) {
+        setClaims(response.data as WarrantyClaim[]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch warranty claims:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClaims();
+  }, [fetchClaims]);
+
+  const handleSubmitClaim = async () => {
+    if (!formData.orderId || !formData.issueType || !formData.issueDescription) return;
+    try {
+      setSubmitting(true);
+      await warrantyApi.submitClaim({
+        orderItemId: formData.orderId,
+        issueType: formData.issueType,
+        issueDescription: formData.issueDescription,
+      });
+      toast.success('Warranty claim submitted successfully');
+      setRegisterDialogOpen(false);
+      setFormData({ orderId: '', issueType: '', issueDescription: '' });
+      uploadedImages.forEach((img) => URL.revokeObjectURL(img.preview));
+      setUploadedImages([]);
+      await fetchClaims();
+    } catch (error) {
+      console.error('Failed to submit warranty claim:', error);
+      toast.error('Failed to submit warranty claim');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getStatusColor = (status: WarrantyStatus) => {
     switch (status) {
       case 'SUBMITTED':
         return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
+      case 'UNDER_REVIEW':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'APPROVED':
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'IN_PROGRESS':
+      case 'IN_REPAIR':
         return { bg: theme.palette.custom.status.purple.light, color: theme.palette.custom.status.purple.main };
       case 'COMPLETED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
@@ -351,8 +260,10 @@ const WarrantyPage = () => {
   const getStatusLabel = (status: WarrantyStatus) => {
     switch (status) {
       case 'SUBMITTED': return 'Submitted';
+      case 'UNDER_REVIEW': return 'Under Review';
       case 'APPROVED': return 'Approved';
       case 'IN_PROGRESS': return 'In Progress';
+      case 'IN_REPAIR': return 'In Repair';
       case 'COMPLETED': return 'Completed';
       case 'REJECTED': return 'Rejected';
       default: return status;
@@ -391,20 +302,27 @@ const WarrantyPage = () => {
 
   const filteredClaims = claims.filter((claim) => {
     if (activeTab === 0) return true;
-    if (activeTab === 1) return claim.status === 'SUBMITTED';
-    if (activeTab === 2) return claim.status === 'APPROVED' || claim.status === 'IN_PROGRESS';
+    if (activeTab === 1) return claim.status === 'SUBMITTED' || claim.status === 'UNDER_REVIEW';
+    if (activeTab === 2) return claim.status === 'APPROVED' || claim.status === 'IN_PROGRESS' || claim.status === 'IN_REPAIR';
     if (activeTab === 3) return claim.status === 'COMPLETED';
     if (activeTab === 4) return claim.status === 'REJECTED';
     return true;
   });
 
-  const submittedCount = claims.filter((c) => c.status === 'SUBMITTED').length;
-  const activeCount = claims.filter((c) => c.status === 'APPROVED' || c.status === 'IN_PROGRESS').length;
+  const submittedCount = claims.filter((c) => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW').length;
+  const activeCount = claims.filter((c) => c.status === 'APPROVED' || c.status === 'IN_PROGRESS' || c.status === 'IN_REPAIR').length;
   const completedCount = claims.filter((c) => c.status === 'COMPLETED').length;
   const rejectedCount = claims.filter((c) => c.status === 'REJECTED').length;
 
-  // Get the default policy for exclusion display
-  const defaultPolicy = mockWarrantyPolicies.find((p) => p.isDefault) || mockWarrantyPolicies[0];
+  // Static warranty exclusion list for display
+  const warrantyExclusions = [
+    'Damage caused by accidents, misuse, or negligence',
+    'Normal wear and tear (scratches from daily use)',
+    'Unauthorized repairs or modifications',
+    'Color fading due to prolonged sun/chemical exposure',
+    'Lost or stolen products',
+    'Products purchased from unauthorized retailers',
+  ];
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f9fafb', py: 5 }}>
@@ -513,7 +431,7 @@ const WarrantyPage = () => {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {defaultPolicy.excludedIssues.map((item, index) => (
+              {warrantyExclusions.map((item: string, index: number) => (
                 <Chip
                   key={index}
                   label={item}
@@ -637,7 +555,12 @@ const WarrantyPage = () => {
 
           {/* Claim Cards */}
           <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {filteredClaims.map((claim) => {
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                <CircularProgress size={36} sx={{ color: theme.palette.custom.neutral[400] }} />
+              </Box>
+            )}
+            {!loading && filteredClaims.map((claim) => {
               const statusStyle = getStatusColor(claim.status);
               return (
                 <Paper
@@ -830,7 +753,7 @@ const WarrantyPage = () => {
             })}
 
             {/* Empty State */}
-            {filteredClaims.length === 0 && (
+            {!loading && filteredClaims.length === 0 && (
               <Box sx={{ p: 6, textAlign: 'center' }}>
                 <Build sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }} />
                 <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[500], mb: 1 }}>
@@ -1176,13 +1099,10 @@ const WarrantyPage = () => {
                 onChange={(e) => setFormData({ ...formData, issueType: e.target.value as WarrantyIssueType })}
                 label="Issue Type"
               >
-                <MenuItem value="LENS_SCRATCHED">Lens Scratched</MenuItem>
-                <MenuItem value="LENS_COATING_PEELING">Lens Coating Peeling</MenuItem>
-                <MenuItem value="FRAME_BROKEN">Frame Broken</MenuItem>
-                <MenuItem value="HINGE_ISSUE">Hinge Issue</MenuItem>
-                <MenuItem value="NOSE_PAD_REPLACEMENT">Nose Pad Replacement</MenuItem>
-                <MenuItem value="TEMPLE_ARM_ISSUE">Temple Arm Issue</MenuItem>
-                <MenuItem value="COLOR_FADING">Color Fading</MenuItem>
+                <MenuItem value="BROKEN_FRAME">Broken Frame</MenuItem>
+                <MenuItem value="BROKEN_LENS">Broken Lens</MenuItem>
+                <MenuItem value="LOOSE_HINGE">Loose Hinge</MenuItem>
+                <MenuItem value="COATING_DAMAGE">Coating Damage</MenuItem>
                 <MenuItem value="OTHER">Other</MenuItem>
               </Select>
             </FormControl>
@@ -1311,14 +1231,8 @@ const WarrantyPage = () => {
           </Button>
           <Button
             variant="contained"
-            disabled={!formData.orderId || !formData.issueType || !formData.issueDescription || uploadedImages.length === 0}
-            onClick={() => {
-              // TODO: Call API to submit warranty claim
-              setRegisterDialogOpen(false);
-              setFormData({ orderId: '', issueType: '', issueDescription: '' });
-              uploadedImages.forEach((img) => URL.revokeObjectURL(img.preview));
-              setUploadedImages([]);
-            }}
+            disabled={!formData.orderId || !formData.issueType || !formData.issueDescription || submitting}
+            onClick={handleSubmitClaim}
             sx={{
               textTransform: 'none',
               fontWeight: 600,
@@ -1326,7 +1240,7 @@ const WarrantyPage = () => {
               '&:hover': { bgcolor: '#333' },
             }}
           >
-            Submit Claim
+            {submitting ? 'Submitting...' : 'Submit Claim'}
           </Button>
         </DialogActions>
       </Dialog>

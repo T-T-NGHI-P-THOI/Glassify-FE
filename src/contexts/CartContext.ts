@@ -17,6 +17,12 @@ export interface AddToCartParams {
     parentItemId?: string;
     isFree?: boolean;
     giftNote?: string;
+    shopId?: string;
+    variantId?: string;
+    lensId?: string;
+    lensTintId?: string;
+    lensFeatureIds?: string[];
+    prescriptionId?: string;
     lensSelection?: LensSelection;
 }
 

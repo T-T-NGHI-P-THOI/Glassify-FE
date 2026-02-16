@@ -65,6 +65,12 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
             parentItemId: params.parentItemId,
             isFree: params.isFree,
             giftNote: params.giftNote,
+            shopId: params.shopId,
+            variantId: params.variantId,
+            lensId: params.lensId,
+            lensTintId: params.lensTintId,
+            lensFeatureIds: params.lensFeatureIds,
+            prescriptionId: params.prescriptionId,
             lensSelection: params.lensSelection,
         });
         setCartData(result.cartResponse);
