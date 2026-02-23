@@ -1,33 +1,6 @@
-import axios from "axios";
-import api from "./axios.config";
+import { removeBackgroundFromImageFile, type RemoveBgError } from "remove.bg";
 
 class RemovebgAPI {
-  static async removeBgAPI(file: File): Promise<Blob> {
-    try {
-      const formData = new FormData();
-      formData.append("image_file", file);
-      formData.append("size", "auto");
-      console.log("RemoveBG key: " + import.meta.env.REMOVEBG_API_KEY)
-
-      const response = await axios.post(
-        "https://api.remove.bg/v1.0/removebg",
-        formData,
-        {
-          headers: {
-            "X-Api-Key": import.meta.env.VITE_REMOVEBG_API_KEY,
-          },
-          responseType: "blob",
-        }
-      );
-
-      return response.data;
-
-    } catch (error) {
-      console.error("RemoveBG API error:", error);
-      throw error;
-    }
-  }
-
   static async removeBg(blob: any): Promise<ArrayBuffer> {
     const formData = new FormData();
     formData.append("size", "auto");
@@ -46,7 +19,23 @@ class RemovebgAPI {
     }
   }
 
-  
+  static async removeBackgroundFromImageFile(file: File) {
+    removeBackgroundFromImageFile({
+      path: path,
+      apiKey: "GACbDGkvbUeiT5SAJXpPB3VB",
+      size: "regular",
+      type: "person"
+        }).then((result: RemoveBgResult) => {
+      console.log(`File saved to ${outputFile}`);
+      console.log(`${result.creditsCharged} credit(s) charged for this image`);
+      console.log(`Result width x height: ${result.resultWidth} x ${result.resultHeight}, type: ${result.detectedType}`);
+      console.log(result.base64img.substring(0, 40) + "..");
+    }).catch((errors: Array<RemoveBgError>) => {
+      console.log(JSON.stringify(errors));
+    });
+
+    return null;
+  }
 }
 
 export default RemovebgAPI;
