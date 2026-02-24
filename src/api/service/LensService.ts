@@ -106,6 +106,90 @@ class LensService {
             throw error;
         }
     }
+
+    /**
+     * Get all available prescription values
+     */
+    async getAllPrescriptionValues(): Promise<{
+        sphereValues: string[];
+        cylinderValues: string[];
+        addValues: string[];
+        pdValues: string[];
+        pdMonocularValues: string[];
+    }> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.ALL);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching all prescription values:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available sphere values
+     */
+    async getSphereValues(): Promise<string[]> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.SPHERE);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching sphere values:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available cylinder values
+     */
+    async getCylinderValues(): Promise<string[]> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.CYLINDER);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching cylinder values:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available add values
+     */
+    async getAddValues(): Promise<string[]> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.ADD);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching add values:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available PD values
+     */
+    async getPdValues(): Promise<string[]> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.PD);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching PD values:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available monocular PD values
+     */
+    async getPdMonocularValues(): Promise<string[]> {
+        try {
+            const response = await axiosInstance.get(API_ENDPOINTS.PLATFORM_SETTINGS.PRESCRIPTION_VALUES.PD_MONOCULAR);
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching monocular PD values:', error);
+            throw error;
+        }
+    }
 }
 
 export const lensService = new LensService();

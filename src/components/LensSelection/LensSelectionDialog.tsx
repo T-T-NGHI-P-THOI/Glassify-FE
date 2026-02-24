@@ -25,6 +25,8 @@ import {
     Stack,
     Tooltip,
     Snackbar,
+    Autocomplete,
+    InputAdornment,
 } from '@mui/material';
 import type { StepIconProps } from '@mui/material/StepIcon';
 import {
@@ -56,13 +58,7 @@ import type {
     LensFrameValidationRequest,
     PrescriptionValidationRequest,
 } from '@/models/Lens';
-import {
-    SPHERE_VALUES,
-    CYLINDER_VALUES,
-    ADD_VALUES,
-    PD_VALUES,
-    PD_MONOCULAR_VALUES,
-} from '@/models/Lens';
+
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import lensService from '@/api/service/LensService';
@@ -210,6 +206,16 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
 
+    // Prescription values from API
+    const [prescriptionValues, setPrescriptionValues] = useState<{
+        sphere: string[];
+        cylinder: string[];
+        add: string[];
+        pd: string[];
+        pdMonocular: string[];
+    }>();
+    const [isLoadingPrescriptionValues, setIsLoadingPrescriptionValues] = useState(false);
+
     const hasRestoredRef = useRef(false);
 
     const savedPrescriptions = (prescriptions || [])
@@ -255,6 +261,33 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
         fetchLensCatalog();
     }, [open, frameVariantId]);
+
+    // Fetch prescription values from API
+    useEffect(() => {
+        const fetchPrescriptionValues = async () => {
+            if (!open) return;
+            
+            try {
+                setIsLoadingPrescriptionValues(true);
+                setApiError(null);
+                const values = await lensService.getAllPrescriptionValues();
+                setPrescriptionValues({
+                    sphere: values.sphereValues,
+                    cylinder: values.cylinderValues,
+                    add: values.addValues,
+                    pd: values.pdValues,
+                    pdMonocular: values.pdMonocularValues,
+                });
+            } catch (error) {
+                console.error('Failed to load prescription values:', error);
+                setApiError('Không thể tải danh sách giá trị độ kính. Vui lòng thử lại sau.');
+            } finally {
+                setIsLoadingPrescriptionValues(false);
+            }
+        };
+
+        fetchPrescriptionValues();
+    }, [open]);
 
     const availableUsages = useMemo(() => {
         if (!apiLensData || apiLensData.lenses.length === 0) {
@@ -480,8 +513,10 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     pdLeft: has2PD ? parseFloat(prescription.left_eye.pd || '0') : undefined,
                     pdRight: has2PD ? parseFloat(prescription.right_eye.pd || '0') : undefined,
                 };
-                                
+                
+                console.log('🔍 Validating prescription:', prescriptionRequest);
                 const response = await lensService.validatePrescription(prescriptionRequest);
+                console.log('✅ Prescription validation response:', response);
                 
                 if (response.data && Array.isArray(response.data.issues) && response.data.issues.length > 0) {
                     const issues: ValidationIssue[] = response.data.issues.map(issue => ({
@@ -516,9 +551,53 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 }
                 
                 setIsValidating(false);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Prescription validation error:', error);
-                setApiError('Không thể xác thực đơn thuốc. Vui lòng thử lại.');
+                console.log('Error details:', {
+                    status: error.status,
+                    message: error.message,
+                    errors: error.errors,
+                    data: error.data
+                });
+                
+                // Error đã được format bởi axios interceptor
+                // error.errors có thể là string[] hoặc Record<string, string[]>
+                let errorMessages: string[] = [];
+                
+                if (error.errors) {
+                    if (Array.isArray(error.errors)) {
+                        errorMessages = error.errors;
+                    } else if (typeof error.errors === 'object') {
+                        // Flatten object values
+                        errorMessages = Object.values(error.errors).flat() as string[];
+                    }
+                }
+                
+                if (errorMessages.length > 0) {
+                    const issues: ValidationIssue[] = errorMessages.map((errorMsg: string) => {
+                        const colonIndex = errorMsg.indexOf(':');
+                        let field = 'unknown';
+                        let message = errorMsg;
+                        
+                        if (colonIndex !== -1) {
+                            field = errorMsg.substring(0, colonIndex).trim();
+                            message = errorMsg.substring(colonIndex + 1).trim();
+                        }
+                        
+                        return {
+                            code: 'VALIDATION_ERROR',
+                            path: field,
+                            message: message,
+                            severity: 'ERROR' as const,
+                            meta: {}
+                        };
+                    });
+                    
+                    setValidationIssues(issues);
+                } else {
+                    setApiError(error.message || 'Không thể xác thực đơn thuốc. Vui lòng thử lại.');
+                }
+                
                 setIsValidating(false);
                 return;
             }
@@ -565,9 +644,51 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 }
                 
                 setIsValidating(false);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Lens-frame validation error:', error);
-                setApiError('Không thể xác thực tương thích tròng-gọng. Vui lòng thử lại.');
+                console.log('Error details:', {
+                    status: error.status,
+                    message: error.message,
+                    errors: error.errors,
+                    data: error.data
+                });
+                
+                // Error đã được format bởi axios interceptor
+                let errorMessages: string[] = [];
+                
+                if (error.errors) {
+                    if (Array.isArray(error.errors)) {
+                        errorMessages = error.errors;
+                    } else if (typeof error.errors === 'object') {
+                        errorMessages = Object.values(error.errors).flat() as string[];
+                    }
+                }
+                
+                if (errorMessages.length > 0) {
+                    const issues: ValidationIssue[] = errorMessages.map((errorMsg: string) => {
+                        const colonIndex = errorMsg.indexOf(':');
+                        let field = 'unknown';
+                        let message = errorMsg;
+                        
+                        if (colonIndex !== -1) {
+                            field = errorMsg.substring(0, colonIndex).trim();
+                            message = errorMsg.substring(colonIndex + 1).trim();
+                        }
+                        
+                        return {
+                            code: 'VALIDATION_ERROR',
+                            path: field,
+                            message: message,
+                            severity: 'ERROR' as const,
+                            meta: {}
+                        };
+                    });
+                    
+                    setValidationIssues(issues);
+                } else {
+                    setApiError(error.message || 'Không thể xác thực tương thích tròng-gọng. Vui lòng thử lại.');
+                }
+                
                 setIsValidating(false);
                 return;
             }
@@ -1176,35 +1297,62 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         const code = issue.code.toUpperCase();
         const path = issue.path.toLowerCase();
         
+        // Map field names to Vietnamese
+        const getFieldName = (field: string): string => {
+            if (field.includes('pd')) {
+                if (field.includes('left')) return 'PD mắt trái';
+                if (field.includes('right')) return 'PD mắt phải';
+                return 'Khoảng cách đồng tử (PD)';
+            }
+            if (field.includes('sph')) {
+                if (field.includes('left')) return 'SPH mắt trái';
+                if (field.includes('right')) return 'SPH mắt phải';
+                return 'Độ cận/viễn (SPH)';
+            }
+            if (field.includes('cyl')) {
+                if (field.includes('left')) return 'CYL mắt trái';
+                if (field.includes('right')) return 'CYL mắt phải';
+                return 'Độ loạn (CYL)';
+            }
+            if (field.includes('add')) return 'Độ cộng (ADD)';
+            if (field.includes('axis')) {
+                if (field.includes('left')) return 'Trục loạn mắt trái';
+                if (field.includes('right')) return 'Trục loạn mắt phải';
+                return 'Trục loạn (AXIS)';
+            }
+            return field;
+        };
+        
         if (message.includes('must be greater than or equal to')) {
             const match = message.match(/must be greater than or equal to ([\d.]+)/);
             const minValue = match ? match[1] : '';
+            const fieldName = getFieldName(path);
             
-            if (path.includes('pd') || message.includes('pd:')) {
+            if (path.includes('pd')) {
                 return {
-                    description: `Khoảng cách đồng tử (PD) phải từ ${minValue}mm trở lên`,
-                    suggestion: 'PD tổng (binocular) thường dao động từ 56-79mm. Nếu bạn có 2 số PD riêng (monocular), mỗi bên thường từ 17.5-40mm. Vui lòng kiểm tra lại đơn thuốc của bạn.'
+                    description: `${fieldName} phải từ ${minValue}mm trở lên`,
+                    suggestion: 'PD tổng (binocular) thường dao động từ 50-80mm. Nếu bạn có 2 số PD riêng (monocular), mỗi bên thường từ 25-40mm. Vui lòng kiểm tra lại đơn thuốc của bạn.'
                 };
             }
-            if (path.includes('sph') || message.includes('sph')) {
+            if (path.includes('sph')) {
                 return {
-                    description: `Độ cận/viễn (SPH) phải từ ${minValue} trở lên`,
-                    suggestion: 'Vui lòng kiểm tra lại độ kính trong đơn thuốc.'
+                    description: `${fieldName} phải từ ${minValue} trở lên`,
+                    suggestion: 'Vui lòng kiểm tra lại độ kính trong đơn thuốc của bạn.'
                 };
             }
-            if (path.includes('cyl') || message.includes('cyl')) {
+            if (path.includes('cyl')) {
                 return {
-                    description: `Độ loạn (CYL) phải từ ${minValue} trở lên`,
-                    suggestion: 'Vui lòng kiểm tra lại độ loạn trong đơn thuốc.'
+                    description: `${fieldName} phải từ ${minValue} trở lên`,
+                    suggestion: 'Vui lòng kiểm tra lại độ loạn trong đơn thuốc của bạn.'
                 };
             }
-            if (path.includes('add') || message.includes('add')) {
+            if (path.includes('add')) {
                 return {
-                    description: `Độ cộng (ADD) phải từ ${minValue} trở lên`,
+                    description: `${fieldName} phải từ ${minValue} trở lên`,
                     suggestion: 'ADD thường dao động từ +0.75 đến +3.00 cho kính đa tròng.'
                 };
             }
-            if (path.includes('fittingheight') || message.includes('fitting')) {
+            if (path.includes('fittingheight') || path.includes('fitting')) {
                 return {
                     description: `Chiều cao lắp kính phải từ ${minValue}mm trở lên`,
                     suggestion: 'Chiều cao lắp kính ảnh hưởng đến vùng nhìn, đặc biệt với kính đa tròng.'
@@ -1215,17 +1363,24 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         if (message.includes('must be less than or equal to')) {
             const match = message.match(/must be less than or equal to ([\d.]+)/);
             const maxValue = match ? match[1] : '';
+            const fieldName = getFieldName(path);
             
-            if (path.includes('pd') || message.includes('pd:')) {
+            if (path.includes('pd')) {
                 return {
-                    description: `Khoảng cách đồng tử (PD) không được vượt quá ${maxValue}mm`,
-                    suggestion: 'PD quá lớn. Vui lòng kiểm tra lại đơn thuốc của bạn.'
+                    description: `${fieldName} không được vượt quá ${maxValue}mm`,
+                    suggestion: 'PD tổng (binocular) thường dao động từ 50-80mm. PD vượt quá giới hạn có thể là do nhập sai. Vui lòng kiểm tra lại đơn thuốc của bạn.'
                 };
             }
-            if (path.includes('sph') || message.includes('sph')) {
+            if (path.includes('sph')) {
                 return {
-                    description: `Độ cận/viễn (SPH) không được vượt quá ${maxValue}`,
-                    suggestion: 'Độ kính này vượt quá giới hạn của gọng.'
+                    description: `${fieldName} không được vượt quá ${maxValue}`,
+                    suggestion: 'Độ kính này vượt quá giới hạn. Vui lòng kiểm tra lại đơn thuốc của bạn.'
+                };
+            }
+            if (path.includes('cyl')) {
+                return {
+                    description: `${fieldName} không được vượt quá ${maxValue}`,
+                    suggestion: 'Độ loạn này vượt quá giới hạn. Vui lòng kiểm tra lại đơn thuốc của bạn.'
                 };
             }
         }
@@ -1540,32 +1695,32 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" sx={{ fontWeight: 600 }}>SPH</Typography>
                                 </Box>
-                                <FormControl fullWidth size="small">
-                                    <Select
-                                        value={prescription.right_eye.sphere}
-                                        onChange={(e) => handlePrescriptionFieldChange('right_eye', 'sphere', e.target.value)}
-                                        displayEmpty
-                                    >
-                                        {SPHERE_VALUES.map((value) => (
-                                            <MenuItem key={value} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <FormControl fullWidth size="small">
-                                    <Select
-                                        value={prescription.left_eye.sphere}
-                                        onChange={(e) => handlePrescriptionFieldChange('left_eye', 'sphere', e.target.value)}
-                                        displayEmpty
-                                    >
-                                        {SPHERE_VALUES.map((value) => (
-                                            <MenuItem key={value} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.sphere || []}
+                                    value={prescription.right_eye.sphere}
+                                    onChange={(_, newValue) => handlePrescriptionFieldChange('right_eye', 'sphere', newValue || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value && value !== prescription.right_eye.sphere) {
+                                            handlePrescriptionFieldChange('right_eye', 'sphere', value);
+                                        }
+                                    }} />}
+                                />
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.sphere || []}
+                                    value={prescription.left_eye.sphere}
+                                    onChange={(_, newValue) => handlePrescriptionFieldChange('left_eye', 'sphere', newValue || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value && value !== prescription.left_eye.sphere) {
+                                            handlePrescriptionFieldChange('left_eye', 'sphere', value);
+                                        }
+                                    }} />}
+                                />
                             </Box>
 
                             {/* CYL Row */}
@@ -1573,32 +1728,32 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" sx={{ fontWeight: 600 }}>CYL</Typography>
                                 </Box>
-                                <FormControl fullWidth size="small">
-                                    <Select
-                                        value={prescription.right_eye.cylinder || '0.00'}
-                                        onChange={(e) => handlePrescriptionFieldChange('right_eye', 'cylinder', e.target.value)}
-                                        displayEmpty
-                                    >
-                                        {CYLINDER_VALUES.map((value) => (
-                                            <MenuItem key={value} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <FormControl fullWidth size="small">
-                                    <Select
-                                        value={prescription.left_eye.cylinder || '0.00'}
-                                        onChange={(e) => handlePrescriptionFieldChange('left_eye', 'cylinder', e.target.value)}
-                                        displayEmpty
-                                    >
-                                        {CYLINDER_VALUES.map((value) => (
-                                            <MenuItem key={value} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.cylinder || []}
+                                    value={prescription.right_eye.cylinder || '0.00'}
+                                    onChange={(_, newValue) => handlePrescriptionFieldChange('right_eye', 'cylinder', newValue || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value && value !== prescription.right_eye.cylinder) {
+                                            handlePrescriptionFieldChange('right_eye', 'cylinder', value);
+                                        }
+                                    }} />}
+                                />
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.cylinder || []}
+                                    value={prescription.left_eye.cylinder || '0.00'}
+                                    onChange={(_, newValue) => handlePrescriptionFieldChange('left_eye', 'cylinder', newValue || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value && value !== prescription.left_eye.cylinder) {
+                                            handlePrescriptionFieldChange('left_eye', 'cylinder', value);
+                                        }
+                                    }} />}
+                                />
                             </Box>
 
                             {/* Axis Row - Always visible for non-progressive lenses */}
@@ -1668,24 +1823,24 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2" sx={{ fontWeight: 600 }}>ADD *</Typography>
                                 </Box>
-                                <FormControl fullWidth size="small">
-                                    <Select
-                                        value={prescription.right_eye.add || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.add || []}
+                                    value={prescription.right_eye.add || ''}
+                                    onChange={(_, newValue) => {
+                                        const value = newValue || '';
+                                        handlePrescriptionFieldChange('right_eye', 'add', value);
+                                        handlePrescriptionFieldChange('left_eye', 'add', value);
+                                    }}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" onBlur={(e) => {
+                                        const value = e.target.value;
+                                        if (value && value !== prescription.right_eye.add) {
                                             handlePrescriptionFieldChange('right_eye', 'add', value);
                                             handlePrescriptionFieldChange('left_eye', 'add', value);
-                                        }}
-                                        displayEmpty
-                                    >
-                                        <MenuItem value="">Select</MenuItem>
-                                        {ADD_VALUES.map((value) => (
-                                            <MenuItem key={value} value={value}>
-                                                {value}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
+                                        }
+                                    }} />}
+                                />
                             </Box>
 
                             {/* PD Row - Single or Double */}
@@ -1700,60 +1855,105 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                         </Typography>
                                     </Box>
                                     {!has2PD ? (
-                                        <FormControl fullWidth size="small">
-                                            <Select
-                                                value={prescription.right_eye.pd || ''}
-                                                onChange={(e) => {
-                                                    const value = e.target.value;
-                                                    handlePrescriptionFieldChange('right_eye', 'pd', value);
-                                                    handlePrescriptionFieldChange('left_eye', 'pd', value);
-                                                }}
-                                                displayEmpty
-                                            >
-                                                <MenuItem value="">Enter your PD</MenuItem>
-                                                {PD_VALUES.map((value) => (
-                                                    <MenuItem key={value} value={value}>
-                                                        {value}
-                                                    </MenuItem>
-                                                ))}
-                                            </Select>
-                                        </FormControl>
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            options={prescriptionValues?.pd || []}
+                                            value={prescription.right_eye.pd || ''}
+                                            onChange={(_, newValue) => {
+                                                const value = newValue || '';
+                                                handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                            }}
+                                            renderInput={(params) => (
+                                                <TextField 
+                                                    {...params} 
+                                                    placeholder="Enter your PD"
+                                                    onBlur={(e) => {
+                                                        const value = e.target.value;
+                                                        if (value && value !== prescription.right_eye.pd) {
+                                                            handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                            handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                                        }
+                                                    }}
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        endAdornment: (
+                                                            <>
+                                                                <InputAdornment position="end">mm</InputAdornment>
+                                                                {params.InputProps.endAdornment}
+                                                            </>
+                                                        ),
+                                                    }}
+                                                />
+                                            )}
+                                        />
                                     ) : (
                                         <Box sx={{ display: 'flex', gap: 1 }}>
-                                            <FormControl size="small" sx={{ flex: 1 }}>
-                                                <Select
-                                                    value={prescription.right_eye.pd || ''}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        handlePrescriptionFieldChange('right_eye', 'pd', value);
-                                                    }}
-                                                    displayEmpty
-                                                >
-                                                    <MenuItem value="">Right</MenuItem>
-                                                    {PD_MONOCULAR_VALUES.map((value) => (
-                                                        <MenuItem key={value} value={value}>
-                                                            {value}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                            </FormControl>
-                                            <FormControl size="small" sx={{ flex: 1 }}>
-                                                <Select
-                                                    value={prescription.left_eye.pd || ''}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        handlePrescriptionFieldChange('left_eye', 'pd', value);
-                                                    }}
-                                                    displayEmpty
-                                                >
-                                                    <MenuItem value="">Left</MenuItem>
-                                                    {PD_MONOCULAR_VALUES.map((value) => (
-                                                        <MenuItem key={value} value={value}>
-                                                            {value}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                            </FormControl>
+                                            <Autocomplete
+                                                freeSolo
+                                                size="small"
+                                                options={prescriptionValues?.pdMonocular || []}
+                                                value={prescription.right_eye.pd || ''}
+                                                onChange={(_, newValue) => {
+                                                    const value = newValue || '';
+                                                    handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField 
+                                                        {...params} 
+                                                        placeholder="Right"
+                                                        onBlur={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value && value !== prescription.right_eye.pd) {
+                                                                handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                                            }
+                                                        }}
+                                                        InputProps={{
+                                                            ...params.InputProps,
+                                                            endAdornment: (
+                                                                <>
+                                                                    <InputAdornment position="end">mm</InputAdornment>
+                                                                    {params.InputProps.endAdornment}
+                                                                </>
+                                                            ),
+                                                        }}
+                                                    />
+                                                )}
+                                                sx={{ flex: 1 }}
+                                            />
+                                            <Autocomplete
+                                                freeSolo
+                                                size="small"
+                                                options={prescriptionValues?.pdMonocular || []}
+                                                value={prescription.left_eye.pd || ''}
+                                                onChange={(_, newValue) => {
+                                                    const value = newValue || '';
+                                                    handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField 
+                                                        {...params} 
+                                                        placeholder="Left"
+                                                        onBlur={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value && value !== prescription.left_eye.pd) {
+                                                                handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                                            }
+                                                        }}
+                                                        InputProps={{
+                                                            ...params.InputProps,
+                                                            endAdornment: (
+                                                                <>
+                                                                    <InputAdornment position="end">mm</InputAdornment>
+                                                                    {params.InputProps.endAdornment}
+                                                                </>
+                                                            ),
+                                                        }}
+                                                    />
+                                                )}
+                                                sx={{ flex: 1 }}
+                                            />
                                         </Box>
                                     )}
                                 </Box>
