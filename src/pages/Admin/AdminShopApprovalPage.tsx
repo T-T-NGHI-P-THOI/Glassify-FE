@@ -21,6 +21,10 @@ import {
   Grid,
   Divider,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -32,8 +36,6 @@ import {
   FilterList,
   Business,
   Person,
-  Phone,
-  Email,
   LocationOn,
   InsertDriveFile,
   AccessTime,
@@ -58,7 +60,8 @@ const AdminShopApprovalPage = () => {
   const [selectedRegistration, setSelectedRegistration] = useState<ShopRequest | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReasonPreset, setRejectionReasonPreset] = useState('');
+  const [customReason, setCustomReason] = useState('');
   const [adminComment, setAdminComment] = useState('');
   const [approveComment, setApproveComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -127,8 +130,13 @@ const AdminShopApprovalPage = () => {
     }
   };
 
+  const formatValue = (value: string | null | undefined) => {
+    if (!value || value === 'null' || value === 'undefined') return 'N/A';
+    return value;
+  };
+
   const formatDate = (dateString: string) => {
-    if (!dateString) return '';
+    if (!dateString || dateString === 'null') return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -180,9 +188,13 @@ const AdminShopApprovalPage = () => {
   const handleOpenRejectDialog = (registration: ShopRequest) => {
     setSelectedRegistration(registration);
     setRejectDialogOpen(true);
-    setRejectionReason('');
+    setRejectionReasonPreset('');
+    setCustomReason('');
     setAdminComment('');
   };
+
+  const getRejectionReason = () =>
+    rejectionReasonPreset === 'OTHER' ? customReason : rejectionReasonPreset;
 
   const handleReject = async () => {
     if (!selectedRegistration) return;
@@ -191,7 +203,7 @@ const AdminShopApprovalPage = () => {
       const response = await adminApi.reviewShopRequest({
         requestId: selectedRegistration.id,
         action: 'REJECT',
-        rejectionReason: rejectionReason,
+        rejectionReason: getRejectionReason(),
         comment: adminComment.trim() || undefined,
       });
       if (response.data) {
@@ -201,7 +213,8 @@ const AdminShopApprovalPage = () => {
       }
       setRejectDialogOpen(false);
       setDetailDialogOpen(false);
-      setRejectionReason('');
+      setRejectionReasonPreset('');
+      setCustomReason('');
       setAdminComment('');
     } catch (error) {
       console.error('Failed to reject shop request:', error);
@@ -406,7 +419,7 @@ const AdminShopApprovalPage = () => {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={registration.businessLicense}
+                            label={registration.businessLicense?.licenseNumber}
                             size="small"
                             sx={{
                               bgcolor: theme.palette.custom.neutral[100],
@@ -518,7 +531,7 @@ const AdminShopApprovalPage = () => {
             </DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={3}>
-                {/* Business Info */}
+                {/* Shop Info */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography
                     sx={{
@@ -533,49 +546,25 @@ const AdminShopApprovalPage = () => {
                     }}
                   >
                     <Business sx={{ fontSize: 18 }} />
-                    Business Information
+                    Shop Information
                   </Typography>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Shop Name
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {selectedRegistration.shopName}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Shop Code
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {selectedRegistration.shopCode}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Business License
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {selectedRegistration.businessLicense}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Tax ID
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {selectedRegistration.taxId}
-                    </Typography>
-                  </Box>
+                  {[
+                    { label: 'Shop Name', value: selectedRegistration.shopName },
+                    { label: 'Shop Code', value: selectedRegistration.shopCode },
+                    { label: 'Shop Email', value: selectedRegistration.email },
+                    { label: 'Phone', value: selectedRegistration.phone },
+                  ].map(({ label, value }) => (
+                    <Box key={label} sx={{ mb: 2 }}>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{label}</Typography>
+                      <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                        {formatValue(value)}
+                      </Typography>
+                    </Box>
+                  ))}
 
                   <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Submitted At
-                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Submitted At</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <AccessTime sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }} />
                       <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
@@ -603,50 +592,104 @@ const AdminShopApprovalPage = () => {
                     Owner Information
                   </Typography>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Full Name
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {selectedRegistration.userName}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Phone
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Phone sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }} />
+                  {[
+                    { label: 'Full Name', value: selectedRegistration.userName },
+                    { label: 'Email', value: selectedRegistration.userEmail },
+                  ].map(({ label, value }) => (
+                    <Box key={label} sx={{ mb: 2 }}>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{label}</Typography>
                       <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                        {selectedRegistration.phone}
+                        {formatValue(value)}
                       </Typography>
                     </Box>
-                  </Box>
+                  ))}
+                </Grid>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Email
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Email sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }} />
-                      <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                        {selectedRegistration.userEmail}
+                {/* Business License */}
+                <Grid size={{ xs: 12 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography
+                    component="div"
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: theme.palette.custom.neutral[500],
+                      textTransform: 'uppercase',
+                      mb: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Description sx={{ fontSize: 18 }} />
+                    Business License
+                    {selectedRegistration.businessLicense?.status && (
+                      <Chip
+                        label={selectedRegistration.businessLicense.status}
+                        size="small"
+                        sx={{
+                          ml: 1,
+                          bgcolor: getStatusColor(selectedRegistration.businessLicense.status).bg,
+                          color: getStatusColor(selectedRegistration.businessLicense.status).color,
+                          fontWeight: 600,
+                          fontSize: 11,
+                        }}
+                      />
+                    )}
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    {[
+                      { label: 'License Number', value: selectedRegistration.businessLicense?.licenseNumber },
+                      { label: 'Business Name', value: selectedRegistration.businessLicense?.businessName },
+                      { label: 'Business Type', value: selectedRegistration.businessLicense?.businessType },
+                      { label: 'Tax ID', value: selectedRegistration.businessLicense?.taxId },
+                      { label: 'Legal Representative', value: selectedRegistration.businessLicense?.legalRepresentative },
+                      { label: 'Registered Address', value: selectedRegistration.businessLicense?.registeredAddress },
+                      { label: 'Issued Date', value: formatDate(selectedRegistration.businessLicense?.issuedDate ?? '') },
+                      { label: 'Expiry Date', value: formatDate(selectedRegistration.businessLicense?.expiryDate ?? '') },
+                      { label: 'Issued By', value: selectedRegistration.businessLicense?.issuedBy },
+                    ].map(({ label, value }) => (
+                      <Grid key={label} size={{ xs: 12, sm: 6, md: 4 }}>
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{label}</Typography>
+                        <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                          {formatValue(value)}
+                        </Typography>
+                      </Grid>
+                    ))}
+                    {selectedRegistration.businessLicense?.licenseImageUrl && (
+                      <Grid size={{ xs: 12 }}>
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Image URL</Typography>
+                        <Typography
+                          component="a"
+                          href={selectedRegistration.businessLicense.licenseImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            fontSize: 14,
+                            fontWeight: 500,
+                            color: theme.palette.primary.main,
+                            wordBreak: 'break-all',
+                            textDecoration: 'none',
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                        >
+                          {selectedRegistration.businessLicense.licenseImageUrl}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+
+                  {selectedRegistration.businessLicense?.rejectionReason && (
+                    <Box sx={{ mt: 2, p: 2, borderRadius: 1, bgcolor: theme.palette.custom.status.error.light }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.error.main, mb: 0.5 }}>
+                        License Rejection Reason
+                      </Typography>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                        {selectedRegistration.businessLicense.rejectionReason}
                       </Typography>
                     </Box>
-                  </Box>
-
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Shop Email
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Email sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }} />
-                      <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                        {selectedRegistration.email}
-                      </Typography>
-                    </Box>
-                  </Box>
+                  )}
                 </Grid>
 
                 {/* Address */}
@@ -668,63 +711,9 @@ const AdminShopApprovalPage = () => {
                     Shop Address
                   </Typography>
                   <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[800] }}>
-                    {selectedRegistration.address}, {selectedRegistration.city}
+                    {[selectedRegistration.address, selectedRegistration.city].filter(Boolean).join(', ') || 'N/A'}
                   </Typography>
                 </Grid>
-
-                {/* Documents */}
-                {selectedRegistration.businessLicenseUrl && (
-                  <Grid size={{ xs: 12 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Typography
-                      sx={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: theme.palette.custom.neutral[500],
-                        textTransform: 'uppercase',
-                        mb: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                      }}
-                    >
-                      <Description sx={{ fontSize: 18 }} />
-                      Submitted Documents
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      <Paper
-                        elevation={0}
-                        component="a"
-                        href={selectedRegistration.businessLicenseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                          px: 2,
-                          py: 1.5,
-                          borderRadius: 1,
-                          border: `1px solid ${theme.palette.custom.border.light}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1,
-                          cursor: 'pointer',
-                          textDecoration: 'none',
-                          '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
-                        }}
-                      >
-                        <InsertDriveFile
-                          sx={{
-                            fontSize: 20,
-                            color: theme.palette.custom.status.info.main,
-                          }}
-                        />
-                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
-                          Business License
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  </Grid>
-                )}
 
                 {/* Rejection Reason (if rejected) */}
                 {selectedRegistration.status === 'REJECTED' && selectedRegistration.rejectionReason && (
@@ -837,19 +826,53 @@ const AdminShopApprovalPage = () => {
         <DialogTitle>Reject Shop Registration</DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2, color: theme.palette.custom.neutral[600] }}>
-            Please provide a reason for rejecting this shop registration. This will be sent to the applicant.
+            Select a reason for rejecting this registration. This will be sent to the applicant.
           </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Rejection Reason"
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder="Enter the reason for rejection..."
-            required
-            sx={{ mb: 2 }}
-          />
+          <FormControl fullWidth required sx={{ mb: 2 }}>
+            <InputLabel>Rejection Reason</InputLabel>
+            <Select
+              value={rejectionReasonPreset}
+              label="Rejection Reason"
+              onChange={(e) => {
+                setRejectionReasonPreset(e.target.value);
+                setCustomReason('');
+              }}
+            >
+              <MenuItem value="Thông tin giấy phép kinh doanh không đầy đủ hoặc còn thiếu">
+                Thông tin giấy phép kinh doanh không đầy đủ hoặc còn thiếu
+              </MenuItem>
+              <MenuItem value="Giấy phép kinh doanh đã hết hạn">
+                Giấy phép kinh doanh đã hết hạn
+              </MenuItem>
+              <MenuItem value="Thông tin cung cấp không khớp với giấy phép đăng ký">
+                Thông tin cung cấp không khớp với giấy phép đăng ký
+              </MenuItem>
+              <MenuItem value="Loại hình kinh doanh không đủ điều kiện tham gia nền tảng">
+                Loại hình kinh doanh không đủ điều kiện tham gia nền tảng
+              </MenuItem>
+              <MenuItem value="Phát hiện đăng ký shop trùng lặp">
+                Phát hiện đăng ký shop trùng lặp
+              </MenuItem>
+              <MenuItem value="Mã số thuế không hợp lệ hoặc không thể xác minh">
+                Mã số thuế không hợp lệ hoặc không thể xác minh
+              </MenuItem>
+              <MenuItem value="OTHER">Khác...</MenuItem>
+            </Select>
+          </FormControl>
+          {rejectionReasonPreset === 'OTHER' && (
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Nhập lý do từ chối"
+              value={customReason}
+              onChange={(e) => setCustomReason(e.target.value)}
+              placeholder="Mô tả chi tiết lý do từ chối..."
+              required
+              sx={{ mb: 2 }}
+              autoFocus
+            />
+          )}
           <TextField
             fullWidth
             multiline
@@ -867,7 +890,11 @@ const AdminShopApprovalPage = () => {
             variant="contained"
             color="error"
             onClick={handleReject}
-            disabled={!rejectionReason.trim() || reviewLoading}
+            disabled={
+              !rejectionReasonPreset ||
+              (rejectionReasonPreset === 'OTHER' && !customReason.trim()) ||
+              reviewLoading
+            }
             startIcon={reviewLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
           >
             Confirm Rejection

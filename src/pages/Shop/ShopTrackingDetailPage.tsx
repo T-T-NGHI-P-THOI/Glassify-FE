@@ -26,6 +26,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Alert,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -55,6 +59,26 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { shopApi } from '@/api/shopApi';
+import { toast } from 'react-toastify';
+
+const DEACTIVATE_REASONS = [
+  'Going on vacation or holiday',
+  'Temporary stock shortage',
+  'Shop renovation or upgrade',
+  'Personal or family emergency',
+  'Seasonal business pause',
+  'Technical issues',
+];
+
+const CLOSE_SHOP_REASONS = [
+  'Switching to a different platform',
+  'Retiring from business',
+  'Low sales performance',
+  'High operational costs',
+  'Personal reasons',
+  'Starting a new business',
+];
 
 type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED' | 'WARNING';
 
@@ -305,6 +329,13 @@ const ShopTrackingDetailPage = () => {
   const [newStatus, setNewStatus] = useState<ShopStatus>('ACTIVE');
   const [statusReason, setStatusReason] = useState('');
   const [shopStatus, setShopStatus] = useState<ShopStatus>(mockShopDetail.status);
+  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [deactivateEndDate, setDeactivateEndDate] = useState('');
+  const [closeShopDialogOpen, setCloseShopDialogOpen] = useState(false);
+  const [closeShopReason, setCloseShopReason] = useState('');
+  const [closeShopConfirm, setCloseShopConfirm] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
   // In real app, fetch shop by id
   const shop = { ...mockShopDetail, status: shopStatus };
@@ -367,6 +398,36 @@ const ShopTrackingDetailPage = () => {
     setShopStatus(newStatus);
     setStatusDialogOpen(false);
     setStatusReason('');
+  };
+
+  const handleDeactivate = async () => {
+    if (!id) return;
+    if (!deactivateReason.trim()) { toast.error('Please select a reason for deactivation'); return; }
+    if (!deactivateEndDate) { toast.error('Please select an end date'); return; }
+    try {
+      setTogglingStatus(true);
+      await shopApi.deactivateRequest(id, deactivateReason, deactivateEndDate);
+      toast.success('Deactivation request submitted successfully');
+      setDeactivateDialogOpen(false); setDeactivateReason(''); setDeactivateEndDate('');
+    } catch (error) {
+      console.error('Failed to submit deactivation request:', error);
+      toast.error('Failed to submit deactivation request');
+    } finally { setTogglingStatus(false); }
+  };
+
+  const handleCloseShop = async () => {
+    if (!id) return;
+    if (!closeShopReason.trim()) { toast.error('Please select a reason for closing'); return; }
+    if (!closeShopConfirm) { toast.error('Please confirm that you understand this action'); return; }
+    try {
+      setTogglingStatus(true);
+      await shopApi.closeShop(id, closeShopReason, closeShopConfirm);
+      toast.success('Close shop request submitted successfully');
+      setCloseShopDialogOpen(false); setCloseShopReason(''); setCloseShopConfirm(false);
+    } catch (error) {
+      console.error('Failed to submit close shop request:', error);
+      toast.error('Failed to submit close shop request');
+    } finally { setTogglingStatus(false); }
   };
 
   const getOrderStatusStyle = (status: string) => {
@@ -449,6 +510,24 @@ const ShopTrackingDetailPage = () => {
             }}
           >
             Change Status
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={togglingStatus ? <CircularProgress size={15} /> : <Pause />}
+            onClick={() => setDeactivateDialogOpen(true)}
+            disabled={togglingStatus}
+            sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#FCA5A5', color: '#EF4444', '&:hover': { borderColor: '#F87171', bgcolor: 'rgba(239,68,68,0.06)' } }}
+          >
+            Deactivate
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={togglingStatus ? <CircularProgress size={15} /> : <Block />}
+            onClick={() => setCloseShopDialogOpen(true)}
+            disabled={togglingStatus}
+            sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#FCA5A5', color: '#B91C1C', '&:hover': { borderColor: '#F87171', bgcolor: 'rgba(185,28,28,0.06)' } }}
+          >
+            Close Shop
           </Button>
           <Button
             variant="outlined"
@@ -1098,6 +1177,59 @@ const ShopTrackingDetailPage = () => {
             }}
           >
             {newStatus === 'SUSPENDED' ? 'Suspend Shop' : newStatus === 'WARNING' ? 'Send Warning' : 'Update Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Deactivate Shop Dialog */}
+      <Dialog open={deactivateDialogOpen} onClose={() => !togglingStatus && setDeactivateDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>Deactivate Shop</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
+            Are you sure you want to deactivate <strong>{shop.shopName}</strong>? This will prevent customers from viewing and ordering from this shop.
+          </Typography>
+          <FormControl fullWidth required sx={{ mb: 2.5 }}>
+            <InputLabel>Reason for deactivation</InputLabel>
+            <Select label="Reason for deactivation" value={deactivateReason} onChange={(e) => setDeactivateReason(e.target.value)} disabled={togglingStatus}>
+              {DEACTIVATE_REASONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <TextField fullWidth type="date" label="End Date" value={deactivateEndDate} onChange={(e) => setDeactivateEndDate(e.target.value)} disabled={togglingStatus} required InputLabelProps={{ shrink: true }} inputProps={{ min: new Date().toISOString().split('T')[0] }} helperText="Select the date when the shop should be deactivated" />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 0, flexDirection: 'column', alignItems: 'stretch', gap: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Button variant="outlined" onClick={() => setDeactivateDialogOpen(false)} disabled={togglingStatus}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={handleDeactivate} disabled={togglingStatus || !deactivateReason.trim() || !deactivateEndDate} startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}>
+              {togglingStatus ? 'Submitting...' : 'Submit Deactivation'}
+            </Button>
+          </Box>
+          <Divider sx={{ my: 0.5 }} />
+          <Button color="error" variant="text" onClick={() => { setDeactivateDialogOpen(false); setCloseShopDialogOpen(true); }} disabled={togglingStatus} sx={{ textTransform: 'none', fontWeight: 600, fontSize: 13, alignSelf: 'center' }}>
+            Or close shop permanently...
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Close Shop Dialog */}
+      <Dialog open={closeShopDialogOpen} onClose={() => !togglingStatus && setCloseShopDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, color: theme.palette.custom.status.error.main }}>Close Shop</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 3 }}>This action will permanently close the shop after 30 days. All products will be removed and customers will no longer be able to access this shop. This cannot be undone after the 30-day period.</Alert>
+          <FormControl fullWidth required sx={{ mb: 2.5 }}>
+            <InputLabel>Reason for closing</InputLabel>
+            <Select label="Reason for closing" value={closeShopReason} onChange={(e) => setCloseShopReason(e.target.value)} disabled={togglingStatus}>
+              {CLOSE_SHOP_REASONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
+            label={<Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>I understand that this shop will be permanently closed after 30 days and this action cannot be reversed after that period.</Typography>}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setCloseShopDialogOpen(false)} disabled={togglingStatus}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleCloseShop} disabled={togglingStatus || !closeShopReason.trim() || !closeShopConfirm} startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}>
+            {togglingStatus ? 'Submitting...' : 'Close Shop'}
           </Button>
         </DialogActions>
       </Dialog>

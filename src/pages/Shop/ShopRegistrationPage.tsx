@@ -25,11 +25,11 @@ import {
   Link,
   Alert,
   CircularProgress,
+  FormHelperText,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import {
   ArrowBack,
-  CloudUpload,
   Store,
   Description,
   CheckCircle,
@@ -37,9 +37,11 @@ import {
   LocationOn,
   Phone,
   Email,
-  Delete,
-  InsertDriveFile,
   LocalShipping,
+  Badge,
+  CalendarToday,
+  AccountBalance,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -63,19 +65,6 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Styled upload area
-const UploadArea = styled(Box)(({ theme }) => ({
-  border: `2px dashed ${theme.palette.custom.border.light}`,
-  borderRadius: 12,
-  padding: theme.spacing(4),
-  textAlign: 'center',
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  '&:hover': {
-    borderColor: theme.palette.primary.main,
-    backgroundColor: theme.palette.custom.neutral[50],
-  },
-}));
 
 const registrationSteps = [
   { label: 'Shop Information', key: 'SHOP_INFO' },
@@ -86,24 +75,27 @@ const registrationSteps = [
 
 // ==================== FORM INTERFACES ====================
 interface ShopFormData {
+  // Shop Info
   shopName: string;
   email: string;
   phone: string;
   address: string;
+  logoUrl: string;
+  // GHN location (stored as string IDs in selects)
   city: string;
   district: string;
   ward: string;
+  // Business license fields
+  licenseNumber: string;
+  businessName: string;
+  legalRepresentative: string;
+  registeredAddress: string;
   taxId: string;
-  businessLicense: string;
-  businessLicenseUrl: string;
-  logoUrl: string;
-}
-
-interface LicenseFile {
-  name: string;
-  size: number;
-  type: string;
-  preview?: string;
+  businessType: string;
+  issuedDate: string;
+  issuedBy: string;
+  expiryDate: string;
+  licenseImageUrl: string;
 }
 
 const ShopRegistrationPage = () => {
@@ -116,21 +108,28 @@ const ShopRegistrationPage = () => {
     email: '',
     phone: '',
     address: '',
+    logoUrl: '',
     city: '',
     district: '',
     ward: '',
+    licenseNumber: '',
+    businessName: '',
+    legalRepresentative: '',
+    registeredAddress: '',
     taxId: '',
-    businessLicense: '',
-    businessLicenseUrl: '',
-    logoUrl: '',
+    businessType: '',
+    issuedDate: '',
+    issuedBy: '',
+    expiryDate: '',
+    licenseImageUrl: '',
   });
-  const [licenseFiles, setLicenseFiles] = useState<LicenseFile[]>([]);
   const [selectedShippingPartners, setSelectedShippingPartners] = useState<string[]>([]);
   const [policyAgreed, setPolicyAgreed] = useState(false);
   const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // GHN location state
   const [provinces, setProvinces] = useState<GhnProvince[]>([]);
@@ -212,32 +211,48 @@ const ShopRegistrationPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const handleSelectChange = (field: keyof ShopFormData) => (e: any) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    console.log(files);
-    if (files) {
-      const newFiles: LicenseFile[] = Array.from(files).map((file) => ({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-      }));
-      setLicenseFiles((prev) => [...prev, ...newFiles]);
-      setFormData((prev) => ({ ...prev, businessLicenseUrl: newFiles[0].name }));
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (step === 0) {
+      if (!formData.shopName.trim()) newErrors.shopName = 'Shop name is required';
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email address is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+      if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+      if (!formData.address.trim()) newErrors.address = 'Street address is required';
+      if (!formData.city) newErrors.city = 'City/Province is required';
     }
-  };
 
-  const handleRemoveFile = (index: number) => {
-    setLicenseFiles((prev) => prev.filter((_, i) => i !== index));
+    if (step === 1) {
+      if (!formData.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
+      if (!formData.businessName.trim()) newErrors.businessName = 'Business name is required';
+      if (!formData.businessType) newErrors.businessType = 'Business type is required';
+      if (!formData.taxId.trim()) newErrors.taxId = 'Tax ID is required';
+      if (!formData.legalRepresentative.trim()) newErrors.legalRepresentative = 'Legal representative name is required';
+    }
+
+    if (step === 2) {
+      if (selectedShippingPartners.length === 0) newErrors.shippingPartners = 'Please select at least one shipping partner to continue';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
+    if (!validateStep(activeStep)) return;
+    setErrors({});
     setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
   };
 
@@ -260,8 +275,6 @@ const ShopRegistrationPage = () => {
         phone: formData.phone,
         address: formData.address,
         city: province?.ProvinceName || '',
-        businessLicense: formData.businessLicense,
-        businessLicenseUrl: formData.businessLicenseUrl,
         logoUrl: formData.logoUrl,
         ghnProvinceId: province?.ProvinceID || 0,
         ghnDistrictId: district?.DistrictID || 0,
@@ -269,7 +282,18 @@ const ShopRegistrationPage = () => {
         provinceName: province?.ProvinceName || '',
         districtName: district?.DistrictName || '',
         wardName: ward?.WardName || '',
-        taxId: formData.taxId,
+        businessLicense: {
+          licenseNumber: formData.licenseNumber,
+          businessName: formData.businessName,
+          legalRepresentative: formData.legalRepresentative,
+          registeredAddress: formData.registeredAddress,
+          taxId: formData.taxId,
+          businessType: formData.businessType,
+          issuedDate: formData.issuedDate ? new Date(formData.issuedDate).toISOString() : '',
+          issuedBy: formData.issuedBy,
+          expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : '',
+          licenseImageUrl: formData.licenseImageUrl,
+        },
       };
 
       await shopApi.register(requestData);
@@ -286,12 +310,6 @@ const ShopRegistrationPage = () => {
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
     navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD);
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const renderShopInfoForm = () => (
@@ -320,6 +338,8 @@ const ShopRegistrationPage = () => {
             value={formData.shopName}
             onChange={handleInputChange('shopName')}
             placeholder="Enter your shop name"
+            error={!!errors.shopName}
+            helperText={errors.shopName}
             InputProps={{
               startAdornment: <Store sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
@@ -335,6 +355,8 @@ const ShopRegistrationPage = () => {
             value={formData.email}
             onChange={handleInputChange('email')}
             placeholder="Enter email address"
+            error={!!errors.email}
+            helperText={errors.email}
             InputProps={{
               startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
@@ -349,21 +371,10 @@ const ShopRegistrationPage = () => {
             value={formData.phone}
             onChange={handleInputChange('phone')}
             placeholder="Enter phone number"
+            error={!!errors.phone}
+            helperText={errors.phone}
             InputProps={{
               startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Tax ID"
-            value={formData.taxId}
-            onChange={handleInputChange('taxId')}
-            placeholder="Enter tax identification number"
-            InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
           />
         </Grid>
@@ -405,6 +416,8 @@ const ShopRegistrationPage = () => {
             value={formData.address}
             onChange={handleInputChange('address')}
             placeholder="Enter street address"
+            error={!!errors.address}
+            helperText={errors.address}
             InputProps={{
               startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
@@ -412,7 +425,7 @@ const ShopRegistrationPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth required>
+          <FormControl fullWidth required error={!!errors.city}>
             <InputLabel>City/Province</InputLabel>
             <Select
               value={formData.city}
@@ -420,12 +433,14 @@ const ShopRegistrationPage = () => {
               disabled={loadingProvinces}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, city: e.target.value, district: '', ward: '' }));
+                if (errors.city) setErrors((prev) => ({ ...prev, city: '' }));
               }}
             >
               {provinces.map((p) => (
                 <MenuItem key={p.ProvinceID} value={String(p.ProvinceID)}>{p.ProvinceName}</MenuItem>
               ))}
             </Select>
+            {errors.city && <FormHelperText>{errors.city}</FormHelperText>}
           </FormControl>
         </Grid>
 
@@ -484,18 +499,24 @@ const ShopRegistrationPage = () => {
       </Typography>
 
       <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-        Please provide your business license information and upload related documents for verification.
+        Please provide your business license information for verification.
       </Typography>
 
+      {/* License Identity */}
+      <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
+        License Information
+      </Typography>
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
             required
-            label="Business License Number"
-            value={formData.businessLicense}
-            onChange={handleInputChange('businessLicense')}
-            placeholder="Enter business license number"
+            label="License Number"
+            value={formData.licenseNumber}
+            onChange={handleInputChange('licenseNumber')}
+            placeholder="e.g. 0312345678"
+            error={!!errors.licenseNumber}
+            helperText={errors.licenseNumber}
             InputProps={{
               startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
             }}
@@ -505,97 +526,145 @@ const ShopRegistrationPage = () => {
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
-            label="Business License URL"
-            value={formData.businessLicenseUrl}
-            onChange={handleInputChange('businessLicenseUrl')}
-            placeholder="Enter license document URL (optional)"
+            required
+            label="Business Name"
+            value={formData.businessName}
+            onChange={handleInputChange('businessName')}
+            placeholder="Registered business name"
+            error={!!errors.businessName}
+            helperText={errors.businessName}
+            InputProps={{
+              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FormControl fullWidth required error={!!errors.businessType}>
+            <InputLabel>Business Type</InputLabel>
+            <Select
+              value={formData.businessType}
+              label="Business Type *"
+              onChange={handleSelectChange('businessType')}
+            >
+              <MenuItem value="Hộ kinh doanh cá thể">Individual Business (Hộ kinh doanh cá thể)</MenuItem>
+              <MenuItem value="Hộ kinh doanh">Household Business (Hộ kinh doanh)</MenuItem>
+              <MenuItem value="Công ty TNHH">Limited Company (Công ty TNHH)</MenuItem>
+              <MenuItem value="Công ty cổ phần">Joint Stock Company (Công ty cổ phần)</MenuItem>
+              <MenuItem value="Công ty hợp danh">Partnership (Công ty hợp danh)</MenuItem>
+            </Select>
+            {errors.businessType && <FormHelperText>{errors.businessType}</FormHelperText>}
+          </FormControl>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            required
+            label="Tax ID"
+            value={formData.taxId}
+            onChange={handleInputChange('taxId')}
+            placeholder="e.g. 0312345678"
+            error={!!errors.taxId}
+            helperText={errors.taxId}
+            InputProps={{
+              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Issued Date"
+            type="date"
+            value={formData.issuedDate}
+            onChange={handleInputChange('issuedDate')}
+            slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{
+              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Expiry Date"
+            type="date"
+            value={formData.expiryDate}
+            onChange={handleInputChange('expiryDate')}
+            slotProps={{ inputLabel: { shrink: true } }}
+            InputProps={{
+              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Issued By"
+            value={formData.issuedBy}
+            onChange={handleInputChange('issuedBy')}
+            placeholder="e.g. Sở Kế hoạch và Đầu tư TP.HCM"
+            InputProps={{
+              startAdornment: <AccountBalance sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="License Image URL"
+            value={formData.licenseImageUrl}
+            onChange={handleInputChange('licenseImageUrl')}
+            placeholder="Paste the URL of your scanned license document"
+            InputProps={{
+              startAdornment: <LinkIcon sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+            helperText="Upload your document to a cloud storage and paste the public link here."
           />
         </Grid>
       </Grid>
 
-      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1.5 }}>
-        Upload License Documents
+      <Divider sx={{ my: 3 }} />
+
+      {/* Owner / Representative */}
+      <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
+        Owner / Legal Representative
       </Typography>
-      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
-        Accepted formats: PDF, JPG, PNG (max 10MB each)
-      </Typography>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            required
+            label="Legal Representative Name"
+            value={formData.legalRepresentative}
+            onChange={handleInputChange('legalRepresentative')}
+            placeholder="Full name as on ID card"
+            error={!!errors.legalRepresentative}
+            helperText={errors.legalRepresentative}
+            InputProps={{
+              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
 
-      <input
-        type="file"
-        id="license-upload"
-        multiple
-        accept=".pdf,.jpg,.jpeg,.png"
-        style={{ display: 'none' }}
-        onChange={handleFileUpload}
-      />
-
-      <label htmlFor="license-upload">
-        <UploadArea>
-          <CloudUpload sx={{ fontSize: 48, color: theme.palette.custom.neutral[400], mb: 2 }} />
-          <Typography sx={{ fontSize: 16, fontWeight: 500, color: theme.palette.custom.neutral[700], mb: 1 }}>
-            Drag and drop files here or click to browse
-          </Typography>
-          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-            PDF, JPG, PNG up to 10MB
-          </Typography>
-        </UploadArea>
-      </label>
-
-      {licenseFiles.length > 0 && (
-        <Box sx={{ mt: 3 }}>
-          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
-            Uploaded Files ({licenseFiles.length})
-          </Typography>
-
-          {licenseFiles.map((file, index) => (
-            <Paper
-              key={index}
-              elevation={0}
-              sx={{
-                p: 2,
-                mb: 1.5,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.custom.border.light}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-              }}
-            >
-              {file.preview ? (
-                <Avatar
-                  variant="rounded"
-                  src={file.preview}
-                  sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[100] }}
-                />
-              ) : (
-                <Avatar
-                  variant="rounded"
-                  sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.status.error.light }}
-                >
-                  <InsertDriveFile sx={{ color: theme.palette.custom.status.error.main }} />
-                </Avatar>
-              )}
-
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {file.name}
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                  {formatFileSize(file.size)}
-                </Typography>
-              </Box>
-
-              <IconButton
-                size="small"
-                onClick={() => handleRemoveFile(index)}
-                sx={{ color: theme.palette.custom.status.error.main }}
-              >
-                <Delete />
-              </IconButton>
-            </Paper>
-          ))}
-        </Box>
-      )}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            label="Registered Address"
+            value={formData.registeredAddress}
+            onChange={handleInputChange('registeredAddress')}
+            placeholder="Business registered address"
+            InputProps={{
+              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            }}
+          />
+        </Grid>
+      </Grid>
 
       <Box
         sx={{
@@ -606,16 +675,16 @@ const ShopRegistrationPage = () => {
         }}
       >
         <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 1 }}>
-          Required Documents:
+          Required Information:
         </Typography>
         <Typography
           component="ul"
           sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], m: 0, pl: 2 }}
         >
-          <li>Business Registration Certificate</li>
-          <li>Owner's ID Card (front and back)</li>
-          <li>Tax Registration Certificate (if applicable)</li>
-          <li>Bank Account Verification</li>
+          <li>License number, business name, and business type</li>
+          <li>Legal representative name and registered address</li>
+          <li>Tax ID, issue date, expiry date, and issuing authority</li>
+          <li>Public URL link to scanned license document</li>
         </Typography>
       </Box>
     </Box>
@@ -635,6 +704,7 @@ const ShopRegistrationPage = () => {
     setSelectedShippingPartners((prev) =>
       prev.includes(partnerId) ? prev.filter((id) => id !== partnerId) : [...prev, partnerId]
     );
+    if (errors.shippingPartners) setErrors((prev) => ({ ...prev, shippingPartners: '' }));
   };
 
   const renderShipping = () => (
@@ -734,6 +804,10 @@ const ShopRegistrationPage = () => {
         );
       })}
 
+      {errors.shippingPartners && (
+        <Alert severity="error" sx={{ mt: 2 }}>{errors.shippingPartners}</Alert>
+      )}
+
       <Box
         sx={{
           mt: 3,
@@ -814,12 +888,6 @@ const ShopRegistrationPage = () => {
               </Typography>
             </Box>
 
-            <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Tax ID</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.taxId || '-'}
-              </Typography>
-            </Box>
           </Paper>
         </Grid>
 
@@ -898,73 +966,77 @@ const ShopRegistrationPage = () => {
               Business License
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <Box>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Number</Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.businessLicense || '-'}
+                  {formData.licenseNumber || '-'}
                 </Typography>
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License URL</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Business Name</Typography>
                 <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.businessLicenseUrl || '-'}
+                  {formData.businessName || '-'}
                 </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Documents Summary */}
-        <Grid size={{ xs: 12 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.custom.border.light}`,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.palette.custom.neutral[500],
-                textTransform: 'uppercase',
-                mb: 2,
-              }}
-            >
-              Uploaded Documents ({licenseFiles.length})
-            </Typography>
-
-            {licenseFiles.length === 0 ? (
-              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-                No documents uploaded
-              </Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {licenseFiles.map((file, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      px: 2,
-                      py: 1,
-                      borderRadius: 1,
-                      bgcolor: theme.palette.custom.neutral[100],
-                    }}
-                  >
-                    <InsertDriveFile sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
-                      {file.name}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            )}
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Business Type</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.businessType
+                    ? { individual: 'Individual Business', household: 'Household Business', company: 'Limited Company', joint_stock: 'Joint Stock Company', partnership: 'Partnership' }[formData.businessType] ?? formData.businessType
+                    : '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Tax ID</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.taxId || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Legal Representative</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.legalRepresentative || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Registered Address</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.registeredAddress || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Issued Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.issuedDate || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Expiry Date</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.expiryDate || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Issued By</Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  {formData.issuedBy || '-'}
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Image URL</Typography>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: formData.licenseImageUrl ? theme.palette.primary.main : theme.palette.custom.neutral[800],
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {formData.licenseImageUrl || '-'}
+                </Typography>
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
 
