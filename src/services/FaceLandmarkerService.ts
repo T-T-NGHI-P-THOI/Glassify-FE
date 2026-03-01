@@ -1,0 +1,295 @@
+import { clamp, eyeMid, mid, qDelta, toPixels, toV } from "@/utils/face-detect-helpers";
+import * as vision from "@mediapipe/tasks-vision";
+import * as THREE from 'three';
+
+export const LM = {
+    leftEyeOuter: 33,
+    rightEyeOuter: 263,
+    leftEyeInner: 133,
+    rightEyeInner: 362,
+    leftTemple: 127,
+    rightTemple: 356,
+    leftCheek: 234,
+    rightCheek: 454,
+    forehead: 10,
+    chin: 175,
+    noseBridge: 168,
+    noseTip: 1
+};
+
+export const FACE_OVAL = [
+    10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+    397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+    172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
+];
+
+export const CFG = {
+    refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
+    refFaceHeight: 210,     // Reference face height (pixels)
+    glassesDepth: 10,       // Z-offset: how far glasses sit in front of the face
+    glassesDown: 2,         // Y-offset: push glasses slightly downward
+    glassesCenterX: 0,      // X-offset: horizontal fine-tuning
+    glassesScale: 1.22      // Overall scale multiplier
+};
+
+const sm = {
+    ready: false,
+    gPos: new THREE.Vector3(),
+    gQuat: new THREE.Quaternion(),
+    gScale: new THREE.Vector3(1, 1, 1),
+    prev: new THREE.Vector3()
+};
+
+export class FaceLandmarkerService {
+    private faceLandmarker: vision.FaceLandmarker | undefined;
+    private predictionInFlight = false;
+
+    private glassesObj?: THREE.Object3D;
+    private faceObj?: THREE.Mesh;
+
+    setThreeObjects(glasses: THREE.Object3D, face: THREE.Mesh) {
+        this.glassesObj = glasses;
+        this.faceObj = face;
+    }
+
+    async initializeEngine() {
+        const fileset = await vision.FilesetResolver.forVisionTasks(
+            "https://unpkg.com/@mediapipe/tasks-vision@0.10.7/wasm"
+        );
+
+        this.faceLandmarker = await vision.FaceLandmarker.createFromOptions(
+            fileset,
+            {
+                baseOptions: {
+                    modelAssetPath:
+                        "https://storage.googleapis.com/mediapipe-assets/face_landmarker.task",
+                    delegate: "GPU",
+                },
+                runningMode: "VIDEO",
+                numFaces: 1,
+            }
+        );
+    }
+
+    startPrediction(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+        const ctx = canvas.getContext("2d")!;
+
+        const predict = () => {
+            if (!this.faceLandmarker) {
+                requestAnimationFrame(predict);
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            if (video.readyState >= 2) {
+                const now = performance.now();
+                const results = this.faceLandmarker.detectForVideo(video, now);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (results.faceLandmarks.length > 0) {
+                    const landmarks = results.faceLandmarks[0];
+
+                    // this.drawPoints(ctx, landmarks);
+                    // this.drawConnections(ctx, landmarks);
+                }
+            }
+
+            requestAnimationFrame(predict);
+        };
+
+        predict();
+    }
+
+    // drawPoints(ctx: CanvasRenderingContext2D, landmarks: any) {
+    //     ctx.fillStyle = "red";
+
+    //     landmarks.forEach((p: any) => {
+    //         ctx.beginPath();
+    //         ctx.arc(
+    //             p.x * ctx.canvas.width,
+    //             p.y * ctx.canvas.height,
+    //             2,
+    //             0,
+    //             2 * Math.PI
+    //         );
+    //         ctx.fill();
+    //     });
+    // }
+
+    // drawConnections(ctx: CanvasRenderingContext2D, landmarks: any) {
+    //     ctx.strokeStyle = "lime";
+    //     ctx.lineWidth = 1;
+
+    //     FACE_OVAL.forEach(([i, j]) => {
+    //         const p1 = landmarks[i];
+    //         const p2 = landmarks[j];
+
+    //         ctx.beginPath();
+    //         ctx.moveTo(p1.x * ctx.canvas.width, p1.y * ctx.canvas.height);
+    //         ctx.lineTo(p2.x * ctx.canvas.width, p2.y * ctx.canvas.height);
+    //         ctx.stroke();
+    //     });
+    // }
+
+    scheduleNextPrediction(video: HTMLVideoElement) {
+        if (!video) {
+            requestAnimationFrame(() => this.scheduleNextPrediction(video));
+            return;
+        }
+        if (typeof video.requestVideoFrameCallback === 'function') {
+            video.requestVideoFrameCallback(() => { this.renderPrediction(video); });
+        } else {
+            requestAnimationFrame(() => this.renderPrediction(video));
+        }
+    }
+
+    // ── Per-Frame Prediction ─────────────────────────────────────────────────────
+    renderPrediction(video: HTMLVideoElement) {
+        if (this.predictionInFlight) {
+            this.scheduleNextPrediction(video);
+            return;
+        }
+        this.predictionInFlight = true;
+
+        if (!this.faceLandmarker) {
+            this.predictionInFlight = false;
+            this.scheduleNextPrediction(video);
+            return;
+        }
+
+        let results = this.faceLandmarker.detectForVideo(video, performance.now());
+
+        if (results.faceLandmarks && results.faceLandmarks.length > 0 && this.glassesObj) {
+            this.glassesObj.visible = true;
+            // if (this.faceObj) this.faceObj.visible = false;
+
+            let pts = toPixels(results.faceLandmarks[0], video);
+
+            // ── Key landmarks ──
+            let lEye = eyeMid(pts, LM.leftEyeInner, LM.leftEyeOuter);
+            let rEye = eyeMid(pts, LM.rightEyeInner, LM.rightEyeOuter);
+            let nose = toV(pts, LM.noseBridge);
+            let nTip = toV(pts, LM.noseTip);
+            let fHead = toV(pts, LM.forehead);
+            let chn = toV(pts, LM.chin);
+            let lTmp = toV(pts, LM.leftTemple);
+            let rTmp = toV(pts, LM.rightTemple);
+            let lChk = toV(pts, LM.leftCheek);
+            let rChk = toV(pts, LM.rightCheek);
+
+            let eMid = mid(lEye, rEye);
+
+            // ── Face measurements ──
+            let eW = lEye.distanceTo(rEye);
+            let tW = lTmp.distanceTo(rTmp);
+            let cW = lChk.distanceTo(rChk);
+            let fW = Math.max(eW, tW, cW);
+            let fH = fHead.distanceTo(chn);
+
+            // ── Orientation (landmark-based) ──
+            let xAxis = rEye.clone().sub(lEye).normalize();
+            let yRaw = fHead.clone().sub(chn).normalize();
+            let zAxis = xAxis.clone().cross(yRaw).normalize();
+
+            if (zAxis.z < 0) zAxis.negate();
+
+            let yAxis = zAxis.clone().cross(xAxis).normalize();
+
+            let rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+            let targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMat);
+
+            // Z-flip (model faces +Z but scene uses -Z for "behind")
+            let flipZ = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 0, 1), Math.PI
+            );
+            targetQuat.multiply(flipZ);
+
+            // ── Position ──
+            let btt = nTip.clone().sub(nose);
+            let depAdj = clamp(btt.length() * 0.1, 0, 6);
+
+            let tGPos = eMid.clone()
+                .addScaledVector(xAxis, CFG.glassesCenterX)
+                .addScaledVector(yAxis, CFG.glassesDown)
+                .addScaledVector(zAxis, CFG.glassesDepth + depAdj);
+
+            // ── Scale ──
+            let wS = fW / CFG.refHeadWidth;
+            let hS = fH / CFG.refFaceHeight;
+            let bS = (wS * 0.7) + (hS * 0.3);
+            let gS = bS * CFG.glassesScale;
+
+            // console.log("wS: ", wS, ", hS: ", hS,", bS: ", bS, ", gS: ", gS);
+
+            let tGScale = new THREE.Vector3(gS, gS, gS);
+
+            // ── Adaptive smoothing ──
+            let mov = tGPos.distanceTo(sm.prev);
+            let aDelta = qDelta(sm.gQuat, targetQuat);
+
+            let aP = clamp(0.15 + mov * 0.015, 0.15, 0.55);
+            let aR = clamp(0.20 + aDelta * 0.6, 0.20, 0.75);
+            let aS = clamp(0.16 + mov * 0.010, 0.16, 0.45);
+
+            if (!sm.ready) {
+                sm.gPos.copy(tGPos);
+                sm.gQuat.copy(targetQuat);
+                sm.gScale.copy(tGScale);
+                sm.ready = true;
+            } else {
+                sm.gPos.lerp(tGPos, aP);
+                sm.gQuat.slerp(targetQuat, aR);
+                sm.gScale.lerp(tGScale, aS);
+            }
+
+            sm.prev.copy(tGPos);
+
+            // ── Apply to glasses ──
+            this.glassesObj.position.copy(sm.gPos);
+            this.glassesObj.position.set(-300, -50, 100);
+            
+            this.glassesObj.quaternion.copy(sm.gQuat);
+            
+            this.glassesObj.scale.copy(sm.gScale);
+            // this.glassesObj.scale.set(1, 1, 1);
+
+            this.glassesObj.updateWorldMatrix(true, true);
+
+            // ── Update face mesh occluder ──
+            if (this.faceObj) {
+                let posAttr = this.faceObj.geometry.getAttribute('position');
+                let cx = 0, cy = 0, cz = 0;
+                let fwdOff = 8;
+                for (let fi = 0; fi < FACE_OVAL.length; fi++) {
+                    let fv = toV(pts, FACE_OVAL[fi]);
+                    fv.addScaledVector(zAxis, fwdOff);
+                    posAttr.setXYZ(fi + 1, fv.x, fv.y, fv.z);
+                    cx += fv.x; cy += fv.y; cz += fv.z;
+                }
+                cx /= FACE_OVAL.length;
+                cy /= FACE_OVAL.length;
+                cz /= FACE_OVAL.length;
+
+                let coneD = fW * 0.5;
+                posAttr.setXYZ(0,
+                    cx - zAxis.x * coneD,
+                    cy - zAxis.y * coneD,
+                    cz - zAxis.z * coneD
+                );
+                posAttr.needsUpdate = true;
+            }
+
+        } else {
+            if (this.glassesObj) this.glassesObj.visible = false;
+            // if (this.faceObj) this.faceObj.visible = false;
+            sm.ready = false;
+        }
+
+        // console.log("Glasses POSTION: ", this.glassesObj?.position)
+        this.predictionInFlight = false;
+        this.scheduleNextPrediction(video);
+    }
+}
