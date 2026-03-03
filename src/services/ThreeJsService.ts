@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { FACE_OVAL } from './FaceLandmarkerService';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { createSunglasses } from './GlassesService';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const CANVAS_WIDTH = 640;
 
@@ -70,9 +68,13 @@ export class ThreeJsService {
         // Glasses model
         // Example: clear-browline-glasses, eyeglasses_black_v5, glasses
         // eyeglasses_subject_visualization, blue-eyeglasses
-        this.glassesObj = await this.loadGlassesModel("/models/clear-browline-glasses.glb");
+        this.glassesObj = await this.loadGlassesModel("/models/glasses.glb");
         // this.glassesObj = createSunglasses();
-        this.glassesObj.visible = true;
+        
+        // Normalize glasses
+        this.normalizeModel(this.glassesObj);
+
+        this.glassesObj.visible = false;
         scene.add(this.glassesObj);
 
         window.addEventListener('resize', function () {
@@ -82,92 +84,6 @@ export class ThreeJsService {
         // Animate
         this.animate(bg, scene, camera, renderer)
     }
-
-    async newInitalizeThreeJs(canvas: HTMLCanvasElement) {
-        const renderer = new THREE.WebGLRenderer({
-            canvas: canvas,
-            antialias: true,
-            alpha: true   // 🔥 quan trọng nếu overlay lên video
-        });
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0x000000);
-        renderer.setPixelRatio(window.devicePixelRatio);
-
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-        const scene = new THREE.Scene();
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-        camera.position.set(4, 5, 11);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.enablePan = false;
-        controls.minDistance = 5;
-        controls.maxDistance = 20;
-        controls.minPolarAngle = 0.5;
-        controls.maxPolarAngle = 1.5;
-        controls.autoRotate = false;
-        controls.target = new THREE.Vector3(0, 1, 0);
-        controls.update();
-
-        const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
-        groundGeometry.rotateX(-Math.PI / 2);
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x555555,
-            side: THREE.DoubleSide
-        });
-
-        const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-        groundMesh.castShadow = false;
-        groundMesh.receiveShadow = true;
-        scene.add(groundMesh);
-
-        const spotLight = new THREE.SpotLight(0xffffff, 3000, 100, 0.22, 1);
-        spotLight.position.set(0, 25, 0);
-        spotLight.castShadow = true;
-        spotLight.shadow.bias = -0.0001;
-        scene.add(spotLight);
-
-        const loader = new GLTFLoader().setPath('/models/');
-        loader.load('blue-eyeglasses.glb', (gltf: { scene: any; }) => {
-            console.log('loading model');
-            const mesh = gltf.scene;
-
-            mesh.traverse((child: { isMesh: any; scale: { set: (arg0: number, arg1: number, arg2: number) => void; }; castShadow: boolean; receiveShadow: boolean; }) => {
-                if (child.isMesh) {
-                    child.scale.set(2, 2, 2);
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-
-            mesh.position.set(0, 1.05, -1);
-            scene.add(mesh);
-        }, (xhr: { loaded: number; total: number; }) => {
-            console.log(`loading ${xhr.loaded / xhr.total * 100}%`);
-        }, (error: any) => {
-            console.error(error);
-        });
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        animate();
-    }
-
 
     async createCamera(video: HTMLVideoElement) {
         let vw = video.videoWidth;
@@ -181,7 +97,7 @@ export class ThreeJsService {
         return cam;
     }
 
-    async createVideoBackground(video: HTMLVideoElement, camera: THREE.OrthographicCamera) {
+    async createVideoBackground(video: HTMLVideoElement, camera: THREE.Camera) {
         let vw = video.videoWidth;
         let vh = video.videoHeight;
 
@@ -281,17 +197,36 @@ export class ThreeJsService {
             child.receiveShadow = true;
         });
 
-        mesh.position.set(0, 1.05, -1);
-
-        const box = new THREE.Box3().setFromObject(mesh);
-
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        console.log("📦 Model size:", size);
-        console.log("🎯 Bounding center:", center);
-        console.log("📍 Model position:", mesh.position);
-
         return mesh;
+    }
+
+    normalizeModel(model: THREE.Object3D) {
+
+        // reset transform
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+        model.scale.set(1, 1, 1);
+
+        // compute box
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+
+        box.getSize(size);
+
+        // --- SCALE ---
+        const TARGET_WIDTH = 140;
+        const scaleFactor = TARGET_WIDTH / size.x;
+        model.scale.setScalar(scaleFactor);
+
+        // recompute box after scale
+        const newBox = new THREE.Box3().setFromObject(model);
+        newBox.getCenter(center);
+        
+        // --- POSITION ---
+        model.position.sub(center);
+
+        console.log("Center: ", center)
+        return model;
     }
 }

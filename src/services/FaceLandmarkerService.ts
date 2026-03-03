@@ -26,8 +26,8 @@ export const FACE_OVAL = [
 export const CFG = {
     refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
     refFaceHeight: 210,     // Reference face height (pixels)
-    glassesDepth: 10,       // Z-offset: how far glasses sit in front of the face
-    glassesDown: 2,         // Y-offset: push glasses slightly downward
+    glassesDepth: -50,       // Z-offset: how far glasses sit in front of the face
+    glassesDown: -20,         // Y-offset: push glasses slightly downward
     glassesCenterX: 0,      // X-offset: horizontal fine-tuning
     glassesScale: 1.22      // Overall scale multiplier
 };
@@ -46,10 +46,12 @@ export class FaceLandmarkerService {
 
     private glassesObj?: THREE.Object3D;
     private faceObj?: THREE.Mesh;
+    private baseScale!: THREE.Vector3;
 
     setThreeObjects(glasses: THREE.Object3D, face: THREE.Mesh) {
         this.glassesObj = glasses;
         this.faceObj = face;
+        this.baseScale = this.glassesObj.scale.clone();
     }
 
     async initializeEngine() {
@@ -202,10 +204,10 @@ export class FaceLandmarkerService {
             let targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMat);
 
             // Z-flip (model faces +Z but scene uses -Z for "behind")
-            let flipZ = new THREE.Quaternion().setFromAxisAngle(
-                new THREE.Vector3(0, 0, 1), Math.PI
-            );
-            targetQuat.multiply(flipZ);
+            // let flipZ = new THREE.Quaternion().setFromAxisAngle(
+            //     new THREE.Vector3(0, 0, -1), Math.PI
+            // );
+            // targetQuat.multiply(flipZ);
 
             // ── Position ──
             let btt = nTip.clone().sub(nose);
@@ -234,27 +236,37 @@ export class FaceLandmarkerService {
             let aR = clamp(0.20 + aDelta * 0.6, 0.20, 0.75);
             let aS = clamp(0.16 + mov * 0.010, 0.16, 0.45);
 
-            if (!sm.ready) {
+            if (sm.ready) {
+                sm.gPos.lerp(tGPos, aP);
+                sm.gQuat.slerp(targetQuat, aR);
+                sm.gScale.lerp(tGScale, aS);
+            } else {
                 sm.gPos.copy(tGPos);
                 sm.gQuat.copy(targetQuat);
                 sm.gScale.copy(tGScale);
                 sm.ready = true;
-            } else {
-                sm.gPos.lerp(tGPos, aP);
-                sm.gQuat.slerp(targetQuat, aR);
-                sm.gScale.lerp(tGScale, aS);
             }
 
             sm.prev.copy(tGPos);
 
             // ── Apply to glasses ──
-            this.glassesObj.position.copy(sm.gPos);
-            this.glassesObj.position.set(-300, -50, 100);
-            
+            // this.glassesObj.position.copy(sm.gPos);
+
+            this.glassesObj.scale.set(
+                sm.gScale.x * this.baseScale.x,
+                sm.gScale.y * this.baseScale.y,
+                sm.gScale.z * this.baseScale.z
+            );
+
+            this.normalizePosition(this.glassesObj);
+            this.glassesObj.position.set(
+                sm.gPos.x + this.glassesObj.position.x,
+                sm.gPos.y + this.glassesObj.position.y,
+                sm.gPos.z + this.glassesObj.position.z
+            );
+            // this.glassesObj.position.set(-300, -50, 100);
+
             this.glassesObj.quaternion.copy(sm.gQuat);
-            
-            this.glassesObj.scale.copy(sm.gScale);
-            // this.glassesObj.scale.set(1, 1, 1);
 
             this.glassesObj.updateWorldMatrix(true, true);
 
@@ -284,12 +296,19 @@ export class FaceLandmarkerService {
 
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
-            // if (this.faceObj) this.faceObj.visible = false;
+            if (this.faceObj) this.faceObj.visible = false;
             sm.ready = false;
         }
 
         // console.log("Glasses POSTION: ", this.glassesObj?.position)
         this.predictionInFlight = false;
         this.scheduleNextPrediction(video);
+    }
+
+    normalizePosition(model: THREE.Object3D) {
+        const center = new THREE.Vector3();
+        const box = new THREE.Box3().setFromObject(model);
+        box.getCenter(center);
+        model.position.sub(center);
     }
 }
