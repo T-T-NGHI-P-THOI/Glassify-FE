@@ -28,6 +28,7 @@ import {
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   activeMenu?: string;
@@ -39,6 +40,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const { user } = useAuth();
 
   const menuItems = [
     { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.DASHBOARD },
@@ -82,7 +84,11 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
     <Box
       sx={{
         width: 240,
-        minHeight: '100vh',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        flexShrink: 0,
+        overflow: 'hidden',
         backgroundColor: theme.palette.background.paper,
         borderRight: `1px solid ${theme.palette.divider}`,
         display: 'flex',
@@ -236,14 +242,14 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       >
         <Avatar
           sx={{ width: 36, height: 36, bgcolor: theme.palette.custom.neutral[200] }}
-          src="/avatar.png"
+          src={user?.avatarUrl || ''}
         />
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.text.primary }}>
-            Marsha Lenathea
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.username || 'User'}
           </Typography>
-          <Typography sx={{ fontSize: 12, color: theme.palette.text.secondary }}>
-            marsha@mail.com
+          <Typography sx={{ fontSize: 12, color: theme.palette.text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.email || ''}
           </Typography>
         </Box>
         <ExpandMore sx={{ color: theme.palette.text.secondary }} />

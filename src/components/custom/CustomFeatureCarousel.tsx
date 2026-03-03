@@ -41,7 +41,7 @@ const CustomFeatureCarousel = (props: PropType) => {
               <Box
                 sx={{
                   bgcolor: 'white',
-                  borderRadius: 2,
+                  borderRadius: 0.5,
                   overflow: 'hidden',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                   cursor: 'pointer',

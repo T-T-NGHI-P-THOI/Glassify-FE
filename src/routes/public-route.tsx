@@ -16,6 +16,7 @@ import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import MyOrdersPage from "@/pages/Order/MyOrdersPage";
 import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
+import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
 
 const PublicRoutesComponent = () => {
     return (
@@ -86,37 +87,10 @@ const PublicRoutesComponent = () => {
             />
 
             <Route
-                path={PAGE_ENDPOINTS.TRACKING.SHOP_DETAIL}
-                element={
-                    <GuestGuard>
-                        <ShopTrackingDetailPage />
-                    </GuestGuard>
-                }
-            />
-
-            {/*<Route*/}
-            {/*    path={PAGE_ENDPOINTS.SHOP.REGISTER}*/}
-            {/*    element={*/}
-            {/*        <GuestGuard>*/}
-            {/*            <ShopRegistrationPage />*/}
-            {/*        </GuestGuard>*/}
-            {/*    }*/}
-            {/*/>*/}
-
-            <Route
                 path={PAGE_ENDPOINTS.SHOP.PROFILE}
                 element={
                     <GuestGuard>
                         <ShopProfilePage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}
-                element={
-                    <GuestGuard>
-                        <AdminShopApprovalPage />
                     </GuestGuard>
                 }
             />
@@ -137,6 +111,11 @@ const PublicRoutesComponent = () => {
                         <WarrantyPage />
                     </GuestGuard>
                 }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.PAYMENT.RESULT}
+                element={<PaymentResultPage />}
             />
             {/* <Route
                     path={].SIGN_UP_ENDPOINT}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Star, FavoriteBorder } from '@mui/icons-material';
 import type { BrowseProduct } from '../../types/filter';
+import { formatCurrency } from '@/utils/formatCurrency';
 import './ProductGrid.css';
 
 interface ProductGridProps {
@@ -29,7 +30,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, v
             className="product-grid-card"
           >
             {product.isNew && <span className="badge badge-new">New</span>}
-            {product.isBestSeller && <span className="badge badge-bestseller">Best Seller</span>}
+            {product.isFeatured && <span className="badge badge-bestseller">Best Seller</span>}
             
             <button 
               className="favorite-btn-grid"
@@ -64,7 +65,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, v
                 )}
               </div>
 
-              <p className="product-grid-price">${product.price.toFixed(2)}</p>
+              <p className="product-grid-price">{formatCurrency(product.price)}</p>
             </div>
           </Link>
           

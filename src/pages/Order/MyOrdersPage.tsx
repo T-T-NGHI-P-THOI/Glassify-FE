@@ -34,13 +34,16 @@ import {
   Store,
   Visibility,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { orderApi } from '@/api/order-api';
+import { toast } from 'react-toastify';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-type PaymentMethod = 'CREDIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET';
-type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
+type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
+type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
 
 // ==================== INTERFACES (matching backend models) ====================
 interface OrderItem {
@@ -92,374 +95,7 @@ interface Order {
   paymentMethod: PaymentMethod;
 }
 
-// ==================== MOCK DATA ====================
-const mockOrders: Order[] = [
-  {
-    id: 'a1b2c3d4-0001',
-    orderNumber: 'ORD-2024-001',
-    subtotal: 3800000,
-    shippingFee: 30000,
-    discountAmount: 0,
-    totalAmount: 3830000,
-    shippingName: 'Nguyen Van An',
-    shippingPhone: '0901234567',
-    shippingAddress: '123 Nguyen Hue, Quan 1',
-    shippingCity: 'Ho Chi Minh',
-    customerNote: 'Giao hang buoi sang, goi truoc khi giao',
-    orderedAt: '2024-01-25T10:30:00Z',
-    status: 'PENDING',
-    paymentStatus: 'PENDING',
-    paymentMethod: 'COD',
-    items: [
-      {
-        id: 'item-001',
-        productName: 'Ray-Ban Aviator Classic RB3025',
-        productSku: 'RB-3025-001-58',
-        productImageUrl: 'https://picsum.photos/seed/rayban/80/80',
-        variantInfo: { color: 'Gold', size: '58mm', material: 'Metal' },
-        lensName: 'Crystal Green Lens',
-        unitPrice: 3500000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 3500000,
-        isFree: false,
-        warrantyMonths: 12,
-        warrantyExpiresAt: '2025-01-25',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-001',
-        shopName: 'Luxury Eyewear Store',
-        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
-      },
-      {
-        id: 'item-002',
-        productName: 'Lens Cleaning Kit Premium',
-        productSku: 'ACC-CLN-001',
-        productImageUrl: 'https://picsum.photos/seed/kit/80/80',
-        unitPrice: 150000,
-        quantity: 2,
-        discountAmount: 0,
-        lineTotal: 300000,
-        isFree: false,
-        warrantyMonths: 0,
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'ACCESSORY',
-        shopId: 'shop-003',
-        shopName: 'Glasses Accessories Hub',
-        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
-      },
-    ],
-  },
-  {
-    id: 'a1b2c3d4-0002',
-    orderNumber: 'ORD-2024-002',
-    subtotal: 4200000,
-    shippingFee: 0,
-    discountAmount: 200000,
-    totalAmount: 4000000,
-    shippingName: 'Tran Thi Binh',
-    shippingPhone: '0912345678',
-    shippingAddress: '456 Le Loi, Hoan Kiem',
-    shippingCity: 'Ha Noi',
-    orderedAt: '2024-01-24T14:20:00Z',
-    paidAt: '2024-01-24T14:25:00',
-    status: 'PROCESSING',
-    paymentStatus: 'PAID',
-    paymentMethod: 'BANK_TRANSFER',
-    items: [
-      {
-        id: 'item-003',
-        productName: 'Oakley Holbrook OO9102',
-        productSku: 'OAK-9102-E5-55',
-        productImageUrl: 'https://picsum.photos/seed/oakley/80/80',
-        variantInfo: { color: 'Matte Black', size: '55mm' },
-        lensName: 'Prizm Sapphire Polarized',
-        lensTintName: 'Sapphire Iridium',
-        lensFeaturesSnapshot: { polarized: true, uvProtection: '100%', material: 'Plutonite' },
-        unitPrice: 4200000,
-        quantity: 1,
-        discountAmount: 200000,
-        lineTotal: 4000000,
-        isFree: false,
-        warrantyMonths: 12,
-        warrantyExpiresAt: '2025-01-24',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-002',
-        shopName: 'Sport Vision Pro',
-        shopLogoUrl: 'https://picsum.photos/seed/shop2/40/40',
-      },
-    ],
-  },
-  {
-    id: 'a1b2c3d4-0003',
-    orderNumber: 'ORD-2024-003',
-    subtotal: 9200000,
-    shippingFee: 0,
-    discountAmount: 350000,
-    totalAmount: 8850000,
-    shippingName: 'Le Van Cuong',
-    shippingPhone: '0923456789',
-    shippingAddress: '789 Tran Hung Dao, Hai Chau',
-    shippingCity: 'Da Nang',
-    customerNote: 'Goi dien truoc 30 phut',
-    orderedAt: '2024-01-22T09:15:00Z',
-    paidAt: '2024-01-22T09:20:00',
-    status: 'SHIPPED',
-    paymentStatus: 'PAID',
-    paymentMethod: 'CREDIT_CARD',
-    trackingNumber: 'GHN-123456789',
-    items: [
-      {
-        id: 'item-004',
-        productName: 'Gucci GG0061S',
-        productSku: 'GUC-0061S-002-56',
-        productImageUrl: 'https://picsum.photos/seed/gucci/80/80',
-        variantInfo: { color: 'Havana', size: '56mm', material: 'Acetate' },
-        lensName: 'Brown Gradient',
-        unitPrice: 8500000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 8500000,
-        isFree: false,
-        warrantyMonths: 24,
-        warrantyExpiresAt: '2026-01-22',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-001',
-        shopName: 'Luxury Eyewear Store',
-        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
-      },
-      {
-        id: 'item-005',
-        productName: 'Premium Glasses Case - Gucci',
-        productSku: 'ACC-CASE-GUC',
-        productImageUrl: 'https://picsum.photos/seed/case/80/80',
-        unitPrice: 350000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 350000,
-        isFree: true,
-        giftNote: 'Free case with Gucci frame purchase',
-        warrantyMonths: 0,
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'ACCESSORY',
-        shopId: 'shop-001',
-        shopName: 'Luxury Eyewear Store',
-        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
-      },
-    ],
-  },
-  {
-    id: 'a1b2c3d4-0004',
-    orderNumber: 'ORD-2024-004',
-    subtotal: 12500000,
-    shippingFee: 0,
-    discountAmount: 0,
-    totalAmount: 12500000,
-    shippingName: 'Pham Minh Duc',
-    shippingPhone: '0934567890',
-    shippingAddress: '321 Hai Ba Trung, Quan 3',
-    shippingCity: 'Ho Chi Minh',
-    orderedAt: '2024-01-20T16:45:00Z',
-    paidAt: '2024-01-20T16:50:00',
-    completedAt: '2024-01-23T11:00:00',
-    status: 'DELIVERED',
-    paymentStatus: 'PAID',
-    paymentMethod: 'CREDIT_CARD',
-    trackingNumber: 'GHN-987654321',
-    items: [
-      {
-        id: 'item-006',
-        productName: 'Tom Ford FT0237 Snowdon',
-        productSku: 'TF-0237-52N-52',
-        productImageUrl: 'https://picsum.photos/seed/tomford/80/80',
-        variantInfo: { color: 'Dark Havana', size: '52mm', material: 'Acetate' },
-        lensName: 'Green Solid Lens',
-        unitPrice: 9800000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 9800000,
-        isFree: false,
-        warrantyMonths: 24,
-        warrantyExpiresAt: '2026-01-20',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-004',
-        shopName: 'Designer Frames Boutique',
-        shopLogoUrl: 'https://picsum.photos/seed/shop4/40/40',
-      },
-      {
-        id: 'item-007',
-        productName: 'Blue Light Blocking Lens Upgrade',
-        productSku: 'LENS-BLB-STD',
-        productImageUrl: 'https://picsum.photos/seed/lens/80/80',
-        lensName: 'Blue Light Filter Lens',
-        lensTintName: 'Clear with Blue Block',
-        lensFeaturesSnapshot: { blueBlock: true, antiReflective: true, uvProtection: '100%' },
-        unitPrice: 2700000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 2700000,
-        isFree: false,
-        warrantyMonths: 6,
-        warrantyExpiresAt: '2024-07-20',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'LENS',
-        shopId: 'shop-005',
-        shopName: 'LensCraft Vietnam',
-        shopLogoUrl: 'https://picsum.photos/seed/shop5/40/40',
-      },
-    ],
-  },
-  {
-    id: 'a1b2c3d4-0005',
-    orderNumber: 'ORD-2024-005',
-    subtotal: 6560000,
-    shippingFee: 30000,
-    discountAmount: 0,
-    totalAmount: 6590000,
-    shippingName: 'Hoang Thi Em',
-    shippingPhone: '0945678901',
-    shippingAddress: '555 Pham Van Dong, Thu Duc',
-    shippingCity: 'Ho Chi Minh',
-    orderedAt: '2024-01-21T08:00:00Z',
-    cancelledAt: '2024-01-22T10:15:00',
-    status: 'CANCELLED',
-    paymentStatus: 'REFUNDED',
-    paymentMethod: 'E_WALLET',
-    items: [
-      {
-        id: 'item-008',
-        productName: 'Versace VE4361',
-        productSku: 'VER-4361-GB1-87',
-        productImageUrl: 'https://picsum.photos/seed/versace/80/80',
-        variantInfo: { color: 'Black', size: '53mm', material: 'Acetate' },
-        lensName: 'Grey Gradient',
-        unitPrice: 6200000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 6200000,
-        isFree: false,
-        warrantyMonths: 12,
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-001',
-        shopName: 'Luxury Eyewear Store',
-        shopLogoUrl: 'https://picsum.photos/seed/shop1/40/40',
-      },
-      {
-        id: 'item-009',
-        productName: 'Anti-Fog Spray 60ml',
-        productSku: 'ACC-FOG-060',
-        productImageUrl: 'https://picsum.photos/seed/spray/80/80',
-        unitPrice: 120000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 120000,
-        isFree: false,
-        warrantyMonths: 0,
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'ACCESSORY',
-        shopId: 'shop-003',
-        shopName: 'Glasses Accessories Hub',
-        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
-      },
-      {
-        id: 'item-010',
-        productName: 'Microfiber Cloth Set (3pcs)',
-        productSku: 'ACC-MCF-003',
-        productImageUrl: 'https://picsum.photos/seed/cloth/80/80',
-        unitPrice: 80000,
-        quantity: 3,
-        discountAmount: 0,
-        lineTotal: 240000,
-        isFree: false,
-        warrantyMonths: 0,
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'ACCESSORY',
-        shopId: 'shop-003',
-        shopName: 'Glasses Accessories Hub',
-        shopLogoUrl: 'https://picsum.photos/seed/shop3/40/40',
-      },
-    ],
-  },
-  {
-    id: 'a1b2c3d4-0006',
-    orderNumber: 'ORD-2024-006',
-    subtotal: 10200000,
-    shippingFee: 0,
-    discountAmount: 500000,
-    totalAmount: 9700000,
-    shippingName: 'Vo Thanh Hung',
-    shippingPhone: '0956789012',
-    shippingAddress: '88 Nguyen Trai, Quan 5',
-    shippingCity: 'Ho Chi Minh',
-    orderedAt: '2024-01-18T15:00:00Z',
-    paidAt: '2024-01-18T15:05:00',
-    completedAt: '2024-01-21T09:30:00',
-    status: 'DELIVERED',
-    paymentStatus: 'PAID',
-    paymentMethod: 'BANK_TRANSFER',
-    trackingNumber: 'GHN-111222333',
-    items: [
-      {
-        id: 'item-011',
-        productName: 'Prada PR 17WS',
-        productSku: 'PRA-17WS-1AB-49',
-        productImageUrl: 'https://picsum.photos/seed/prada/80/80',
-        variantInfo: { color: 'Black', size: '49mm', material: 'Metal/Acetate' },
-        lensName: 'Grey Gradient',
-        unitPrice: 7500000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 7500000,
-        isFree: false,
-        warrantyMonths: 24,
-        warrantyExpiresAt: '2026-01-18',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'FRAME',
-        shopId: 'shop-004',
-        shopName: 'Designer Frames Boutique',
-        shopLogoUrl: 'https://picsum.photos/seed/shop4/40/40',
-      },
-      {
-        id: 'item-012',
-        productName: 'Progressive Lens - Essilor Varilux',
-        productSku: 'LENS-PRG-ESS',
-        productImageUrl: 'https://picsum.photos/seed/progressive/80/80',
-        lensName: 'Essilor Varilux Comfort Max',
-        lensTintName: 'Clear',
-        lensFeaturesSnapshot: { progressive: true, antiReflective: true, uvProtection: '100%', blueBlock: true },
-        prescriptionSnapshot: { sphereRight: -2.5, sphereLeft: -3.0, cylinderRight: -0.75, cylinderLeft: -0.5, addPower: 2.0 },
-        unitPrice: 2700000,
-        quantity: 1,
-        discountAmount: 0,
-        lineTotal: 2700000,
-        isFree: false,
-        warrantyMonths: 12,
-        warrantyExpiresAt: '2025-01-18',
-        timesReturned: 0,
-        timesWarrantyClaimed: 0,
-        itemType: 'LENS',
-        shopId: 'shop-005',
-        shopName: 'LensCraft Vietnam',
-        shopLogoUrl: 'https://picsum.photos/seed/shop5/40/40',
-      },
-    ],
-  },
-];
+// Mock data removed - using real API
 
 // ==================== HELPERS ====================
 const ORDER_STEPS = ['Pending', 'Processing', 'Shipped', 'Delivered'];
@@ -467,10 +103,12 @@ const ORDER_STEPS = ['Pending', 'Processing', 'Shipped', 'Delivered'];
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
     case 'PENDING': return 0;
+    case 'CONFIRMED': return 1;
     case 'PROCESSING': return 1;
     case 'SHIPPED': return 2;
     case 'DELIVERED': return 3;
     case 'CANCELLED': return -1;
+    case 'REFUNDED': return -1;
     default: return 0;
   }
 };
@@ -478,9 +116,12 @@ const getStepIndex = (status: OrderStatus): number => {
 const getPaymentMethodLabel = (method: PaymentMethod) => {
   switch (method) {
     case 'CREDIT_CARD': return 'Credit Card';
+    case 'DEBIT_CARD': return 'Debit Card';
     case 'BANK_TRANSFER': return 'Bank Transfer';
     case 'COD': return 'Cash on Delivery';
     case 'E_WALLET': return 'E-Wallet';
+    case 'PAYPAL': return 'PayPal';
+    case 'VNPAY': return 'VNPay';
     default: return method;
   }
 };
@@ -491,6 +132,7 @@ const getPaymentStatusLabel = (status: PaymentStatus) => {
     case 'PAID': return 'Paid';
     case 'FAILED': return 'Failed';
     case 'REFUNDED': return 'Refunded';
+    case 'PARTIALLY_REFUNDED': return 'Partially Refunded';
     default: return status;
   }
 };
@@ -634,9 +276,57 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 const MyOrdersPage = () => {
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
-  const [orders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await orderApi.getMyOrders({ size: 50 });
+      if (response.data) {
+        setOrders((response.data.orders || []) as Order[]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      setCancellingOrderId(orderId);
+      await orderApi.cancelOrder(orderId);
+      toast.success('Order cancelled successfully');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) {
+        setDetailDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Failed to cancel order:', error);
+      toast.error('Failed to cancel order');
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
+  const handleReOrder = async (orderId: string) => {
+    try {
+      await orderApi.reOrder(orderId);
+      toast.success('Re-order created successfully');
+      await fetchOrders();
+    } catch (error) {
+      console.error('Failed to re-order:', error);
+      toast.error('Failed to re-order');
+    }
+  };
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -650,6 +340,10 @@ const MyOrdersPage = () => {
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
       case 'CANCELLED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
+      case 'REFUNDED':
+        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+      case 'CONFIRMED':
+        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
     }
@@ -692,6 +386,8 @@ const MyOrdersPage = () => {
       case 'SHIPPED': return 'Shipped';
       case 'DELIVERED': return 'Delivered';
       case 'CANCELLED': return 'Cancelled';
+      case 'CONFIRMED': return 'Confirmed';
+      case 'REFUNDED': return 'Refunded';
       default: return status;
     }
   };
@@ -787,7 +483,12 @@ const MyOrdersPage = () => {
 
         {/* Order Cards */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {filteredOrders.map((order) => {
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress size={40} sx={{ color: theme.palette.custom.neutral[400] }} />
+            </Box>
+          )}
+          {!loading && filteredOrders.map((order) => {
             const statusStyle = getStatusColor(order.status);
             const paymentStyle = getPaymentStatusColor(order.paymentStatus);
             return (
@@ -1023,7 +724,7 @@ const MyOrdersPage = () => {
           })}
 
           {/* Empty State */}
-          {filteredOrders.length === 0 && (
+          {!loading && filteredOrders.length === 0 && (
             <Paper
               elevation={0}
               sx={{
@@ -1435,6 +1136,7 @@ const MyOrdersPage = () => {
                 {selectedOrder.status === 'DELIVERED' && (
                   <Button
                     variant="contained"
+                    onClick={() => handleReOrder(selectedOrder.id)}
                     sx={{
                       textTransform: 'none',
                       fontWeight: 600,
@@ -1449,9 +1151,11 @@ const MyOrdersPage = () => {
                   <Button
                     variant="outlined"
                     color="error"
+                    disabled={cancellingOrderId === selectedOrder.id}
+                    onClick={() => handleCancelOrder(selectedOrder.id)}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
-                    Cancel Order
+                    {cancellingOrderId === selectedOrder.id ? 'Cancelling...' : 'Cancel Order'}
                   </Button>
                 )}
               </DialogActions>

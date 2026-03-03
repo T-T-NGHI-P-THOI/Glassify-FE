@@ -6,9 +6,7 @@ import { Box, Typography, Link } from '@mui/material'
 import {
   NextButton,
   PrevButton,
-  PlayPauseButton,
-  usePrevNextButtons,
-  usePlayPauseButton
+  usePrevNextButtons
 } from './CustomEmblaCarouselButtons'
 
 type CollectionType = {
@@ -38,8 +36,6 @@ const EmblaCarousel = (props: PropType) => {
     onNextButtonClick
   } = usePrevNextButtons(emblaApi)
 
-  const { isPlaying, toggleAutoplay } = usePlayPauseButton(emblaApi, autoplay.current)
-
   return (
     <div className="embla">
       <div className="embla__viewport" ref={emblaRef}>
@@ -50,7 +46,7 @@ const EmblaCarousel = (props: PropType) => {
                 sx={{
                   position: 'relative',
                   height: 500,
-                  borderRadius: 2,
+                  borderRadius: 0.5,
                   overflow: 'hidden',
                   cursor: 'pointer',
                   '&:hover': {
@@ -141,7 +137,6 @@ const EmblaCarousel = (props: PropType) => {
       <div className="embla__controls">
         <div className="embla__buttons">
           <PrevButton onClick={onPrevButtonClick} disabled={prevBtnDisabled} />
-          <PlayPauseButton isPlaying={isPlaying} onClick={toggleAutoplay} />
           <NextButton onClick={onNextButtonClick} disabled={nextBtnDisabled} />
         </div>
       </div>

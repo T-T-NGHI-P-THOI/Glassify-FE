@@ -1,0 +1,269 @@
+.product-detail-page {
+  width: 100%;
+  padding: 20px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.breadcrumb a {
+  color: #666;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: #000;
+}
+
+.product-main {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 40px;
+  margin-bottom: 40px;
+  align-items: start;
+}
+
+.product-preview-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.color-variants-section {
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.color-variants {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  max-width: 600px;
+}
+
+.color-variant-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.color-variant-btn:hover {
+  border-color: #00838f;
+}
+
+.color-variant-btn.active {
+  border-color: #00838f;
+}
+
+.color-variant-btn img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.variant-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+}
+
+.color-variant-btn.active .variant-label {
+  color: #00838f;
+  font-weight: 600;
+}
+
+.color-selector-section {
+  margin-bottom: 30px;
+  padding: 15px 0;
+}
+
+.color-selector-section h3 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.color-thumbnails {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.color-thumbnail {
+  width: 80px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.color-thumbnail:hover {
+  border-color: #00838f;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.color-thumbnail.active {
+  border-color: #00838f;
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 131, 143, 0.2);
+}
+
+.color-thumbnail img {
+  width: 100%;
+  height: 60px;
+  object-fit: cover;
+  display: block;
+}
+
+.color-name {
+  display: block;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: #333;
+  background: #f5f5f5;
+}
+
+.color-thumbnail.active .color-name {
+  background: #e6f7f8;
+  color: #00838f;
+  font-weight: 600;
+}
+
+.accessories-section {
+  margin: 40px 0;
+  padding: 20px 0;
+  border-top: 1px solid #e0e0e0;
+}
+
+.accessories-section h2 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.accessory-card {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 30px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.accessory-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f5f5f5;
+}
+
+.accessory-price {
+  color: #00838f;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.accessory-info h4 {
+  margin-bottom: 10px;
+}
+
+.accessory-description {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.add-to-cart-btn {
+  padding: 12px 30px;
+  background: #fff;
+  border: 2px solid #00838f;
+  color: #00838f;
+  border-radius: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.add-to-cart-btn:hover {
+  background: #00838f;
+  color: #fff;
+}
+
+.newsletter-section {
+  background: #f5f5f5;
+  padding: 60px 40px;
+  text-align: center;
+  margin: 40px 0;
+  border-radius: 8px;
+}
+
+.newsletter-section h2 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.newsletter-form {
+  display: flex;
+  max-width: 500px;
+  margin: 20px auto;
+  gap: 10px;
+}
+
+.newsletter-form input {
+  flex: 1;
+  padding: 12px 20px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.newsletter-form button {
+  padding: 12px 30px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.newsletter-terms {
+  font-size: 12px;
+  color: #666;
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .product-main {
+    grid-template-columns: 1fr;
+  }
+  
+  .accessory-card {
+    grid-template-columns: 1fr;
+  }
+}
