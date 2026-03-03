@@ -8,7 +8,6 @@ import type {
 } from '@/models/Shop';
 import type { ApiResponse } from '@/models/ApiResponse';
 import axiosInstance from '@/api/axios.config';
-import { API_ENDPOINTS } from '@/api/endpoints';
 
 const SHOP_BASE_URL = '/api/v1/shops';
 
@@ -23,18 +22,26 @@ export const shopApi = {
     return response.data;
   },
 
-  getMyShop: async (): Promise<ApiResponse<ShopDetailResponse>> => {
+  getMyShops: async (): Promise<ApiResponse<ShopDetailResponse[]>> => {
+    const response = await axiosInstance.get<ApiResponse<ShopDetailResponse[]>>(
+      `${SHOP_BASE_URL}/my-shops`,
+    );
+    return response.data;
+  },
+
+  getMyShopById: async (shopId: string): Promise<ApiResponse<ShopDetailResponse>> => {
     const response = await axiosInstance.get<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop`,
+      `${SHOP_BASE_URL}/my-shops/${shopId}`,
     );
     return response.data;
   },
 
   updateMyShop: async (
+    shopId: string,
     data: UpdateShopRequest,
   ): Promise<ApiResponse<ShopDetailResponse>> => {
     const response = await axiosInstance.put<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop`,
+      `${SHOP_BASE_URL}/my-shops/${shopId}`,
       data,
     );
     return response.data;
@@ -93,47 +100,68 @@ export const shopApi = {
     return response.data;
   },
 
-  deactivateRequest: async (reason: string, endDate: string): Promise<ApiResponse<ShopDetailResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop/deactivate-request`,
+  deactivateRequest: async (shopId: string, reason: string, endDate: string): Promise<ApiResponse<void>> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/deactivate-request`,
       { reason, endDate },
     );
     return response.data;
   },
 
-  cancelDeactivate: async (): Promise<ApiResponse<ShopDetailResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop/deactivate/cancel`,
+  cancelDeactivate: async (shopId: string): Promise<ApiResponse<void>> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/deactivate/cancel`,
     );
     return response.data;
   },
 
-  reactivateRequest: async (): Promise<ApiResponse<ShopDetailResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop/reactivate-request`,
+  reactivateRequest: async (shopId: string): Promise<ApiResponse<void>> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/reactivate-request`,
     );
     return response.data;
   },
 
-  closeShop: async (reason: string, confirmUnderstand: boolean): Promise<ApiResponse<ShopDetailResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop/close`,
+  closeShop: async (shopId: string, reason: string, confirmUnderstand: boolean): Promise<ApiResponse<void>> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/close`,
       { reason, confirmUnderstand },
     );
     return response.data;
   },
 
-  cancelCloseShop: async (): Promise<ApiResponse<ShopDetailResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
-      `${SHOP_BASE_URL}/my-shop/close/cancel`,
+  cancelCloseShop: async (shopId: string): Promise<ApiResponse<void>> => {
+    const response = await axiosInstance.post<ApiResponse<void>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/close/cancel`,
     );
     return response.data;
   },
 
-  resubmit: async (data: ShopRegisterRequest): Promise<ApiResponse<ShopRegisterResponse>> => {
+  resubmit: async (shopId: string, data: ShopRegisterRequest): Promise<ApiResponse<ShopRegisterResponse>> => {
     const response = await axiosInstance.put<ApiResponse<ShopRegisterResponse>>(
-      API_ENDPOINTS.SHOPS.RESUBMIT,
+      `${SHOP_BASE_URL}/my-shops/${shopId}/resubmit`,
       data,
+    );
+    return response.data;
+  },
+
+  getMyShopRegistration: async (shopId: string): Promise<ApiResponse<unknown>> => {
+    const response = await axiosInstance.get<ApiResponse<unknown>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/registration`,
+    );
+    return response.data;
+  },
+
+  getDeactivationStatus: async (shopId: string): Promise<ApiResponse<unknown>> => {
+    const response = await axiosInstance.get<ApiResponse<unknown>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/deactivation-status`,
+    );
+    return response.data;
+  },
+
+  getClosureStatus: async (shopId: string): Promise<ApiResponse<unknown>> => {
+    const response = await axiosInstance.get<ApiResponse<unknown>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/closure-status`,
     );
     return response.data;
   },

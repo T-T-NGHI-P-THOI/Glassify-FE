@@ -49,6 +49,13 @@ export const adminApi = {
     return response.data;
   },
 
+  cancelDeactivateShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
+    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
+      API_ENDPOINTS.ADMIN.SHOPS.CANCEL_DEACTIVATE(shopId),
+    );
+    return response.data;
+  },
+
   cancelCloseShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
     const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
       API_ENDPOINTS.ADMIN.SHOPS.CANCEL_CLOSE(shopId),

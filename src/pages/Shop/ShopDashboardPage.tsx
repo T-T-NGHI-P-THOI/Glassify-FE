@@ -33,6 +33,7 @@ import {
   AccountBalance,
   TrendingUp,
   Edit,
+  Cancel,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +54,7 @@ const ShopDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [ghnNames, setGhnNames] = useState({ province: '', district: '', ward: '' });
+  const [cancelDeactivateLoading, setCancelDeactivateLoading] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -99,14 +101,27 @@ const ShopDashboardPage = () => {
   const fetchShopDetail = async () => {
     try {
       setLoading(true);
-      const response = await shopApi.getMyShop();
-      if (response.data) {
-        setShop(response.data);
+      const response = await shopApi.getMyShops();
+      if (response.data?.[0]) {
+        setShop(response.data[0]);
       }
     } catch (error) {
       console.error('Failed to fetch shop detail:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelDeactivate = async () => {
+    if (!shop) return;
+    try {
+      setCancelDeactivateLoading(true);
+      await shopApi.cancelDeactivate(shop.id);
+      await fetchShopDetail();
+    } catch (error) {
+      console.error('Failed to cancel deactivation request:', error);
+    } finally {
+      setCancelDeactivateLoading(false);
     }
   };
 
@@ -282,6 +297,33 @@ const ShopDashboardPage = () => {
             <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
             <Typography sx={{ fontSize: 14 }}>
               Your shop registration is currently being reviewed by our admin team. You will receive a notification once your shop is approved.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Pending Deactivation Banner */}
+        {shop.status === 'PENDING_DEACTIVATION' && (
+          <Alert
+            severity="warning"
+            icon={<AccessTime />}
+            sx={{ mb: 3, borderRadius: 2 }}
+            action={
+              <Button
+                color="warning"
+                variant="outlined"
+                size="small"
+                startIcon={cancelDeactivateLoading ? <CircularProgress size={14} /> : <Cancel />}
+                onClick={handleCancelDeactivate}
+                disabled={cancelDeactivateLoading}
+                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                Cancel Request
+              </Button>
+            }
+          >
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation Request Pending</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop deactivation request is being reviewed. You can cancel this request if you change your mind.
             </Typography>
           </Alert>
         )}
@@ -763,8 +805,9 @@ const ShopDetailDialog = ({
             <InfoRow label="Shop Code" value={shop.shopCode} />
             <InfoRow label="Email" value={shop.email} />
             <InfoRow label="Phone" value={shop.phone} />
-            <InfoRow label="Tax ID" value={shop.taxId} />
-            <InfoRow label="Business License" value={shop.businessLicense} />
+            <InfoRow label="Tax ID" value={shop.businessLicense?.taxId} />
+            <InfoRow label="Business License No." value={shop.businessLicense?.licenseNumber} />
+            <InfoRow label="Business Name" value={shop.businessLicense?.businessName} />
           </Grid>
 
           {/* Owner Information */}

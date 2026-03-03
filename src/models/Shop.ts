@@ -20,6 +20,40 @@ export interface GhnWard {
 export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'PENDING_DEACTIVATION' | 'CLOSING';
 export type ShopTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
 
+// ==================== Business License ====================
+export interface BusinessLicense {
+  id: string;
+  licenseNumber: string;
+  businessName: string;
+  legalRepresentative: string;
+  registeredAddress: string;
+  taxId: string;
+  businessType: string;
+  issuedDate: string;
+  issuedBy: string;
+  expiryDate: string;
+  licenseImageUrl: string;
+  status: string;
+  reviewedById: string;
+  reviewedByName: string;
+  reviewedAt: string;
+  rejectionReason: string | null;
+  adminNote: string | null;
+}
+
+export interface BusinessLicenseRequest {
+  licenseNumber: string;
+  businessName: string;
+  legalRepresentative: string;
+  registeredAddress: string;
+  taxId: string;
+  businessType: string;
+  issuedDate: string;
+  issuedBy: string;
+  expiryDate: string;
+  licenseImageUrl: string;
+}
+
 // ==================== Shop Detail Response ====================
 export interface ShopDetailResponse {
   id: string;
@@ -31,8 +65,7 @@ export interface ShopDetailResponse {
   city: string;
   logoUrl: string;
 
-  businessLicense: string;
-  taxId: string;
+  businessLicense: BusinessLicense;
 
   status: ShopStatus;
   isVerified: boolean;
@@ -40,9 +73,9 @@ export interface ShopDetailResponse {
   tier: ShopTier;
   commissionRate: number;
 
-  totalOrders: number;
-  totalProducts: number;
-  avgRating: number;
+  totalOrders: number | null;
+  totalProducts: number | null;
+  avgRating: number | null;
 
   ghnShopId: number;
   ghnProvinceId: number;
@@ -57,7 +90,7 @@ export interface ShopDetailResponse {
   ownerName: string;
   ownerEmail: string;
 
-  // Latest registration request info (for PENDING shops)
+  // Latest registration request info
   latestRequestStatus?: string;
   rejectionReason?: string;
   adminComment?: string;
@@ -70,8 +103,6 @@ export interface ShopRegisterRequest {
   phone: string;
   address: string;
   city: string;
-  businessLicense: string;
-  businessLicenseUrl: string;
   logoUrl: string;
   ghnProvinceId: number;
   ghnDistrictId: number;
@@ -79,7 +110,7 @@ export interface ShopRegisterRequest {
   provinceName: string;
   districtName: string;
   wardName: string;
-  taxId: string;
+  businessLicense: BusinessLicenseRequest;
 }
 
 export interface ShopRegisterResponse {
@@ -95,13 +126,10 @@ export interface ShopRegisterResponse {
 // ==================== Shop Update Types ====================
 export interface UpdateShopRequest {
   shopName?: string;
-  email?: string;
   phone?: string;
   address?: string;
   city?: string;
   logoUrl?: string;
-  businessLicense?: string;
-  taxId?: string;
   ghnProvinceId?: number;
   ghnDistrictId?: number;
   ghnWardCode?: string;
@@ -139,9 +167,7 @@ export interface ShopRequest {
   address: string;
   city: string;
   logoUrl: string;
-  businessLicense: string;
-  businessLicenseUrl: string;
-  taxId: string;
+  businessLicense: BusinessLicense;
   userId: string;
   userName: string;
   userEmail: string;
@@ -168,6 +194,7 @@ export interface AdminShopItem {
   address: string;
   city: string;
   logoUrl: string | null;
+  businessLicense: BusinessLicense;
   status: ShopStatus;
   isVerified: boolean;
   tier: ShopTier;

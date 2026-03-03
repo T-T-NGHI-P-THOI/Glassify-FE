@@ -42,10 +42,28 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
-import type { ShopDetailResponse, UpdateShopRequest, ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
+import type { ShopDetailResponse, UpdateShopRequest, ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard, BusinessLicenseRequest } from '@/models/Shop';
 import { toast } from 'react-toastify';
 
 const SHOP_NAME_CHANGE_DAYS = 60;
+
+const DEACTIVATE_REASONS = [
+  'Going on vacation or holiday',
+  'Temporary stock shortage',
+  'Shop renovation or upgrade',
+  'Personal or family emergency',
+  'Seasonal business pause',
+  'Technical issues',
+];
+
+const CLOSE_SHOP_REASONS = [
+  'Switching to a different platform',
+  'Retiring from business',
+  'Low sales performance',
+  'High operational costs',
+  'Personal reasons',
+  'Starting a new business',
+];
 
 const ShopEditProfilePage = () => {
   const theme = useTheme();
@@ -69,16 +87,27 @@ const ShopEditProfilePage = () => {
 
   const [formData, setFormData] = useState<UpdateShopRequest>({
     shopName: '',
-    email: '',
     phone: '',
     address: '',
     city: '',
     logoUrl: '',
-    businessLicense: '',
-    taxId: '',
     ghnProvinceId: undefined,
     ghnDistrictId: undefined,
     ghnWardCode: '',
+  });
+
+  // Separate state for business license fields (editable on resubmit)
+  const [licenseForm, setLicenseForm] = useState<BusinessLicenseRequest>({
+    licenseNumber: '',
+    businessName: '',
+    legalRepresentative: '',
+    registeredAddress: '',
+    taxId: '',
+    businessType: '',
+    issuedDate: '',
+    issuedBy: '',
+    expiryDate: '',
+    licenseImageUrl: '',
   });
 
   const [provinces, setProvinces] = useState<GhnProvince[]>([]);
@@ -131,23 +160,35 @@ const ShopEditProfilePage = () => {
   const fetchShop = async () => {
     try {
       setLoading(true);
-      const response = await shopApi.getMyShop();
-      if (response.data) {
-        setShop(response.data);
+      const response = await shopApi.getMyShops();
+      const shopData = response.data?.[0];
+      if (shopData) {
+        setShop(shopData);
         setFormData({
-          shopName: response.data.shopName || '',
-          email: response.data.email || '',
-          phone: response.data.phone || '',
-          address: response.data.address || '',
-          city: response.data.city || '',
-          logoUrl: response.data.logoUrl || '',
-          businessLicense: response.data.businessLicense || '',
-          taxId: response.data.taxId || '',
-          ghnProvinceId: response.data.ghnProvinceId,
-          ghnDistrictId: response.data.ghnDistrictId,
-          ghnWardCode: response.data.ghnWardCode || '',
+          shopName: shopData.shopName || '',
+          phone: shopData.phone || '',
+          address: shopData.address || '',
+          city: shopData.city || '',
+          logoUrl: shopData.logoUrl || '',
+          ghnProvinceId: shopData.ghnProvinceId,
+          ghnDistrictId: shopData.ghnDistrictId,
+          ghnWardCode: shopData.ghnWardCode || '',
         });
-        setPendingDeactivation(response.data.status === 'PENDING');
+        if (shopData.businessLicense) {
+          setLicenseForm({
+            licenseNumber: shopData.businessLicense.licenseNumber || '',
+            businessName: shopData.businessLicense.businessName || '',
+            legalRepresentative: shopData.businessLicense.legalRepresentative || '',
+            registeredAddress: shopData.businessLicense.registeredAddress || '',
+            taxId: shopData.businessLicense.taxId || '',
+            businessType: shopData.businessLicense.businessType || '',
+            issuedDate: shopData.businessLicense.issuedDate || '',
+            issuedBy: shopData.businessLicense.issuedBy || '',
+            expiryDate: shopData.businessLicense.expiryDate || '',
+            licenseImageUrl: shopData.businessLicense.licenseImageUrl || '',
+          });
+        }
+        setPendingDeactivation(shopData.status === 'PENDING_DEACTIVATION');
       }
     } catch (error) {
       console.error('Failed to fetch shop:', error);
@@ -194,12 +235,17 @@ const ShopEditProfilePage = () => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
+  const handleLicenseChange = (field: keyof BusinessLicenseRequest) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLicenseForm((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
   const handleSave = async () => {
+    if (!shop?.id) return;
     try {
       setSaving(true);
       const payload: UpdateShopRequest = { ...formData };
       if (!canChangeShopName()) { delete payload.shopName; }
-      await shopApi.updateMyShop(payload);
+      await shopApi.updateMyShop(shop.id, payload);
       toast.success('Shop profile updated successfully');
       fetchShop();
     } catch (error) {
@@ -217,14 +263,14 @@ const ShopEditProfilePage = () => {
   };
 
   const handleDeactivate = async () => {
+    if (!shop?.id) return;
     if (!deactivateReason.trim()) { toast.error('Please provide a reason for deactivation'); return; }
     if (!deactivateEndDate) { toast.error('Please select an end date'); return; }
     try {
       setTogglingStatus(true);
-      const response = await shopApi.deactivateRequest(deactivateReason, deactivateEndDate);
+      await shopApi.deactivateRequest(shop.id, deactivateReason, deactivateEndDate);
       toast.success('Deactivation request submitted successfully');
       setDeactivateDialogOpen(false); setDeactivateReason(''); setDeactivateEndDate('');
-      if (response.data) setShop(response.data);
       setPendingDeactivation(true);
       fetchShop();
     } catch (error) {
@@ -234,9 +280,10 @@ const ShopEditProfilePage = () => {
   };
 
   const handleReactivate = async () => {
+    if (!shop?.id) return;
     try {
       setTogglingStatus(true);
-      await shopApi.reactivateRequest();
+      await shopApi.reactivateRequest(shop.id);
       toast.success('Reactivation request submitted successfully');
       setReactivateDialogOpen(false);
       fetchShop();
@@ -247,10 +294,11 @@ const ShopEditProfilePage = () => {
   };
 
   const handleCancelDeactivate = async () => {
+    if (!shop?.id) return;
     if (!window.confirm('Are you sure you want to cancel the deactivation request?')) return;
     try {
       setTogglingStatus(true);
-      await shopApi.cancelDeactivate();
+      await shopApi.cancelDeactivate(shop.id);
       toast.success('Deactivation request cancelled');
       setPendingDeactivation(false);
       fetchShop();
@@ -261,14 +309,14 @@ const ShopEditProfilePage = () => {
   };
 
   const handleCloseShop = async () => {
+    if (!shop?.id) return;
     if (!closeShopReason.trim()) { toast.error('Please provide a reason for closing'); return; }
     if (!closeShopConfirm) { toast.error('Please confirm that you understand this action'); return; }
     try {
       setTogglingStatus(true);
-      const response = await shopApi.closeShop(closeShopReason, closeShopConfirm);
+      await shopApi.closeShop(shop.id, closeShopReason, closeShopConfirm);
       toast.success('Close shop request submitted successfully');
       setCloseShopDialogOpen(false); setCloseShopReason(''); setCloseShopConfirm(false);
-      if (response.data) setShop(response.data);
       fetchShop();
     } catch (error) {
       console.error('Failed to submit close shop request:', error);
@@ -277,10 +325,11 @@ const ShopEditProfilePage = () => {
   };
 
   const handleCancelCloseShop = async () => {
+    if (!shop?.id) return;
     if (!window.confirm('Are you sure you want to cancel the close shop request?')) return;
     try {
       setTogglingStatus(true);
-      await shopApi.cancelCloseShop();
+      await shopApi.cancelCloseShop(shop.id);
       toast.success('Close shop request cancelled');
       fetchShop();
     } catch (error) {
@@ -290,24 +339,28 @@ const ShopEditProfilePage = () => {
   };
 
   const handleResubmit = async () => {
+    if (!shop?.id) return;
     try {
       setResubmitting(true);
       const selectedProvince = provinces.find((p) => p.ProvinceID === formData.ghnProvinceId);
       const selectedDistrict = districts.find((d) => d.DistrictID === formData.ghnDistrictId);
       const selectedWard = wards.find((w) => w.WardCode === formData.ghnWardCode);
       const resubmitData: ShopRegisterRequest = {
-        shopName: formData.shopName || '', email: formData.email || '', phone: formData.phone || '',
-        address: formData.address || '', city: formData.city || '',
-        businessLicense: formData.businessLicense || '', businessLicenseUrl: '',
-        logoUrl: formData.logoUrl || '',
-        ghnProvinceId: formData.ghnProvinceId || 0, ghnDistrictId: formData.ghnDistrictId || 0,
+        shopName: formData.shopName || shop.shopName,
+        email: shop.email,
+        phone: formData.phone || shop.phone,
+        address: formData.address || shop.address,
+        city: formData.city || shop.city,
+        logoUrl: formData.logoUrl || shop.logoUrl,
+        ghnProvinceId: formData.ghnProvinceId || 0,
+        ghnDistrictId: formData.ghnDistrictId || 0,
         ghnWardCode: formData.ghnWardCode || '',
         provinceName: selectedProvince?.ProvinceName || '',
         districtName: selectedDistrict?.DistrictName || '',
         wardName: selectedWard?.WardName || '',
-        taxId: formData.taxId || '',
+        businessLicense: licenseForm,
       };
-      await shopApi.resubmit(resubmitData);
+      await shopApi.resubmit(shop.id, resubmitData);
       toast.success('Shop registration resubmitted for review');
       fetchShop();
     } catch (error) {
@@ -332,6 +385,7 @@ const ShopEditProfilePage = () => {
       case 'INACTIVE':             return { color: theme.palette.custom.status.error.main,   bg: theme.palette.custom.status.error.light,   label: 'Inactive' };
       case 'CLOSING':              return { color: theme.palette.custom.status.error.main,   bg: theme.palette.custom.status.error.light,   label: 'Closing' };
       case 'PENDING':              return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Pending' };
+      case 'PENDING_DEACTIVATION': return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Pending Deactivation' };
       default:                     return { color: theme.palette.custom.neutral[500], bg: theme.palette.custom.neutral[100], label: status };
     }
   };
@@ -479,7 +533,7 @@ const ShopEditProfilePage = () => {
                     label={`${shop.commissionRate}% commission`} size="small"
                     sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 500, fontSize: 11, height: 22 }}
                   />
-                  {(shop.status === 'PENDING' || pendingDeactivation) && (
+                  {pendingDeactivation && (
                     <Chip
                       label="Pending Deactivation" size="small"
                       sx={{ bgcolor: '#FEF3C7', color: '#D97706', fontWeight: 700, fontSize: 11, height: 22 }}
@@ -497,7 +551,7 @@ const ShopEditProfilePage = () => {
                   Deactivate
                 </Button>
               )}
-              {(shop.status === 'PENDING_DEACTIVATION' || pendingDeactivation) && (
+              {(shop.status === 'PENDING' || pendingDeactivation) && (
                 <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={handleCancelDeactivate} disabled={togglingStatus}
                   sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}>
                   Cancel Request
@@ -563,7 +617,7 @@ const ShopEditProfilePage = () => {
               {shop.adminComment && <Typography sx={{ fontSize: 14, mt: 0.5 }}><strong>Admin comment:</strong> {shop.adminComment}</Typography>}
             </Alert>
           )}
-          {(shop.status === 'PENDING_DEACTIVATION' || pendingDeactivation) && (
+          {(shop.status === 'PENDING' || pendingDeactivation) && (
             <Alert severity="warning" sx={{ mb: 3 }}>Your shop has a pending deactivation request. You can cancel it before it takes effect.</Alert>
           )}
 
@@ -588,8 +642,16 @@ const ShopEditProfilePage = () => {
           <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
             <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2.5 }}>Contact Information</Typography>
             <Grid container spacing={2.5}>
-              <Grid size={{ xs: 12, sm: 6 }}><TextField label="Email" fullWidth value={formData.email} onChange={handleChange('email')} disabled={isShopDisabled} /></Grid>
-              <Grid size={{ xs: 12, sm: 6 }}><TextField label="Phone" fullWidth value={formData.phone} onChange={handleChange('phone')} disabled={isShopDisabled} /></Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Email" fullWidth value={shop.email} disabled
+                  InputProps={{ endAdornment: <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> }}
+                  helperText="Email cannot be changed"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Phone" fullWidth value={formData.phone} onChange={handleChange('phone')} disabled={isShopDisabled} />
+              </Grid>
             </Grid>
           </Paper>
 
@@ -602,18 +664,69 @@ const ShopEditProfilePage = () => {
             </Grid>
           </Paper>
 
-          {/* Business Info */}
+          {/* Business License */}
           <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2.5 }}>Business Information</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2.5 }}>Business License</Typography>
+            {!isRequestRejected && (
+              <Alert severity="info" icon={<Info fontSize="small" />} sx={{ mb: 2, borderRadius: 1.5 }}>
+                Business license information can only be edited when resubmitting after rejection.
+              </Alert>
+            )}
             <Grid container spacing={2.5}>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Business License" fullWidth value={formData.businessLicense} onChange={handleChange('businessLicense')} disabled={!isRequestRejected}
+                <TextField label="License Number" fullWidth value={licenseForm.licenseNumber} onChange={handleLicenseChange('licenseNumber')} disabled={!isRequestRejected}
                   InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField label="Tax ID" fullWidth value={formData.taxId} onChange={handleChange('taxId')} disabled={!isRequestRejected}
+                <TextField label="Business Name" fullWidth value={licenseForm.businessName} onChange={handleLicenseChange('businessName')} disabled={!isRequestRejected}
                   InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
               </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Legal Representative" fullWidth value={licenseForm.legalRepresentative} onChange={handleLicenseChange('legalRepresentative')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Tax ID" fullWidth value={licenseForm.taxId} onChange={handleLicenseChange('taxId')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Business Type" fullWidth value={licenseForm.businessType} onChange={handleLicenseChange('businessType')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Registered Address" fullWidth value={licenseForm.registeredAddress} onChange={handleLicenseChange('registeredAddress')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Issued Date" fullWidth type="date" value={licenseForm.issuedDate ? licenseForm.issuedDate.split('T')[0] : ''} onChange={handleLicenseChange('issuedDate')} disabled={!isRequestRejected}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Expiry Date" fullWidth type="date" value={licenseForm.expiryDate ? licenseForm.expiryDate.split('T')[0] : ''} onChange={handleLicenseChange('expiryDate')} disabled={!isRequestRejected}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="Issued By" fullWidth value={licenseForm.issuedBy} onChange={handleLicenseChange('issuedBy')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField label="License Image URL" fullWidth value={licenseForm.licenseImageUrl} onChange={handleLicenseChange('licenseImageUrl')} disabled={!isRequestRejected}
+                  InputProps={{ endAdornment: !isRequestRejected ? <Lock sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} /> : undefined }} />
+              </Grid>
+              {shop.businessLicense?.status && (
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>License Status:</Typography>
+                    <Chip label={shop.businessLicense.status} size="small"
+                      sx={{ fontWeight: 600, fontSize: 11,
+                        bgcolor: shop.businessLicense.status === 'APPROVED' ? theme.palette.custom.status.success.light : theme.palette.custom.status.warning.light,
+                        color: shop.businessLicense.status === 'APPROVED' ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main,
+                      }} />
+                  </Box>
+                </Grid>
+              )}
             </Grid>
           </Paper>
 
@@ -692,6 +805,24 @@ const ShopEditProfilePage = () => {
                   {shop.createdAt ? new Date(shop.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
                 </Typography>
               </Grid>
+              {shop.totalOrders != null && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Total Orders</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{shop.totalOrders}</Typography>
+                </Grid>
+              )}
+              {shop.totalProducts != null && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Total Products</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{shop.totalProducts}</Typography>
+                </Grid>
+              )}
+              {shop.avgRating != null && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Avg Rating</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{shop.avgRating.toFixed(1)}</Typography>
+                </Grid>
+              )}
             </Grid>
           </Paper>
         </Box>
@@ -704,7 +835,12 @@ const ShopEditProfilePage = () => {
         <DialogTitle sx={{ fontWeight: 600 }}>Deactivate Shop</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>Are you sure you want to deactivate your shop? This will prevent customers from viewing and ordering from your shop.</Typography>
-          <TextField fullWidth multiline rows={3} label="Reason for deactivation" placeholder="Please provide a reason..." value={deactivateReason} onChange={(e) => setDeactivateReason(e.target.value)} disabled={togglingStatus} required sx={{ mb: 2.5 }} />
+          <FormControl fullWidth required sx={{ mb: 2.5 }}>
+            <InputLabel>Reason for deactivation</InputLabel>
+            <Select label="Reason for deactivation" value={deactivateReason} onChange={(e) => setDeactivateReason(e.target.value)} disabled={togglingStatus}>
+              {DEACTIVATE_REASONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </Select>
+          </FormControl>
           <TextField fullWidth type="date" label="End Date" value={deactivateEndDate} onChange={(e) => setDeactivateEndDate(e.target.value)} disabled={togglingStatus} required InputLabelProps={{ shrink: true }} inputProps={{ min: new Date().toISOString().split('T')[0] }} helperText="Select the date when the shop should be deactivated" />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, pt: 0, flexDirection: 'column', alignItems: 'stretch', gap: 1 }}>
@@ -726,7 +862,12 @@ const ShopEditProfilePage = () => {
         <DialogTitle sx={{ fontWeight: 600, color: theme.palette.custom.status.error.main }}>Close Shop</DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ mb: 3 }}>This action will permanently close your shop after 30 days. All products will be removed and customers will no longer be able to access your shop. This cannot be undone after the 30-day period.</Alert>
-          <TextField fullWidth multiline rows={3} label="Reason for closing" placeholder="Please provide a reason for permanently closing your shop..." value={closeShopReason} onChange={(e) => setCloseShopReason(e.target.value)} disabled={togglingStatus} required sx={{ mb: 2.5 }} />
+          <FormControl fullWidth required sx={{ mb: 2.5 }}>
+            <InputLabel>Reason for closing</InputLabel>
+            <Select label="Reason for closing" value={closeShopReason} onChange={(e) => setCloseShopReason(e.target.value)} disabled={togglingStatus}>
+              {CLOSE_SHOP_REASONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </Select>
+          </FormControl>
           <FormControlLabel
             control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
             label={<Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>I understand that my shop will be permanently closed after 30 days and this action cannot be reversed after that period.</Typography>}

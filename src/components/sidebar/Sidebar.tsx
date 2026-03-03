@@ -84,7 +84,11 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
     <Box
       sx={{
         width: 240,
-        minHeight: '100vh',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        flexShrink: 0,
+        overflow: 'hidden',
         backgroundColor: theme.palette.background.paper,
         borderRight: `1px solid ${theme.palette.divider}`,
         display: 'flex',
