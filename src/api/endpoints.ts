@@ -50,6 +50,17 @@ export const API_ENDPOINTS = {
     LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
     PRESCRIPTION: `${API_ENDPOINT}/prescriptions/validate`,
   },
+  PLATFORM_SETTINGS: {
+    BASE: `${API_ENDPOINT}/platform-settings`,
+    PRESCRIPTION_VALUES: {
+      ALL: `${API_ENDPOINT}/platform-settings/prescription-values`,
+      SPHERE: `${API_ENDPOINT}/platform-settings/prescription-values/sphere`,
+      CYLINDER: `${API_ENDPOINT}/platform-settings/prescription-values/cylinder`,
+      ADD: `${API_ENDPOINT}/platform-settings/prescription-values/add`,
+      PD: `${API_ENDPOINT}/platform-settings/prescription-values/pd`,
+      PD_MONOCULAR: `${API_ENDPOINT}/platform-settings/prescription-values/pd-monocular`,
+    },
+  },
   CART: {
     BASE: `${API_ENDPOINT}/cart`,
     CREATE: `${API_ENDPOINT}/cart`,
