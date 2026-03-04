@@ -28,6 +28,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  IconButton,
   ToggleButton,
   ToggleButtonGroup,
 } from '@mui/material';
@@ -57,6 +58,7 @@ import {
   Image as ImageIcon,
   WorkspacePremium,
   Receipt,
+  LocalMall,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -66,35 +68,8 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
+import ProductAPI, { type ApiProduct } from '@/api/product-api';
 
-interface ShopProduct {
-  id: string;
-  name: string;
-  sku: string;
-  price: number;
-  originalPrice?: number;
-  stock: number;
-  sold: number;
-  rating: number;
-  reviewCount: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
-  category: string;
-  brand: string;
-  imageUrl?: string;
-  description: string;
-  createdAt: string;
-}
-
-const MOCK_PRODUCTS: ShopProduct[] = [
-  { id: '1', name: 'Ray-Ban Aviator Classic', sku: 'RB3025-001', price: 3200000, originalPrice: 3800000, stock: 12, sold: 148, rating: 4.8, reviewCount: 93, status: 'ACTIVE', category: 'Sunglasses', brand: 'Ray-Ban', description: 'The iconic aviator sunglasses with classic teardrop lenses. UV400 protection, metal frame, crystal green lenses.', createdAt: '2024-06-01' },
-  { id: '2', name: 'Oakley Holbrook Polarized', sku: 'OO9102-01', price: 4500000, stock: 5, sold: 67, rating: 4.6, reviewCount: 41, status: 'ACTIVE', category: 'Sunglasses', brand: 'Oakley', description: 'Lightweight O Matter frame with Unobtainium earsocks. Polarized Prizm lenses reduce glare.', createdAt: '2024-07-12' },
-  { id: '3', name: 'Warby Parker Crane', sku: 'WP-CRANE-200', price: 2100000, stock: 0, sold: 29, rating: 4.3, reviewCount: 18, status: 'OUT_OF_STOCK', category: 'Eyeglasses', brand: 'Warby Parker', description: 'Lightweight acetate frame with adjustable silicone nose pads. Blue light blocking lens available.', createdAt: '2024-08-03' },
-  { id: '4', name: 'Gucci GG0010S', sku: 'GG0010S-006', price: 12500000, originalPrice: 14000000, stock: 3, sold: 15, rating: 4.9, reviewCount: 12, status: 'ACTIVE', category: 'Luxury Sunglasses', brand: 'Gucci', description: 'Rectangular acetate frame with signature GG logo on temples. 100% UV protection.', createdAt: '2024-05-20' },
-  { id: '5', name: 'Tom Ford FT0237', sku: 'TF0237-01B', price: 9800000, stock: 7, sold: 22, rating: 4.7, reviewCount: 19, status: 'ACTIVE', category: 'Luxury Sunglasses', brand: 'Tom Ford', description: 'Full-rim round acetate frame with T logo on temples. Gradient grey lenses.', createdAt: '2024-09-15' },
-  { id: '6', name: 'Persol PO3166S', sku: 'PO3166S-95', price: 5600000, stock: 9, sold: 44, rating: 4.5, reviewCount: 31, status: 'ACTIVE', category: 'Sunglasses', brand: 'Persol', description: 'Supreme Vision System with meflecto hinges. Crystal brown gradient lens.', createdAt: '2024-04-28' },
-  { id: '7', name: 'Zenni Blokz Blue Light', sku: 'ZN-BLOKZ-001', price: 850000, stock: 45, sold: 210, rating: 4.1, reviewCount: 152, status: 'ACTIVE', category: 'Blue Light Glasses', brand: 'Zenni', description: 'Blue light filtering lens for screen use. Lightweight TR90 frame, flexible hinges.', createdAt: '2024-03-11' },
-  { id: '8', name: 'Maui Jim Breakwall', sku: 'MJ-432-02', price: 6200000, stock: 0, sold: 38, rating: 4.4, reviewCount: 27, status: 'INACTIVE', category: 'Sunglasses', brand: 'Maui Jim', description: 'PolarizedPlus2 lenses eliminate glare. Lightweight titanium frame, perfect for outdoor use.', createdAt: '2024-10-01' },
-];
 
 const AdminShopDetailPage = () => {
   const theme = useTheme();
@@ -113,7 +88,9 @@ const AdminShopDetailPage = () => {
   const [deactivateEndDate, setDeactivateEndDate] = useState('');
   const [closeShopConfirm, setCloseShopConfirm] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -147,6 +124,22 @@ const AdminShopDetailPage = () => {
   useEffect(() => {
     void fetchShop();
   }, [fetchShop]);
+
+  const fetchProducts = useCallback(async (shopId: string) => {
+    try {
+      setProductsLoading(true);
+      const data = await ProductAPI.getAllProducts({ shopId, unitPerPage: 200 });
+      setProducts(data);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (shop?.id) void fetchProducts(shop.id);
+  }, [shop?.id, fetchProducts]);
 
   const DEACTIVATION_REASONS = [
     'Violation of Terms of Service',
@@ -251,12 +244,10 @@ const AdminShopDetailPage = () => {
     }
   };
 
-  const getProductStatusConfig = (status: ShopProduct['status']) => {
-    switch (status) {
-      case 'ACTIVE': return { color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light, label: 'Active' };
-      case 'OUT_OF_STOCK': return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Out of Stock' };
-      default: return { color: theme.palette.custom.status.error.main, bg: theme.palette.custom.status.error.light, label: 'Inactive' };
-    }
+  const getProductStatusConfig = (isActive: boolean, stockQuantity: number) => {
+    if (stockQuantity === 0) return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Out of Stock' };
+    if (isActive) return { color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light, label: 'Active' };
+    return { color: theme.palette.custom.status.error.main, bg: theme.palette.custom.status.error.light, label: 'Draft' };
   };
 
   if (loading && !shop) {
@@ -428,7 +419,7 @@ const AdminShopDetailPage = () => {
             }}
           >
             <Tab label="Overview" />
-            <Tab label={`Products (${MOCK_PRODUCTS.length})`} />
+            <Tab label={`Products (${products.length})`} />
           </Tabs>
         </Box>
 
@@ -541,259 +532,126 @@ const AdminShopDetailPage = () => {
           {/* PRODUCTS TAB */}
           {activeTab === 1 && (
             <Box>
-              <Grid container spacing={2}>
-                {MOCK_PRODUCTS.map((product) => {
-                  const pStatus = getProductStatusConfig(product.status);
-                  return (
-                    <Grid key={product.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-                      <Card
-                        elevation={0}
-                        sx={{
-                          borderRadius: 2,
-                          border: `1px solid ${theme.palette.custom.border.light}`,
-                          transition: 'all 0.18s ease',
-                          '&:hover': { boxShadow: '0 6px 24px rgba(0,0,0,0.09)', borderColor: theme.palette.custom.border.main, transform: 'translateY(-2px)' },
-                        }}
-                      >
-                        <CardActionArea onClick={() => setSelectedProduct(product)}>
-                          <Box sx={{ position: 'relative' }}>
-                            {product.imageUrl ? (
-                              <CardMedia component="img" height={160} image={product.imageUrl} alt={product.name} sx={{ objectFit: 'cover' }} />
-                            ) : (
-                              <Box sx={{ height: 160, bgcolor: theme.palette.custom.neutral[100], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <ImageIcon sx={{ fontSize: 48, color: theme.palette.custom.neutral[300] }} />
-                              </Box>
-                            )}
-                            <Chip
-                              label={pStatus.label}
-                              size="small"
-                              sx={{ position: 'absolute', top: 8, right: 8, bgcolor: pStatus.bg, color: pStatus.color, fontWeight: 700, fontSize: 10, height: 20 }}
-                            />
-                            {product.originalPrice && (
-                              <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: '#EF4444', color: '#fff', borderRadius: 1, px: 0.75, py: 0.25, fontSize: 10, fontWeight: 700 }}>
-                                -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-                              </Box>
-                            )}
-                          </Box>
-
-                          <CardContent sx={{ p: 2 }}>
-                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], mb: 0.25 }}>{product.category}</Typography>
-                            <Typography
-                              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.75, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                            >
-                              {product.name}
-                            </Typography>
-
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                              <Star sx={{ fontSize: 13, color: '#F59E0B' }} />
-                              <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>{product.rating.toFixed(1)}</Typography>
-                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>({product.reviewCount})</Typography>
-                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], ml: 'auto' }}>{product.sold} sold</Typography>
-                            </Box>
-
-                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mb: 1.5 }}>
-                              <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.status.error.main }}>
-                                {formatCurrency(product.price)}
-                              </Typography>
-                              {product.originalPrice && (
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
-                                  {formatCurrency(product.originalPrice)}
-                                </Typography>
+              {productsLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 10 }}>
+                  <CircularProgress />
+                </Box>
+              ) : products.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 10 }}>
+                  <Inventory sx={{ fontSize: 56, color: theme.palette.custom.neutral[300], mb: 1.5 }} />
+                  <Typography sx={{ fontSize: 15, color: theme.palette.custom.neutral[500] }}>No products found for this shop</Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {products.map((product) => {
+                    const pStatus = getProductStatusConfig(product.isActive, product.stockQuantity);
+                    const imgUrl = product.fileResponses?.[0]?.url;
+                    const hasDiscount = product.compareAtPrice > product.basePrice;
+                    return (
+                      <Grid key={product.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                        <Card
+                          elevation={0}
+                          sx={{
+                            borderRadius: 2,
+                            border: `1px solid ${theme.palette.custom.border.light}`,
+                            transition: 'all 0.18s ease',
+                            '&:hover': { boxShadow: '0 6px 24px rgba(0,0,0,0.09)', borderColor: theme.palette.custom.border.main, transform: 'translateY(-2px)' },
+                          }}
+                        >
+                          <CardActionArea onClick={() => setSelectedProduct(product)}>
+                            <Box sx={{ position: 'relative' }}>
+                              {imgUrl ? (
+                                <CardMedia component="img" height={160} image={imgUrl} alt={product.name} sx={{ objectFit: 'cover' }} />
+                              ) : (
+                                <Box sx={{ height: 160, bgcolor: theme.palette.custom.neutral[100], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <ImageIcon sx={{ fontSize: 48, color: theme.palette.custom.neutral[300] }} />
+                                </Box>
+                              )}
+                              <Chip
+                                label={pStatus.label}
+                                size="small"
+                                sx={{ position: 'absolute', top: 8, right: 8, bgcolor: pStatus.bg, color: pStatus.color, fontWeight: 700, fontSize: 10, height: 20 }}
+                              />
+                              {hasDiscount && (
+                                <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: '#EF4444', color: '#fff', borderRadius: 1, px: 0.75, py: 0.25, fontSize: 10, fontWeight: 700 }}>
+                                  -{Math.round((1 - product.basePrice / product.compareAtPrice) * 100)}%
+                                </Box>
                               )}
                             </Box>
 
-                            <Box>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>Stock</Typography>
-                                <Typography sx={{ fontSize: 11, fontWeight: 600, color: product.stock === 0 ? theme.palette.custom.status.error.main : theme.palette.custom.neutral[700] }}>
-                                  {product.stock}
+                            <CardContent sx={{ p: 2 }}>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
+                                {product.categoryName}{product.productType ? ` · ${product.productType}` : ''}
+                              </Typography>
+                              <Typography
+                                sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.75, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                              >
+                                {product.name}
+                              </Typography>
+
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                                <Star sx={{ fontSize: 13, color: '#F59E0B' }} />
+                                <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
+                                  {product.avgRating > 0 ? product.avgRating.toFixed(1) : '—'}
                                 </Typography>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>({product.reviewCount})</Typography>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], ml: 'auto' }}>{product.soldCount} sold</Typography>
                               </Box>
-                              <LinearProgress
-                                variant="determinate"
-                                value={Math.min((product.stock / 50) * 100, 100)}
-                                sx={{
-                                  height: 4, borderRadius: 2,
-                                  bgcolor: theme.palette.custom.neutral[100],
-                                  '& .MuiLinearProgress-bar': {
-                                    borderRadius: 2,
-                                    bgcolor: product.stock === 0 ? theme.palette.custom.status.error.main
-                                      : product.stock < 10 ? theme.palette.custom.status.warning.main
-                                        : theme.palette.custom.status.success.main,
-                                  },
-                                }}
-                              />
-                            </Box>
-                          </CardContent>
-                        </CardActionArea>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
+
+                              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mb: 1.5 }}>
+                                <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.status.error.main }}>
+                                  {formatCurrency(product.basePrice)}
+                                </Typography>
+                                {hasDiscount && (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                                    {formatCurrency(product.compareAtPrice)}
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>Stock</Typography>
+                                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: product.stockQuantity === 0 ? theme.palette.custom.status.error.main : theme.palette.custom.neutral[700] }}>
+                                    {product.stockQuantity}
+                                  </Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={Math.min((product.stockQuantity / 50) * 100, 100)}
+                                  sx={{
+                                    height: 4, borderRadius: 2,
+                                    bgcolor: theme.palette.custom.neutral[100],
+                                    '& .MuiLinearProgress-bar': {
+                                      borderRadius: 2,
+                                      bgcolor: product.stockQuantity === 0 ? theme.palette.custom.status.error.main
+                                        : product.stockQuantity <= product.lowStockThreshold ? theme.palette.custom.status.warning.main
+                                          : theme.palette.custom.status.success.main,
+                                    },
+                                  }}
+                                />
+                              </Box>
+                            </CardContent>
+                          </CardActionArea>
+                        </Card>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              )}
             </Box>
           )}
         </Box>
       </Box>
 
       {/* Product Detail Dialog */}
-      <Dialog
-        open={!!selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        maxWidth="sm"
-        fullWidth
-        slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' } } }}
-      >
-        {selectedProduct && (() => {
-          const pStatus = getProductStatusConfig(selectedProduct.status);
-          return (
-            <>
-              {/* Image / header */}
-              <Box sx={{ position: 'relative' }}>
-                {selectedProduct.imageUrl ? (
-                  <Box component="img" src={selectedProduct.imageUrl}
-                    sx={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
-                ) : (
-                  <Box sx={{
-                    height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #1E293B 0%, #334155 60%, #475569 100%)',
-                  }}>
-                    <ImageIcon sx={{ fontSize: 72, color: 'rgba(255,255,255,0.2)' }} />
-                  </Box>
-                )}
-
-                {/* gradient overlay */}
-                <Box sx={{
-                  position: 'absolute', inset: 0,
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)',
-                }} />
-
-                {/* name + sku */}
-                <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: '16px 20px' }}>
-                  <Box sx={{ display: 'flex', gap: 0.75, mb: 0.75, flexWrap: 'wrap' }}>
-                    <Chip label={pStatus.label} size="small"
-                      sx={{ bgcolor: pStatus.bg, color: pStatus.color, fontWeight: 700, fontSize: 10, height: 20 }} />
-                    <Chip label={selectedProduct.category} size="small"
-                      sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 10, height: 20 }} />
-                    <Chip label={selectedProduct.brand} size="small"
-                      sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 10, height: 20 }} />
-                  </Box>
-                  <Typography sx={{ fontSize: 19, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
-                    {selectedProduct.name}
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', mt: 0.4 }}>
-                    SKU: {selectedProduct.sku}
-                  </Typography>
-                </Box>
-
-                {/* close button */}
-                <Button size="small" onClick={() => setSelectedProduct(null)}
-                  sx={{
-                    position: 'absolute', top: 10, right: 10,
-                    minWidth: 0, p: 1,
-                    bgcolor: 'rgba(255, 255, 255, 0)', color: '#fff', borderRadius: '500',
-                  }}
-                >
-                  <Close sx={{ fontSize: 17 }} />
-                </Button>
-              </Box>
-
-              <DialogContent sx={{ p: 0 }}>
-                {/* Price row */}
-                <Box sx={{
-                  px: 3, py: 2.5,
-                  borderBottom: `1px solid ${theme.palette.custom.border.light}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                    <Typography sx={{ fontSize: 24, fontWeight: 800, color: theme.palette.custom.status.error.main }}>
-                      {formatCurrency(selectedProduct.price)}
-                    </Typography>
-                    {selectedProduct.originalPrice && (
-                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
-                        {formatCurrency(selectedProduct.originalPrice)}
-                      </Typography>
-                    )}
-                  </Box>
-                  {selectedProduct.originalPrice && (
-                    <Chip
-                      label={`-${Math.round((1 - selectedProduct.price / selectedProduct.originalPrice) * 100)}%`}
-                      size="small"
-                      sx={{ bgcolor: '#FEE2E2', color: '#DC2626', fontWeight: 700, fontSize: 12, height: 24, px: 0.5 }}
-                    />
-                  )}
-                </Box>
-
-                {/* Stats row */}
-                <Box sx={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                  borderBottom: `1px solid ${theme.palette.custom.border.light}`,
-                }}>
-                  {[
-                    { icon: <Star sx={{ fontSize: 15, color: '#F59E0B' }} />, label: 'Rating', value: `${selectedProduct.rating.toFixed(1)} (${selectedProduct.reviewCount})` },
-                    { icon: <ShoppingCart sx={{ fontSize: 15, color: theme.palette.custom.status.info.main }} />, label: 'Total Sold', value: selectedProduct.sold.toLocaleString() },
-                    { icon: <Inventory sx={{ fontSize: 15, color: theme.palette.custom.status.warning.main }} />, label: 'In Stock', value: String(selectedProduct.stock) },
-                  ].map((s, i) => (
-                    <Box key={s.label} sx={{
-                      py: 2, px: 1.5, textAlign: 'center',
-                      borderRight: i < 2 ? `1px solid ${theme.palette.custom.border.light}` : 'none',
-                    }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 0.5 }}>{s.icon}</Box>
-                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], mb: 0.25 }}>{s.label}</Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{s.value}</Typography>
-                    </Box>
-                  ))}
-                </Box>
-
-                {/* Description */}
-                <Box sx={{ px: 3, pt: 2.5, pb: 2 }}>
-                  <Typography sx={{
-                    fontSize: 10, fontWeight: 700, color: theme.palette.custom.neutral[400],
-                    textTransform: 'uppercase', letterSpacing: 0.8, mb: 1,
-                  }}>
-                    Description
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.75 }}>
-                    {selectedProduct.description}
-                  </Typography>
-                </Box>
-
-                {/* Footer meta */}
-                <Box sx={{
-                  mx: 3, mb: 2,
-                  px: 2, py: 1.5,
-                  bgcolor: theme.palette.custom.neutral[50],
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.custom.border.light}`,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}>
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                    Listed on <strong>{formatDate(selectedProduct.createdAt)}</strong>
-                  </Typography>
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                    ID: <strong>{selectedProduct.id}</strong>
-                  </Typography>
-                </Box>
-              </DialogContent>
-
-              <DialogActions sx={{
-                px: 3, py: 2,
-                borderTop: `1px solid ${theme.palette.custom.border.light}`,
-                gap: 1.5,
-              }}>
-                <Button onClick={() => setSelectedProduct(null)} variant="outlined"
-                  sx={{ flex: 1, borderRadius: 2, color: theme.palette.custom.neutral[600], borderColor: theme.palette.custom.border.main }}>
-                  Close
-                </Button>
-                <Button variant="contained" startIcon={<Visibility />}
-                  sx={{ flex: 2, borderRadius: 2, fontWeight: 600 }}>
-                  View Full Details
-                </Button>
-              </DialogActions>
-            </>
-          );
-        })()}
-      </Dialog>
+      {selectedProduct && (
+        <AdminProductDetailDialog
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          formatCurrency={formatCurrency}
+        />
+      )}
 
       {/* Unified Deactivate / Close Shop Dialog */}
       <Dialog open={actionDialogOpen} onClose={() => !togglingStatus && resetActionDialog()} maxWidth="sm" fullWidth>
@@ -908,6 +766,250 @@ const AdminShopDetailPage = () => {
         </DialogActions>
       </Dialog>
     </Box>
+  );
+};
+
+// ==================== Admin Product Detail Dialog ====================
+
+interface AdminProductDetailDialogProps {
+  product: ApiProduct;
+  onClose: () => void;
+  formatCurrency: (amount: number) => string;
+}
+
+const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminProductDetailDialogProps) => {
+  const theme = useTheme();
+
+  const estimatedRevenue = product.soldCount * product.basePrice;
+
+  const getPerformance = () => {
+    if (product.avgRating >= 4.5) return 'Excellent';
+    if (product.avgRating >= 3.5) return 'Good';
+    if (product.avgRating >= 2.5) return 'Average';
+    return 'Poor';
+  };
+
+  const insights = [
+    { label: 'Total Sales', value: product.soldCount, unit: 'Unit', icon: <LocalMall sx={{ fontSize: 18, color: theme.palette.custom.status.info.main }} /> },
+    { label: 'Total Revenue', value: `${estimatedRevenue.toLocaleString('vi-VN')}₫`, icon: <TrendingUp sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} /> },
+    { label: 'Avg Rating', value: product.avgRating > 0 ? product.avgRating.toFixed(1) : '—', unit: `(${product.reviewCount} reviews)`, icon: <Star sx={{ fontSize: 18, color: '#F59E0B' }} /> },
+    { label: 'Performance', value: getPerformance(), icon: <TrendingUp sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} /> },
+  ];
+
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <Box sx={{ mb: 2.5 }}>
+      <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 1 }}>
+        {label}
+      </Typography>
+      {children}
+    </Box>
+  );
+
+  const FieldBox = ({ children }: { children: React.ReactNode }) => (
+    <Box
+      sx={{
+        border: `1px solid ${theme.palette.custom.border.light}`,
+        borderRadius: 1.5,
+        px: 2,
+        py: 1.5,
+        bgcolor: '#fff',
+        fontSize: 14,
+        color: theme.palette.custom.neutral[700],
+      }}
+    >
+      {children}
+    </Box>
+  );
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}>
+      {/* Header */}
+      <DialogTitle sx={{ pb: 0, pt: 2.5, px: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+              Product Detail
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mt: 0.25 }}>
+              This is all product information.
+            </Typography>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ color: theme.palette.custom.neutral[500] }}>
+            <Close sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+
+      <Divider sx={{ mt: 2 }} />
+
+      <DialogContent sx={{ p: 0 }}>
+        <Grid container sx={{ minHeight: 480 }}>
+          {/* Left panel */}
+          <Grid
+            size={{ xs: 12, md: 5 }}
+            sx={{ p: 3, bgcolor: theme.palette.custom.neutral[50], borderRight: `1px solid ${theme.palette.custom.border.light}` }}
+          >
+            <Box
+              sx={{
+                width: '100%',
+                aspectRatio: '4/3',
+                borderRadius: 2,
+                bgcolor: theme.palette.custom.neutral[100],
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                mb: 2.5,
+              }}
+            >
+              {product.fileResponses?.[0]?.url ? (
+                <img
+                  src={product.fileResponses[0].url}
+                  alt={product.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <Inventory sx={{ fontSize: 64, color: theme.palette.custom.neutral[300] }} />
+              )}
+            </Box>
+
+            <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, p: 2, bgcolor: '#fff' }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>
+                Product Insight
+              </Typography>
+              <Grid container spacing={1.5}>
+                {insights.map((item) => (
+                  <Grid key={item.label} size={{ xs: 6 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1.5,
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                        bgcolor: theme.palette.custom.neutral[50],
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
+                        {item.label}
+                      </Typography>
+                      <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800], lineHeight: 1.2 }}>
+                        {item.value}
+                        {item.unit && (
+                          <Typography component="span" sx={{ fontSize: 11, fontWeight: 400, color: theme.palette.custom.neutral[400], ml: 0.5 }}>
+                            {item.unit}
+                          </Typography>
+                        )}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          </Grid>
+
+          {/* Right panel */}
+          <Grid size={{ xs: 12, md: 7 }} sx={{ p: 3, overflowY: 'auto', maxHeight: 560 }}>
+            <Field label="ID and Product Name">
+              <FieldBox>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], fontFamily: 'monospace' }}>
+                    #{product.id.slice(0, 6).toUpperCase()}
+                  </Typography>
+                  <Divider orientation="vertical" flexItem />
+                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                    {product.name}
+                  </Typography>
+                </Box>
+              </FieldBox>
+            </Field>
+
+            <Field label="Description">
+              <FieldBox>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                  {product.description || 'No description provided.'}
+                </Typography>
+              </FieldBox>
+            </Field>
+
+            <Field label="Categories">
+              <FieldBox>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                    {product.categoryName || '—'}
+                  </Typography>
+                  <Chip
+                    label={product.productType}
+                    size="small"
+                    sx={{ fontSize: 11, bgcolor: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[600] }}
+                  />
+                </Box>
+              </FieldBox>
+            </Field>
+
+            <Field label="Price & Discount">
+              <FieldBox>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>Base Price</Typography>
+                  <Divider orientation="vertical" flexItem />
+                  <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                    {formatCurrency(product.basePrice)}
+                  </Typography>
+                  {product.compareAtPrice > product.basePrice && (
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                      {formatCurrency(product.compareAtPrice)}
+                    </Typography>
+                  )}
+                </Box>
+              </FieldBox>
+            </Field>
+
+            <Field label="Status">
+              <FieldBox>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                    {product.isActive ? 'Published' : 'Draft'}
+                  </Typography>
+                  <Chip
+                    label={product.isActive ? 'Active' : 'Draft'}
+                    size="small"
+                    sx={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      bgcolor: product.isActive ? theme.palette.custom.status.success.light : theme.palette.custom.status.warning.light,
+                      color: product.isActive ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main,
+                    }}
+                  />
+                </Box>
+              </FieldBox>
+            </Field>
+
+            <Field label="Stock & SKU">
+              <FieldBox>
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.25 }}>SKU</Typography>
+                    <Typography sx={{ fontSize: 13, fontFamily: 'monospace', color: theme.palette.custom.neutral[700] }}>
+                      {product.sku}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.25 }}>In Stock</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: product.stockQuantity === 0 ? theme.palette.custom.status.error.main : theme.palette.custom.neutral[800] }}>
+                      {product.stockQuantity}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Sold</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                      {product.soldCount}
+                    </Typography>
+                  </Box>
+                </Box>
+              </FieldBox>
+            </Field>
+          </Grid>
+        </Grid>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -106,6 +106,9 @@ export const PAGE_ENDPOINTS = {
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
+    PRODUCTS: `/shop/products`,
+    ORDERS: `/shop/orders`,
+    ORDER_DETAIL: `/shop/orders/:id`,
   },
 
   ADMIN: {

@@ -9,8 +9,11 @@ import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
 import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
+import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
+import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
+import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -71,6 +74,17 @@ const PrivateRoutesComponent = () => {
             />
 
             <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCTS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopProductsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
                 path={PAGE_ENDPOINTS.SHOP.EDIT_PROFILE}
                 element={
                     <AuthGuard>
@@ -87,6 +101,28 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopBankAccountPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.ORDERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShippingPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.ORDER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShipmentDetailPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

@@ -53,6 +53,8 @@ import {
     Save,
     Close,
     Delete,
+    Phone,
+    LocationOn,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -65,6 +67,8 @@ import {
     type UserStats
 } from "@/models/User.ts";
 import userApi from "@/api/service/userApi.ts";
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
 
 // ==================== COMPONENT ====================
 
@@ -77,6 +81,7 @@ const UserProfilePage = () => {
     // ========== DATA STATES ==========
     const [user, setUser] = useState<UserResponse | null>(null);
     const [stats, setStats] = useState<UserStats | null>(null);
+    const [shopDetail, setShopDetail] = useState<ShopDetailResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -276,6 +281,10 @@ const UserProfilePage = () => {
     useEffect(() => {
         fetchUserProfile();
         fetchUserStats();
+        shopApi.getMyShops().then((res) => {
+            const shops = res.data;
+            setShopDetail(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
+        }).catch(() => setShopDetail(null));
     }, []);
 
     // Update editedFullName when user data changes
@@ -983,19 +992,20 @@ const UserProfilePage = () => {
                                         Shop Information
                                     </Typography>
 
-                                    {user?.shop ? (
+                                    {shopDetail ? (
                                         <Paper
                                             elevation={0}
                                             sx={{
-                                                p: 2,
+                                                p: 2.5,
                                                 borderRadius: 2,
                                                 border: `1px solid ${theme.palette.custom.border.light}`,
                                                 bgcolor: theme.palette.custom.neutral[50],
                                             }}
                                         >
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            {/* Header: logo + name + status */}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                                                 <Avatar
-                                                    src={user.shop.logoUrl || undefined}
+                                                    src={shopDetail.logoUrl || undefined}
                                                     variant="rounded"
                                                     sx={{
                                                         width: 56,
@@ -1005,30 +1015,54 @@ const UserProfilePage = () => {
                                                 >
                                                     <Store />
                                                 </Avatar>
-                                                <Box sx={{ flex: 1 }}>
-                                                    <Typography
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 0.5 }}>
+                                                        {shopDetail.shopName}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={shopDetail.status}
+                                                        size="small"
                                                         sx={{
-                                                            fontSize: 16,
+                                                            fontSize: 11,
                                                             fontWeight: 600,
-                                                            color: theme.palette.custom.neutral[800],
+                                                            bgcolor: shopDetail.status === 'ACTIVE'
+                                                                ? theme.palette.custom.status.success.light
+                                                                : shopDetail.status === 'PENDING'
+                                                                    ? theme.palette.custom.status.warning.light
+                                                                    : theme.palette.custom.status.error?.light || '#fee2e2',
+                                                            color: shopDetail.status === 'ACTIVE'
+                                                                ? theme.palette.custom.status.success.main
+                                                                : shopDetail.status === 'PENDING'
+                                                                    ? theme.palette.custom.status.warning.main
+                                                                    : theme.palette.custom.status.error?.main || '#dc2626',
                                                         }}
-                                                    >
-                                                        {user.shop.shopName}
-                                                    </Typography>
-                                                    <Typography
-                                                        sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}
-                                                    >
-                                                        You are the owner of this shop
-                                                    </Typography>
+                                                    />
                                                 </Box>
-                                                <Button
-                                                    variant="outlined"
-                                                    size="small"
-                                                    onClick={() => navigate('/shop/profile')}
-                                                >
-                                                    View Shop
-                                                </Button>
                                             </Box>
+
+                                            {/* Info rows */}
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                                                {[
+                                                    { icon: <Email sx={{ fontSize: 15 }} />, value: shopDetail.email },
+                                                    { icon: <Phone sx={{ fontSize: 15 }} />, value: shopDetail.phone },
+                                                    { icon: <LocationOn sx={{ fontSize: 15 }} />, value: shopDetail.address + (shopDetail.city ? `, ${shopDetail.city}` : '') },
+                                                    { icon: <Star sx={{ fontSize: 15 }} />, value: shopDetail.avgRating != null ? `${shopDetail.avgRating.toFixed(1)} / 5.0` : 'No rating yet' },
+                                                ].map((row, i) => (
+                                                    <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                        <Box sx={{ color: theme.palette.custom.neutral[400], mt: 0.15 }}>{row.icon}</Box>
+                                                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>{row.value}</Typography>
+                                                    </Box>
+                                                ))}
+                                            </Box>
+
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                fullWidth
+                                                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD)}
+                                            >
+                                                View more details
+                                            </Button>
                                         </Paper>
                                     ) : (
                                         <Paper
@@ -1062,7 +1096,7 @@ const UserProfilePage = () => {
                                                 startIcon={<Store />}
                                                 onClick={() => navigate(PAGE_ENDPOINTS.SHOP.REGISTER)}
                                             >
-                                                Create Shop
+                                                Register Shop
                                             </Button>
                                         </Paper>
                                     )}
