@@ -11,9 +11,15 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@mediapipe/tasks-vision": "^0.10.32",
     "@mui/icons-material": "^7.3.7",
-    "@mui/material": "^7.3.5",
+    "@mui/material": "^7.3.8",
+    "@mui/system": "^7.3.8",
     "@react-oauth/google": "^0.13.4",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "axios": "^1.13.4",
     "embla-carousel": "^8.6.0",
     "embla-carousel-autoplay": "^8.6.0",
@@ -21,7 +27,9 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "react-webcam": "^7.2.0",
+    "three": "^0.183.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.9",
