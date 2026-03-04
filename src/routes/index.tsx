@@ -4,6 +4,7 @@ import PrivateRoutesComponent from "./private-route"
 import ProductDetailPage from '../pages/Product/ProductDetailPage';
 import ProductBrowsePage from '../pages/Product/ProductBrowsePage';
 import ShoppingCart from '../pages/cart/Cart';
+import ShopDetailPage from '../pages/Shop/ShopDetailPage';
 
 const RouteComponent = () => {
     return (
@@ -13,6 +14,7 @@ const RouteComponent = () => {
             <Route path="/products" element={<ProductBrowsePage />} />
             <Route path="/products/:category" element={<ProductBrowsePage />} />
             <Route path="/product/:slug/:sku" element={<ProductDetailPage />} />
+            <Route path="/shop/:shopId" element={<ShopDetailPage />} />
             <Route path="/cart" element={<ShoppingCart />} />
         </Routes>
     )

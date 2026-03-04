@@ -35,6 +35,12 @@
   gap: 20px;
 }
 
+.product-info-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .color-variants-section {
   padding-top: 20px;
   border-top: 1px solid #e0e0e0;

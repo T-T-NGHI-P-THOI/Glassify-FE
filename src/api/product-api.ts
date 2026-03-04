@@ -24,10 +24,24 @@ export interface ProductApiResponse {
   errors: null | string;
 }
 
+// Shop info from API
+export interface ApiShopInfo {
+  id: string;
+  shopCode: string;
+  shopName: string;
+  logoUrl: string;
+  status: string;
+  tier: string;
+  avgRating: number;
+  totalProducts: number;
+  isVerified: boolean;
+}
+
 // Product type từ API
 export interface ApiProduct {
   id: string;
   shopId: string;
+  shop?: ApiShopInfo;
   brandId: string | null;
   categoryId: string;
   categoryName: string;
@@ -138,6 +152,21 @@ export default class ProductAPI {
       return response.data.data;
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
+      throw error;
+    }
+  }
+
+  static async getProductsByShopId(shopId: string, filters?: ProductFilterParams): Promise<ApiProduct[]> {
+    try {
+      const response = await api.get<ProductApiResponse>(
+        API_ENDPOINTS.PRODUCTS.GET_BY_SHOP_ID(shopId),
+        {
+          params: filters
+        }
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching products for shop ${shopId}:`, error);
       throw error;
     }
   }

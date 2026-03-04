@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     GET_ALL: `${API_ENDPOINT}/product`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
+    GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
   },
   CATEGORIES: {

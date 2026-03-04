@@ -1,0 +1,185 @@
+.shop-info-container {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.shop-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.shop-info-header .shop-icon {
+  font-size: 24px;
+  color: #666;
+}
+
+.shop-info-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.shop-info-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.shop-info-content:hover {
+  background-color: #f5f5f5;
+}
+
+.shop-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9f9f9;
+  flex-shrink: 0;
+}
+
+.shop-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shop-placeholder-icon {
+  font-size: 32px;
+  color: #999;
+}
+
+.shop-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.shop-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.shop-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verified-icon {
+  font-size: 18px;
+  color: #4caf50;
+  flex-shrink: 0;
+}
+
+.shop-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shop-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+.shop-stat .star-icon {
+  font-size: 16px;
+  color: #ffa000;
+}
+
+.shop-stat-divider {
+  color: #ddd;
+}
+
+.shop-tier {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.shop-tier.tier-bronze {
+  background-color: #cd7f32;
+  color: #fff;
+}
+
+.shop-tier.tier-silver {
+  background-color: #c0c0c0;
+  color: #333;
+}
+
+.shop-tier.tier-gold {
+  background-color: #ffd700;
+  color: #333;
+}
+
+.shop-tier.tier-platinum {
+  background-color: #e5e4e2;
+  color: #333;
+}
+
+.visit-shop-btn {
+  padding: 8px 20px;
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.visit-shop-btn:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .shop-info-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .shop-logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .shop-details {
+    width: 100%;
+  }
+
+  .visit-shop-btn {
+    width: 100%;
+  }
+}
