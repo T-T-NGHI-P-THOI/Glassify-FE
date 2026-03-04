@@ -72,6 +72,13 @@ export class FaceLandmarkerService {
     private faceObj?: THREE.Mesh;
     private baseScale!: THREE.Vector3;
 
+    /** Optional callback fired each frame a face is detected. Used for face shape analysis. */
+    onLandmarksDetected?: (
+        landmarks: vision.NormalizedLandmark[],
+        width: number,
+        height: number
+    ) => void;
+
     setThreeObjects(glasses: THREE.Object3D, face: THREE.Mesh) {
         this.glassesObj = glasses;
         this.faceObj = face;
@@ -140,6 +147,7 @@ export class FaceLandmarkerService {
         if (results.faceLandmarks && results.faceLandmarks.length > 0 && this.glassesObj) {
             this.glassesObj.visible = true;
             this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
+            this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
             if (this.faceObj) this.faceObj.visible = false;
@@ -279,7 +287,7 @@ export class ImageFaceLandmarkerService {
     private baseScale!: THREE.Vector3;
 
     // Reuse the shared landmark applier from the parent class
-    private readonly videoService = new FaceLandmarkerService();
+    private videoService = new FaceLandmarkerService();
 
     setThreeObjects(glasses: THREE.Object3D, face: THREE.Mesh) {
         this.glassesObj = glasses;
@@ -295,10 +303,13 @@ export class ImageFaceLandmarkerService {
 
     /**
      * Run detection on a static HTMLImageElement and place glasses once.
-     * Returns true if a face was found, false otherwise.
+     * Returns { found, landmarks } — landmarks are used for face shape analysis.
      */
-    async detectAndApply(img: HTMLImageElement): Promise<boolean> {
-        if (!this.faceLandmarker || !this.glassesObj) return false;
+    async detectAndApply(img: HTMLImageElement): Promise<{
+        found: boolean;
+        landmarks: vision.NormalizedLandmark[] | null;
+    }> {
+        if (!this.faceLandmarker || !this.glassesObj) return { found: false, landmarks: null };
 
         // Reset smoothing state for a fresh image (no lerp needed)
         sm.ready = false;
@@ -308,7 +319,7 @@ export class ImageFaceLandmarkerService {
         if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
             this.glassesObj.visible = false;
             if (this.faceObj) this.faceObj.visible = false;
-            return false;
+            return { found: false, landmarks: null };
         }
 
         this.glassesObj.visible = true;
@@ -318,6 +329,6 @@ export class ImageFaceLandmarkerService {
             img.naturalHeight
         );
 
-        return true;
+        return { found: true, landmarks: results.faceLandmarks[0] };
     }
 }
