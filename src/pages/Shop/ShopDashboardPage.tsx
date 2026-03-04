@@ -14,6 +14,13 @@ import {
   CircularProgress,
   Rating,
   Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -34,6 +41,7 @@ import {
   TrendingUp,
   Edit,
   Cancel,
+  MoreVert,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -55,7 +63,6 @@ const ShopDashboardPage = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [ghnNames, setGhnNames] = useState({ province: '', district: '', ward: '' });
   const [cancelDeactivateLoading, setCancelDeactivateLoading] = useState(false);
-
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(false);
@@ -687,6 +694,7 @@ const ShopDashboardPage = () => {
             </Box>
           </Grid>
         </Grid>
+
       </Box>
 
       {/* Detail Dialog */}

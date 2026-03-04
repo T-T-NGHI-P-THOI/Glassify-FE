@@ -36,11 +36,14 @@ import {
   StarBorder,
   StarHalf,
 } from '@mui/icons-material';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Sidebar } from '../../../components/sidebar/Sidebar';
+import { ShopOwnerSidebar } from '../../../components/sidebar/ShopOwnerSidebar';
 import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { useAuth } from '@/hooks/useAuth';
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -360,6 +363,15 @@ const ShipmentDetailPage = () => {
   const theme = useTheme();
   const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [shop, setShop] = useState<ShopDetailResponse | null>(null);
+
+  useEffect(() => {
+    shopApi.getMyShops().then((res) => {
+      const shops = res.data;
+      setShop(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
+    }).catch(() => setShop(null));
+  }, []);
   const { id } = useParams();
 
   // In real app, fetch shipment by id
@@ -381,13 +393,20 @@ const ShipmentDetailPage = () => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
       {/* Sidebar */}
-      <Sidebar activeMenu={PAGE_ENDPOINTS.TRACKING.DELIVERY} />
+      <ShopOwnerSidebar
+        activeMenu={PAGE_ENDPOINTS.SHOP.ORDERS}
+        shopName={shop?.shopName}
+        shopLogo={shop?.logoUrl}
+        ownerName={shop?.ownerName || user?.fullName}
+        ownerEmail={shop?.ownerEmail || user?.email}
+        ownerAvatar={user?.avatarUrl}
+      />
 
       {/* Main Content */}
       <Box sx={{ flex: 1, p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-          <IconButton onClick={() => navigate(PAGE_ENDPOINTS.TRACKING.DELIVERY)}>
+          <IconButton onClick={() => navigate(PAGE_ENDPOINTS.SHOP.ORDERS)}>
             <ArrowBack />
           </IconButton>
           <Box sx={{ flex: 1 }}>

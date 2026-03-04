@@ -147,6 +147,9 @@ export const PAGE_ENDPOINTS = {
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
     WALLET: `/shop/wallet`,
+    PRODUCTS: `/shop/products`,
+    ORDERS: `/shop/orders`,
+    ORDER_DETAIL: `/shop/orders/:id`,
   },
 
   ADMIN: {

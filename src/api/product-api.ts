@@ -54,6 +54,7 @@ export interface ApiProduct {
   productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
+  fileResponses?: { id: string; url: string; altText?: string }[];
 }
 
 // Product filter parameters
