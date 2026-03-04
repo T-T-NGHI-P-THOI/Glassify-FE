@@ -50,14 +50,54 @@ export const API_ENDPOINTS = {
     LENS_FRAME: `${API_ENDPOINT}/validation/lens-frame`,
     PRESCRIPTION: `${API_ENDPOINT}/prescriptions/validate`,
   },
+  PLATFORM_SETTINGS: {
+    BASE: `${API_ENDPOINT}/platform-settings`,
+    PRESCRIPTION_VALUES: {
+      ALL: `${API_ENDPOINT}/platform-settings/prescription-values`,
+      SPHERE: `${API_ENDPOINT}/platform-settings/prescription-values/sphere`,
+      CYLINDER: `${API_ENDPOINT}/platform-settings/prescription-values/cylinder`,
+      ADD: `${API_ENDPOINT}/platform-settings/prescription-values/add`,
+      PD: `${API_ENDPOINT}/platform-settings/prescription-values/pd`,
+      PD_MONOCULAR: `${API_ENDPOINT}/platform-settings/prescription-values/pd-monocular`,
+    },
+  },
   CART: {
     BASE: `${API_ENDPOINT}/cart`,
     CREATE: `${API_ENDPOINT}/cart`,
     GET_ACTIVE: `${API_ENDPOINT}/cart/active`,
+    GET_MY_CART: `${API_ENDPOINT}/cart/me`,
     ADD_ITEM: (cartId: string) => `${API_ENDPOINT}/cart/${cartId}/items`,
     UPDATE_ITEM: (cartId: string, itemId: string) => `${API_ENDPOINT}/cart/${cartId}/items/${itemId}`,
     REMOVE_ITEM: (cartId: string, itemId: string) => `${API_ENDPOINT}/cart/${cartId}/items/${itemId}`,
     DELETE: (cartId: string) => `${API_ENDPOINT}/cart/${cartId}`,
+  },
+  ORDERS: {
+    BASE: `${API_ENDPOINT}/orders`,
+    CREATE: `${API_ENDPOINT}/orders`,
+    GET_MY_ORDERS: `${API_ENDPOINT}/orders`,
+    GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}`,
+    CANCEL: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/cancel`,
+    RE_ORDER: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/re-order`,
+  },
+  PAYMENTS: {
+    CREATE_VNPAY: `${API_ENDPOINT}/payments/create-vnpay`,
+    VNPAY_RETURN: `${API_ENDPOINT}/payments/vnpay-return`,
+    STATUS: (orderId: string) => `${API_ENDPOINT}/payments/status/${orderId}`,
+  },
+  WARRANTY: {
+    CLAIMS: `${API_ENDPOINT}/warranty-claims`,
+    CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}`,
+  },
+  RETURNS: {
+    REQUESTS: `${API_ENDPOINT}/return-requests`,
+    REQUEST_BY_ID: (id: string) => `${API_ENDPOINT}/return-requests/${id}`,
+    CANCEL: (id: string) => `${API_ENDPOINT}/return-requests/${id}/cancel`,
+  },
+  SHOP_WALLET: {
+    BASE: `${API_ENDPOINT}/shop/wallet`,
+    WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
+    CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
+    TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
   },
   SHOPS: {
     LIST: `${API_ENDPOINT}/shops`,
@@ -106,6 +146,7 @@ export const PAGE_ENDPOINTS = {
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
+    WALLET: `/shop/wallet`,
     PRODUCTS: `/shop/products`,
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
@@ -129,6 +170,14 @@ export const PAGE_ENDPOINTS = {
 
   CART: {
     MAIN: `/cart`,
+  },
+
+  CHECKOUT: {
+    MAIN: `/checkout`,
+  },
+
+  PAYMENT: {
+    RESULT: `/payment/result`,
   },
 
 } as const;

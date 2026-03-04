@@ -1433,6 +1433,7 @@ const ShoppingCart: React.FC = () => {
                             size="large"
                             disableElevation
                             disabled={isLoading || updating || items.length === 0}
+                            onClick={() => navigate('/checkout')}
                             sx={{
                                 bgcolor: '#111',
                                 color: '#fff',

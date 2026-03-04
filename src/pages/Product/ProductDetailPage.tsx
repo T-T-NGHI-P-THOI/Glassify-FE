@@ -2,16 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home } from '@mui/icons-material';
 import { Snackbar, Alert } from '@mui/material';
-import ImageGallery from '../components/ProductDetailPage/ImageGallery';
-import ProductInfo from '../components/ProductDetailPage/ProductInfo';
-import ProductDetails from '../components/ProductDetailPage/ProductDetails';
-import RecommendedProducts from '../components/ProductDetailPage/RecommendedProducts';
-import { LensSelectionDialog } from '../components/LensSelection/LensSelectionDialog';
-import type { Product, RecommendedProduct } from '../types/product';
-import type { LensSelection } from '../models/Lens';
-import ProductAPI, { type ReviewResponse } from '../api/product-api';
+import ImageGallery from '../../components/ProductDetailPage/ImageGallery';
+import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
+import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
+import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
+import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
+import type { Product, RecommendedProduct } from '../../types/product';
+import type { LensSelection } from '../../models/Lens';
+import ProductAPI, { type ReviewResponse } from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { useCart } from '../hooks/useCart';
+import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
 
 const ProductDetailPage: React.FC = () => {
@@ -217,6 +217,8 @@ const ProductDetailPage: React.FC = () => {
           imageUrl: product.images?.[0],
           unitPrice: product.price,
           itemType: 'FRAME',
+          shopId: product.shopId,
+          variantId: product.variantId,
         });
         // In edit mode, remove the old cart item after adding the new one
         if (isEditMode && editCartItemId) {
@@ -251,6 +253,8 @@ const ProductDetailPage: React.FC = () => {
         imageUrl: product.images?.[0],
         unitPrice: product.price,
         itemType: 'FRAME' as const,
+        shopId: product.shopId,
+        variantId: product.variantId,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)
@@ -259,11 +263,15 @@ const ProductDetailPage: React.FC = () => {
       const lensParams = {
         productName: selection.lens_type.name,
         productSlug: product.slug,
-        productId: selection.lens_type.id,
+        productId: '',
         productType: 'LENS',
         unitPrice: lensOnlyPrice,
         itemType: 'LENS' as const,
         lensSelection: selection,
+        shopId: product.shopId,
+        lensId: selection.lens_type.id,
+        lensTintId: selection.tint?.id,
+        lensFeatureIds: selection.features.map(f => f.id),
       };
 
       await addFrameWithLens(frameParams, lensParams);

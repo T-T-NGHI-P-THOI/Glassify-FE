@@ -8,10 +8,12 @@ import UserProfilePage from "@/pages/User/UserProfilePage"
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
 import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
+import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
 import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
+import CheckoutPage from "@/pages/checkout/CheckoutPage"
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 
@@ -101,6 +103,28 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopBankAccountPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.WALLET}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopWalletPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.CHECKOUT.MAIN}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <CheckoutPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

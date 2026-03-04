@@ -1,324 +1,258 @@
-import type { CartItemWithDetails, CartResponse, ItemType } from "./Type";
-import type { LensSelection } from "@/models/Lens";
+import CartAPI from '@/api/cart-api';
+import { TokenManager } from '@/api/axios.config';
+import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartItemRequest, BeCartResponse, ItemType } from './Type';
+import type { LensSelection } from '@/models/Lens';
 
-let nextItemId = 100;
+// ==================== Display Metadata Cache ====================
+// BE cart items only store UUIDs. We cache display metadata locally
+// so the UI can render product names, images, etc.
 
-const mockCartData: CartResponse = {
-    cart: {
-        id: 'cart-001',
-        user_id: 'user-001',
-        session_id: 'session-abc123',
-        status: 'active',
-        created_at: '2025-01-20T10:00:00Z',
-        updated_at: '2025-01-20T15:30:00Z',
-        expires_at: '2025-01-27T10:00:00Z',
-    },
-    items: [
-        {
-            id: 'ci-001',
-            cart_id: 'cart-001',
-            product_id: 'prod-001',
-            quantity: 1,
-            unit_price: 33.9,
-            added_at: '2025-01-20T10:05:00Z',
-            updated_at: '2025-01-20T10:05:00Z',
-            item_type: 'FRAME' as ItemType,
-            product: {
-                id: 'prod-001',
-                product_type: 'frame',
-                name: 'Vel pellentesque bibendum',
-                slug: 'vel-pellentesque-bibendum',
-                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-                is_active: true,
-                is_featured: true,
-                is_instock: true,
-                brand: {
-                    id: 'brand-001',
-                    code: 'RAY',
-                    name: 'Ray-Ban',
-                    is_active: true,
-                },
-                created_at: '2025-01-01T00:00:00Z',
-                updated_at: '2025-01-15T00:00:00Z',
-            },
-            variant_details: {
-                sku: 'RB-001-BK',
-                color: 'Black',
-                size: 'M',
-                image_url: undefined,
-            },
-            is_gift: false,
-            children: [
-                {
-                    id: 'ci-001-lens',
-                    cart_id: 'cart-001',
-                    product_id: 'prod-lens-001',
-                    parent_item_id: 'ci-001',
-                    quantity: 1,
-                    unit_price: 15.0,
-                    added_at: '2025-01-20T10:06:00Z',
-                    updated_at: '2025-01-20T10:06:00Z',
-                    item_type: 'LENS' as ItemType,
-                    product: {
-                        id: 'prod-lens-001',
-                        product_type: 'lens',
-                        name: 'Tròng kính cận Blue Light',
-                        slug: 'blue-light-lens',
-                        description: 'Blue light blocking prescription lens',
-                        is_active: true,
-                        is_featured: false,
-                        is_instock: true,
-                        created_at: '2025-01-01T00:00:00Z',
-                        updated_at: '2025-01-01T00:00:00Z',
-                    },
-                    variant_details: {
-                        sku: 'LENS-BL-001',
-                    },
-                    is_gift: false,
-                    children: [],
-                    lens_selection: {
-                        usage: { id: 'usage-sv', name: 'Kính cận thường', description: 'Sử dụng hàng ngày', type: 'SINGLE_VISION' },
-                        lens_type: { id: 'prod-lens-001', name: 'Tròng kính cận Blue Light', description: 'Blue light blocking prescription lens', price: 15.0, isPrescription: true, usage_id: 'usage-sv' },
-                        prescription: {
-                            right_eye: { sphere: '-2.00', cylinder: '-0.50', axis: '180', pd: '63' },
-                            left_eye: { sphere: '-1.75', cylinder: '-0.25', axis: '175', pd: '63' },
-                        },
-                        tint: { id: 'tint-clear', name: 'Trong suốt', description: 'Không màu', price: 0, cssValue: 'transparent', opacity: 0 },
-                        features: [
-                            { id: 'feat-as', name: 'Chống xước', description: 'Lớp phủ chống xước', price: 0, category: 'coating' as const },
-                        ],
-                        total_price: 15.0,
-                    },
-                },
-                {
-                    id: 'ci-001a',
-                    cart_id: 'cart-001',
-                    product_id: 'prod-acc-001',
-                    parent_item_id: 'ci-001',
-                    quantity: 1,
-                    unit_price: 5.0,
-                    added_at: '2025-01-20T10:06:00Z',
-                    updated_at: '2025-01-20T10:06:00Z',
-                    item_type: 'ACCESSORY' as ItemType,
-                    product: {
-                        id: 'prod-acc-001',
-                        product_type: 'accessory',
-                        name: 'Bảo hành mở rộng 12 tháng',
-                        slug: 'extended-warranty-12m',
-                        description: 'Extended warranty coverage for 12 months',
-                        is_active: true,
-                        is_featured: false,
-                        is_instock: true,
-                        created_at: '2025-01-01T00:00:00Z',
-                        updated_at: '2025-01-01T00:00:00Z',
-                    },
-                    variant_details: {
-                        sku: 'WAR-12M',
-                    },
-                    is_gift: false,
-                    children: [],
-                },
-                {
-                    id: 'ci-001b',
-                    cart_id: 'cart-001',
-                    product_id: 'prod-gift-001',
-                    parent_item_id: 'ci-001',
-                    quantity: 1,
-                    unit_price: 0,
-                    added_at: '2025-01-20T10:06:00Z',
-                    updated_at: '2025-01-20T10:06:00Z',
-                    item_type: 'GIFT' as ItemType,
-                    product: {
-                        id: 'prod-gift-001',
-                        product_type: 'accessory',
-                        name: 'Túi đựng cao cấp',
-                        slug: 'premium-case-gift',
-                        description: 'Premium glasses case - Gift',
-                        is_active: true,
-                        is_featured: false,
-                        is_instock: true,
-                        created_at: '2025-01-01T00:00:00Z',
-                        updated_at: '2025-01-01T00:00:00Z',
-                    },
-                    variant_details: {
-                        sku: 'CASE-GIFT',
-                    },
-                    is_gift: true,
-                    children: [],
-                },
-            ],
-        },
-        {
-            id: 'ci-002',
-            cart_id: 'cart-001',
-            product_id: 'prod-002',
-            quantity: 1,
-            unit_price: 14.9,
-            added_at: '2025-01-20T11:00:00Z',
-            updated_at: '2025-01-20T11:00:00Z',
-            item_type: 'FRAME' as ItemType,
-            product: {
-                id: 'prod-002',
-                product_type: 'frame',
-                name: 'Magna quis at non',
-                slug: 'magna-quis-at-non',
-                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Libero.',
-                is_active: true,
-                is_featured: false,
-                is_instock: true,
-                brand: {
-                    id: 'brand-002',
-                    code: 'OAK',
-                    name: 'Oakley',
-                    is_active: true,
-                },
-                created_at: '2025-01-01T00:00:00Z',
-                updated_at: '2025-01-10T00:00:00Z',
-            },
-            variant_details: {
-                sku: 'OAK-002-SL',
-                color: 'Silver',
-                size: 'L',
-                image_url: undefined,
-            },
-            is_gift: false,
-            children: [],
-        },
-        {
-            id: 'ci-003',
-            cart_id: 'cart-001',
-            product_id: 'prod-003',
-            quantity: 1,
-            unit_price: 16.9,
-            added_at: '2025-01-20T12:00:00Z',
-            updated_at: '2025-01-20T12:00:00Z',
-            item_type: 'FRAME' as ItemType,
-            product: {
-                id: 'prod-003',
-                product_type: 'frame',
-                name: 'Cursus tortor ac eget',
-                slug: 'cursus-tortor-ac-eget',
-                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-                is_active: true,
-                is_featured: true,
-                is_instock: true,
-                brand: {
-                    id: 'brand-003',
-                    code: 'GUC',
-                    name: 'Gucci',
-                    is_active: true,
-                },
-                created_at: '2025-01-01T00:00:00Z',
-                updated_at: '2025-01-05T00:00:00Z',
-            },
-            variant_details: {
-                sku: 'GUC-003-GD',
-                color: 'Gold',
-                size: 'M',
-                image_url: undefined,
-            },
-            is_gift: false,
-            children: [
-                {
-                    id: 'ci-003-lens',
-                    cart_id: 'cart-001',
-                    product_id: 'prod-lens-002',
-                    parent_item_id: 'ci-003',
-                    quantity: 1,
-                    unit_price: 22.0,
-                    added_at: '2025-01-20T12:01:00Z',
-                    updated_at: '2025-01-20T12:01:00Z',
-                    item_type: 'LENS' as ItemType,
-                    product: {
-                        id: 'prod-lens-002',
-                        product_type: 'lens',
-                        name: 'Tròng kính đổi màu Progressive',
-                        slug: 'photochromic-progressive-lens',
-                        description: 'Photochromic progressive lens',
-                        is_active: true,
-                        is_featured: false,
-                        is_instock: true,
-                        created_at: '2025-01-01T00:00:00Z',
-                        updated_at: '2025-01-01T00:00:00Z',
-                    },
-                    variant_details: {
-                        sku: 'LENS-PC-002',
-                    },
-                    is_gift: false,
-                    children: [],
-                    lens_selection: {
-                        usage: { id: 'usage-prog', name: 'Đa tròng (Progressive)', description: 'Nhìn xa và gần', type: 'PROGRESSIVE' },
-                        lens_type: { id: 'prod-lens-002', name: 'Tròng kính đổi màu Progressive', description: 'Photochromic progressive lens', price: 18.0, isPrescription: true, isProgressive: true, usage_id: 'usage-prog' },
-                        prescription: {
-                            right_eye: { sphere: '-3.00', cylinder: '-1.00', axis: '90', add: '+2.00', pd: '31' },
-                            left_eye: { sphere: '-2.75', cylinder: '-0.75', axis: '85', add: '+2.00', pd: '31' },
-                        },
-                        tint: { id: 'tint-gray', name: 'Xám đổi màu', description: 'Tự động đổi màu theo ánh sáng', price: 4.0, cssValue: '#808080', opacity: 0.5 },
-                        features: [
-                            { id: 'feat-as', name: 'Chống xước', description: 'Lớp phủ chống xước', price: 0, category: 'coating' as const },
-                            { id: 'feat-uv', name: 'Chống UV 400', description: 'Bảo vệ mắt khỏi tia UV', price: 0, category: 'protection' as const },
-                        ],
-                        total_price: 22.0,
-                    },
-                },
-                {
-                    id: 'ci-003a',
-                    cart_id: 'cart-001',
-                    product_id: 'prod-acc-002',
-                    parent_item_id: 'ci-003',
-                    quantity: 1,
-                    unit_price: 3.5,
-                    added_at: '2025-01-20T12:01:00Z',
-                    updated_at: '2025-01-20T12:01:00Z',
-                    item_type: 'ACCESSORY' as ItemType,
-                    product: {
-                        id: 'prod-acc-002',
-                        product_type: 'accessory',
-                        name: 'Dây đeo thay thế',
-                        slug: 'replacement-strap',
-                        description: 'Replacement strap for glasses',
-                        is_active: true,
-                        is_featured: false,
-                        is_instock: true,
-                        created_at: '2025-01-01T00:00:00Z',
-                        updated_at: '2025-01-01T00:00:00Z',
-                    },
-                    variant_details: {
-                        sku: 'STRAP-BK',
-                        color: 'Black',
-                    },
-                    is_gift: false,
-                    children: [],
-                },
-            ],
-        },
-    ],
-    summary: {
-        items_count: 3,
-        items_subtotal: 111.2,
-        promotion_discount: 0,
-        coupon_discount: 11.12,
-        shipping_fee: 0,
-        tax_amount: 0,
-        total_amount: 100.08,
-        applied_coupon: {
-            id: 'coupon-001',
-            code: 'HAPPY',
-            name: 'Happy New Year 2025',
-            discount_type: 'percentage',
-            discount_value: 10,
-            min_purchase_amount: 50,
-            max_discount_amount: 100,
-            valid_from: '2025-01-01',
-            valid_until: '2025-01-31',
-            usage_limit_per_user: 1,
-            total_usage_limit: 1000,
-            used_count: 245,
+interface ItemDisplayMeta {
+    productName: string;
+    productSlug: string;
+    productType: string;
+    description?: string;
+    brandName?: string;
+    sku?: string;
+    color?: string;
+    size?: string;
+    imageUrl?: string;
+    isFree?: boolean;
+    lensSelection?: LensSelection;
+}
+
+const DISPLAY_CACHE_KEY = 'glassify_cart_display_cache';
+
+function getDisplayCache(): Record<string, ItemDisplayMeta> {
+    try {
+        const raw = localStorage.getItem(DISPLAY_CACHE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveDisplayCache(cache: Record<string, ItemDisplayMeta>) {
+    try {
+        localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+        // localStorage full or unavailable
+    }
+}
+
+function cacheItemDisplay(itemId: string, meta: ItemDisplayMeta) {
+    const cache = getDisplayCache();
+    cache[itemId] = meta;
+    saveDisplayCache(cache);
+}
+
+function cleanupCache(activeItemIds: Set<string>) {
+    const cache = getDisplayCache();
+    const cleaned: Record<string, ItemDisplayMeta> = {};
+    for (const id of activeItemIds) {
+        if (cache[id]) cleaned[id] = cache[id];
+    }
+    saveDisplayCache(cleaned);
+}
+
+// ==================== Session Management ====================
+
+function getOrCreateSessionId(): string {
+    const key = 'glassify_session_id';
+    let sessionId = localStorage.getItem(key);
+    if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem(key, sessionId);
+    }
+    return sessionId;
+}
+
+// ==================== Transform BE -> FE ====================
+
+function collectItemIds(items: BeCartItemResponse[]): Set<string> {
+    const ids = new Set<string>();
+    for (const item of items) {
+        ids.add(item.id);
+    }
+    return ids;
+}
+
+function transformBeItems(beItems: BeCartItemResponse[]): CartItemWithDetails[] {
+    const cache = getDisplayCache();
+
+    // Separate parent items and child items
+    const parentItems = beItems.filter(item => !item.parentItemId);
+    const childrenMap = new Map<string, BeCartItemResponse[]>();
+
+    for (const item of beItems) {
+        if (item.parentItemId) {
+            const children = childrenMap.get(item.parentItemId) || [];
+            children.push(item);
+            childrenMap.set(item.parentItemId, children);
+        }
+    }
+
+    return parentItems.map(item => transformSingleItem(item, childrenMap, cache));
+}
+
+function transformSingleItem(
+    beItem: BeCartItemResponse,
+    childrenMap: Map<string, BeCartItemResponse[]>,
+    cache: Record<string, ItemDisplayMeta>,
+): CartItemWithDetails {
+    const meta = cache[beItem.id];
+    const children = childrenMap.get(beItem.id) || [];
+    const now = new Date().toISOString();
+
+    const productType = meta?.productType || getProductTypeFromItemType(beItem.itemType);
+
+    return {
+        id: beItem.id,
+        cart_id: beItem.cartId,
+        product_id: beItem.productId || '',
+        parent_item_id: beItem.parentItemId || undefined,
+        quantity: beItem.quantity,
+        unit_price: beItem.unitPrice,
+        added_at: beItem.createdAt || now,
+        updated_at: beItem.updatedAt || now,
+        item_type: beItem.itemType,
+        product: {
+            id: beItem.productId || '',
+            product_type: productType as 'frame' | 'lens' | 'accessory',
+            name: meta?.productName || 'Product',
+            slug: meta?.productSlug || '',
+            description: meta?.description,
             is_active: true,
+            is_featured: false,
+            is_instock: true,
+            brand: meta?.brandName ? {
+                id: '',
+                code: '',
+                name: meta.brandName,
+                is_active: true,
+            } : undefined,
+            created_at: beItem.createdAt || now,
+            updated_at: beItem.updatedAt || now,
         },
-        applied_promotions: [],
-    },
-};
+        variant_details: {
+            sku: meta?.sku || '',
+            color: meta?.color,
+            size: meta?.size,
+            image_url: meta?.imageUrl,
+        },
+        is_gift: beItem.isFree || meta?.isFree || false,
+        children: children.map(child => transformSingleItem(child, childrenMap, cache)),
+        lens_selection: meta?.lensSelection,
+    };
+}
+
+function getProductTypeFromItemType(itemType: ItemType): string {
+    switch (itemType) {
+        case 'FRAME': return 'frame';
+        case 'LENS': return 'lens';
+        case 'ACCESSORY': return 'accessory';
+        case 'GIFT': return 'accessory';
+        default: return 'frame';
+    }
+}
+
+function transformBeCart(beCart: BeCartResponse): CartResponse {
+    const items = transformBeItems(beCart.items || []);
+
+    // Calculate summary from items
+    const calculateItemTotal = (item: CartItemWithDetails): number => {
+        const selfTotal = item.unit_price * item.quantity;
+        const childrenTotal = item.children.reduce((sum, child) => sum + calculateItemTotal(child), 0);
+        return selfTotal + childrenTotal;
+    };
+
+    const itemsSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+
+    // Cleanup stale cache entries
+    const activeIds = collectItemIds(beCart.items || []);
+    cleanupCache(activeIds);
+
+    return {
+        cart: {
+            id: beCart.id,
+            user_id: beCart.userId || undefined,
+            session_id: beCart.sessionId || undefined,
+            status: (beCart.status?.toLowerCase() || 'active') as 'active' | 'abandoned' | 'converted' | 'expired',
+            created_at: beCart.createdAt,
+            updated_at: beCart.updatedAt,
+            expires_at: beCart.expiresAt || undefined,
+        },
+        items,
+        summary: {
+            items_count: items.length,
+            items_subtotal: itemsSubtotal,
+            promotion_discount: 0,
+            coupon_discount: 0,
+            shipping_fee: 0,
+            tax_amount: 0,
+            total_amount: itemsSubtotal,
+            applied_promotions: [],
+        },
+    };
+}
+
+// ==================== Empty Cart Response ====================
+
+function emptyCartResponse(): CartResponse {
+    return {
+        cart: {
+            id: '',
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        },
+        items: [],
+        summary: {
+            items_count: 0,
+            items_subtotal: 0,
+            promotion_discount: 0,
+            coupon_discount: 0,
+            shipping_fee: 0,
+            tax_amount: 0,
+            total_amount: 0,
+            applied_promotions: [],
+        },
+    };
+}
+
+// ==================== Cart ID Management ====================
+
+let currentCartId: string | null = null;
+
+async function ensureCart(): Promise<string> {
+    if (currentCartId) return currentCartId;
+
+    try {
+        const isAuthenticated = TokenManager.isAuthenticated();
+        let beCart: BeCartResponse;
+
+        if (isAuthenticated) {
+            beCart = await CartAPI.getMyCart();
+        } else {
+            const sessionId = getOrCreateSessionId();
+            beCart = await CartAPI.getActiveCart(undefined, sessionId);
+        }
+
+        currentCartId = beCart.id;
+        return currentCartId;
+    } catch {
+        // No active cart found, create one
+        const isAuthenticated = TokenManager.isAuthenticated();
+        const beCart = await CartAPI.createCart({
+            sessionId: isAuthenticated ? undefined : getOrCreateSessionId(),
+            status: 'ACTIVE',
+        });
+        currentCartId = beCart.id;
+        return currentCartId;
+    }
+}
+
+// ==================== Public API ====================
 
 export interface AddToCartMockParams {
     productName: string;
@@ -335,178 +269,118 @@ export interface AddToCartMockParams {
     parentItemId?: string;
     isFree?: boolean;
     giftNote?: string;
+    shopId?: string;
+    variantId?: string;
+    lensId?: string;
+    lensTintId?: string;
+    lensFeatureIds?: string[];
+    prescriptionId?: string;
     lensSelection?: LensSelection;
 }
 
 export const CartService = {
     async getCart(): Promise<CartResponse> {
-        await delay(300);
-        return { ...mockCartData };
+        try {
+            const isAuthenticated = TokenManager.isAuthenticated();
+            let beCart: BeCartResponse;
+
+            if (isAuthenticated) {
+                beCart = await CartAPI.getMyCart();
+            } else {
+                const sessionId = getOrCreateSessionId();
+                beCart = await CartAPI.getActiveCart(undefined, sessionId);
+            }
+
+            currentCartId = beCart.id;
+            return transformBeCart(beCart);
+        } catch {
+            return emptyCartResponse();
+        }
     },
 
     async addItem(params: AddToCartMockParams): Promise<{ cartResponse: CartResponse; createdItemId: string }> {
-        await delay(200);
-        const newId = `ci-mock-${nextItemId++}`;
-        const now = new Date().toISOString();
+        const cartId = await ensureCart();
 
-        const newItem: CartItemWithDetails = {
-            id: newId,
-            cart_id: mockCartData.cart.id,
-            product_id: params.productId,
-            parent_item_id: params.parentItemId,
+        const beRequest: BeCartItemRequest = {
+            parentItemId: params.parentItemId,
+            shopId: params.shopId || '',
+            productId: params.itemType !== 'LENS' ? params.productId : undefined,
+            variantId: params.variantId,
+            lensId: params.lensId,
+            lensTintId: params.lensTintId,
+            lensFeatureIds: params.lensFeatureIds,
+            prescriptionId: params.prescriptionId,
             quantity: 1,
-            unit_price: params.unitPrice,
-            added_at: now,
-            updated_at: now,
-            item_type: params.itemType,
-            product: {
-                id: params.productId,
-                product_type: params.productType as 'frame' | 'lens' | 'accessory',
-                name: params.productName,
-                slug: params.productSlug,
-                description: '',
-                is_active: true,
-                is_featured: false,
-                is_instock: true,
-                brand: params.brandName ? { id: 'brand-mock', code: '', name: params.brandName, is_active: true } : undefined,
-                created_at: now,
-                updated_at: now,
-            },
-            variant_details: {
-                sku: params.sku || '',
-                color: params.color,
-                size: params.size,
-                image_url: params.imageUrl,
-            },
-            is_gift: params.isFree || false,
-            children: [],
-            lens_selection: params.lensSelection,
+            unitPrice: params.unitPrice,
+            lineTotal: params.unitPrice,
+            isFree: params.isFree,
+            giftNote: params.giftNote,
+            itemType: params.itemType,
         };
 
-        if (params.parentItemId) {
-            // Add as child of parent
-            const addChild = (items: CartItemWithDetails[]): boolean => {
-                for (const item of items) {
-                    if (item.id === params.parentItemId) {
-                        item.children.push(newItem);
-                        return true;
-                    }
-                    if (addChild(item.children)) return true;
-                }
-                return false;
-            };
-            addChild(mockCartData.items);
-        } else {
-            mockCartData.items.push(newItem);
+        const beCart = await CartAPI.addItem(cartId, beRequest);
+        currentCartId = beCart.id;
+
+        // Find the newly created item (it's the one not in our cache)
+        const cache = getDisplayCache();
+        const newBeItem = (beCart.items || []).find(item => !cache[item.id]);
+        const newItemId = newBeItem?.id || '';
+
+        // Cache display metadata for the new item
+        if (newItemId) {
+            cacheItemDisplay(newItemId, {
+                productName: params.productName,
+                productSlug: params.productSlug,
+                productType: params.productType,
+                brandName: params.brandName,
+                sku: params.sku,
+                color: params.color,
+                size: params.size,
+                imageUrl: params.imageUrl,
+                isFree: params.isFree,
+                lensSelection: params.lensSelection,
+            });
         }
 
-        recalculateSummary();
-        return { cartResponse: { ...mockCartData }, createdItemId: newId };
+        return {
+            cartResponse: transformBeCart(beCart),
+            createdItemId: newItemId,
+        };
     },
 
     async updateItemQuantity(itemId: string, quantity: number): Promise<CartResponse> {
-        await delay(200);
-        const updateItem = (items: CartItemWithDetails[]): CartItemWithDetails[] => {
-            return items.map(item => {
-                if (item.id === itemId) {
-                    return { ...item, quantity, updated_at: new Date().toISOString() };
-                }
-                if (item.children.length > 0) {
-                    return { ...item, children: updateItem(item.children) };
-                }
-                return item;
-            });
+        const cartId = await ensureCart();
+
+        const beRequest = {
+            shopId: '',
+            quantity,
+            unitPrice: 0,
+            lineTotal: 0,
+            itemType: 'FRAME' as ItemType,
         };
-        mockCartData.items = updateItem(mockCartData.items);
-        recalculateSummary();
-        return { ...mockCartData };
+
+        const beCart = await CartAPI.updateItem(cartId, itemId, beRequest);
+        currentCartId = beCart.id;
+        return transformBeCart(beCart);
     },
 
     async removeItem(itemId: string): Promise<CartResponse> {
-        await delay(200);
-        const removeFromItems = (items: CartItemWithDetails[]): CartItemWithDetails[] => {
-            return items
-                .filter(item => item.id !== itemId)
-                .map(item => ({
-                    ...item,
-                    children: removeFromItems(item.children),
-                }));
-        };
-        mockCartData.items = removeFromItems(mockCartData.items);
-        recalculateSummary();
-        return { ...mockCartData };
+        const cartId = await ensureCart();
+        const beCart = await CartAPI.removeItem(cartId, itemId);
+        currentCartId = beCart.id;
+        return transformBeCart(beCart);
     },
 
-    async applyCoupon(code: string): Promise<{ success: boolean; message: string; data?: CartResponse }> {
-        await delay(300);
-        if (code.toUpperCase() === 'HAPPY') {
-            mockCartData.summary.applied_coupon = {
-                id: 'coupon-001',
-                code: 'HAPPY',
-                name: 'Happy New Year 2025',
-                discount_type: 'percentage',
-                discount_value: 10,
-                min_purchase_amount: 50,
-                max_discount_amount: 100,
-                valid_from: '2025-01-01',
-                valid_until: '2025-01-31',
-                usage_limit_per_user: 1,
-                total_usage_limit: 1000,
-                used_count: 245,
-                is_active: true,
-            };
-            recalculateSummary();
-            return { success: true, message: 'Coupon applied successfully', data: { ...mockCartData } };
-        }
-        return { success: false, message: 'Invalid coupon code' };
+    async applyCoupon(_code: string): Promise<{ success: boolean; message: string; data?: CartResponse }> {
+        // Coupon API not yet available in BE
+        return { success: false, message: 'Coupon feature coming soon' };
     },
 
     async removeCoupon(): Promise<CartResponse> {
-        await delay(200);
-        mockCartData.summary.applied_coupon = undefined;
-        mockCartData.summary.coupon_discount = 0;
-        recalculateSummary();
-        return { ...mockCartData };
+        return this.getCart();
+    },
+
+    resetCartId() {
+        currentCartId = null;
     },
 };
-
-function recalculateSummary() {
-    const calculateItemTotal = (item: CartItemWithDetails): number => {
-        const itemTotal = item.unit_price * item.quantity;
-        const childrenTotal = item.children.reduce((sum, child) => sum + calculateItemTotal(child), 0);
-        return itemTotal + childrenTotal;
-    };
-
-    mockCartData.summary.items_subtotal = mockCartData.items.reduce(
-        (sum, item) => sum + calculateItemTotal(item),
-        0
-    );
-
-    mockCartData.summary.items_count = mockCartData.items.length;
-
-    if (mockCartData.summary.applied_coupon) {
-        const coupon = mockCartData.summary.applied_coupon;
-        if (coupon.discount_type === 'percentage') {
-            mockCartData.summary.coupon_discount = Math.min(
-                (mockCartData.summary.items_subtotal * coupon.discount_value) / 100,
-                coupon.max_discount_amount || Infinity
-            );
-        } else {
-            mockCartData.summary.coupon_discount = Math.min(
-                coupon.discount_value,
-                mockCartData.summary.items_subtotal
-            );
-        }
-    } else {
-        mockCartData.summary.coupon_discount = 0;
-    }
-
-    mockCartData.summary.total_amount =
-        mockCartData.summary.items_subtotal -
-        mockCartData.summary.promotion_discount -
-        mockCartData.summary.coupon_discount +
-        mockCartData.summary.shipping_fee +
-        mockCartData.summary.tax_amount;
-}
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
