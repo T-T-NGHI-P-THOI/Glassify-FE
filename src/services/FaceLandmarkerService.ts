@@ -27,7 +27,7 @@ export const CFG = {
     refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
     refFaceHeight: 210,     // Reference face height (pixels)
     glassesDepth: -50,       // Z-offset: how far glasses sit in front of the face
-    glassesDown: -20,         // Y-offset: push glasses slightly downward
+    glassesDown: -10,         // Y-offset: push glasses slightly downward
     glassesCenterX: 0,      // X-offset: horizontal fine-tuning
     glassesScale: 1.22      // Overall scale multiplier
 };
@@ -40,6 +40,30 @@ const sm = {
     prev: new THREE.Vector3()
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared engine creator — avoids duplicating the MediaPipe boilerplate
+// ─────────────────────────────────────────────────────────────────────────────
+async function createFaceLandmarker(
+    runningMode: "VIDEO" | "IMAGE"
+): Promise<vision.FaceLandmarker> {
+    const fileset = await vision.FilesetResolver.forVisionTasks(
+        "https://unpkg.com/@mediapipe/tasks-vision@0.10.7/wasm"
+    );
+
+    return vision.FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: {
+            modelAssetPath:
+                "https://storage.googleapis.com/mediapipe-assets/face_landmarker.task",
+            delegate: "GPU",
+        },
+        runningMode,
+        numFaces: 1,
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main service (VIDEO mode — used by the webcam page)
+// ─────────────────────────────────────────────────────────────────────────────
 export class FaceLandmarkerService {
     private faceLandmarker: vision.FaceLandmarker | undefined;
     private predictionInFlight = false;
@@ -55,22 +79,7 @@ export class FaceLandmarkerService {
     }
 
     async initializeEngine() {
-        const fileset = await vision.FilesetResolver.forVisionTasks(
-            "https://unpkg.com/@mediapipe/tasks-vision@0.10.7/wasm"
-        );
-
-        this.faceLandmarker = await vision.FaceLandmarker.createFromOptions(
-            fileset,
-            {
-                baseOptions: {
-                    modelAssetPath:
-                        "https://storage.googleapis.com/mediapipe-assets/face_landmarker.task",
-                    delegate: "GPU",
-                },
-                runningMode: "VIDEO",
-                numFaces: 1,
-            }
-        );
+        this.faceLandmarker = await createFaceLandmarker("VIDEO");
     }
 
     startPrediction(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
@@ -88,14 +97,10 @@ export class FaceLandmarkerService {
             if (video.readyState >= 2) {
                 const now = performance.now();
                 const results = this.faceLandmarker.detectForVideo(video, now);
-
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (results.faceLandmarks.length > 0) {
-                    const landmarks = results.faceLandmarks[0];
-
-                    // this.drawPoints(ctx, landmarks);
-                    // this.drawConnections(ctx, landmarks);
+                    // landmarks available
                 }
             }
 
@@ -104,37 +109,6 @@ export class FaceLandmarkerService {
 
         predict();
     }
-
-    // drawPoints(ctx: CanvasRenderingContext2D, landmarks: any) {
-    //     ctx.fillStyle = "red";
-
-    //     landmarks.forEach((p: any) => {
-    //         ctx.beginPath();
-    //         ctx.arc(
-    //             p.x * ctx.canvas.width,
-    //             p.y * ctx.canvas.height,
-    //             2,
-    //             0,
-    //             2 * Math.PI
-    //         );
-    //         ctx.fill();
-    //     });
-    // }
-
-    // drawConnections(ctx: CanvasRenderingContext2D, landmarks: any) {
-    //     ctx.strokeStyle = "lime";
-    //     ctx.lineWidth = 1;
-
-    //     FACE_OVAL.forEach(([i, j]) => {
-    //         const p1 = landmarks[i];
-    //         const p2 = landmarks[j];
-
-    //         ctx.beginPath();
-    //         ctx.moveTo(p1.x * ctx.canvas.width, p1.y * ctx.canvas.height);
-    //         ctx.lineTo(p2.x * ctx.canvas.width, p2.y * ctx.canvas.height);
-    //         ctx.stroke();
-    //     });
-    // }
 
     scheduleNextPrediction(video: HTMLVideoElement) {
         if (!video) {
@@ -148,7 +122,6 @@ export class FaceLandmarkerService {
         }
     }
 
-    // ── Per-Frame Prediction ─────────────────────────────────────────────────────
     renderPrediction(video: HTMLVideoElement) {
         if (this.predictionInFlight) {
             this.scheduleNextPrediction(video);
@@ -162,147 +135,129 @@ export class FaceLandmarkerService {
             return;
         }
 
-        let results = this.faceLandmarker.detectForVideo(video, performance.now());
+        const results = this.faceLandmarker.detectForVideo(video, performance.now());
 
         if (results.faceLandmarks && results.faceLandmarks.length > 0 && this.glassesObj) {
             this.glassesObj.visible = true;
-            // if (this.faceObj) this.faceObj.visible = false;
-
-            let pts = toPixels(results.faceLandmarks[0], video);
-
-            // ── Key landmarks ──
-            let lEye = eyeMid(pts, LM.leftEyeInner, LM.leftEyeOuter);
-            let rEye = eyeMid(pts, LM.rightEyeInner, LM.rightEyeOuter);
-            let nose = toV(pts, LM.noseBridge);
-            let nTip = toV(pts, LM.noseTip);
-            let fHead = toV(pts, LM.forehead);
-            let chn = toV(pts, LM.chin);
-            let lTmp = toV(pts, LM.leftTemple);
-            let rTmp = toV(pts, LM.rightTemple);
-            let lChk = toV(pts, LM.leftCheek);
-            let rChk = toV(pts, LM.rightCheek);
-
-            let eMid = mid(lEye, rEye);
-
-            // ── Face measurements ──
-            let eW = lEye.distanceTo(rEye);
-            let tW = lTmp.distanceTo(rTmp);
-            let cW = lChk.distanceTo(rChk);
-            let fW = Math.max(eW, tW, cW);
-            let fH = fHead.distanceTo(chn);
-
-            // ── Orientation (landmark-based) ──
-            let xAxis = rEye.clone().sub(lEye).normalize();
-            let yRaw = fHead.clone().sub(chn).normalize();
-            let zAxis = xAxis.clone().cross(yRaw).normalize();
-
-            if (zAxis.z < 0) zAxis.negate();
-
-            let yAxis = zAxis.clone().cross(xAxis).normalize();
-
-            let rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
-            let targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMat);
-
-            // Z-flip (model faces +Z but scene uses -Z for "behind")
-            // let flipZ = new THREE.Quaternion().setFromAxisAngle(
-            //     new THREE.Vector3(0, 0, -1), Math.PI
-            // );
-            // targetQuat.multiply(flipZ);
-
-            // ── Position ──
-            let btt = nTip.clone().sub(nose);
-            let depAdj = clamp(btt.length() * 0.1, 0, 6);
-
-            let tGPos = eMid.clone()
-                .addScaledVector(xAxis, CFG.glassesCenterX)
-                .addScaledVector(yAxis, CFG.glassesDown)
-                .addScaledVector(zAxis, CFG.glassesDepth + depAdj);
-
-            // ── Scale ──
-            let wS = fW / CFG.refHeadWidth;
-            let hS = fH / CFG.refFaceHeight;
-            let bS = (wS * 0.7) + (hS * 0.3);
-            let gS = bS * CFG.glassesScale;
-
-            // console.log("wS: ", wS, ", hS: ", hS,", bS: ", bS, ", gS: ", gS);
-
-            let tGScale = new THREE.Vector3(gS, gS, gS);
-
-            // ── Adaptive smoothing ──
-            let mov = tGPos.distanceTo(sm.prev);
-            let aDelta = qDelta(sm.gQuat, targetQuat);
-
-            let aP = clamp(0.15 + mov * 0.015, 0.15, 0.55);
-            let aR = clamp(0.20 + aDelta * 0.6, 0.20, 0.75);
-            let aS = clamp(0.16 + mov * 0.010, 0.16, 0.45);
-
-            if (sm.ready) {
-                sm.gPos.lerp(tGPos, aP);
-                sm.gQuat.slerp(targetQuat, aR);
-                sm.gScale.lerp(tGScale, aS);
-            } else {
-                sm.gPos.copy(tGPos);
-                sm.gQuat.copy(targetQuat);
-                sm.gScale.copy(tGScale);
-                sm.ready = true;
-            }
-
-            sm.prev.copy(tGPos);
-
-            // ── Apply to glasses ──
-            // this.glassesObj.position.copy(sm.gPos);
-
-            this.glassesObj.scale.set(
-                sm.gScale.x * this.baseScale.x,
-                sm.gScale.y * this.baseScale.y,
-                sm.gScale.z * this.baseScale.z
-            );
-
-            this.normalizePosition(this.glassesObj);
-            this.glassesObj.position.set(
-                sm.gPos.x + this.glassesObj.position.x,
-                sm.gPos.y + this.glassesObj.position.y,
-                sm.gPos.z + this.glassesObj.position.z
-            );
-            // this.glassesObj.position.set(-300, -50, 100);
-
-            this.glassesObj.quaternion.copy(sm.gQuat);
-
-            this.glassesObj.updateWorldMatrix(true, true);
-
-            // ── Update face mesh occluder ──
-            if (this.faceObj) {
-                let posAttr = this.faceObj.geometry.getAttribute('position');
-                let cx = 0, cy = 0, cz = 0;
-                let fwdOff = 8;
-                for (let fi = 0; fi < FACE_OVAL.length; fi++) {
-                    let fv = toV(pts, FACE_OVAL[fi]);
-                    fv.addScaledVector(zAxis, fwdOff);
-                    posAttr.setXYZ(fi + 1, fv.x, fv.y, fv.z);
-                    cx += fv.x; cy += fv.y; cz += fv.z;
-                }
-                cx /= FACE_OVAL.length;
-                cy /= FACE_OVAL.length;
-                cz /= FACE_OVAL.length;
-
-                let coneD = fW * 0.5;
-                posAttr.setXYZ(0,
-                    cx - zAxis.x * coneD,
-                    cy - zAxis.y * coneD,
-                    cz - zAxis.z * coneD
-                );
-                posAttr.needsUpdate = true;
-            }
-
+            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
             if (this.faceObj) this.faceObj.visible = false;
             sm.ready = false;
         }
 
-        // console.log("Glasses POSTION: ", this.glassesObj?.position)
         this.predictionInFlight = false;
         this.scheduleNextPrediction(video);
+    }
+
+    // Shared landmark → Three.js logic (used by both VIDEO and IMAGE services)
+    applyLandmarks(
+        landmarks: vision.NormalizedLandmark[],
+        width: number,
+        height: number
+    ) {
+        if (!this.glassesObj) return;
+
+        const pts = toPixels(landmarks, { videoWidth: width, videoHeight: height } as HTMLVideoElement);
+
+        let lEye = eyeMid(pts, LM.leftEyeInner, LM.leftEyeOuter);
+        let rEye = eyeMid(pts, LM.rightEyeInner, LM.rightEyeOuter);
+        let nose = toV(pts, LM.noseBridge);
+        let nTip = toV(pts, LM.noseTip);
+        let fHead = toV(pts, LM.forehead);
+        let chn = toV(pts, LM.chin);
+        let lTmp = toV(pts, LM.leftTemple);
+        let rTmp = toV(pts, LM.rightTemple);
+        let lChk = toV(pts, LM.leftCheek);
+        let rChk = toV(pts, LM.rightCheek);
+
+        let eMid = mid(lEye, rEye);
+        let eW = lEye.distanceTo(rEye);
+        let tW = lTmp.distanceTo(rTmp);
+        let cW = lChk.distanceTo(rChk);
+        let fW = Math.max(eW, tW, cW);
+        let fH = fHead.distanceTo(chn);
+
+        let xAxis = rEye.clone().sub(lEye).normalize();
+        let yRaw = fHead.clone().sub(chn).normalize();
+        let zAxis = xAxis.clone().cross(yRaw).normalize();
+        if (zAxis.z < 0) zAxis.negate();
+        let yAxis = zAxis.clone().cross(xAxis).normalize();
+
+        let rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+        let targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotMat);
+
+        let btt = nTip.clone().sub(nose);
+        let depAdj = clamp(btt.length() * 0.1, 0, 6);
+
+        let tGPos = eMid.clone()
+            .addScaledVector(xAxis, CFG.glassesCenterX)
+            .addScaledVector(yAxis, CFG.glassesDown)
+            .addScaledVector(zAxis, CFG.glassesDepth + depAdj);
+
+        let wS = fW / CFG.refHeadWidth;
+        let hS = fH / CFG.refFaceHeight;
+        let bS = (wS * 0.7) + (hS * 0.3);
+        let gS = bS * CFG.glassesScale;
+        let tGScale = new THREE.Vector3(gS, gS, gS);
+
+        let mov = tGPos.distanceTo(sm.prev);
+        let aDelta = qDelta(sm.gQuat, targetQuat);
+        let aP = clamp(0.15 + mov * 0.015, 0.15, 0.55);
+        let aR = clamp(0.20 + aDelta * 0.6, 0.20, 0.75);
+        let aS = clamp(0.16 + mov * 0.010, 0.16, 0.45);
+
+        if (sm.ready) {
+            sm.gPos.lerp(tGPos, aP);
+            sm.gQuat.slerp(targetQuat, aR);
+            sm.gScale.lerp(tGScale, aS);
+        } else {
+            sm.gPos.copy(tGPos);
+            sm.gQuat.copy(targetQuat);
+            sm.gScale.copy(tGScale);
+            sm.ready = true;
+        }
+
+        sm.prev.copy(tGPos);
+
+        this.glassesObj!.scale.set(
+            sm.gScale.x * this.baseScale.x,
+            sm.gScale.y * this.baseScale.y,
+            sm.gScale.z * this.baseScale.z
+        );
+
+        this.normalizePosition(this.glassesObj!);
+        this.glassesObj!.position.set(
+            sm.gPos.x + this.glassesObj!.position.x,
+            sm.gPos.y + this.glassesObj!.position.y,
+            sm.gPos.z + this.glassesObj!.position.z
+        );
+
+        this.glassesObj!.quaternion.copy(sm.gQuat);
+        this.glassesObj!.updateWorldMatrix(true, true);
+
+        if (this.faceObj) {
+            let posAttr = this.faceObj.geometry.getAttribute('position');
+            let cx = 0, cy = 0, cz = 0;
+            let fwdOff = 8;
+            for (let fi = 0; fi < FACE_OVAL.length; fi++) {
+                let fv = toV(pts, FACE_OVAL[fi]);
+                fv.addScaledVector(zAxis, fwdOff);
+                posAttr.setXYZ(fi + 1, fv.x, fv.y, fv.z);
+                cx += fv.x; cy += fv.y; cz += fv.z;
+            }
+            cx /= FACE_OVAL.length;
+            cy /= FACE_OVAL.length;
+            cz /= FACE_OVAL.length;
+
+            let coneD = fW * 0.5;
+            posAttr.setXYZ(0,
+                cx - zAxis.x * coneD,
+                cy - zAxis.y * coneD,
+                cz - zAxis.z * coneD
+            );
+            posAttr.needsUpdate = true;
+        }
     }
 
     normalizePosition(model: THREE.Object3D) {
@@ -310,5 +265,59 @@ export class FaceLandmarkerService {
         const box = new THREE.Box3().setFromObject(model);
         box.getCenter(center);
         model.position.sub(center);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Image mode service — used by the photo upload page
+// ─────────────────────────────────────────────────────────────────────────────
+export class ImageFaceLandmarkerService {
+    private faceLandmarker: vision.FaceLandmarker | undefined;
+
+    private glassesObj?: THREE.Object3D;
+    private faceObj?: THREE.Mesh;
+    private baseScale!: THREE.Vector3;
+
+    // Reuse the shared landmark applier from the parent class
+    private readonly videoService = new FaceLandmarkerService();
+
+    setThreeObjects(glasses: THREE.Object3D, face: THREE.Mesh) {
+        this.glassesObj = glasses;
+        this.faceObj = face;
+        this.baseScale = glasses.scale.clone();
+        // Share objects with inner service so applyLandmarks() can use them
+        this.videoService.setThreeObjects(glasses, face);
+    }
+
+    async initializeEngine() {
+        this.faceLandmarker = await createFaceLandmarker("IMAGE");
+    }
+
+    /**
+     * Run detection on a static HTMLImageElement and place glasses once.
+     * Returns true if a face was found, false otherwise.
+     */
+    async detectAndApply(img: HTMLImageElement): Promise<boolean> {
+        if (!this.faceLandmarker || !this.glassesObj) return false;
+
+        // Reset smoothing state for a fresh image (no lerp needed)
+        sm.ready = false;
+
+        const results = this.faceLandmarker.detect(img);
+
+        if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
+            this.glassesObj.visible = false;
+            if (this.faceObj) this.faceObj.visible = false;
+            return false;
+        }
+
+        this.glassesObj.visible = true;
+        this.videoService.applyLandmarks(
+            results.faceLandmarks[0],
+            img.naturalWidth,
+            img.naturalHeight
+        );
+
+        return true;
     }
 }

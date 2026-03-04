@@ -4,9 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const CANVAS_WIDTH = 640;
 
-
-function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, video: HTMLVideoElement) {
-    let vw = video.videoWidth, vh = video.videoHeight;
+function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, vw: number, vh: number) {
     camera.left = -vw / 2;
     camera.right = vw / 2;
     camera.top = vh / 2;
@@ -20,6 +18,11 @@ export class ThreeJsService {
     glassesObj?: THREE.Object3D;
     faceObj?: THREE.Mesh;
 
+    private scene?: THREE.Scene;
+    private camera?: THREE.OrthographicCamera;
+    private renderer?: THREE.WebGLRenderer;
+    private animFrameId?: number;
+
     animate = (
         bg: THREE.Texture,
         scene: THREE.Scene,
@@ -27,68 +30,119 @@ export class ThreeJsService {
         renderer: THREE.WebGLRenderer
     ) => {
         bg.needsUpdate = true;
-        requestAnimationFrame(() =>
+        this.animFrameId = requestAnimationFrame(() =>
             this.animate(bg, scene, camera, renderer)
         );
         renderer.render(scene, camera);
     };
 
+    // ── VIDEO mode (webcam page) ──────────────────────────────────────────
     async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
-        // Camera
-        let camera = await this.createCamera(video);
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
 
-        // Video background
-        let bgResult = await this.createVideoBackground(video, camera);
-        let bg = bgResult.bg;
+        const camera = await this.createCamera(vw, vh);
+        this.camera = camera;
 
-        // Renderer (created early so PMREMGenerator can use it)
-        let renderer = await this.createRenderer(video, canvas);
+        const bgResult = await this.createVideoBackground(video, camera);
+        const renderer = await this.createRenderer(vw, vh, canvas);
+        this.renderer = renderer;
 
-        // Scene
-        let scene = new THREE.Scene();
+        const scene = new THREE.Scene();
+        this.scene = scene;
         scene.add(bgResult.sprite);
 
-        // Environment map for realistic reflections on clearcoat / metallic surfaces
-        let pmrem = new THREE.PMREMGenerator(renderer);
+        const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileCubemapShader();
-        let neutralEnv = pmrem.fromScene(new THREE.Scene()).texture;
-        scene.environment = neutralEnv;
+        scene.environment = pmrem.fromScene(new THREE.Scene()).texture;
         pmrem.dispose();
 
-        // Lights
-        await this.createLights().then((lights) => {
-            lights.forEach(function (light) { scene.add(light); });
-        });
+        const lights = await this.createLights();
+        lights.forEach(l => scene.add(l));
 
-        // Face mesh occluder
         this.faceObj = await this.createDynamicFaceMesh();
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        // Glasses model
-        // Example: clear-browline-glasses, eyeglasses_black_v5, glasses
-        // eyeglasses_subject_visualization, blue-eyeglasses
-        this.glassesObj = await this.loadGlassesModel("/models/glasses.glb");
-        // this.glassesObj = createSunglasses();
-        
-        // Normalize glasses
+        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
         this.normalizeModel(this.glassesObj);
-
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
 
-        window.addEventListener('resize', function () {
-            handleResize(camera, renderer, video);
-        }, false);
+        window.addEventListener('resize', () => handleResize(camera, renderer, vw, vh), false);
 
-        // Animate
-        this.animate(bg, scene, camera, renderer)
+        this.animate(bgResult.bg, scene, camera, renderer);
     }
 
-    async createCamera(video: HTMLVideoElement) {
-        let vw = video.videoWidth;
-        let vh = video.videoHeight;
-        let cam = new THREE.OrthographicCamera(
+    // ── IMAGE mode (photo upload page) ───────────────────────────────────
+    /**
+     * Same as initalizeThreeJs but uses a static HTMLImageElement as the
+     * background instead of a VideoTexture.  No animation loop is started —
+     * a single render() call is made after glasses are placed.
+     */
+    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement) {
+        const vw = img.naturalWidth;
+        const vh = img.naturalHeight;
+
+        const camera = await this.createCamera(vw, vh);
+        this.camera = camera;
+
+        const renderer = await this.createRenderer(vw, vh, canvas);
+        this.renderer = renderer;
+
+        const scene = new THREE.Scene();
+        this.scene = scene;
+
+        // ── Static image background ──
+        const texture = new THREE.TextureLoader().load(img.src);
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: texture,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+        }));
+        sprite.center.set(0.5, 0.5);
+        sprite.scale.set(-vw, vh, 1);   // negative X mirrors like webcam feed
+        sprite.position.copy(camera.position);
+        sprite.position.z = 0;
+        scene.add(sprite);
+
+        // ── Environment / lights ──
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileCubemapShader();
+        scene.environment = pmrem.fromScene(new THREE.Scene()).texture;
+        pmrem.dispose();
+
+        const lights = await this.createLights();
+        lights.forEach(l => scene.add(l));
+
+        // ── Face occluder ──
+        this.faceObj = await this.createDynamicFaceMesh();
+        this.faceObj.visible = false;
+        scene.add(this.faceObj);
+
+        // ── Glasses model ──
+        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
+        this.normalizeModel(this.glassesObj);
+        this.glassesObj.visible = false;
+        scene.add(this.glassesObj);
+
+        // Render once immediately (glasses are placed after this resolves)
+        renderer.render(scene, camera);
+    }
+
+    /** Call after detectAndApply() to refresh the canvas with glasses on. */
+    renderOnce() {
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        }
+    }
+
+    // ── Shared helpers ────────────────────────────────────────────────────
+
+    async createCamera(vw: number, vh: number) {
+        const cam = new THREE.OrthographicCamera(
             -vw / 2, vw / 2,
             vh / 2, -vh / 2,
             0.1, 5000
@@ -98,14 +152,14 @@ export class ThreeJsService {
     }
 
     async createVideoBackground(video: HTMLVideoElement, camera: THREE.Camera) {
-        let vw = video.videoWidth;
-        let vh = video.videoHeight;
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
 
-        let bg = new THREE.VideoTexture(video);
+        const bg = new THREE.VideoTexture(video);
         bg.colorSpace = THREE.SRGBColorSpace;
         bg.minFilter = THREE.LinearFilter;
 
-        let sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
             map: bg,
             depthWrite: false,
             side: THREE.DoubleSide
@@ -142,16 +196,15 @@ export class ThreeJsService {
         return [key, fill, rim, topAccent, amb];
     }
 
-    /** Create the WebGL renderer with production-quality settings. */
-    async createRenderer(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
-        let r = new THREE.WebGLRenderer({
-            canvas: canvas,
+    async createRenderer(vw: number, vh: number, canvas: HTMLCanvasElement) {
+        const r = new THREE.WebGLRenderer({
+            canvas,
             antialias: true,
             alpha: true,
-            preserveDrawingBuffer: true
+            preserveDrawingBuffer: true,
         });
         r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        r.setSize(CANVAS_WIDTH, CANVAS_WIDTH * video.videoHeight / video.videoWidth);
+        r.setSize(CANVAS_WIDTH, CANVAS_WIDTH * vh / vw);
         r.toneMapping = THREE.ACESFilmicToneMapping;
         r.toneMappingExposure = 1.1;
         r.outputColorSpace = THREE.SRGBColorSpace;
@@ -159,36 +212,33 @@ export class ThreeJsService {
     }
 
     async createDynamicFaceMesh() {
-        let nOval = FACE_OVAL.length;
-        let nVerts = nOval + 1;
+        const nOval = FACE_OVAL.length;
+        const nVerts = nOval + 1;
 
-        let positions = new Float32Array(nVerts * 3);
-        let indices = [];
+        const positions = new Float32Array(nVerts * 3);
+        const indices: number[] = [];
 
-        // Triangle fan: center (0) → oval[i] (i+1) → oval[next] (next+1)
         for (let i = 0; i < nOval; i++) {
             indices.push(0, i + 1, ((i + 1) % nOval) + 1);
         }
 
-        let geo = new THREE.BufferGeometry();
+        const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geo.setIndex(indices);
 
-        let mat = new THREE.MeshBasicMaterial({
+        const mat = new THREE.MeshBasicMaterial({
             colorWrite: false,
             side: THREE.DoubleSide
         });
 
-        let mesh = new THREE.Mesh(geo, mat);
+        const mesh = new THREE.Mesh(geo, mat);
         mesh.renderOrder = 1;
         mesh.frustumCulled = false;
         return mesh;
     }
 
-
     async loadGlassesModel(path: string) {
         const loader = new GLTFLoader();
-
         const gltf = await loader.loadAsync(path);
         const mesh = gltf.scene;
 
@@ -201,32 +251,24 @@ export class ThreeJsService {
     }
 
     normalizeModel(model: THREE.Object3D) {
-
-        // reset transform
         model.position.set(0, 0, 0);
         model.rotation.set(0, 0, 0);
         model.scale.set(1, 1, 1);
 
-        // compute box
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         const center = new THREE.Vector3();
 
         box.getSize(size);
 
-        // --- SCALE ---
         const TARGET_WIDTH = 140;
         const scaleFactor = TARGET_WIDTH / size.x;
         model.scale.setScalar(scaleFactor);
 
-        // recompute box after scale
         const newBox = new THREE.Box3().setFromObject(model);
         newBox.getCenter(center);
-        
-        // --- POSITION ---
         model.position.sub(center);
 
-        console.log("Center: ", center)
         return model;
     }
 }
