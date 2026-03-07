@@ -20,11 +20,13 @@ import {
   LocalShipping,
   Payment,
   ShoppingBag,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { orderApi } from '@/api/order-api';
 import { paymentApi } from '@/api/payment-api';
+import { userWalletApi, type UserWalletResponse } from '@/api/user-wallet-api';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '@/utils/formatCurrency';
 
@@ -41,6 +43,7 @@ const CheckoutPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [wallet, setWallet] = useState<UserWalletResponse | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -51,6 +54,12 @@ const CheckoutPage = () => {
   useEffect(() => {
     loadCart();
   }, [loadCart]);
+
+  useEffect(() => {
+    userWalletApi.getMyWallet().then((res) => {
+      if (res.data) setWallet(res.data);
+    }).catch(() => {});
+  }, []);
 
   const items = cartData?.items ?? [];
   const cartId = cartData?.cart?.id;
@@ -108,6 +117,15 @@ const CheckoutPage = () => {
           }
         } catch {
           toast.error('Failed to create payment. Your order has been created, please pay later from My Orders.');
+        }
+      } else if (paymentMethod === 'E_WALLET') {
+        try {
+          await paymentApi.payFromWallet({ orderId: order.id });
+          toast.success('Order paid from wallet successfully!');
+          navigate('/my-orders');
+          return;
+        } catch {
+          toast.error('Wallet payment failed. Your order has been created, please pay later from My Orders.');
         }
       }
 
@@ -270,6 +288,29 @@ const CheckoutPage = () => {
                       <Typography sx={{ fontSize: 12, color: '#888' }}>Transfer directly to our bank account</Typography>
                     </Box>
                   }
+                  sx={{ mb: 1, alignItems: 'flex-start', '& .MuiRadio-root': { pt: 0.5 } }}
+                />
+                <FormControlLabel
+                  value="E_WALLET"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <AccountBalanceWallet sx={{ fontSize: 16, color: '#4caf50' }} />
+                        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Glassify Wallet</Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: 12, color: '#888' }}>
+                        {wallet
+                          ? `Balance: ${formatCurrency(wallet.availableBalance)}`
+                          : 'Loading balance...'}
+                      </Typography>
+                      {wallet && wallet.availableBalance < (summary?.total_amount ?? 0) && (
+                        <Typography sx={{ fontSize: 11, color: '#d32f2f' }}>
+                          Insufficient balance
+                        </Typography>
+                      )}
+                    </Box>
+                  }
                   sx={{ alignItems: 'flex-start', '& .MuiRadio-root': { pt: 0.5 } }}
                 />
               </RadioGroup>
@@ -379,6 +420,11 @@ const CheckoutPage = () => {
             {paymentMethod === 'VNPAY' && (
               <Alert severity="info" sx={{ mt: 2, fontSize: 12 }}>
                 You will be redirected to VNPay to complete payment after placing the order.
+              </Alert>
+            )}
+            {paymentMethod === 'E_WALLET' && wallet && wallet.availableBalance < (summary?.total_amount ?? 0) && (
+              <Alert severity="warning" sx={{ mt: 2, fontSize: 12 }}>
+                Your wallet balance is insufficient. Please top up first.
               </Alert>
             )}
           </Paper>

@@ -14,6 +14,7 @@ import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
+import UserWalletPage from "@/pages/User/UserWalletPage"
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 
@@ -114,6 +115,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopWalletPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.USER.WALLET}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <UserWalletPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

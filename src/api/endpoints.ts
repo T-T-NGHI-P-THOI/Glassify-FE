@@ -84,6 +84,12 @@ export const API_ENDPOINTS = {
     CREATE_VNPAY: `${API_ENDPOINT}/payments/create-vnpay`,
     VNPAY_RETURN: `${API_ENDPOINT}/payments/vnpay-return`,
     STATUS: (orderId: string) => `${API_ENDPOINT}/payments/status/${orderId}`,
+    TOP_UP: `${API_ENDPOINT}/payments/top-up`,
+    PAY_FROM_WALLET: `${API_ENDPOINT}/payments/pay-from-wallet`,
+  },
+  USER_WALLET: {
+    BASE: `${API_ENDPOINT}/wallet`,
+    TRANSACTIONS: `${API_ENDPOINT}/wallet/transactions`,
   },
   WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/warranty-claims`,
@@ -167,6 +173,7 @@ export const PAGE_ENDPOINTS = {
 
   USER: {
     PROFILE: `/users/me`,
+    WALLET: `/wallet`,
   },
 
   CART: {
