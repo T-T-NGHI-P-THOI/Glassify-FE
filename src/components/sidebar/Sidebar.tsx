@@ -24,6 +24,7 @@ import {
   ExpandMore,
   AdminPanelSettings,
   CardTravel,
+  Analytics,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -37,6 +38,7 @@ interface SidebarProps {
 export const Sidebar = ({ activeMenu }: SidebarProps) => {
   const [trackingOpen, setTrackingOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(true);
+  const [analyticsOpen, setAnalyticsOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -60,6 +62,20 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       key: 'admin',
       subItems: [
         { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
+      ],
+    },
+    {
+      icon: <Analytics />,
+      label: 'Analytics',
+      path: '/admin/analytics',
+      key: 'analytics',
+      subItems: [
+        { label: 'Overview', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.OVERVIEW },
+        { label: 'Shops', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.SHOPS },
+        { label: 'Users', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.USERS },
+        { label: 'Products', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.PRODUCTS },
+        { label: 'Finance', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.FINANCE },
+        { label: 'Orders', path: PAGE_ENDPOINTS.ADMIN.ANALYTICS.ORDERS },
       ],
     },
     { icon: <Inventory />, label: 'Order', path: PAGE_ENDPOINTS.ORDER.MY_ORDERS },
@@ -116,10 +132,14 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       <List sx={{ flex: 1, px: 1 }}>
         {menuItems.map((item) => {
           const isMenuOpen =
-            item.key === 'tracking' ? trackingOpen : item.key === 'admin' ? adminOpen : false;
+            item.key === 'tracking' ? trackingOpen
+            : item.key === 'admin' ? adminOpen
+            : item.key === 'analytics' ? analyticsOpen
+            : false;
           const toggleMenu = () => {
             if (item.key === 'tracking') setTrackingOpen(!trackingOpen);
             else if (item.key === 'admin') setAdminOpen(!adminOpen);
+            else if (item.key === 'analytics') setAnalyticsOpen(!analyticsOpen);
           };
 
           return (

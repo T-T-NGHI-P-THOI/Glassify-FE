@@ -161,6 +161,14 @@ export const PAGE_ENDPOINTS = {
 
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
+    ANALYTICS: {
+      OVERVIEW: `/admin/analytics`,
+      SHOPS: `/admin/analytics/shops`,
+      USERS: `/admin/analytics/users`,
+      PRODUCTS: `/admin/analytics/products`,
+      FINANCE: `/admin/analytics/finance`,
+      ORDERS: `/admin/analytics/orders`,
+    },
   },
 
   ORDER: {

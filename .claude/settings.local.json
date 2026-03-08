@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(xargs cat)",
+      "Bash(npm install echarts echarts-for-react --save)"
     ]
   }
 }

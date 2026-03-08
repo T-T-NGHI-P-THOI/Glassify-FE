@@ -17,6 +17,12 @@ import CheckoutPage from "@/pages/checkout/CheckoutPage"
 import UserWalletPage from "@/pages/User/UserWalletPage"
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
+import AdminDashboardPage from "@/pages/Admin/analytics/AdminDashboardPage"
+import ShopAnalyticsPage from "@/pages/Admin/analytics/ShopAnalyticsPage"
+import UserAnalyticsPage from "@/pages/Admin/analytics/UserAnalyticsPage"
+import ProductAnalyticsPage from "@/pages/Admin/analytics/ProductAnalyticsPage"
+import FinanceAnalyticsPage from "@/pages/Admin/analytics/FinanceAnalyticsPage"
+import OrderAnalyticsPage from "@/pages/Admin/analytics/OrderAnalyticsPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -181,6 +187,68 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminShopDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            {/* Admin Analytics */}
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.OVERVIEW}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminDashboardPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.SHOPS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <ShopAnalyticsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.USERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <UserAnalyticsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.PRODUCTS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <ProductAnalyticsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.FINANCE}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <FinanceAnalyticsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ANALYTICS.ORDERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <OrderAnalyticsPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
