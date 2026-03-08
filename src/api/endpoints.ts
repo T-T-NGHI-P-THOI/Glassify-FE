@@ -150,6 +150,7 @@ export const PAGE_ENDPOINTS = {
     PRODUCTS: `/shop/products`,
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
+    STAFF: `/shop/staff`,
   },
 
   ADMIN: {

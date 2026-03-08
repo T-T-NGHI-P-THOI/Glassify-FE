@@ -29,6 +29,7 @@
     "react-router-dom": "^7.11.0",
     "react-toastify": "^11.0.5",
     "react-webcam": "^7.2.0",
+    "recharts": "^3.8.0",
     "three": "^0.183.1"
   },
   "devDependencies": {
