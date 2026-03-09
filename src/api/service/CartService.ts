@@ -80,6 +80,11 @@ function collectItemIds(items: BeCartItemResponse[]): Set<string> {
 function transformBeItems(beItems: BeCartItemResponse[]): CartItemWithDetails[] {
     const cache = getDisplayCache();
 
+    // Cache shopId for each item so updateItemQuantity can use it
+    for (const item of beItems) {
+        if (item.shopId) shopIdCache.set(item.id, item.shopId);
+    }
+
     // Separate parent items and child items
     const parentItems = beItems.filter(item => !item.parentItemId);
     const childrenMap = new Map<string, BeCartItemResponse[]>();
@@ -220,9 +225,10 @@ function emptyCartResponse(): CartResponse {
     };
 }
 
-// ==================== Cart ID Management ====================
+// ==================== Cart ID & ShopId Management ====================
 
 let currentCartId: string | null = null;
+const shopIdCache = new Map<string, string>(); // itemId -> shopId
 
 async function ensureCart(): Promise<string> {
     if (currentCartId) return currentCartId;
@@ -352,7 +358,7 @@ export const CartService = {
         const cartId = await ensureCart();
 
         const beRequest = {
-            shopId: '',
+            shopId: shopIdCache.get(itemId) || '',
             quantity,
             unitPrice: 0,
             lineTotal: 0,
@@ -382,5 +388,6 @@ export const CartService = {
 
     resetCartId() {
         currentCartId = null;
+        shopIdCache.clear();
     },
 };
