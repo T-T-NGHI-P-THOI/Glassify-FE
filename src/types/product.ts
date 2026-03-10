@@ -23,6 +23,7 @@ export interface Product {
   productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   variantId?: string;
   shopId?: string;
+  stockQuantity?: number;
   shop?: ShopInfo;
   colors: ProductColor[];
   sizes?: string[];

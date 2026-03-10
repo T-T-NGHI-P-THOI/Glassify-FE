@@ -19,6 +19,7 @@ interface ItemDisplayMeta {
     imageUrl?: string;
     isFree?: boolean;
     lensSelection?: LensSelection;
+    stockQuantity?: number;
 }
 
 const DISPLAY_CACHE_KEY = 'glassify_cart_display_cache';
@@ -121,6 +122,7 @@ function transformSingleItem(
         added_at: beItem.createdAt || now,
         updated_at: beItem.updatedAt || now,
         item_type: beItem.itemType,
+        shop_id: beItem.shopId,
         product: {
             id: beItem.productId || '',
             product_type: productType as 'frame' | 'lens' | 'accessory',
@@ -148,6 +150,7 @@ function transformSingleItem(
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
         lens_selection: meta?.lensSelection,
+        stock_quantity: meta?.stockQuantity,
     };
 }
 
@@ -282,6 +285,7 @@ export interface AddToCartMockParams {
     lensFeatureIds?: string[];
     prescriptionId?: string;
     lensSelection?: LensSelection;
+    stockQuantity?: number;
 }
 
 export const CartService = {
@@ -345,6 +349,7 @@ export const CartService = {
                 imageUrl: params.imageUrl,
                 isFree: params.isFree,
                 lensSelection: params.lensSelection,
+                stockQuantity: params.stockQuantity,
             });
         }
 

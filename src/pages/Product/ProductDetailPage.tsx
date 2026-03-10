@@ -73,6 +73,7 @@ const ProductDetailPage: React.FC = () => {
           category: apiProduct.categoryName,
           productType: apiProduct.productType,
           variantId: apiProduct.variantId ?? undefined,
+          stockQuantity: apiProduct.stockQuantity,
           colors: [
             {
               name: 'Default',
@@ -221,6 +222,7 @@ const ProductDetailPage: React.FC = () => {
           itemType: 'FRAME',
           shopId: product.shopId,
           variantId: product.variantId,
+          stockQuantity: product.stockQuantity,
         });
         // In edit mode, remove the old cart item after adding the new one
         if (isEditMode && editCartItemId) {
@@ -257,6 +259,7 @@ const ProductDetailPage: React.FC = () => {
         itemType: 'FRAME' as const,
         shopId: product.shopId,
         variantId: product.variantId,
+        stockQuantity: product.stockQuantity,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)

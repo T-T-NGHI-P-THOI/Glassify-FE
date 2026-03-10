@@ -91,6 +91,13 @@ export const API_ENDPOINTS = {
     BASE: `${API_ENDPOINT}/wallet`,
     TRANSACTIONS: `${API_ENDPOINT}/wallet/transactions`,
   },
+  USER_ADDRESSES: {
+    BASE: `${API_ENDPOINT}/user-addresses`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    UPDATE: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    DELETE: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/user-addresses/${id}/set-default`,
+  },
   WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/warranty-claims`,
     CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}`,

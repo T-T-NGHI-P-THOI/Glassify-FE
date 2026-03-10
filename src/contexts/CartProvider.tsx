@@ -72,6 +72,7 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
             lensFeatureIds: params.lensFeatureIds,
             prescriptionId: params.prescriptionId,
             lensSelection: params.lensSelection,
+            stockQuantity: params.stockQuantity,
         });
         setCartData(result.cartResponse);
         triggerAnimation();
