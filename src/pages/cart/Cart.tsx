@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import type { CartItemWithDetails, ItemType } from '@/api/service/Type';
 import { useCart } from '@/hooks/useCart';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 // =====================================================
 // Quantity Selector Component
@@ -43,6 +44,7 @@ interface QuantitySelectorProps {
     onDecrease: () => void;
     size?: 'small' | 'medium';
     disabled?: boolean;
+    maxQuantity?: number;
 }
 
 const QuantitySelector: React.FC<QuantitySelectorProps> = ({
@@ -51,8 +53,10 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     onDecrease,
     size = 'medium',
     disabled = false,
+    maxQuantity,
 }) => {
     const isSmall = size === 'small';
+    const atMax = maxQuantity !== undefined && quantity >= maxQuantity;
 
     return (
         <Box
@@ -96,13 +100,14 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
             <IconButton
                 size="small"
                 onClick={onIncrease}
-                disabled={disabled}
+                disabled={disabled || atMax}
+                title={atMax ? `Maximum stock reached (${maxQuantity})` : undefined}
                 sx={{
                     borderRadius: 0,
                     p: isSmall ? '2px 6px' : '6px 10px',
-                    color: '#666',
+                    color: atMax ? '#f59e0b' : '#666',
                     '&:hover': { bgcolor: '#f5f5f5' },
-                    '&.Mui-disabled': { color: '#ccc' },
+                    '&.Mui-disabled': { color: atMax ? '#f59e0b' : '#ccc', opacity: 0.7 },
                 }}
             >
                 <AddIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
@@ -316,7 +321,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         fontStyle: isGift ? 'italic' : 'normal',
                     }}
                 >
-                    {isGift ? 'Free' : `$${item.unit_price.toFixed(2)}`}
+                    {isGift ? 'Free' : formatCurrency(item.unit_price)}
                 </Typography>
 
                 {/* Quantity */}
@@ -328,6 +333,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
                             size="small"
                             disabled={loading}
+                            maxQuantity={item.stock_quantity}
                         />
                     ) : (
                         <Typography sx={{ fontSize: '0.75rem', color: '#999', fontStyle: 'italic' }}>
@@ -346,7 +352,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                         textAlign: 'right',
                     }}
                 >
-                    {isGift ? '$0.00' : `$${itemTotal.toFixed(2)}`}
+                    {isGift ? formatCurrency(0) : formatCurrency(itemTotal)}
                 </Typography>
 
                 {/* Remove button */}
@@ -557,17 +563,28 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         textAlign: 'right',
                     }}
                 >
-                    ${item.unit_price.toFixed(2)}
+                    {formatCurrency(item.unit_price)}
                 </Typography>
 
                 {/* Quantity */}
-                <Box sx={{ minWidth: 100, display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ minWidth: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
                     <QuantitySelector
                         quantity={item.quantity}
                         onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                         onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
                         disabled={loading}
+                        maxQuantity={item.stock_quantity}
                     />
+                    {item.stock_quantity !== undefined && item.stock_quantity <= 5 && item.stock_quantity > 0 && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 600 }}>
+                            Only {item.stock_quantity} left
+                        </Typography>
+                    )}
+                    {item.stock_quantity === 0 && (
+                        <Typography sx={{ fontSize: '0.65rem', color: '#d32f2f', fontWeight: 600 }}>
+                            Out of stock
+                        </Typography>
+                    )}
                 </Box>
 
                 {/* Total Price */}
@@ -580,7 +597,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         textAlign: 'right',
                     }}
                 >
-                    ${itemTotal.toFixed(2)}
+                    {formatCurrency(itemTotal)}
                 </Typography>
 
                 {/* Actions */}
@@ -818,7 +835,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                 )}
                             </Box>
                             <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#111', flexShrink: 0 }}>
-                                ${framePrice.toFixed(2)}
+                                {formatCurrency(framePrice)}
                             </Typography>
                         </Box>
                     </Paper>
@@ -937,7 +954,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                                 </Typography>
                                                 {lensItem.lens_selection.features.map(f => (
                                                     <Typography key={f.id} sx={{ fontSize: '0.75rem', color: '#666', pl: 1 }}>
-                                                        • {f.name}{f.price > 0 ? ` (+$${f.price.toFixed(2)})` : ''}
+                                                        • {f.name}{f.price > 0 ? ` (+${formatCurrency(f.price)})` : ''}
                                                     </Typography>
                                                 ))}
                                             </Box>
@@ -958,7 +975,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                 )}
                             </Box>
                             <Typography sx={{ fontWeight: 600, fontSize: '0.95rem', color: '#00838f', flexShrink: 0 }}>
-                                ${lensPrice.toFixed(2)}
+                                {formatCurrency(lensPrice)}
                             </Typography>
                         </Box>
                     </Paper>
@@ -971,7 +988,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                         Tổng cộng
                     </Typography>
                     <Typography sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#111' }}>
-                        ${totalPrice.toFixed(2)}
+                        {formatCurrency(totalPrice)}
                     </Typography>
                 </Box>
             </DialogContent>
@@ -1056,8 +1073,12 @@ const ShoppingCart: React.FC = () => {
         try {
             setUpdating(true);
             await updateItemQuantity(itemId, quantity);
-        } catch {
-            showSnackbar('Failed to update quantity', 'error');
+        } catch (err: unknown) {
+            const msg =
+                err instanceof Error && err.message
+                    ? err.message
+                    : 'Insufficient stock or failed to update quantity';
+            showSnackbar(msg, 'error');
         } finally {
             setUpdating(false);
         }
@@ -1359,7 +1380,7 @@ const ShoppingCart: React.FC = () => {
                             <Box component="span" sx={{ fontWeight: 700, color: '#111' }}>
                                 {summary.applied_coupon?.discount_type === 'percentage'
                                     ? `${summary.applied_coupon.discount_value}%`
-                                    : `$${summary.applied_coupon?.discount_value.toFixed(2)}`}
+                                    : formatCurrency(summary.applied_coupon?.discount_value ?? 0)}
                             </Box>{' '}
                             discount
                         </Typography>
@@ -1371,7 +1392,7 @@ const ShoppingCart: React.FC = () => {
                         >
                             Discount:{' '}
                             <Box component="span" sx={{ fontWeight: 700, color: '#111' }}>
-                                -${summary.coupon_discount.toFixed(2)}
+                                -{formatCurrency(summary.coupon_discount)}
                             </Box>
                         </Typography>
                     )}
@@ -1388,14 +1409,18 @@ const ShoppingCart: React.FC = () => {
                     }}
                 >
                     <Button
+                        variant="contained"
                         startIcon={<ArrowBackIcon sx={{ fontSize: 18 }} />}
                         onClick={() => navigate('/products')}
+                        disableElevation
                         sx={{
-                            color: '#888',
+                            bgcolor: '#111',
+                            color: '#fff',
                             textTransform: 'none',
                             fontWeight: 500,
                             fontSize: '0.9rem',
-                            '&:hover': { bgcolor: 'transparent', color: '#333' },
+                            boxShadow: 'none',
+                            '&:hover': { bgcolor: '#333', boxShadow: 'none' },
                         }}
                     >
                         Back to shopping
@@ -1404,11 +1429,11 @@ const ShoppingCart: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Stack spacing={0.5} sx={{ textAlign: 'right' }}>
                             <Typography sx={{ fontSize: '0.85rem', color: '#888' }}>
-                                Subtotal: ${summary.items_subtotal.toFixed(2)}
+                                Subtotal: {formatCurrency(summary.items_subtotal)}
                             </Typography>
                             {summary.coupon_discount > 0 && (
                                 <Typography sx={{ fontSize: '0.85rem', color: '#888' }}>
-                                    Discount: -${summary.coupon_discount.toFixed(2)}
+                                    Discount: -{formatCurrency(summary.coupon_discount)}
                                 </Typography>
                             )}
                         </Stack>
@@ -1424,7 +1449,7 @@ const ShoppingCart: React.FC = () => {
                                     letterSpacing: '-0.5px',
                                 }}
                             >
-                                ${summary.total_amount.toFixed(2)}
+                                {formatCurrency(summary.total_amount)}
                             </Box>
                         </Typography>
 

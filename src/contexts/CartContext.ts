@@ -24,6 +24,7 @@ export interface AddToCartParams {
     lensFeatureIds?: string[];
     prescriptionId?: string;
     lensSelection?: LensSelection;
+    stockQuantity?: number;
 }
 
 export interface CartContextType {

@@ -139,7 +139,7 @@ const UserWalletPage = () => {
   }, [txPage, fetchTransactions]);
 
   const handleTopUp = async () => {
-    const amount = parseFloat(topUpAmount);
+    const amount = parseInt(topUpAmount, 10);
     if (isNaN(amount) || amount < 10000) {
       toast.error('Minimum top-up amount is 10,000 VND');
       return;
@@ -191,9 +191,17 @@ const UserWalletPage = () => {
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Button
+            variant="contained"
             startIcon={<ArrowBack />}
             onClick={() => navigate(-1)}
-            sx={{ color: '#666', textTransform: 'none' }}
+            disableElevation
+            sx={{
+              bgcolor: '#111',
+              color: '#fff',
+              textTransform: 'none',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#333', boxShadow: 'none' },
+            }}
           >
             Back
           </Button>
@@ -389,16 +397,22 @@ const UserWalletPage = () => {
                 </Typography>
               </Box>
             )}
-            <TextField
-              label="Amount to top up (VND)"
-              placeholder="Min. 10,000 VND"
-              fullWidth
-              type="number"
-              value={topUpAmount}
-              onChange={(e) => setTopUpAmount(e.target.value)}
-              inputProps={{ min: 10000, step: 10000 }}
-              size="small"
-            />
+            <Box>
+              <TextField
+                label="Amount to top up (VND)"
+                placeholder="Min. 10,000 VND"
+                fullWidth
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value.replace(/\D/g, ''))}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                size="small"
+              />
+              {topUpAmount && !isNaN(Number(topUpAmount)) && Number(topUpAmount) > 0 && (
+                <Typography sx={{ fontSize: 13, color: '#4caf50', fontWeight: 600, mt: 0.75, pl: 0.5 }}>
+                  = {formatCurrency(Number(topUpAmount))}
+                </Typography>
+              )}
+            </Box>
             <Alert severity="info" sx={{ fontSize: 12 }}>
               You will be redirected to VNPay to complete the top-up payment.
             </Alert>
