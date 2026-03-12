@@ -18,6 +18,7 @@ import UserWalletPage from "@/pages/User/UserWalletPage"
 import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 import ShopStaffPage from "@/pages/Shop/ShopStaffPage"
+import ShopOrdersPage from "@/pages/Shop/ShopOrdersPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -148,7 +149,7 @@ const PrivateRoutesComponent = () => {
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
-                            <ShippingPage />
+                            <ShopOrdersPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

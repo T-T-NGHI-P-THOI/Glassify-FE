@@ -9,6 +9,70 @@ import type {
 import type { ApiResponse } from '@/models/ApiResponse';
 import axiosInstance from '@/api/axios.config';
 
+export interface ShopOrderItemResponse {
+  id: string;
+  productName: string;
+  productSku?: string;
+  productImageUrl?: string;
+  variantInfo?: Record<string, unknown>;
+  lensName?: string;
+  lensTintName?: string;
+  lensFeaturesSnapshot?: Record<string, unknown>;
+  prescriptionSnapshot?: Record<string, unknown>;
+  unitPrice: number;
+  quantity: number;
+  discountAmount: number;
+  lineTotal: number;
+  isFree: boolean;
+  giftNote?: string;
+  warrantyMonths: number;
+  warrantyExpiresAt?: string;
+  timesReturned: number;
+  timesWarrantyClaimed: number;
+  itemType: string;
+  shopId: string;
+  shopName: string;
+  shopLogoUrl?: string;
+}
+
+export interface ShopOrderResponse {
+  id: string;
+  shopOrderNumber: string;
+  status: string;
+  subtotal: number;
+  shippingFee: number;
+  discountAmount: number;
+  totalAmount: number;
+  shopEarning: number;
+  commissionRate: number;
+  commissionAmount: number;
+  trackingNumber?: string;
+  carrier?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  ghnOrderCode?: string;
+  returnReason?: string;
+  returnInTransitAt?: string;
+  returnedAt?: string;
+  refundAmount?: number;
+  refundedAt?: string;
+  paymentAddedToWallet?: boolean;
+  paymentAddedAt?: string;
+  paymentReleased?: boolean;
+  paymentReleasedAt?: string;
+  orderNumber: string;
+  orderedAt: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  shippingName: string;
+  shippingPhone: string;
+  shippingAddress: string;
+  customerNote?: string;
+  customerId: string;
+  customerName: string;
+  items: ShopOrderItemResponse[];
+}
+
 const SHOP_BASE_URL = '/api/v1/shops';
 
 export const shopApi = {
@@ -162,6 +226,46 @@ export const shopApi = {
   getClosureStatus: async (shopId: string): Promise<ApiResponse<unknown>> => {
     const response = await axiosInstance.get<ApiResponse<unknown>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}/closure-status`,
+    );
+    return response.data;
+  },
+
+  getShopOrders: async (
+    shopId: string,
+    params?: { status?: string },
+  ): Promise<ApiResponse<ShopOrderResponse[]>> => {
+    const response = await axiosInstance.get<ApiResponse<ShopOrderResponse[]>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders`,
+      { params },
+    );
+    return response.data;
+  },
+
+  getShopOrderById: async (shopId: string, orderId: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.get<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}`,
+    );
+    return response.data;
+  },
+
+  confirmShopOrder: async (shopId: string, orderId: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/confirm`,
+    );
+    return response.data;
+  },
+
+  processShopOrder: async (shopId: string, orderId: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/process`,
+    );
+    return response.data;
+  },
+
+  cancelShopOrder: async (shopId: string, orderId: string, reason?: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/cancel`,
+      reason ? { reason } : {},
     );
     return response.data;
   },
