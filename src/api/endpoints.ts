@@ -179,6 +179,16 @@ export const PAGE_ENDPOINTS = {
     MAIN: `/warranty`,
   },
 
+  REFUND: {
+    BUYER_LIST: `/user/refunds`,
+    BUYER_DETAIL: `/user/refunds/:requestId`,
+    BUYER_CREATE: `/user/refunds/create`,
+    SELLER_LIST: `/shop/refunds`,
+    SELLER_DETAIL: `/shop/refunds/:requestId`,
+    ADMIN_LIST: `/admin/refunds`,
+    ADMIN_DETAIL: `/admin/refunds/:requestId`,
+  },
+
   USER: {
     PROFILE: `/users/me`,
     WALLET: `/wallet`,

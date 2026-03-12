@@ -14,6 +14,14 @@ import {
   DialogActions,
   Divider,
   Grid,
+  TextField,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  Alert,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -33,11 +41,19 @@ import {
   Description,
   Store,
   Visibility,
+  AssignmentReturn,
+  Close,
+  CloudUpload,
+  Delete,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import { ReturnReason, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
+import { checkReturnEligibility, createReturnRequest } from '@/api/refund-api';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
 // ==================== ENUMS (matching backend) ====================
 type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
@@ -275,12 +291,21 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 // ==================== MAIN PAGE ====================
 const MyOrdersPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+
+  // Return Request Dialog States
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [selectedOrderItemForReturn, setSelectedOrderItemForReturn] = useState<OrderItem | null>(null);
+  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE);
+  const [returnDescription, setReturnDescription] = useState('');
+  const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -325,6 +350,80 @@ const MyOrdersPage = () => {
     } catch (error) {
       console.error('Failed to re-order:', error);
       toast.error('Failed to re-order');
+    }
+  };
+
+  // Return Request Handlers
+  const handleOpenReturnDialog = (orderItem: OrderItem) => {
+    setSelectedOrderItemForReturn(orderItem);
+    setReturnReason(ReturnReason.DEFECTIVE);
+    setReturnDescription('');
+    setReturnImages([]);
+    setReturnDialogOpen(true);
+  };
+
+  const handleCloseReturnDialog = () => {
+    setReturnDialogOpen(false);
+    setSelectedOrderItemForReturn(null);
+    setReturnDescription('');
+    setReturnImages([]);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    // Convert files to base64 or upload to server
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReturnImages((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReturnImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitReturnRequest = async () => {
+    if (!selectedOrderItemForReturn || !selectedOrder) {
+      toast.error('Không tìm thấy thông tin sản phẩm');
+      return;
+    }
+
+    if (!returnDescription.trim()) {
+      toast.error('Vui lòng nhập mô tả chi tiết lý do trả hàng');
+      return;
+    }
+
+    try {
+      setSubmittingReturn(true);
+
+      const requestData = {
+        orderItemId: selectedOrderItemForReturn.id,
+        returnType: ReturnType.REFUND,
+        reason: returnReason,
+        reasonDetail: returnDescription,
+        quantity: selectedOrderItemForReturn.quantity,
+        evidenceImages: returnImages,
+      };
+
+      const response = await createReturnRequest(requestData);
+      toast.success('Tạo yêu cầu trả hàng thành công');
+      handleCloseReturnDialog();
+      setDetailDialogOpen(false);
+      
+      // Navigate to refund detail page
+      if (response.data?.id) {
+        navigate(`${PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':id', response.data.id)}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to create return request:', error);
+      toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu trả hàng');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -1134,18 +1233,43 @@ const MyOrdersPage = () => {
                   Close
                 </Button>
                 {selectedOrder.status === 'DELIVERED' && (
-                  <Button
-                    variant="contained"
-                    onClick={() => handleReOrder(selectedOrder.id)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      bgcolor: '#111',
-                      '&:hover': { bgcolor: '#333' },
-                    }}
-                  >
-                    Buy Again
-                  </Button>
+                  <>
+                    <Button
+                      variant="outlined"
+                      startIcon={<AssignmentReturn />}
+                      onClick={() => {
+                        // For simplicity, open return dialog for the first item
+                        // In production, you might want to show a list of items to select
+                        if (selectedOrder.items.length > 0) {
+                          handleOpenReturnDialog(selectedOrder.items[0]);
+                        }
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderColor: theme.palette.custom.status.warning.main,
+                        color: theme.palette.custom.status.warning.main,
+                        '&:hover': {
+                          borderColor: theme.palette.custom.status.warning.dark,
+                          bgcolor: theme.palette.custom.status.warning.light,
+                        },
+                      }}
+                    >
+                      Yêu cầu trả hàng
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => handleReOrder(selectedOrder.id)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        bgcolor: '#111',
+                        '&:hover': { bgcolor: '#333' },
+                      }}
+                    >
+                      Buy Again
+                    </Button>
+                  </>
                 )}
                 {selectedOrder.status === 'PENDING' && (
                   <Button
@@ -1162,6 +1286,196 @@ const MyOrdersPage = () => {
             </>
           );
         })()}
+      </Dialog>
+
+      {/* ==================== RETURN REQUEST DIALOG ==================== */}
+      <Dialog
+        open={returnDialogOpen}
+        onClose={handleCloseReturnDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AssignmentReturn sx={{ fontSize: 24, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Yêu cầu trả hàng / hoàn tiền
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseReturnDialog}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          {selectedOrderItemForReturn && (
+            <>
+              {/* Product Info */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: theme.palette.custom.neutral[50], borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Avatar
+                    variant="rounded"
+                    src={selectedOrderItemForReturn.productImageUrl}
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      bgcolor: theme.palette.custom.neutral[100],
+                      border: `1px solid ${theme.palette.custom.border.light}`,
+                    }}
+                  >
+                    <ShoppingBag />
+                  </Avatar>
+                  <Box>
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                      {selectedOrderItemForReturn.productName}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+                      {formatVariantInfo(selectedOrderItemForReturn.variantInfo)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], mt: 0.5 }}>
+                      Số lượng: {selectedOrderItemForReturn.quantity}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Return Reason */}
+              <FormControl component="fieldset" fullWidth sx={{ mb: 3 }}>
+                <FormLabel component="legend" sx={{ fontSize: 14, fontWeight: 600, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
+                  Lý do trả hàng *
+                </FormLabel>
+                <RadioGroup value={returnReason} onChange={(e) => setReturnReason(e.target.value as ReturnReason)}>
+                  {Object.values(ReturnReason).map((reason) => (
+                    <FormControlLabel
+                      key={reason}
+                      value={reason}
+                      control={<Radio size="small" />}
+                      label={
+                        <Typography sx={{ fontSize: 13 }}>
+                          {RETURN_REASON_LABELS[reason]}
+                        </Typography>
+                      }
+                    />
+                  ))}
+                </RadioGroup>
+              </FormControl>
+
+              {/* Description */}
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Mô tả chi tiết *"
+                placeholder="Vui lòng mô tả chi tiết lý do trả hàng, tình trạng sản phẩm..."
+                value={returnDescription}
+                onChange={(e) => setReturnDescription(e.target.value)}
+                sx={{ mb: 3 }}
+              />
+
+              {/* Evidence Images */}
+              <Box>
+                <Typography sx={{ fontSize: 14, fontWeight: 600, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
+                  Hình ảnh minh chứng
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+                  {returnImages.map((image, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        position: 'relative',
+                        width: 80,
+                        height: 80,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                      }}
+                    >
+                      <img
+                        src={image}
+                        alt={`Evidence ${index + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveImage(index)}
+                        sx={{
+                          position: 'absolute',
+                          top: 2,
+                          right: 2,
+                          bgcolor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                        }}
+                      >
+                        <Delete sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                  
+                  {returnImages.length < 5 && (
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 2,
+                        borderStyle: 'dashed',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.5,
+                      }}
+                    >
+                      <CloudUpload sx={{ fontSize: 24 }} />
+                      <Typography sx={{ fontSize: 10 }}>Thêm ảnh</Typography>
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageUpload}
+                      />
+                    </Button>
+                  )}
+                </Box>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                  Tối đa 5 ảnh. Hỗ trợ: JPG, PNG
+                </Typography>
+              </Box>
+
+              <Alert severity="info" sx={{ mt: 3 }}>
+                <Typography sx={{ fontSize: 13 }}>
+                  Yêu cầu trả hàng sẽ được gửi đến người bán để xem xét. Bạn sẽ nhận được thông báo khi có phản hồi.
+                </Typography>
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleCloseReturnDialog}
+            disabled={submittingReturn}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitReturnRequest}
+            disabled={submittingReturn || !returnDescription.trim()}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              bgcolor: theme.palette.custom.status.warning.main,
+              '&:hover': { bgcolor: theme.palette.custom.status.warning.dark },
+            }}
+          >
+            {submittingReturn ? 'Đang gửi...' : 'Gửi yêu cầu'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
