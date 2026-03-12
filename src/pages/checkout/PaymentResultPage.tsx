@@ -13,56 +13,49 @@ import {
   Receipt,
 } from '@mui/icons-material';
 import { formatCurrency } from '@/utils/formatCurrency';
-
-interface PaymentResult {
-  status: string;
-  message: string;
-  txnRef: string;
-  orderId: string;
-  orderNumber: string;
-  amount: number;
-  transactionNo: string;
-  bankCode: string;
-  cardType: string;
-  payDate: string;
-  responseCode: string;
-}
+import { paymentApi, type PaymentResultResponse } from '@/api/payment-api';
 
 const PaymentResultPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<PaymentResult | null>(null);
+  const [result, setResult] = useState<PaymentResultResponse | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    // Parse VNPay return params from URL
     const vnpResponseCode = searchParams.get('vnp_ResponseCode');
-    const vnpTxnRef = searchParams.get('vnp_TxnRef');
-    const vnpAmount = searchParams.get('vnp_Amount');
-    const vnpOrderInfo = searchParams.get('vnp_OrderInfo');
-    const vnpTransactionNo = searchParams.get('vnp_TransactionNo');
-    const vnpBankCode = searchParams.get('vnp_BankCode');
-    const vnpCardType = searchParams.get('vnp_CardType');
-    const vnpPayDate = searchParams.get('vnp_PayDate');
-
-    if (vnpResponseCode) {
-      const isSuccess = vnpResponseCode === '00';
-      setResult({
-        status: isSuccess ? 'SUCCESS' : 'FAILED',
-        message: isSuccess ? 'Payment completed successfully!' : 'Payment failed. Please try again or contact support.',
-        txnRef: vnpTxnRef || '',
-        orderId: '',
-        orderNumber: vnpOrderInfo || '',
-        amount: vnpAmount ? parseInt(vnpAmount) / 100 : 0, // VNPay returns amount * 100
-        transactionNo: vnpTransactionNo || '',
-        bankCode: vnpBankCode || '',
-        cardType: vnpCardType || '',
-        payDate: vnpPayDate || '',
-        responseCode: vnpResponseCode,
-      });
+    if (!vnpResponseCode) {
+      setLoading(false);
+      setError(true);
+      return;
     }
 
-    setLoading(false);
+    // Forward all vnp_* params to BE so it can validate signature and credit wallet
+    const params: Record<string, string> = {};
+    searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+
+    paymentApi.processVnpayReturn(params)
+      .then((res) => setResult(res))
+      .catch(() => {
+        // Fallback: build result from URL params directly (display only)
+        const amount = searchParams.get('vnp_Amount');
+        setResult({
+          status: vnpResponseCode === '00' ? 'SUCCESS' : 'FAILED',
+          message: vnpResponseCode === '00' ? 'Payment completed successfully!' : 'Payment failed.',
+          txnRef: searchParams.get('vnp_TxnRef') || '',
+          orderId: '',
+          orderNumber: searchParams.get('vnp_OrderInfo') || '',
+          amount: amount ? parseInt(amount) / 100 : 0,
+          transactionNo: searchParams.get('vnp_TransactionNo') || '',
+          bankCode: searchParams.get('vnp_BankCode') || '',
+          cardType: searchParams.get('vnp_CardType') || '',
+          payDate: searchParams.get('vnp_PayDate') || '',
+          responseCode: vnpResponseCode,
+        });
+      })
+      .finally(() => setLoading(false));
   }, [searchParams]);
 
   if (loading) {
@@ -73,7 +66,21 @@ const PaymentResultPage = () => {
     );
   }
 
-  const isSuccess = result?.status === 'SUCCESS';
+  if (error || !result) {
+    return (
+      <Box sx={{ maxWidth: 560, mx: 'auto', px: 3, py: 8, textAlign: 'center' }}>
+        <Cancel sx={{ fontSize: 72, color: '#d32f2f', mb: 2 }} />
+        <Typography variant="h5" sx={{ fontWeight: 700, color: '#111', mb: 1 }}>Invalid Payment Link</Typography>
+        <Typography sx={{ fontSize: 14, color: '#666', mb: 3 }}>No payment data found. Please check your orders.</Typography>
+        <Button variant="contained" onClick={() => navigate('/my-orders')} disableElevation
+          sx={{ bgcolor: '#111', color: '#fff', px: 4, py: 1.2, borderRadius: 2, textTransform: 'none', fontWeight: 600, '&:hover': { bgcolor: '#333' } }}>
+          View My Orders
+        </Button>
+      </Box>
+    );
+  }
+
+  const isSuccess = result.status === 'SUCCESS';
 
   return (
     <Box sx={{ maxWidth: 560, mx: 'auto', px: 3, py: 8 }}>
@@ -130,7 +137,7 @@ const PaymentResultPage = () => {
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
           <Button
             variant="contained"
-            onClick={() => navigate('/my-orders')}
+            onClick={() => navigate(result.orderId ? '/my-orders' : '/wallet')}
             disableElevation
             sx={{
               bgcolor: '#111',
@@ -143,7 +150,7 @@ const PaymentResultPage = () => {
               '&:hover': { bgcolor: '#333' },
             }}
           >
-            View My Orders
+            {result.orderId ? 'View My Orders' : 'View My Wallet'}
           </Button>
           <Button
             variant="outlined"

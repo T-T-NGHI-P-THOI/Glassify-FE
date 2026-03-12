@@ -7,7 +7,12 @@ import {
   Badge,
   Button,
   Container,
-  InputAdornment
+  InputAdornment,
+  Avatar,
+  Menu,
+  MenuItem,
+  Typography,
+  Divider,
 } from "@mui/material";
 import {
   Search,
@@ -15,15 +20,56 @@ import {
   Person,
   Favorite,
   Help,
+  AccountCircle,
+  Store,
+  AddBusiness,
+  Logout,
+  Receipt,
+  VerifiedUser,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/hooks/useAuth';
+import { logOut } from '@/auth/Reducer';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [myShop, setMyShop] = useState<ShopDetailResponse | null>(null);
   const navigate = useNavigate();
   const { itemCount, isAnimating } = useCart();
+  const { isAuthenticated, user, dispatch } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMyShop(null);
+      return;
+    }
+    shopApi.getMyShops().then((res) => {
+      const shops = res.data;
+      setMyShop(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
+    }).catch(() => setMyShop(null));
+  }, [isAuthenticated]);
+
+  const handleUserMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(e.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleUserMenuClose();
+    dispatch(logOut());
+    navigate('/');
+  };
+
+  const displayName = user?.username || '';
 
   const mainCategories = [
     { label: 'Eyeglasses', path: '/products', category: 'Eyeglasses' },
@@ -135,19 +181,99 @@ export const Navbar = () => {
 
             {/* Right Icons */}
             <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-              <IconButton
-                size="small"
-                component={Link}
-                to="/login"
-                sx={{
-                  flexDirection: "column",
-                  color: "#1f2937",
-                  borderRadius: 1,
-                }}
-              >
-                <Person sx={{ fontSize: 24 }} />
-                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Login</Box>
-              </IconButton>
+              {isAuthenticated && user ? (
+                <>
+                  <Box
+                    onClick={handleUserMenuOpen}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 1,
+                      cursor: "pointer",
+                      color: "#1f2937",
+                      borderRadius: 2,
+                      px: 1,
+                      py: 0.5,
+                      "&:hover": { backgroundColor: "#f3f4f6" },
+                    }}
+                  >
+                    <Avatar
+                      src={user.avatarUrl}
+                      alt={displayName}
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        fontSize: "0.9rem",
+                        border: "2.5px solid #f97316",
+                        boxShadow: "0 0 0 2px #fff, 0 0 0 4px #f97316",
+                      }}
+                    >
+                      {displayName.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Box sx={{ fontSize: "0.8rem", fontWeight: 500, maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      Hi, {displayName}
+                    </Box>
+                  </Box>
+
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleUserMenuClose}
+                    transformOrigin={{ horizontal: "right", vertical: "top" }}
+                    anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                    slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200, borderRadius: 2, boxShadow: "0 4px 20px rgba(0,0,0,0.12)" } } }}
+                  >
+                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.PROFILE); }} sx={{ gap: 1.5, py: 1.25 }}>
+                      <AccountCircle fontSize="small" sx={{ color: "#6b7280" }} />
+                      <Typography variant="body2">View my profile</Typography>
+                    </MenuItem>
+
+                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
+                      <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
+                      <Typography variant="body2">View my orders</Typography>
+                    </MenuItem>
+
+                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
+                      <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
+                      <Typography variant="body2">My warranty</Typography>
+                    </MenuItem>
+
+                    {myShop ? (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Store fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my shop</Typography>
+                      </MenuItem>
+                    ) : (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">Become a shop owner</Typography>
+                      </MenuItem>
+                    )}
+
+                    <Divider />
+
+                    <MenuItem onClick={handleLogout} sx={{ gap: 1.5, py: 1.25, color: "#dc2626" }}>
+                      <Logout fontSize="small" />
+                      <Typography variant="body2">Logout</Typography>
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <IconButton
+                  size="small"
+                  component={Link}
+                  to="/login"
+                  sx={{
+                    flexDirection: "column",
+                    color: "#1f2937",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Person sx={{ fontSize: 24 }} />
+                  <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Login</Box>
+                </IconButton>
+              )}
 
               <IconButton
                 size="small"

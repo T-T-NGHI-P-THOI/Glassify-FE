@@ -4,8 +4,6 @@ import { PAGE_ENDPOINTS } from "../api/endpoints";
 import MyForm from "@/pages/MyForm";
 import MainPage from "@/pages/MainPage";
 import DashboardPage from "@/pages/Dashboard/DashboardPage";
-import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage";
-import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage";
 import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage";
 import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
@@ -74,24 +72,6 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <CreateFramePage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.TRACKING.DELIVERY}
-                element={
-                    <GuestGuard>
-                        <ShippingPage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.TRACKING.SHIPMENT_DETAIL}
-                element={
-                    <GuestGuard>
-                        <ShipmentDetailPage />
                     </GuestGuard>
                 }
             />

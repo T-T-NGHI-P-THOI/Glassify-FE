@@ -1,3 +1,15 @@
+export interface ShopInfo {
+  id: string;
+  shopCode: string;
+  shopName: string;
+  logoUrl: string;
+  status: string;
+  tier: string;
+  avgRating: number;
+  totalProducts: number;
+  isVerified: boolean;
+}
+
 export interface Product {
   id: string;
   slug: string;
@@ -11,6 +23,8 @@ export interface Product {
   productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   variantId?: string;
   shopId?: string;
+  stockQuantity?: number;
+  shop?: ShopInfo;
   colors: ProductColor[];
   sizes?: string[];
   images: string[];

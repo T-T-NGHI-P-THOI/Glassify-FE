@@ -19,6 +19,7 @@ interface ItemDisplayMeta {
     imageUrl?: string;
     isFree?: boolean;
     lensSelection?: LensSelection;
+    stockQuantity?: number;
 }
 
 const DISPLAY_CACHE_KEY = 'glassify_cart_display_cache';
@@ -80,6 +81,11 @@ function collectItemIds(items: BeCartItemResponse[]): Set<string> {
 function transformBeItems(beItems: BeCartItemResponse[]): CartItemWithDetails[] {
     const cache = getDisplayCache();
 
+    // Cache shopId for each item so updateItemQuantity can use it
+    for (const item of beItems) {
+        if (item.shopId) shopIdCache.set(item.id, item.shopId);
+    }
+
     // Separate parent items and child items
     const parentItems = beItems.filter(item => !item.parentItemId);
     const childrenMap = new Map<string, BeCartItemResponse[]>();
@@ -116,6 +122,7 @@ function transformSingleItem(
         added_at: beItem.createdAt || now,
         updated_at: beItem.updatedAt || now,
         item_type: beItem.itemType,
+        shop_id: beItem.shopId,
         product: {
             id: beItem.productId || '',
             product_type: productType as 'frame' | 'lens' | 'accessory',
@@ -143,6 +150,7 @@ function transformSingleItem(
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
         lens_selection: meta?.lensSelection,
+        stock_quantity: meta?.stockQuantity,
     };
 }
 
@@ -220,9 +228,10 @@ function emptyCartResponse(): CartResponse {
     };
 }
 
-// ==================== Cart ID Management ====================
+// ==================== Cart ID & ShopId Management ====================
 
 let currentCartId: string | null = null;
+const shopIdCache = new Map<string, string>(); // itemId -> shopId
 
 async function ensureCart(): Promise<string> {
     if (currentCartId) return currentCartId;
@@ -276,6 +285,7 @@ export interface AddToCartMockParams {
     lensFeatureIds?: string[];
     prescriptionId?: string;
     lensSelection?: LensSelection;
+    stockQuantity?: number;
 }
 
 export const CartService = {
@@ -339,6 +349,7 @@ export const CartService = {
                 imageUrl: params.imageUrl,
                 isFree: params.isFree,
                 lensSelection: params.lensSelection,
+                stockQuantity: params.stockQuantity,
             });
         }
 
@@ -352,7 +363,7 @@ export const CartService = {
         const cartId = await ensureCart();
 
         const beRequest = {
-            shopId: '',
+            shopId: shopIdCache.get(itemId) || '',
             quantity,
             unitPrice: 0,
             lineTotal: 0,
@@ -382,5 +393,6 @@ export const CartService = {
 
     resetCartId() {
         currentCartId = null;
+        shopIdCache.clear();
     },
 };

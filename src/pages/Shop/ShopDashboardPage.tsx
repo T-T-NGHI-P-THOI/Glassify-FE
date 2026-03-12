@@ -14,6 +14,13 @@ import {
   CircularProgress,
   Rating,
   Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -34,7 +41,24 @@ import {
   TrendingUp,
   Edit,
   Cancel,
+  MoreVert,
+  AttachMoney,
 } from '@mui/icons-material';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLayout } from '../../layouts/LayoutContext';
@@ -55,7 +79,6 @@ const ShopDashboardPage = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [ghnNames, setGhnNames] = useState({ province: '', district: '', ward: '' });
   const [cancelDeactivateLoading, setCancelDeactivateLoading] = useState(false);
-
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(false);
@@ -256,7 +279,45 @@ const ShopDashboardPage = () => {
       value: shop.commissionRate != null ? `${shop.commissionRate}%` : 'N/A',
       bgColor: theme.palette.custom.status.success.light,
     },
+    {
+      icon: <AttachMoney sx={{ color: '#f97316' }} />,
+      label: 'Total Revenue',
+      value: '₫124.5M',
+      bgColor: '#fff7ed',
+    },
   ];
+
+  // Mock chart data
+  const revenueData = [
+    { month: 'Jan', revenue: 12400000, orders: 45 },
+    { month: 'Feb', revenue: 18200000, orders: 62 },
+    { month: 'Mar', revenue: 15800000, orders: 54 },
+    { month: 'Apr', revenue: 22100000, orders: 78 },
+    { month: 'May', revenue: 19600000, orders: 67 },
+    { month: 'Jun', revenue: 28300000, orders: 95 },
+    { month: 'Jul', revenue: 24700000, orders: 83 },
+    { month: 'Aug', revenue: 31200000, orders: 104 },
+    { month: 'Sep', revenue: 26800000, orders: 89 },
+    { month: 'Oct', revenue: 35400000, orders: 118 },
+    { month: 'Nov', revenue: 42100000, orders: 137 },
+    { month: 'Dec', revenue: 38900000, orders: 128 },
+  ];
+
+  const categoryData = [
+    { name: 'Optical Frames', value: 38 },
+    { name: 'Sunglasses', value: 27 },
+    { name: 'Reading Glasses', value: 18 },
+    { name: 'Contact Lenses', value: 12 },
+    { name: 'Accessories', value: 5 },
+  ];
+
+  const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899'];
+
+  const formatRevenue = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+    return value.toString();
+  };
 
   const statusStyle = getStatusColor(shop.status);
   const tierStyle = getTierColor(shop.tier);
@@ -404,8 +465,181 @@ const ShopDashboardPage = () => {
           ))}
         </Box>
 
+        {/* Charts Section */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Revenue & Orders Area Chart */}
+          <Grid size={{ xs: 12, lg: 8 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.custom.border.light}`,
+                height: '100%',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                <Box>
+                  <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                    Revenue & Orders Overview
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                    Monthly performance for the past 12 months
+                  </Typography>
+                </Box>
+              </Box>
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    yAxisId="revenue"
+                    orientation="left"
+                    tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={formatRevenue}
+                  />
+                  <YAxis
+                    yAxisId="orders"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 13 }}
+                    formatter={(value, name) =>
+                      name === 'revenue'
+                        ? [`₫${formatRevenue(Number(value))}`, 'Revenue']
+                        : [value, 'Orders']
+                    }
+                  />
+                  <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
+                  <Area
+                    yAxisId="revenue"
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    fill="url(#colorRevenue)"
+                    dot={false}
+                    name="revenue"
+                  />
+                  <Area
+                    yAxisId="orders"
+                    type="monotone"
+                    dataKey="orders"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    fill="url(#colorOrders)"
+                    dot={false}
+                    name="orders"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
+          {/* Category Pie Chart */}
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.custom.border.light}`,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                  Sales by Category
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                  Product category breakdown
+                </Typography>
+              </Box>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {categoryData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 13 }}
+                      formatter={(value) => [`${value}%`, 'Share']}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Monthly Orders Bar Chart */}
+          <Grid size={{ xs: 12 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.custom.border.light}`,
+              }}
+            >
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                  Monthly Order Count
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                  Number of orders placed each month
+                </Typography>
+              </Box>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={28}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 13 }}
+                    cursor={{ fill: theme.palette.custom.neutral[100] }}
+                    formatter={(value) => [value, 'Orders']}
+                  />
+                  <Bar dataKey="orders" fill="#6366f1" radius={[4, 4, 0, 0]} name="Orders" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+        </Grid>
+
         {/* Shop Info Cards */}
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
           {/* Shop Profile Card */}
           <Grid size={{ xs: 12, md: 8 }}>
             <Paper
@@ -414,6 +648,7 @@ const ShopDashboardPage = () => {
                 p: 3,
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.custom.border.light}`,
+                height: '100%',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
@@ -588,105 +823,89 @@ const ShopDashboardPage = () => {
             </Paper>
           </Grid>
 
-          {/* Owner & Rating Card */}
+          {/* Owner, Rating & Membership — single card */}
           <Grid size={{ xs: 12, md: 4 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.custom.border.light}`,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
               {/* Owner Info */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.custom.border.light}`,
-                }}
-              >
-                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2.5 }}>
-                  Owner Information
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Avatar sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[200] }}>
-                    <Person />
-                  </Avatar>
-                  <Box>
-                    <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                      {shop.ownerName || 'N/A'}
-                    </Typography>
-                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                      {shop.ownerEmail || 'N/A'}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-
-              {/* Rating Card */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.custom.border.light}`,
-                }}
-              >
-                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>
-                  Shop Rating
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ fontSize: 36, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                    {shop.avgRating != null ? shop.avgRating.toFixed(1) : '0.0'}
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: 0.5, mb: 2 }}>
+                Owner
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[200] }}>
+                  <Person />
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {shop.ownerName || 'N/A'}
                   </Typography>
-                  <Box>
-                    <Rating
-                      value={shop.avgRating ?? 0}
-                      precision={0.1}
-                      readOnly
-                      size="small"
-                    />
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                      Based on customer reviews
-                    </Typography>
-                  </Box>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {shop.ownerEmail || 'N/A'}
+                  </Typography>
                 </Box>
-              </Paper>
+              </Box>
 
-              {/* Joined Date Card */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 2,
-                  border: `1px solid ${theme.palette.custom.border.light}`,
-                }}
-              >
-                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>
-                  Membership
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Rating */}
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: 0.5, mb: 2 }}>
+                Shop Rating
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography sx={{ fontSize: 40, fontWeight: 700, color: theme.palette.custom.neutral[800], lineHeight: 1 }}>
+                  {shop.avgRating != null ? shop.avgRating.toFixed(1) : '0.0'}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Box
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 1,
-                      bgcolor: theme.palette.custom.status.indigo.light,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <AccessTime sx={{ fontSize: 18, color: theme.palette.custom.status.indigo.main }} />
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                      Joined At
-                    </Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {formatDate(shop.joinedAt)}
-                    </Typography>
-                  </Box>
+                <Box>
+                  <Rating value={shop.avgRating ?? 0} precision={0.1} readOnly size="small" />
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
+                    Based on customer reviews
+                  </Typography>
                 </Box>
-              </Paper>
-            </Box>
+              </Box>
+
+              <Divider sx={{ my: 2.5 }} />
+
+              {/* Membership */}
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: 0.5, mb: 2 }}>
+                Membership
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: theme.palette.custom.status.indigo.light,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <AccessTime sx={{ fontSize: 20, color: theme.palette.custom.status.indigo.main }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+                    Joined At
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                    {formatDate(shop.joinedAt)}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
+
       </Box>
 
       {/* Detail Dialog */}

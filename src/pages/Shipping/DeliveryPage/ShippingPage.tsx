@@ -23,11 +23,14 @@ import {
   MoreVert,
   Warning,
 } from '@mui/icons-material';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sidebar } from '../../../components/sidebar/Sidebar';
+import { ShopOwnerSidebar } from '../../../components/sidebar/ShopOwnerSidebar';
 import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { useAuth } from '@/hooks/useAuth';
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
 
 // Interface dựa trên DB schema - bảng shipments
 type ShipmentStatus =
@@ -272,6 +275,15 @@ const ShippingPage = () => {
   const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const theme = useTheme();
+  const { user } = useAuth();
+  const [shop, setShop] = useState<ShopDetailResponse | null>(null);
+
+  useEffect(() => {
+    shopApi.getMyShops().then((res) => {
+      const shops = res.data;
+      setShop(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
+    }).catch(() => setShop(null));
+  }, []);
 
   const getStatusColor = (status: ShipmentStatus) => {
     switch (status) {
@@ -294,7 +306,7 @@ const ShippingPage = () => {
   };
 
   const handleRowClick = (shipmentId: number) => {
-    navigate(PAGE_ENDPOINTS.TRACKING.SHIPMENT_DETAIL.replace(':id', shipmentId.toString()));
+    navigate(PAGE_ENDPOINTS.SHOP.ORDER_DETAIL.replace(':id', shipmentId.toString()));
   };
 
   useEffect(() => {
@@ -341,12 +353,19 @@ const ShippingPage = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-      <Sidebar activeMenu={PAGE_ENDPOINTS.TRACKING.DELIVERY} />
+      <ShopOwnerSidebar
+        activeMenu={PAGE_ENDPOINTS.SHOP.ORDERS}
+        shopName={shop?.shopName}
+        shopLogo={shop?.logoUrl}
+        ownerName={shop?.ownerName || user?.fullName}
+        ownerEmail={shop?.ownerEmail || user?.email}
+        ownerAvatar={user?.avatarUrl}
+      />
 
       <Box sx={{ flex: 1, p: 4 }}>
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
-            Shipment Management
+          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
+            Order Management
           </Typography>
         </Box>
 

@@ -50,7 +50,6 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       path: '/tracking',
       key: 'tracking',
       subItems: [
-        { label: 'Delivery', path: PAGE_ENDPOINTS.TRACKING.DELIVERY },
         { label: 'Shops', path: PAGE_ENDPOINTS.TRACKING.SHOPS },
       ],
     },

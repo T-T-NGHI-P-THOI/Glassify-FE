@@ -22,7 +22,7 @@ import {
     ArrowBack,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import type { LoginRequest } from '@/models/Auth.ts';
 import { TokenManager } from '@/api/axios.config.ts';
@@ -105,7 +105,6 @@ const injectKeyframes = () => {
    ══════════════════════════════════════════════════ */
 const AuthPage = () => {
     useLayoutConfig({ showNavbar: false, showFooter: false });
-    const location = useLocation();
     const navigate = useNavigate();
     const { dispatch } = useAuth();
 
@@ -163,19 +162,7 @@ const AuthPage = () => {
             isAuthenticated: true,
             user: userData
         }));
-        
-        // Redirect to the originally requested page using location.state
-        const from = location.state?.from;
-        if (from && from.pathname) {
-            // If we have both pathname and search, navigate to full URL
-            const redirectPath = from.pathname + (from.search || '');
-            console.log('Redirecting to:', redirectPath);
-            navigate(redirectPath, { replace: true });
-        } else {
-            // Default redirect to dashboard
-            console.log('No from state, redirecting to dashboard');
-            navigate(PAGE_ENDPOINTS.DASHBOARD, { replace: true });
-        }
+        navigate(PAGE_ENDPOINTS.HOME, { replace: true });
     };
 
     // Email/Password Login

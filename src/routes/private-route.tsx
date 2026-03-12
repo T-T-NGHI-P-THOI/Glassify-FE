@@ -10,9 +10,14 @@ import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
+import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
+import UserWalletPage from "@/pages/User/UserWalletPage"
+import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
+import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
+import ShopStaffPage from "@/pages/Shop/ShopStaffPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -73,6 +78,17 @@ const PrivateRoutesComponent = () => {
             />
 
             <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCTS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopProductsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
                 path={PAGE_ENDPOINTS.SHOP.EDIT_PROFILE}
                 element={
                     <AuthGuard>
@@ -106,11 +122,55 @@ const PrivateRoutesComponent = () => {
             />
 
             <Route
+                path={PAGE_ENDPOINTS.USER.WALLET}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <UserWalletPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
                 path={PAGE_ENDPOINTS.CHECKOUT.MAIN}
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <CheckoutPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.ORDERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShippingPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.ORDER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShipmentDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.STAFF}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopStaffPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

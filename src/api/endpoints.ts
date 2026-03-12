@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     GET_ALL: `${API_ENDPOINT}/product`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
+    GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
   },
@@ -84,6 +85,19 @@ export const API_ENDPOINTS = {
     CREATE_VNPAY: `${API_ENDPOINT}/payments/create-vnpay`,
     VNPAY_RETURN: `${API_ENDPOINT}/payments/vnpay-return`,
     STATUS: (orderId: string) => `${API_ENDPOINT}/payments/status/${orderId}`,
+    TOP_UP: `${API_ENDPOINT}/payments/top-up`,
+    PAY_FROM_WALLET: `${API_ENDPOINT}/payments/pay-from-wallet`,
+  },
+  USER_WALLET: {
+    BASE: `${API_ENDPOINT}/wallet`,
+    TRANSACTIONS: `${API_ENDPOINT}/wallet/transactions`,
+  },
+  USER_ADDRESSES: {
+    BASE: `${API_ENDPOINT}/user-addresses`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    UPDATE: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    DELETE: (id: string) => `${API_ENDPOINT}/user-addresses/${id}`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/user-addresses/${id}/set-default`,
   },
   WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/warranty-claims`,
@@ -150,6 +164,10 @@ export const PAGE_ENDPOINTS = {
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
     WALLET: `/shop/wallet`,
+    PRODUCTS: `/shop/products`,
+    ORDERS: `/shop/orders`,
+    ORDER_DETAIL: `/shop/orders/:id`,
+    STAFF: `/shop/staff`,
   },
 
   ADMIN: {
@@ -166,6 +184,7 @@ export const PAGE_ENDPOINTS = {
 
   USER: {
     PROFILE: `/users/me`,
+    WALLET: `/wallet`,
   },
 
   CART: {

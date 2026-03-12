@@ -6,6 +6,7 @@ import ImageGallery from '../../components/ProductDetailPage/ImageGallery';
 import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
+import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
@@ -61,6 +62,7 @@ const ProductDetailPage: React.FC = () => {
         const transformedProduct: Product = {
           id: apiProduct.id,
           shopId: apiProduct.shopId,
+          shop: apiProduct.shop,
           slug: apiProduct.slug,
           name: apiProduct.name,
           sku: apiProduct.sku,
@@ -71,6 +73,7 @@ const ProductDetailPage: React.FC = () => {
           category: apiProduct.categoryName,
           productType: apiProduct.productType,
           variantId: apiProduct.variantId ?? undefined,
+          stockQuantity: apiProduct.stockQuantity,
           colors: [
             {
               name: 'Default',
@@ -219,6 +222,7 @@ const ProductDetailPage: React.FC = () => {
           itemType: 'FRAME',
           shopId: product.shopId,
           variantId: product.variantId,
+          stockQuantity: product.stockQuantity,
         });
         // In edit mode, remove the old cart item after adding the new one
         if (isEditMode && editCartItemId) {
@@ -255,6 +259,7 @@ const ProductDetailPage: React.FC = () => {
         itemType: 'FRAME' as const,
         shopId: product.shopId,
         variantId: product.variantId,
+        stockQuantity: product.stockQuantity,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)
@@ -334,13 +339,17 @@ const ProductDetailPage: React.FC = () => {
               </div>
             </div>
           )}
+          {product.shop && <ShopInfo shop={product.shop} />}
         </div>
-        <ProductInfo
-          product={product}
-          onAddToFavorites={handleAddToFavorites}
-          onAddToCart={handleAddToCart}
-          isEditMode={isEditMode}
-        />
+        <div className="product-info-column">
+          <ProductInfo
+            product={product}
+            onAddToFavorites={handleAddToFavorites}
+            onAddToCart={handleAddToCart}
+            isEditMode={isEditMode}
+          />
+        </div>
+      </div>
 
       <LensSelectionDialog
         open={lensDialogOpen}
@@ -357,7 +366,6 @@ const ProductDetailPage: React.FC = () => {
         framePrice={product.price}
         initialSelection={editLensSelection}
       />
-      </div>
 
       <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
 
