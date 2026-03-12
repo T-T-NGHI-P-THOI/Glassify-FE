@@ -1,4 +1,3 @@
-import RemovebgAPI from "@/api/removebgAPI";
 import theme from "@/theme";
 import { Description, Delete } from "@mui/icons-material";
 import { Box, Typography, Divider, Paper, IconButton, useTheme } from "@mui/material";
@@ -44,7 +43,7 @@ const GenerateFrameModel = () => {
         setImage: React.Dispatch<React.SetStateAction<UploadToRemoveBgImage | null>>
     ) => {
         // File trong browser chính là Blob
-        const arrayBuffer = await RemovebgAPI.removeBg(image.originalFile);
+        const arrayBuffer = new ArrayBuffer;
 
         // convert ArrayBuffer -> Blob
         const blob = new Blob([arrayBuffer], { type: "image/png" });

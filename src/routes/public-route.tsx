@@ -17,6 +17,8 @@ import MyOrdersPage from "@/pages/Order/MyOrdersPage";
 import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
 import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
+import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
+import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
 
 const PublicRoutesComponent = () => {
     return (
@@ -36,6 +38,23 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <AuthPage />
+                    </GuestGuard>
+                }
+            />
+            <Route
+                path={'/virtual-try-on'}
+                element={
+                    <GuestGuard>
+                        <VirtualTryOnPage />
+                    </GuestGuard>
+                }
+            />
+
+             <Route
+                path={'/image-try-on'}
+                element={
+                    <GuestGuard>
+                        <ImageTryOnPage />
                     </GuestGuard>
                 }
             />

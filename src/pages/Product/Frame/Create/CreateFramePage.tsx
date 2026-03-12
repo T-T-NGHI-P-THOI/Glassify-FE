@@ -22,10 +22,10 @@ import { useLayout } from '../../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import CreateFrameVariantPage from './CreateFrameVariantPage';
-import CreateFrameInfoPage from './CreateFrameInfoPage';
+import CreateFrameInfoPage, { type CreateFrameInfoPageRef } from "./CreateFrameInfoPage";
 import GenerateFrameModel from './GenerateFrameModel';
 import View3DModelPage from './View3DModelPage';
-
+import { useRef } from "react";
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
   '& .MuiStepConnector-line': {
@@ -64,6 +64,7 @@ interface ShopFormData {
 
 const CreateFramePage = () => {
   const theme = useTheme();
+  const frameInfoRef = useRef<CreateFrameInfoPageRef>(null);
   const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
@@ -102,9 +103,17 @@ const CreateFramePage = () => {
   };
 
 
-  const handleNext = () => {
-    setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
-  };
+  const handleNext = async () => {
+    try {
+      if (activeStep === 0) {
+        await frameInfoRef.current?.submit();
+      }
+      setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
+    } catch(error) {
+      console.log("Validate error: ", error)
+      // validation failed → không next step
+    }
+  }
 
   const handleBack = () => {
     setActiveStep((prev) => Math.max(prev - 1, 0));
@@ -319,11 +328,11 @@ const CreateFramePage = () => {
           </IconButton>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-              Register Your Shop
+              Add new Frame
             </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+            {/* <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
               Complete the registration process to start selling on our platform
-            </Typography>
+            </Typography> */}
           </Box>
         </Box>
 
@@ -393,12 +402,11 @@ const CreateFramePage = () => {
             border: `1px solid ${theme.palette.custom.border.light}`,
           }}
         >
-          {activeStep === 0 && <CreateFrameInfoPage />}
+          {activeStep === 0 && <CreateFrameInfoPage ref={frameInfoRef} />}
           {activeStep === 1 && <CreateFrameVariantPage />}
           {activeStep === 2 && <GenerateFrameModel />}
-          {activeStep === 3 && <View3DModelPage  />}
+          {activeStep === 3 && <View3DModelPage />}
           {/* {activeStep === 2 && renderReview()} */}
-
 
           {/* Navigation Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 3, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>

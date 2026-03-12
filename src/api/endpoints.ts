@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
+    CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,

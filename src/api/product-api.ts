@@ -1,6 +1,7 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
+import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameInfoPage';
 
 // Category type from API
 export interface ApiCategory {
@@ -168,6 +169,20 @@ export default class ProductAPI {
     try {
       const response = await api.get<{ status: number; message: string; data: ApiCategory[] }>(
         API_ENDPOINTS.CATEGORIES.GET_ALL
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
+  }
+
+  // 
+  static async createFrameGroup(body: CreateFrameFormData) {
+    try {
+      const response = await api.post(
+        API_ENDPOINTS.PRODUCTS.CREATE_FRAME_GROUP,
+        body
       );
       return response.data.data;
     } catch (error) {

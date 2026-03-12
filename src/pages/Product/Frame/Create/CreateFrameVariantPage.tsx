@@ -23,8 +23,6 @@ import {
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import { ReactCompareSlider, ReactCompareSliderImage } from "react-compare-slider";
-import RemovebgAPI from '@/api/removebgAPI';
 
 interface ProductImage {
     name: string;
