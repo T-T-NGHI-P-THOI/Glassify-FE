@@ -4,23 +4,11 @@ import axiosInstance from '@/api/axios.config';
 
 const GHN_BASE_URL = '/api/v1/ghn';
 
-export interface GhnShippingFeeRequest {
-  shopId: string;
-  toDistrictId: number;
-  toWardCode: string;
-  weight: number;
-  length: number;
-  width: number;
-  height: number;
-  insuranceValue: number;
-}
-
-export interface GhnShippingFeeOption {
-  serviceId: number;
-  serviceName: string;
-  serviceTypeId: number;
-  totalFee: number;
-  insuranceFee: number;
+export interface GhnCheckoutShippingFeeResponse {
+  actualFee: number;
+  buyerFee: number;
+  platformSubsidy: number;
+  freeShipping: boolean;
 }
 
 export const ghnApi = {
@@ -47,10 +35,16 @@ export const ghnApi = {
     return response.data;
   },
 
-  getShippingFee: async (body: GhnShippingFeeRequest): Promise<ApiResponse<GhnShippingFeeOption[]>> => {
-    const response = await axiosInstance.post<ApiResponse<GhnShippingFeeOption[]>>(
-      `${GHN_BASE_URL}/shipping-fee`,
-      body,
+  getCheckoutShippingFee: async (params: {
+    shopId: string;
+    toDistrictId: number;
+    toWardCode: string;
+    orderSubtotal: number;
+    cartId: string;
+  }): Promise<ApiResponse<GhnCheckoutShippingFeeResponse>> => {
+    const response = await axiosInstance.get<ApiResponse<GhnCheckoutShippingFeeResponse>>(
+      `${GHN_BASE_URL}/checkout-shipping-fee`,
+      { params },
     );
     return response.data;
   },
