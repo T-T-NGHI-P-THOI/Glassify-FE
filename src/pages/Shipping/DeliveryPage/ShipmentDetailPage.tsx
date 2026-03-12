@@ -20,6 +20,13 @@ import {
   Avatar,
   CircularProgress,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControlLabel,
+  Checkbox,
+  Divider,
 } from '@mui/material';
 import { styled, useTheme, type Theme } from '@mui/material/styles';
 import {
@@ -31,7 +38,8 @@ import {
   Inventory,
   Home,
   ReportProblem,
-  FlightTakeoff,
+  CheckCircleOutline,
+  Cancel,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -43,7 +51,8 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopOrderResponse } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 
-// Custom Step Connector
+// ─── Stepper ─────────────────────────────────────────────────────────────────
+
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
   '& .MuiStepConnector-line': {
     borderColor: theme.palette.custom.border.light,
@@ -57,60 +66,76 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-// Status steps based on shipment flow
 const shipmentSteps = [
-  { label: 'Ready to Ship', key: 'READY_TO_SHIP' },
-  { label: 'Picked Up', key: 'PICKED_UP' },
-  { label: 'In Transit', key: 'IN_TRANSIT' },
+  { label: 'Pending',          key: 'PENDING' },
+  { label: 'Confirmed',        key: 'CONFIRMED' },
+  { label: 'Processing',        key: 'PROCESSING' },
+  { label: 'Picked Up',        key: 'PICKED_UP' },
+  { label: 'In Transit',       key: 'SHIPPED' },
   { label: 'Out for Delivery', key: 'OUT_FOR_DELIVERY' },
-  { label: 'Delivered', key: 'DELIVERED' },
+  { label: 'Delivered',        key: 'DELIVERED' },
 ];
 
-type ShipmentStatus =
-  | 'READY_TO_SHIP'
+type OrderStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
   | 'PICKED_UP'
-  | 'IN_TRANSIT'
+  | 'SHIPPED'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
-  | 'FAILED'
+  | 'CANCELLED'
   | 'RETURNED';
 
-const getStatusColor = (status: ShipmentStatus, theme: Theme) => {
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {};
+
+const getStatusColor = (status: string, theme: Theme) => {
   const { custom } = theme.palette;
   switch (status) {
-    case 'DELIVERED':
-      return { bg: custom.status.success.light, color: custom.status.success.main };
+    case 'DELIVERED':      return { bg: custom.status.success.light,  color: custom.status.success.main };
+    case 'SHIPPED':
     case 'IN_TRANSIT':
-    case 'PICKED_UP':
-      return { bg: custom.status.info.light, color: custom.status.info.main };
-    case 'OUT_FOR_DELIVERY':
-      return { bg: custom.status.warning.light, color: custom.status.warning.main };
-    case 'READY_TO_SHIP':
-      return { bg: custom.neutral[100], color: custom.neutral[500] };
-    case 'FAILED':
-      return { bg: custom.status.error.light, color: custom.status.error.main };
-    case 'RETURNED':
-      return { bg: custom.status.rose.light, color: custom.status.rose.main };
-    default:
-      return { bg: custom.neutral[100], color: custom.neutral[500] };
+    case 'PICKED_UP':      return { bg: custom.status.info.light,     color: custom.status.info.main };
+    case 'OUT_FOR_DELIVERY': return { bg: custom.status.warning.light, color: custom.status.warning.main };
+    case 'CONFIRMED':
+    case 'PROCESSING':     return { bg: custom.status.indigo.light,   color: custom.status.indigo.main };
+    case 'PENDING':        return { bg: custom.neutral[100],           color: custom.neutral[500] };
+    case 'CANCELLED':      return { bg: custom.status.error.light,    color: custom.status.error.main };
+    case 'RETURNED':       return { bg: custom.status.rose.light,     color: custom.status.rose.main };
+    default:               return { bg: custom.neutral[100],           color: custom.neutral[500] };
   }
 };
 
-const getStatusLabel = (status: ShipmentStatus) => {
+const getStatusLabel = (status: string) => {
+  const step = shipmentSteps.find(s => s.key === status);
+  return step?.label ?? status;
+};
+
+const getActiveStep = (status: string) => {
+  const idx = shipmentSteps.findIndex(s => s.key === status);
+  return idx >= 0 ? idx : 0;
+};
+
+// ─── Next action ──────────────────────────────────────────────────────────────
+
+type ActionConfig = {
+  label: string;
+  hasApi: boolean;
+};
+
+const getNextAction = (status: string): ActionConfig | null => {
   switch (status) {
-    case 'READY_TO_SHIP': return 'Ready to Ship';
-    case 'PICKED_UP':     return 'Picked Up';
-    case 'IN_TRANSIT':    return 'In Transit';
-    case 'OUT_FOR_DELIVERY': return 'Out for Delivery';
-    case 'DELIVERED':     return 'Delivered';
-    case 'FAILED':        return 'Failed';
-    case 'RETURNED':      return 'Returned';
-    default:              return status;
+    case 'PENDING':    return { label: 'Confirm Order',  hasApi: true };
+    case 'CONFIRMED':  return { label: 'Start Processing', hasApi: true };
+    case 'PROCESSING': return { label: 'Picked Up',      hasApi: false };
+    default:           return null;
   }
 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const formatDate = (dateString: string | null | undefined) => {
-  if (!dateString) return '-';
+  if (!dateString) return '—';
   return new Date(dateString).toLocaleDateString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -123,20 +148,7 @@ const formatDate = (dateString: string | null | undefined) => {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const getActiveStep = (status: ShipmentStatus) => {
-  const idx = shipmentSteps.findIndex((s) => s.key === status);
-  return idx >= 0 ? idx : 0;
-};
-
-const orderStatusToShipment = (status: string): ShipmentStatus => {
-  switch (status) {
-    case 'SHIPPED':    return 'IN_TRANSIT';
-    case 'DELIVERED':  return 'DELIVERED';
-    case 'RETURNED':   return 'RETURNED';
-    case 'PROCESSING': return 'PICKED_UP';
-    default:           return 'READY_TO_SHIP';
-  }
-};
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 const ShipmentDetailPage = () => {
   const theme = useTheme();
@@ -148,8 +160,12 @@ const ShipmentDetailPage = () => {
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [order, setOrder] = useState<ShopOrderResponse | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
-  // local UI-only status override (no API yet)
-  const [localShipmentStatus, setLocalShipmentStatus] = useState<ShipmentStatus | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReasons, setCancelReasons] = useState<string[]>([]);
+  // local UI-only status overrides for steps without API
+  const [localStatusOverride, setLocalStatusOverride] = useState<string | null>(null);
 
   useEffect(() => {
     shopApi.getMyShops().then((res) => {
@@ -170,10 +186,7 @@ const ShipmentDetailPage = () => {
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
+    return () => { setShowNavbar(true); setShowFooter(true); };
   }, [setShowNavbar, setShowFooter]);
 
   if (loadingOrder || !order) {
@@ -194,21 +207,73 @@ const ShipmentDetailPage = () => {
     );
   }
 
-  const apiShipmentStatus = orderStatusToShipment(order.status);
-  const shipmentStatus = localShipmentStatus ?? apiShipmentStatus;
-  const statusStyle = getStatusColor(shipmentStatus, theme);
-  const activeStep = getActiveStep(shipmentStatus);
+  const currentStatus = localStatusOverride ?? order.status;
+  const statusStyle = getStatusColor(currentStatus, theme);
+  const activeStep = getActiveStep(currentStatus);
+  const nextAction = getNextAction(currentStatus);
 
-  // Show "Mark as Picked Up" only when status is READY_TO_SHIP
-  const canMarkPickedUp = shipmentStatus === 'READY_TO_SHIP';
-  const handleMarkPickedUp = () => {
-    setLocalShipmentStatus('PICKED_UP');
-    // TODO: call API when available
+  const handleAction = async () => {
+    if (!nextAction || !shop) return;
+    if (nextAction.hasApi) {
+      try {
+        setActionLoading(true);
+        const apiCall =
+          currentStatus === 'PENDING'
+            ? shopApi.confirmShopOrder(shop.id, order.id)
+            : shopApi.processShopOrder(shop.id, order.id);
+        const res = await apiCall;
+        if (res.data) setOrder(res.data);
+        setLocalStatusOverride(null);
+      } catch (err) {
+        console.error('Failed to update order:', err);
+      } finally {
+        setActionLoading(false);
+      }
+    } else {
+      // UI-only transition
+      const nextStep = shipmentSteps[activeStep + 1];
+      if (nextStep) setLocalStatusOverride(nextStep.key);
+    }
+  };
+
+  const SHOP_CANCEL_REASONS = [
+    'Out of stock',
+    'Cannot fulfill the order',
+    'Customer requested cancellation',
+    'Product quality issue',
+    'Incorrect order details',
+    'Other',
+  ];
+
+  const handleCancel = () => {
+    setCancelReasons([]);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!shop || cancelReasons.length === 0) return;
+    try {
+      setCancelLoading(true);
+      const res = await shopApi.cancelShopOrder(shop.id, order.id, cancelReasons.join('; '));
+      if (res.data) setOrder(res.data);
+      setLocalStatusOverride(null);
+      setCancelDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to cancel order:', err);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const toggleCancelReason = (reason: string) => {
+    setCancelReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason],
+    );
   };
 
   return (
+    <>
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-      {/* Sidebar */}
       <ShopOwnerSidebar
         activeMenu={PAGE_ENDPOINTS.SHOP.ORDERS}
         shopName={shop?.shopName}
@@ -218,7 +283,6 @@ const ShipmentDetailPage = () => {
         ownerAvatar={user?.avatarUrl}
       />
 
-      {/* Main Content */}
       <Box sx={{ flex: 1, p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
@@ -231,7 +295,7 @@ const ShipmentDetailPage = () => {
             </Typography>
           </Box>
           <Chip
-            label={getStatusLabel(shipmentStatus)}
+            label={getStatusLabel(currentStatus)}
             sx={{
               backgroundColor: statusStyle.bg,
               color: statusStyle.color,
@@ -298,12 +362,12 @@ const ShipmentDetailPage = () => {
                       {formatDate(order.orderedAt)}
                     </Typography>
                   )}
-                  {index === 1 && order.shippedAt && (
+                  {index === 4 && order.shippedAt && (
                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
                       {formatDate(order.shippedAt)}
                     </Typography>
                   )}
-                  {index === 4 && order.deliveredAt && (
+                  {index === 6 && order.deliveredAt && (
                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
                       {formatDate(order.deliveredAt)}
                     </Typography>
@@ -313,25 +377,39 @@ const ShipmentDetailPage = () => {
             ))}
           </Stepper>
 
-          {/* Picked Up action button */}
-          {canMarkPickedUp && (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2.5 }}>
+          {/* Action buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
+            {currentStatus !== 'CANCELLED' && currentStatus !== 'DELIVERED' && currentStatus !== 'RETURNED' && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={cancelLoading ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+                disabled={cancelLoading || actionLoading}
+                onClick={handleCancel}
+                sx={{ fontWeight: 600, borderRadius: 2, px: 3, textTransform: 'none' }}
+              >
+                {cancelLoading ? 'Cancelling...' : 'Cancel Order'}
+              </Button>
+            )}
+            {nextAction && (
               <Button
                 variant="contained"
-                startIcon={<FlightTakeoff />}
-                onClick={handleMarkPickedUp}
+                startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutline />}
+                disabled={actionLoading || cancelLoading}
+                onClick={handleAction}
                 sx={{
                   bgcolor: theme.palette.custom.status.success.main,
-                  '&:hover': { bgcolor: theme.palette.custom.status.success.dark ?? theme.palette.custom.status.success.main },
+                  '&:hover': { filter: 'brightness(0.92)' },
                   fontWeight: 600,
                   borderRadius: 2,
                   px: 3,
+                  textTransform: 'none',
                 }}
               >
-                Picked Up
+                {nextAction.label}
               </Button>
-            </Box>
-          )}
+            )}
+          </Box>
         </Paper>
 
         {/* Information Grid */}
@@ -364,7 +442,7 @@ const ShipmentDetailPage = () => {
             </Box>
           </Paper>
 
-          {/* Delivery Location */}
+          {/* Location */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <LocalShipping sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
@@ -414,7 +492,7 @@ const ShipmentDetailPage = () => {
             </Box>
           </Paper>
 
-          {/* Carrier / Tracking */}
+          {/* Carrier Information */}
           <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <LocalShipping sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
@@ -425,7 +503,7 @@ const ShipmentDetailPage = () => {
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>CARRIER</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                {order.carrier ?? '—'}
+                Giao Hàng Nhanh
               </Typography>
             </Box>
             <Box sx={{ mb: 2 }}>
@@ -550,7 +628,7 @@ const ShipmentDetailPage = () => {
           </Box>
         </Paper>
 
-        {/* Return / Refund Info */}
+        {/* Return & Refund */}
         <Paper
           elevation={0}
           sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}
@@ -573,7 +651,6 @@ const ShipmentDetailPage = () => {
                       color: theme.palette.custom.status.error.main,
                       fontWeight: 600,
                       fontSize: 12,
-                      minWidth: 24,
                       height: 24,
                     }}
                   />
@@ -619,7 +696,77 @@ const ShipmentDetailPage = () => {
         </Paper>
       </Box>
     </Box>
+
+    {/* ── Cancel Confirmation Dialog ─────────────────────────────── */}
+    <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Cancel sx={{ color: theme.palette.error.main, fontSize: 22 }} />
+          <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+            Cancel Order
+          </Typography>
+        </Box>
+        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+          Please select the reason(s) for cancellation. This cannot be undone.
+        </Typography>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ py: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {SHOP_CANCEL_REASONS.map((reason) => (
+            <FormControlLabel
+              key={reason}
+              control={
+                <Checkbox
+                  size="small"
+                  checked={cancelReasons.includes(reason)}
+                  onChange={() => toggleCancelReason(reason)}
+                  sx={{ color: theme.palette.custom.neutral[400] }}
+                />
+              }
+              label={
+                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                  {reason}
+                </Typography>
+              }
+            />
+          ))}
+        </Box>
+        {cancelReasons.length === 0 && (
+          <Typography sx={{ fontSize: 12, color: theme.palette.error.main, mt: 1 }}>
+            Please select at least one reason to proceed.
+          </Typography>
+        )}
+      </DialogContent>
+
+      <Divider />
+
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <Button
+          onClick={() => setCancelDialogOpen(false)}
+          sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+        >
+          Go Back
+        </Button>
+        <Button
+          variant="contained"
+          color="error"
+          disabled={cancelReasons.length === 0 || cancelLoading}
+          onClick={handleConfirmCancel}
+          startIcon={cancelLoading ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          {cancelLoading ? 'Cancelling...' : 'Confirm Cancellation'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
+
+// suppress unused var warning for STATUS_COLORS
+void STATUS_COLORS;
 
 export default ShipmentDetailPage;

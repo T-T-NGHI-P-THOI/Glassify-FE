@@ -38,8 +38,7 @@ const formatCurrency = (amount: number) =>
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('vi-VN', {
-    weekday: 'short',
+  return new Date(dateString).toLocaleDateString('en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -49,13 +48,15 @@ const formatDate = (dateString?: string) => {
 };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING:    'Chờ xác nhận',
-  CONFIRMED:  'Đã xác nhận',
-  PROCESSING: 'Đang xử lý',
-  SHIPPED:    'Đang giao',
-  DELIVERED:  'Đã giao',
-  CANCELLED:  'Đã hủy',
-  RETURNED:   'Hoàn trả',
+  PENDING:        'Pending',
+  CONFIRMED:      'Confirmed',
+  PROCESSING:     'Processing',
+  PICKED_UP:      'Picked Up',
+  SHIPPED:        'In Transit',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED:      'Delivered',
+  CANCELLED:      'Cancelled',
+  RETURNED:       'Returned',
 };
 
 const ShopOrdersPage = () => {
@@ -102,22 +103,28 @@ const ShopOrdersPage = () => {
   }, [fetchOrders]);
 
   const getStatusColor = (status: string) => {
+    const { custom } = theme.palette;
     switch (status) {
-      case 'DELIVERED':
-        return { bg: theme.palette.success.light, color: theme.palette.success.main };
-      case 'SHIPPED':
-        return { bg: theme.palette.info.light, color: theme.palette.info.main };
-      case 'PROCESSING':
-        return { bg: theme.palette.custom.status.indigo.light, color: theme.palette.custom.status.indigo.main };
       case 'PENDING':
+        return { bg: custom.neutral[100], color: custom.neutral[500] };
       case 'CONFIRMED':
         return { bg: theme.palette.warning.light, color: theme.palette.warning.main };
+      case 'PROCESSING':
+        return { bg: custom.status.indigo.light, color: custom.status.indigo.main };
+      case 'PICKED_UP':
+        return { bg: custom.status.purple.light, color: custom.status.purple.main };
+      case 'SHIPPED':
+        return { bg: theme.palette.info.light, color: theme.palette.info.main };
+      case 'OUT_FOR_DELIVERY':
+        return { bg: custom.status.pink.light, color: custom.status.pink.main };
+      case 'DELIVERED':
+        return { bg: theme.palette.success.light, color: theme.palette.success.main };
       case 'CANCELLED':
         return { bg: theme.palette.error.light, color: theme.palette.error.main };
       case 'RETURNED':
-        return { bg: theme.palette.custom.status.rose.light, color: theme.palette.custom.status.rose.main };
+        return { bg: custom.status.rose.light, color: custom.status.rose.main };
       default:
-        return { bg: theme.palette.custom.neutral[100], color: theme.palette.text.secondary };
+        return { bg: custom.neutral[100], color: custom.neutral[500] };
     }
   };
 
@@ -133,25 +140,25 @@ const ShopOrdersPage = () => {
   const stats = [
     {
       icon: <LocalShipping sx={{ color: theme.palette.custom.status.pink.main }} />,
-      label: 'Tổng đơn hàng',
+      label: 'Total Orders',
       value: totalOrders.toLocaleString(),
       bgColor: theme.palette.custom.status.pink.light,
     },
     {
       icon: <PendingActions sx={{ color: theme.palette.warning.main }} />,
-      label: 'Chờ xử lý',
+      label: 'Awaiting Action',
       value: pendingCount.toLocaleString(),
       bgColor: theme.palette.warning.light,
     },
     {
       icon: <Inventory sx={{ color: theme.palette.custom.status.purple.main }} />,
-      label: 'Đang xử lý / Giao',
+      label: 'In Progress',
       value: processingCount.toLocaleString(),
       bgColor: theme.palette.custom.status.purple.light,
     },
     {
       icon: <FlightTakeoff sx={{ color: theme.palette.success.main }} />,
-      label: 'Đã giao',
+      label: 'Delivered',
       value: deliveredCount.toLocaleString(),
       bgColor: theme.palette.success.light,
     },
@@ -246,48 +253,48 @@ const ShopOrdersPage = () => {
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Mã đơn
+                          Order No.
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Khách hàng
+                          Customer
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Mã vận đơn
+                          Tracking No.
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Địa chỉ giao
+                          Shipping Address
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Tổng tiền
+                          Total
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                          Ngày đặt
+                          Ordered At
                         </Typography>
                       </TableSortLabel>
                     </TableCell>
                     <TableCell>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
-                        Trạng thái
+                        Status
                       </Typography>
                     </TableCell>
                     <TableCell align="right" />
@@ -297,7 +304,7 @@ const ShopOrdersPage = () => {
                   {orderList.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} align="center" sx={{ py: 6, color: theme.palette.text.secondary }}>
-                        Không có đơn hàng nào
+                        No orders found
                       </TableCell>
                     </TableRow>
                   ) : (

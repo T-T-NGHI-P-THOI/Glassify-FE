@@ -247,4 +247,26 @@ export const shopApi = {
     );
     return response.data;
   },
+
+  confirmShopOrder: async (shopId: string, orderId: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/confirm`,
+    );
+    return response.data;
+  },
+
+  processShopOrder: async (shopId: string, orderId: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/process`,
+    );
+    return response.data;
+  },
+
+  cancelShopOrder: async (shopId: string, orderId: string, reason?: string): Promise<ApiResponse<ShopOrderResponse>> => {
+    const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
+      `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/cancel`,
+      reason ? { reason } : {},
+    );
+    return response.data;
+  },
 };
