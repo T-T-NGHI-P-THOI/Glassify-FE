@@ -16,7 +16,6 @@ import {
     EmailOutlined,
     LockOutlined,
     PersonOutline,
-    PhoneOutlined,
     BadgeOutlined,
     ArrowForward,
     ArrowBack,
@@ -126,8 +125,8 @@ const AuthPage = () => {
     // Register form
     const [registerData, setRegisterData] = useState({
         fullName: '',
+        username: '',
         email: '',
-        phone: '',
         password: '',
         confirmPassword: '',
         gender: '',
@@ -227,13 +226,16 @@ const AuthPage = () => {
         }
 
         try {
-            // Replace with your actual register API call
-            // const result = await authApi.register(registerData);
-            setSuccessMsg('Account created successfully! Please sign in.');
-            setTimeout(() => {
-                setIsRegister(false);
-                setSuccessMsg(null);
-            }, 1000);
+            const result = await authApi.register({
+                username: registerData.username,
+                password: registerData.password,
+                email: registerData.email,
+                fullName: registerData.fullName,
+                gender: registerData.gender,
+            });
+            // @ts-ignore
+            const { accessToken, user } = result.data;
+            handleLoginSuccess(accessToken, user);
         } catch (err: any) {
             const msgs: string[] = err.errors || ['Registration failed. Please try again.'];
             setError(msgs);
@@ -856,16 +858,16 @@ const AuthPage = () => {
                                     sx={inputSx}
                                 />
                                 <TextField
-                                    label="Phone"
-                                    name="phone"
+                                    label="Username"
+                                    name="username"
                                     fullWidth
-                                    value={registerData.phone}
+                                    value={registerData.username}
                                     onChange={handleRegisterChange}
                                     disabled={loading}
                                     InputProps={{
                                         startAdornment: (
                                             <InputAdornment position="start">
-                                                <PhoneOutlined />
+                                                <PersonOutline />
                                             </InputAdornment>
                                         ),
                                     }}
