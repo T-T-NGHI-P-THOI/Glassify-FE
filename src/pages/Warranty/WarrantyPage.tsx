@@ -46,6 +46,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { warrantyApi } from '@/api/warranty-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== ENUMS (matching backend) ====================
 type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'COMPLETED';
@@ -210,6 +211,7 @@ const WarrantyPage = () => {
     }
   }, []);
 
+  useLayoutConfig({ showNavbar: true, showFooter: true });
   useEffect(() => {
     fetchClaims();
   }, [fetchClaims]);

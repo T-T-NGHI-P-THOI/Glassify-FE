@@ -31,18 +31,17 @@ import {
   VerifiedUser,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopBankAccount, CreateBankAccountRequest } from '@/models/Shop';
 import { toast } from 'react-toastify';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const ShopBankAccountPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const [bankAccounts, setBankAccounts] = useState<ShopBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -59,14 +58,7 @@ const ShopBankAccountPage = () => {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   useEffect(() => {
     fetchBankAccounts();

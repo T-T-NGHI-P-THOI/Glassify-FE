@@ -44,12 +44,12 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ShopOwnerSidebar } from '../../../components/sidebar/ShopOwnerSidebar';
-import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import type { ShopOrderResponse } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
 
@@ -152,7 +152,6 @@ const formatCurrency = (amount: number) =>
 
 const ShipmentDetailPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { id } = useParams();
@@ -183,11 +182,7 @@ const ShipmentDetailPage = () => {
       .finally(() => setLoadingOrder(false));
   }, [shop, id]);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => { setShowNavbar(true); setShowFooter(true); };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   if (loadingOrder || !order) {
     return (

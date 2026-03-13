@@ -77,53 +77,9 @@ const PublicRoutesComponent = () => {
             />
 
             <Route
-                path={PAGE_ENDPOINTS.TRACKING.SHOPS}
-                element={
-                    <GuestGuard>
-                        <ShopTrackingPage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.SHOP.PROFILE}
-                element={
-                    <GuestGuard>
-                        <ShopProfilePage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
-                element={
-                    <GuestGuard>
-                        <MyOrdersPage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.WARRANTY.MAIN}
-                element={
-                    <GuestGuard>
-                        <WarrantyPage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
                 path={PAGE_ENDPOINTS.PAYMENT.RESULT}
                 element={<PaymentResultPage />}
             />
-            {/* <Route
-                    path={].SIGN_UP_ENDPOINT}
-                    element={
-                        <GuestGuard>
-                            <SignUpPageComponent />
-                        </GuestGuard>
-                    }
-                /> */}
         </>
     );
 };

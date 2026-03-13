@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { paymentApi, type PaymentResultResponse } from '@/api/payment-api';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const PaymentResultPage = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +23,7 @@ const PaymentResultPage = () => {
   const [result, setResult] = useState<PaymentResultResponse | null>(null);
   const [error, setError] = useState(false);
 
+  useLayoutConfig({ showNavbar: true, showFooter: true });
   useEffect(() => {
     const vnpResponseCode = searchParams.get('vnp_ResponseCode');
     if (!vnpResponseCode) {

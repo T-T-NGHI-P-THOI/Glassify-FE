@@ -26,11 +26,11 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopOwnerSidebar } from '../../../components/sidebar/ShopOwnerSidebar';
-import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // Interface dựa trên DB schema - bảng shipments
 type ShipmentStatus =
@@ -272,7 +272,6 @@ const formatDate = (dateString: string) => {
 };
 
 const ShippingPage = () => {
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const theme = useTheme();
   const { user } = useAuth();
@@ -309,15 +308,8 @@ const ShippingPage = () => {
     navigate(PAGE_ENDPOINTS.SHOP.ORDER_DETAIL.replace(':id', shipmentId.toString()));
   };
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
 
   const totalShipments = shipmentsData.length;
   const outForDelivery = shipmentsData.filter((s) => s.status === 'OUT_FOR_DELIVERY').length;
