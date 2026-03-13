@@ -10,8 +10,8 @@ interface LayoutContextType {
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
 
 export const LayoutProvider = ({ children }: { children: ReactNode }) => {
-  const [showNavbar, setShowNavbar] = useState(true);
-  const [showFooter, setShowFooter] = useState(true);
+  const [showNavbar, setShowNavbar] = useState(false);
+  const [showFooter, setShowFooter] = useState(false);
 
   return (
     <LayoutContext.Provider value={{ showNavbar, showFooter, setShowNavbar, setShowFooter }}>

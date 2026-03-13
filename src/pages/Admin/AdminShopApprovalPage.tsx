@@ -37,7 +37,6 @@ import {
   Business,
   Person,
   LocationOn,
-  InsertDriveFile,
   AccessTime,
   Description,
   Assignment,
@@ -46,15 +45,14 @@ import {
   ThumbDown,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useState } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
 import type { ShopRequest } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const AdminShopApprovalPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const [activeTab, setActiveTab] = useState(0);
   const [registrations, setRegistrations] = useState<ShopRequest[]>([]);
   const [selectedRegistration, setSelectedRegistration] = useState<ShopRequest | null>(null);
@@ -81,16 +79,11 @@ const AdminShopApprovalPage = () => {
     }
   }, []);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    fetchShopRequests();
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter, fetchShopRequests]);
+  useEffect(() => {
+    fetchShopRequests();
+  }, [fetchShopRequests]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -47,6 +47,7 @@ import { ghnApi, type GhnShippingFeeRequest } from '@/api/ghnApi';
 import type { GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== Address Form ====================
 
@@ -104,7 +105,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
   useEffect(() => {
     ghnApi.getProvinces().then((res) => {
       if (res.data) setProvinces(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Init form when dialog opens
@@ -143,7 +144,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
     }
     ghnApi.getDistricts(form.ghnProvinceId).then((res) => {
       if (res.data) setDistricts(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [form.ghnProvinceId]);
 
   // Fetch wards when district changes
@@ -154,7 +155,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
     }
     ghnApi.getWards(form.ghnDistrictId).then((res) => {
       if (res.data) setWards(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [form.ghnDistrictId]);
 
   const validate = (): boolean => {
@@ -566,6 +567,8 @@ const CheckoutPage = () => {
     setWardName(addr.ward);
   };
 
+  useLayoutConfig({ showNavbar: true, showFooter: true });
+
   useEffect(() => {
     if (user) {
       setShippingName(user.fullName || '');
@@ -579,7 +582,7 @@ const CheckoutPage = () => {
   useEffect(() => {
     userWalletApi.getMyWallet().then((res) => {
       if (res.data) setWallet(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -590,7 +593,7 @@ const CheckoutPage = () => {
   useEffect(() => {
     ghnApi.getProvinces().then((res) => {
       if (res.data) setProvinces(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Fetch districts when province changes
@@ -604,7 +607,7 @@ const CheckoutPage = () => {
     }
     ghnApi.getDistricts(selectedProvinceId).then((res) => {
       if (res.data) setDistricts(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) {
       setSelectedDistrictId('');
       setWards([]);
@@ -621,7 +624,7 @@ const CheckoutPage = () => {
     }
     ghnApi.getWards(selectedDistrictId).then((res) => {
       if (res.data) setWards(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) {
       setSelectedWardCode('');
     } else {

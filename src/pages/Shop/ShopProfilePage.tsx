@@ -181,22 +181,11 @@ const mockProducts: Product[] = [
 
 const ShopProfilePage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
 
   const shop = mockShopInfo;
   const products = mockProducts;
-
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {

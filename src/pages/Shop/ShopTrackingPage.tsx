@@ -32,25 +32,16 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
 import type { AdminShopItem } from '@/models/Shop';
 import { toast } from 'react-toastify';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const ShopTrackingPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
 
   const [shops, setShops] = useState<AdminShopItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
-
+  
   const fetchShops = useCallback(async () => {
     try {
       setLoading(true);

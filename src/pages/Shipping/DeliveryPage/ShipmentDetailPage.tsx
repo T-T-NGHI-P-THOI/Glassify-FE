@@ -39,11 +39,11 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ShopOwnerSidebar } from '../../../components/sidebar/ShopOwnerSidebar';
-import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -361,7 +361,6 @@ const RatingStars = ({ rating, theme }: { rating: number; theme: Theme }) => {
 
 const ShipmentDetailPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
@@ -377,15 +376,7 @@ const ShipmentDetailPage = () => {
   // In real app, fetch shipment by id
   const shipment = mockShipmentDetail;
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const statusStyle = getStatusColor(shipment.status, theme);
   const activeStep = getActiveStep(shipment.status);
@@ -677,14 +668,14 @@ const ShipmentDetailPage = () => {
                     shipment.carrier.serviceType === 'EXPRESS'
                       ? theme.palette.custom.status.error.light
                       : shipment.carrier.serviceType === 'STANDARD'
-                      ? theme.palette.custom.status.info.light
-                      : theme.palette.custom.status.success.light,
+                        ? theme.palette.custom.status.info.light
+                        : theme.palette.custom.status.success.light,
                   color:
                     shipment.carrier.serviceType === 'EXPRESS'
                       ? theme.palette.custom.status.error.main
                       : shipment.carrier.serviceType === 'STANDARD'
-                      ? theme.palette.custom.status.info.main
-                      : theme.palette.custom.status.success.main,
+                        ? theme.palette.custom.status.info.main
+                        : theme.palette.custom.status.success.main,
                   fontWeight: 500,
                   fontSize: 12,
                 }}

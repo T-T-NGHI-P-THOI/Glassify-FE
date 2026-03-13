@@ -36,7 +36,6 @@ import {
   WorkspacePremium,
 } from '@mui/icons-material';
 import { useEffect, useRef, useState } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
@@ -44,6 +43,7 @@ import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse, UpdateShopRequest, ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard, BusinessLicenseRequest } from '@/models/Shop';
 import { toast } from 'react-toastify';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const SHOP_NAME_CHANGE_DAYS = 60;
 
@@ -68,7 +68,6 @@ const CLOSE_SHOP_REASONS = [
 const ShopEditProfilePage = () => {
   const theme = useTheme();
   const { user } = useAuth();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,11 +116,7 @@ const ShopEditProfilePage = () => {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => { setShowNavbar(true); setShowFooter(true); };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   useEffect(() => { fetchShop(); }, []);
 
@@ -373,30 +368,30 @@ const ShopEditProfilePage = () => {
   const getTierConfig = (tier: string) => {
     switch (tier) {
       case 'PLATINUM': return { color: '#7C3AED', bg: '#EDE9FE' };
-      case 'GOLD':     return { color: '#D97706', bg: '#FEF3C7' };
-      case 'SILVER':   return { color: '#64748B', bg: '#F1F5F9' };
-      default:         return { color: '#92400E', bg: '#FEF9C3' };
+      case 'GOLD': return { color: '#D97706', bg: '#FEF3C7' };
+      case 'SILVER': return { color: '#64748B', bg: '#F1F5F9' };
+      default: return { color: '#92400E', bg: '#FEF9C3' };
     }
   };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'ACTIVE':               return { color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light, label: 'Active' };
-      case 'INACTIVE':             return { color: theme.palette.custom.status.error.main,   bg: theme.palette.custom.status.error.light,   label: 'Inactive' };
-      case 'CLOSING':              return { color: theme.palette.custom.status.error.main,   bg: theme.palette.custom.status.error.light,   label: 'Closing' };
-      case 'PENDING':              return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Pending' };
+      case 'ACTIVE': return { color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light, label: 'Active' };
+      case 'INACTIVE': return { color: theme.palette.custom.status.error.main, bg: theme.palette.custom.status.error.light, label: 'Inactive' };
+      case 'CLOSING': return { color: theme.palette.custom.status.error.main, bg: theme.palette.custom.status.error.light, label: 'Closing' };
+      case 'PENDING': return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Pending' };
       case 'PENDING_DEACTIVATION': return { color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light, label: 'Pending Deactivation' };
-      default:                     return { color: theme.palette.custom.neutral[500], bg: theme.palette.custom.neutral[100], label: status };
+      default: return { color: theme.palette.custom.neutral[500], bg: theme.palette.custom.neutral[100], label: status };
     }
   };
 
-  const nameChangeable    = canChangeShopName();
-  const daysLeft          = getDaysUntilNameChange();
-  const isShopInactive    = shop?.status === 'INACTIVE';
-  const isShopClosing     = shop?.status === 'CLOSING';
-  const isPendingReview   = shop?.status === 'PENDING' && shop?.latestRequestStatus !== 'REJECTED';
+  const nameChangeable = canChangeShopName();
+  const daysLeft = getDaysUntilNameChange();
+  const isShopInactive = shop?.status === 'INACTIVE';
+  const isShopClosing = shop?.status === 'CLOSING';
+  const isPendingReview = shop?.status === 'PENDING' && shop?.latestRequestStatus !== 'REJECTED';
   const isRequestRejected = shop?.status === 'PENDING' && shop?.latestRequestStatus === 'REJECTED';
-  const isShopDisabled    = isShopInactive || isShopClosing || isPendingReview;
+  const isShopDisabled = isShopInactive || isShopClosing || isPendingReview;
 
   if (loading) {
     return (
@@ -420,7 +415,7 @@ const ShopEditProfilePage = () => {
   }
 
   const statusCfg = getStatusConfig(shop.status);
-  const tierCfg   = getTierConfig(shop.tier);
+  const tierCfg = getTierConfig(shop.tier);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -720,7 +715,8 @@ const ShopEditProfilePage = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>License Status:</Typography>
                     <Chip label={shop.businessLicense.status} size="small"
-                      sx={{ fontWeight: 600, fontSize: 11,
+                      sx={{
+                        fontWeight: 600, fontSize: 11,
                         bgcolor: shop.businessLicense.status === 'APPROVED' ? theme.palette.custom.status.success.light : theme.palette.custom.status.warning.light,
                         color: shop.businessLicense.status === 'APPROVED' ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main,
                       }} />
