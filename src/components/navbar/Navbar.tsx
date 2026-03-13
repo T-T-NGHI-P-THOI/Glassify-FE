@@ -35,6 +35,7 @@ import { logOut } from '@/auth/Reducer';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
+import CartProvider from "@/contexts/CartProvider";
 import { useLayout } from '@/layouts/LayoutContext';
 
 export const Navbar = () => {
@@ -99,7 +100,7 @@ export const Navbar = () => {
   };
 
   return (
-    <>
+    <CartProvider>
       <AppBar
         position="static"
         elevation={0}
@@ -413,6 +414,6 @@ export const Navbar = () => {
           </Box>
         </Container>
       </AppBar>
-    </>
+    </CartProvider>
   );
 };

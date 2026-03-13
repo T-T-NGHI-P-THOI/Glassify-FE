@@ -193,6 +193,7 @@ const DashboardPage = () => {
       setShowFooter(true);
     };
   }, [setShowNavbar, setShowFooter]);
+  
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000000) {

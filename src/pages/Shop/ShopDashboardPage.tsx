@@ -61,32 +61,25 @@ import {
 } from 'recharts';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse, ShopStatus, ShopTier } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const ShopDashboardPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [ghnNames, setGhnNames] = useState({ province: '', district: '', ward: '' });
   const [cancelDeactivateLoading, setCancelDeactivateLoading] = useState(false);
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  
+  useLayoutConfig({showNavbar: false, showFooter: false});
 
   useEffect(() => {
     fetchShopDetail();

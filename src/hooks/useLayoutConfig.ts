@@ -12,6 +12,15 @@ export const useLayoutConfig = ({ showNavbar = true, showFooter = true }: Layout
   useEffect(() => {
     setShowNavbar(showNavbar);
     setShowFooter(showFooter);
+    return () => {
+      setShowNavbar(false);
+      setShowFooter(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    setShowNavbar(showNavbar);
+    setShowFooter(showFooter);
 
     return () => {
       setShowNavbar(true);

@@ -52,7 +52,6 @@ import {
   LocalShipping,
   AttachMoney,
   TrendingUp,
-  Visibility,
   ToggleOff,
   Close,
   Image as ImageIcon,
@@ -63,17 +62,16 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
-import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 
 const AdminShopDetailPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -92,14 +90,7 @@ const AdminShopDetailPage = () => {
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const fetchShop = useCallback(async () => {
     if (!id) return;

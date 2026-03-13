@@ -35,15 +35,14 @@ import {
   MonetizationOn,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopWalletApi } from '@/api/shop-wallet-api';
 import type { WalletResponse, WithdrawalResponse, TransactionResponse } from '@/api/shop-wallet-api';
-import { shopApi } from '@/api/shopApi';
 import type { ShopBankAccount } from '@/models/Shop';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -105,7 +104,6 @@ const getTransactionColor = (type: string) => {
 const ShopWalletPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
-  const { setShowNavbar, setShowFooter } = useLayout();
 
   // State
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
@@ -135,14 +133,7 @@ const ShopWalletPage = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingWithdrawal, setCancellingWithdrawal] = useState<WithdrawalResponse | null>(null);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const fetchWallet = useCallback(async () => {
     try {
@@ -208,9 +199,9 @@ const ShopWalletPage = () => {
   //   fetchBankAccounts();
   // }, [fetchWallet, fetchBankAccounts]);
 
-    useEffect(() => {
-        fetchWallet();
-    }, [fetchWallet]);
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
 
   useEffect(() => {
     if (activeTab === 0) {

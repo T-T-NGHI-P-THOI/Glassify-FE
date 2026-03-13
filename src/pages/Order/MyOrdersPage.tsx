@@ -40,6 +40,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { orderApi } from '@/api/order-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== ENUMS (matching backend) ====================
 type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
@@ -296,6 +297,8 @@ const MyOrdersPage = () => {
     'Delivery time is too long',
     'Other',
   ];
+
+  useLayoutConfig({ showNavbar: true, showFooter: true });
 
   const fetchOrders = useCallback(async () => {
     try {
