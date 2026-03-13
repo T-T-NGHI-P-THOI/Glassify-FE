@@ -36,6 +36,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import CartProvider from "@/contexts/CartProvider";
+import { useLayout } from '@/layouts/LayoutContext';
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +45,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const { itemCount, isAnimating } = useCart();
   const { isAuthenticated, user, dispatch } = useAuth();
+  const { showNavCategories } = useLayout();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -344,39 +346,41 @@ export const Navbar = () => {
           </Toolbar>
 
           {/* Main Navigation */}
-          <Box
-            sx={{
-              display: { xs: "none", md: "flex" },
-              justifyContent: "center",
-              gap: 0.5,
-              py: 1,
-              borderTop: "1px solid #e5e7eb",
-            }}
-          >
-            {mainCategories.map((item) => (
-              <Button
-                key={item.path + item.label}
-                onClick={() => handleCategoryClick(item)}
-                sx={{
-                  backgroundColor: "transparent",
-                  color: item.special ? "#000000" : "#000000",
-                  fontWeight: item.special ? 600 : 500,
-                  px: 2,
-                  py: 0.75,
-                  textTransform: "none",
-                  fontSize: "0.95rem",
-                  boxShadow: "none",
-                  ":hover": {
+          {showNavCategories && (
+            <Box
+              sx={{
+                display: { xs: "none", md: "flex" },
+                justifyContent: "center",
+                gap: 0.5,
+                py: 1,
+                borderTop: "1px solid #e5e7eb",
+              }}
+            >
+              {mainCategories.map((item) => (
+                <Button
+                  key={item.path + item.label}
+                  onClick={() => handleCategoryClick(item)}
+                  sx={{
+                    backgroundColor: "transparent",
+                    color: item.special ? "#000000" : "#000000",
+                    fontWeight: item.special ? 600 : 500,
+                    px: 2,
+                    py: 0.75,
+                    textTransform: "none",
+                    fontSize: "0.95rem",
                     boxShadow: "none",
-                    backgroundColor: "#f3f4f6",
-                    borderRadius: "20px",
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Box>
+                    ":hover": {
+                      boxShadow: "none",
+                      backgroundColor: "#f3f4f6",
+                      borderRadius: "20px",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+          )}
 
           {/* Mobile Search */}
           <Box

@@ -14,13 +14,13 @@ import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
 import UserWalletPage from "@/pages/User/UserWalletPage"
-import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 import ShopStaffPage from "@/pages/Shop/ShopStaffPage"
 import WarrantyPage from "@/pages/Warranty/WarrantyPage"
 import MyOrdersPage from "@/pages/Order/MyOrdersPage"
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage"
 import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage"
+import ShopOrdersPage from "@/pages/Shop/ShopOrdersPage"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -184,7 +184,7 @@ const PrivateRoutesComponent = () => {
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
-                            <ShippingPage />
+                            <ShopOrdersPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
