@@ -50,10 +50,10 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 const registrationSteps = [
-    { label: 'Frame Info',      key: 'FRAME_INFO' },
-    { label: 'Frame Variant',   key: 'VARIANT'    },
-    { label: 'Upload 3D Model', key: 'UPLOAD'     },
-    { label: 'Review & Submit', key: 'REVIEW'     },
+    { label: 'Frame Info', key: 'FRAME_INFO' },
+    { label: 'Frame Variant', key: 'VARIANT' },
+    { label: 'Upload 3D Model', key: 'UPLOAD' },
+    { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -66,17 +66,17 @@ const CreateFramePage = () => {
     const [activeStep, setActiveStep] = useState(0);
 
     // ── Refs to child submit() ────────────────────────────────────────────────
-    const frameInfoRef     = useRef<CreateFrameGroupPageRef>(null);
-    const variantRef       = useRef<CreateFrameVariantPageRef>(null);
+    const frameInfoRef = useRef<CreateFrameGroupPageRef>(null);
+    const variantRef = useRef<CreateFrameVariantPageRef>(null);
     const upload3DModelRef = useRef<Upload3DModelPageRef>(null);
 
     // ── Persisted data (survive Back navigation) ──────────────────────────────
-    const [frameGroupId,     setFrameGroupId]     = useState<string>('');
-    const [variantId,        setVariantId]        = useState<string>('');
-    const [savedGroupData,   setSavedGroupData]   = useState<Partial<CreateFrameFormData>>({});
+    const [frameGroupId, setFrameGroupId] = useState<string>('');
+    const [variantId, setVariantId] = useState<string>('');
+    const [savedGroupData, setSavedGroupData] = useState<Partial<CreateFrameFormData>>({});
     const [savedVariantData, setSavedVariantData] = useState<Partial<CreateFrameVariantFormData>>({});
-    const [savedModelFile,   setSavedModelFile]   = useState<Model3DFile | null>(null);
-    const [savedModelUrl,    setSavedModelUrl]    = useState<string>('');
+    const [savedModelFile, setSavedModelFile] = useState<Model3DFile | null>(null);
+    const [savedModelUrl, setSavedModelUrl] = useState<string>('');
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -84,17 +84,12 @@ const CreateFramePage = () => {
         try {
             if (activeStep === 0) {
                 await frameInfoRef.current?.submit();
-                // setActiveStep(1) runs inside onCreated callback
             } else if (activeStep === 1) {
                 await variantRef.current?.submit();
-                // setActiveStep(2) runs inside onCreated callback
             } else if (activeStep === 2) {
                 await upload3DModelRef.current?.submit();
-                // setActiveStep(3) runs inside onUploaded callback
-            } else {
-                // step 3 (Review) — just advance
-                setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
             }
+            setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         } catch {
             // validation failed or API error → stay on current step
         }
@@ -207,7 +202,6 @@ const CreateFramePage = () => {
                             onCreated={(id, data) => {
                                 setFrameGroupId(id);
                                 setSavedGroupData(data);
-                                setActiveStep(1);
                             }}
                         />
                     )}
@@ -221,7 +215,6 @@ const CreateFramePage = () => {
                             onCreated={(id, data) => {
                                 setVariantId(id);
                                 setSavedVariantData(data);
-                                setActiveStep(2);
                             }}
                         />
                     )}
@@ -235,7 +228,6 @@ const CreateFramePage = () => {
                             onUploaded={(modelUrl, file) => {
                                 setSavedModelUrl(modelUrl);
                                 setSavedModelFile(file);
-                                setActiveStep(3);
                             }}
                         />
                     )}

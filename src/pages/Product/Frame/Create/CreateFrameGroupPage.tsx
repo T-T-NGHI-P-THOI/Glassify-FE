@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useState, forwardRef, useImperativeHandle } from "react";
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ProductAPI from "@/api/product-api";
 // import ProductAPI from '@/api/product-api'; // ← uncomment khi có API thật
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
 
         const [formData, setFormData] = useState<CreateFrameFormData>({
             ...DEFAULT_FORM,
-            ...initialData, // ← restore khi back
+            ...initialData,
         });
 
         const [loading, setLoading] = useState(false);
@@ -133,20 +134,22 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
             setLoading(true);
             try {
                 // ── Call API ───────────────────────────────────────────────────
-                // const response = await ProductAPI.createFrameGroup({
-                //     ...formData,
-                //     createdBy,
-                // });
-                // const frameGroupId: string = response.id;
-                // setSuccess(true);
-                // onCreated?.(frameGroupId, formData);
+                const payload = new FormData();
+                payload.append('productName', formData.frameName.trim());
+                payload.append('frameShape', formData.frameShape);
+                payload.append('frameStructure', formData.frameStructure);
+                payload.append('frameMaterial', formData.frameMaterial);
+                payload.append('genderTarget', formData.genderTarget);
+                payload.append('ageGroup', formData.ageGroup);
+                payload.append('description', formData.description.trim());
+                
+                const response = await ProductAPI.createFrameGroup(payload)
+                console.log("Response: ", response);
 
                 // ── Mock: xóa khi có API thật ──────────────────────────────────
-                await new Promise(r => setTimeout(r, 800));
                 const frameGroupId = 'group-' + Date.now();
                 setSuccess(true);
                 onCreated?.(frameGroupId, formData);
-
             } catch (err: any) {
                 throw new Error('API Error');
             } finally {
