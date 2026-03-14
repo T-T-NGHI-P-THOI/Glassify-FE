@@ -1,7 +1,7 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
-import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameInfoPage';
+import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
 
 // Category type from API
 export interface ApiCategory {
