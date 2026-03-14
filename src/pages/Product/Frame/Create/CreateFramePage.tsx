@@ -32,8 +32,7 @@ import Upload3DModelPage, {
     type Model3DFile,
 } from './Upload3DModel';
 
-import GenerateFrameModel from './GenerateFrameModel';
-import View3DModelPage from './View3DModelPage';
+import ReviewFramePage from './ReviewFramePage';
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -54,7 +53,6 @@ const registrationSteps = [
     { label: 'Frame Info',      key: 'FRAME_INFO' },
     { label: 'Frame Variant',   key: 'VARIANT'    },
     { label: 'Upload 3D Model', key: 'UPLOAD'     },
-    { label: 'View 3D Model',   key: '3D_MODEL'   },
     { label: 'Review & Submit', key: 'REVIEW'     },
 ];
 
@@ -68,9 +66,9 @@ const CreateFramePage = () => {
     const [activeStep, setActiveStep] = useState(0);
 
     // ── Refs to child submit() ────────────────────────────────────────────────
-    const frameInfoRef      = useRef<CreateFrameGroupPageRef>(null);
-    const variantRef        = useRef<CreateFrameVariantPageRef>(null);
-    const upload3DModelRef  = useRef<Upload3DModelPageRef>(null);
+    const frameInfoRef     = useRef<CreateFrameGroupPageRef>(null);
+    const variantRef       = useRef<CreateFrameVariantPageRef>(null);
+    const upload3DModelRef = useRef<Upload3DModelPageRef>(null);
 
     // ── Persisted data (survive Back navigation) ──────────────────────────────
     const [frameGroupId,     setFrameGroupId]     = useState<string>('');
@@ -86,19 +84,19 @@ const CreateFramePage = () => {
         try {
             if (activeStep === 0) {
                 await frameInfoRef.current?.submit();
-                // setActiveStep(1) chạy trong onCreated callback bên dưới
+                // setActiveStep(1) runs inside onCreated callback
             } else if (activeStep === 1) {
                 await variantRef.current?.submit();
-                // setActiveStep(2) chạy trong onCreated callback bên dưới
+                // setActiveStep(2) runs inside onCreated callback
             } else if (activeStep === 2) {
                 await upload3DModelRef.current?.submit();
-                // setActiveStep(3) chạy trong onUploaded callback bên dưới
+                // setActiveStep(3) runs inside onUploaded callback
             } else {
-                // step 3, 4 — không cần async
+                // step 3 (Review) — just advance
                 setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
             }
         } catch {
-            // validation failed hoặc API error → giữ nguyên step
+            // validation failed or API error → stay on current step
         }
     };
 
@@ -107,6 +105,7 @@ const CreateFramePage = () => {
     };
 
     const handleSubmit = () => {
+        // TODO: final submit API call if needed
         navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
     };
 
@@ -118,7 +117,7 @@ const CreateFramePage = () => {
         <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50], display: 'flex' }}>
             <Sidebar activeMenu={PAGE_ENDPOINTS.TRACKING.SHOPS} />
 
-            <Box sx={{ maxWidth: 900, mx: 'auto', p: 4 }}>
+            <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
                     <IconButton onClick={() => navigate(-1)}>
@@ -241,9 +240,15 @@ const CreateFramePage = () => {
                         />
                     )}
 
-                    {/* ── Step 3: View 3D Model ── */}
-                    {activeStep === 3 && <View3DModelPage />}
-                    
+                    {/* ── Step 3: Review & Submit ── */}
+                    {activeStep === 3 && (
+                        <ReviewFramePage
+                            groupData={savedGroupData}
+                            variantData={savedVariantData}
+                            modelFile={savedModelFile}
+                        />
+                    )}
+
                     {/* Navigation Buttons */}
                     <Box
                         sx={{
@@ -277,7 +282,7 @@ const CreateFramePage = () => {
                                     '&:hover': { bgcolor: '#15803d' },
                                 }}
                             >
-                                Submit Registration
+                                Submit
                             </Button>
                         )}
                     </Box>
