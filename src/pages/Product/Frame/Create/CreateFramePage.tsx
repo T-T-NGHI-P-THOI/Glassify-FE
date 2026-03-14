@@ -27,6 +27,11 @@ import CreateFrameVariantPage, {
     type CreateFrameVariantFormData,
 } from './CreateFrameVariantPage';
 
+import Upload3DModelPage, {
+    type Upload3DModelPageRef,
+    type Model3DFile,
+} from './Upload3DModel';
+
 import GenerateFrameModel from './GenerateFrameModel';
 import View3DModelPage from './View3DModelPage';
 
@@ -46,11 +51,11 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 const registrationSteps = [
-    { label: 'Frame Info', key: 'FRAME_INFO' },
-    { label: 'Frame Variant', key: 'VARIANT' },
-    { label: 'Upload Angles', key: 'UPLOAD' },
-    { label: 'View 3D Model', key: '3D_MODEL' },
-    { label: 'Review & Submit', key: 'REVIEW' },
+    { label: 'Frame Info',      key: 'FRAME_INFO' },
+    { label: 'Frame Variant',   key: 'VARIANT'    },
+    { label: 'Upload 3D Model', key: 'UPLOAD'     },
+    { label: 'View 3D Model',   key: '3D_MODEL'   },
+    { label: 'Review & Submit', key: 'REVIEW'     },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -60,33 +65,40 @@ const CreateFramePage = () => {
     const navigate = useNavigate();
 
     // ── Step ──────────────────────────────────────────────────────────────────
-    const [activeStep, setActiveStep] = useState(1);
+    const [activeStep, setActiveStep] = useState(0);
 
     // ── Refs to child submit() ────────────────────────────────────────────────
-    const frameInfoRef = useRef<CreateFrameGroupPageRef>(null);
-    const variantRef   = useRef<CreateFrameVariantPageRef>(null);
+    const frameInfoRef      = useRef<CreateFrameGroupPageRef>(null);
+    const variantRef        = useRef<CreateFrameVariantPageRef>(null);
+    const upload3DModelRef  = useRef<Upload3DModelPageRef>(null);
 
     // ── Persisted data (survive Back navigation) ──────────────────────────────
-    const [frameGroupId,    setFrameGroupId]    = useState<string>('');
-    const [savedGroupData,  setSavedGroupData]  = useState<Partial<CreateFrameFormData>>({});
+    const [frameGroupId,     setFrameGroupId]     = useState<string>('');
+    const [variantId,        setVariantId]        = useState<string>('');
+    const [savedGroupData,   setSavedGroupData]   = useState<Partial<CreateFrameFormData>>({});
     const [savedVariantData, setSavedVariantData] = useState<Partial<CreateFrameVariantFormData>>({});
+    const [savedModelFile,   setSavedModelFile]   = useState<Model3DFile | null>(null);
+    const [savedModelUrl,    setSavedModelUrl]    = useState<string>('');
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     const handleNext = async () => {
         try {
             if (activeStep === 0) {
-                // submit() validates + calls API
-                // onCreated callback (below) runs on success → setActiveStep
                 await frameInfoRef.current?.submit();
+                // setActiveStep(1) chạy trong onCreated callback bên dưới
             } else if (activeStep === 1) {
                 await variantRef.current?.submit();
+                // setActiveStep(2) chạy trong onCreated callback bên dưới
+            } else if (activeStep === 2) {
+                await upload3DModelRef.current?.submit();
+                // setActiveStep(3) chạy trong onUploaded callback bên dưới
             } else {
-                // steps 2, 3, 4 — no validation needed yet
+                // step 3, 4 — không cần async
                 setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
             }
         } catch {
-            // validate failed or API error → stay on current step
+            // validation failed hoặc API error → giữ nguyên step
         }
     };
 
@@ -194,10 +206,8 @@ const CreateFramePage = () => {
                             ref={frameInfoRef}
                             initialData={savedGroupData}
                             onCreated={(id, data) => {
-                                // lưu lại để restore nếu user back
                                 setFrameGroupId(id);
                                 setSavedGroupData(data);
-                                // chỉ chuyển step khi API thành công
                                 setActiveStep(1);
                             }}
                         />
@@ -209,39 +219,31 @@ const CreateFramePage = () => {
                             ref={variantRef}
                             frameGroupId={frameGroupId}
                             initialData={savedVariantData}
-                            onCreated={(_, data) => {
-                                // lưu lại để restore nếu user back
+                            onCreated={(id, data) => {
+                                setVariantId(id);
                                 setSavedVariantData(data);
                                 setActiveStep(2);
                             }}
                         />
                     )}
 
-                    {/* ── Step 2: Upload Angles ── */}
-                    {activeStep === 2 && <GenerateFrameModel />}
+                    {/* ── Step 2: Upload 3D Model ── */}
+                    {activeStep === 2 && (
+                        <Upload3DModelPage
+                            ref={upload3DModelRef}
+                            variantId={variantId}
+                            initialFile={savedModelFile}
+                            onUploaded={(modelUrl, file) => {
+                                setSavedModelUrl(modelUrl);
+                                setSavedModelFile(file);
+                                setActiveStep(3);
+                            }}
+                        />
+                    )}
 
                     {/* ── Step 3: View 3D Model ── */}
                     {activeStep === 3 && <View3DModelPage />}
-
-                    {/* ── Step 4: Review & Submit ── */}
-                    {activeStep === 4 && (
-                        <Box sx={{ textAlign: 'center', py: 4 }}>
-                            <CheckCircle
-                                sx={{
-                                    fontSize: 64,
-                                    color: theme.palette.custom.status.success.main,
-                                    mb: 2,
-                                }}
-                            />
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                                Ready to Submit
-                            </Typography>
-                            <Typography sx={{ color: theme.palette.custom.neutral[500] }}>
-                                Please review your information before submitting.
-                            </Typography>
-                        </Box>
-                    )}
-
+                    
                     {/* Navigation Buttons */}
                     <Box
                         sx={{
