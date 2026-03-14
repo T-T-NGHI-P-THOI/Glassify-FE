@@ -20,6 +20,7 @@ import { styled, useTheme } from '@mui/material/styles';
 import { Delete, CloudUpload } from '@mui/icons-material';
 import { useState, forwardRef, useImperativeHandle } from 'react';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ProductAPI from '@/api/product-api';
 // import VariantAPI from '@/api/variant-api'; // ← uncomment khi có API thật
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ export interface ProductImage {
 export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
-    size: 'S' | 'M' | 'L' | '';
+    size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
     frameWidthMm: string;
     lensWidthMm: string;
     lensHeightMm: string;
@@ -149,8 +150,8 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             if (!formData.basePrice || Number(formData.basePrice) <= 0)
                 e.basePrice = 'Base price must be greater than 0';
 
-            if (formData.stock === '' || Number(formData.stock) < 0)
-                e.stock = 'Stock must be ≥ 0';
+            if (!formData.stock || Number(formData.stock) <= 0)
+                e.stock = 'Stock must be greater than 0';
 
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
@@ -163,28 +164,49 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
         const handleSubmit = async () => {
             if (!validate()) throw new Error('Validation failed');
-
+            if (!frameGroupId) throw new Error('frameGroupId is missing');
+            console.log(frameGroupId)
             setLoading(true);
             try {
-                // ── Build payload ──────────────────────────────────────────────
-                // const payload = new FormData();
-                // payload.append('frameGroupId', frameGroupId ?? '');
-                // payload.append('colorName', formData.colorName.trim());
-                // payload.append('colorHex', formData.colorHex);
-                // payload.append('size', formData.size);
-                // payload.append('stock', formData.stock);
-                // payload.append('basePrice', formData.basePrice);
-                // formData.images.forEach(img => img.file && payload.append('images', img.file));
+                const payload = new FormData();
 
-                // ── Call API ───────────────────────────────────────────────────
-                // const response = await VariantAPI.createFrameVariant(payload);
-                // onCreated?.(response.id, formData);
+                payload.append('frameGroupId', frameGroupId);
 
-                // ── Mock: xóa khi có API thật ──────────────────────────────────
-                await new Promise(r => setTimeout(r, 800));
-                const mockId = 'variant-' + Date.now();
-                onCreated?.(mockId, formData);
+                // tạm thời phải có shopId nếu backend đang yêu cầu
+                payload.append('shopId', '321a10bc-76f5-48e5-9032-19f0e51098fb');
 
+                payload.append('colorName', formData.colorName.trim());
+                payload.append('colorHex', formData.colorHex);
+                payload.append('size', formData.size);
+
+                if (formData.frameWidthMm) payload.append('frameWidthMm', formData.frameWidthMm);
+                if (formData.lensWidthMm) payload.append('lensWidthMm', formData.lensWidthMm);
+                if (formData.lensHeightMm) payload.append('lensHeightMm', formData.lensHeightMm);
+                if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', formData.bridgeWidthMm);
+                if (formData.templeLengthMm) payload.append('templeLengthMm', formData.templeLengthMm);
+
+                payload.append('hasNosepads', String(formData.hasNosepads));
+                payload.append('hasSpringHinge', String(formData.hasSpringHinge));
+                payload.append('vrEnabled', String(formData.vrEnabled));
+
+                if (formData.stock) payload.append('stock', formData.stock);
+                if (formData.stockThreshold) payload.append('stockThreshold', formData.stockThreshold);
+                if (formData.warrantyMonths) payload.append('warrantyMonths', formData.warrantyMonths);
+
+                if (formData.costPrice) payload.append('costPrice', formData.costPrice);
+                if (formData.basePrice) payload.append('basePrice', formData.basePrice);
+                if (formData.compareAtPrice) payload.append('compareAtPrice', formData.compareAtPrice);
+
+                payload.append('isReturnable', String(formData.isReturnable));
+
+                formData.images.forEach(img => {
+                    if (img.file) {
+                        payload.append('productImages', img.file);
+                    }
+                });
+
+                const response = await ProductAPI.createFrameVariant(payload);
+                onCreated?.(response.id, formData);
             } finally {
                 setLoading(false);
             }
@@ -292,11 +314,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             <Select
                                 value={formData.size}
                                 label="Frame Size"
-                                onChange={e => setField('size', e.target.value as 'S' | 'M' | 'L')}
+                                onChange={e => setField('size', e.target.value as 'SMALL' | 'MEDIUM' | 'LARGE')}
                             >
-                                <MenuItem value="S">Small</MenuItem>
-                                <MenuItem value="M">Medium</MenuItem>
-                                <MenuItem value="L">Large</MenuItem>
+                                <MenuItem value="SMALL">Small</MenuItem>
+                                <MenuItem value="MEDIUM">Medium</MenuItem>
+                                <MenuItem value="LARGE">Large</MenuItem>
                             </Select>
                             {errors.size && (
                                 <Typography color="error" fontSize={12} sx={{ mt: 0.5, ml: 1.5 }}>

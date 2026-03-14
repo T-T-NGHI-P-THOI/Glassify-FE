@@ -142,12 +142,12 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                 payload.append('genderTarget', formData.genderTarget);
                 payload.append('ageGroup', formData.ageGroup);
                 payload.append('description', formData.description.trim());
-                
+
                 const response = await ProductAPI.createFrameGroup(payload)
                 console.log("Response: ", response);
 
                 // ── Mock: xóa khi có API thật ──────────────────────────────────
-                const frameGroupId = 'group-' + Date.now();
+                const frameGroupId = response.id;
                 setSuccess(true);
                 onCreated?.(frameGroupId, formData);
             } catch (err: any) {

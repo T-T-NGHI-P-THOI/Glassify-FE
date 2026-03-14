@@ -216,4 +216,17 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  static async createFrameVariant(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.CREATE_FRAME_VARIANT,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
 }
