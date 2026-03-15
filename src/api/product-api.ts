@@ -229,4 +229,17 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  static async upload3DModelFile(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.UPLOAD_3D_MODEL,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
 }

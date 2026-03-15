@@ -18,6 +18,7 @@ import {
 } from 'react';
 import { UploadArea } from './CreateFrameVariantPage';
 import { ThreeJsService } from '@/services/ThreeJsService';
+import ProductAPI from '@/api/product-api';
 // import ModelAPI from '@/api/model-api'; // ← uncomment khi có API thật
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -175,13 +176,13 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
             setLoading(true);
             try {
                 // ── Build payload ──────────────────────────────────────────────
-                // const payload = new FormData();
-                // payload.append('variantId', variantId ?? '');
-                // payload.append('model', modelFile.file);
+                const payload = new FormData();
+                payload.append('frameVariantId', variantId ?? '');
+                payload.append('file', modelFile.file);
 
                 // ── Call API ───────────────────────────────────────────────────
-                // const response = await ModelAPI.uploadModel(payload);
-                // onUploaded?.(response.modelUrl, modelFile);
+                const response = await ProductAPI.upload3DModelFile(payload);
+                onUploaded?.(response.modelUrl, modelFile);
 
                 // ── Mock: xóa khi có API thật ──────────────────────────────────
                 await new Promise(r => setTimeout(r, 800));
