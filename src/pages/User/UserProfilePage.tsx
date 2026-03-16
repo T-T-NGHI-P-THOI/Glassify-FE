@@ -58,24 +58,22 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { useLayout } from '../../layouts/LayoutContext';
 import {
     AuthProvider,
     type ChangePasswordRequest,
-    type UserProfileResponse,
     type UserResponse,
     type UserStats
 } from "@/models/User.ts";
 import userApi from "@/api/service/userApi.ts";
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== COMPONENT ====================
 
 const UserProfilePage = () => {
     const theme = useTheme();
     const navigate = useNavigate();
-    const { setShowNavbar, setShowFooter } = useLayout();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ========== DATA STATES ==========
@@ -268,14 +266,8 @@ const UserProfilePage = () => {
     };
 
     // ========== EFFECTS ==========
-    useEffect(() => {
-        setShowNavbar(false);
-        setShowFooter(false);
-        return () => {
-            setShowNavbar(true);
-            setShowFooter(true);
-        };
-    }, [setShowNavbar, setShowFooter]);
+    // Disable navbar and footer
+    useLayoutConfig({showNavbar: false, showFooter: false});
 
     // Fetch data on mount
     useEffect(() => {

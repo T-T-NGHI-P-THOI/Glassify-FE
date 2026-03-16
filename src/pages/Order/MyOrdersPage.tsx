@@ -14,6 +14,7 @@ import {
   DialogActions,
   Divider,
   Grid,
+  Checkbox,
   TextField,
   Radio,
   RadioGroup,
@@ -51,6 +52,7 @@ import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
 import { checkReturnEligibility, createReturnRequest } from '@/api/refund-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -117,18 +119,18 @@ interface Order {
 // Mock data removed - using real API
 
 // ==================== HELPERS ====================
-const ORDER_STEPS = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
-    case 'PENDING': return 0;
-    case 'CONFIRMED': return 1;
-    case 'PROCESSING': return 1;
-    case 'SHIPPED': return 2;
-    case 'DELIVERED': return 3;
-    case 'CANCELLED': return -1;
-    case 'REFUNDED': return -1;
-    default: return 0;
+    case 'PENDING':    return 0;
+    case 'CONFIRMED':  return 1;
+    case 'PROCESSING': return 2;
+    case 'SHIPPED':    return 3;
+    case 'DELIVERED':  return 4;
+    case 'CANCELLED':  return -1;
+    case 'REFUNDED':   return -1;
+    default:           return 0;
   }
 };
 
@@ -249,6 +251,7 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 
   const stepIcons = [
     <HourglassEmpty key="pending" sx={{ fontSize: 18 }} />,
+    <VerifiedUser key="confirmed" sx={{ fontSize: 18 }} />,
     <Inventory key="processing" sx={{ fontSize: 18 }} />,
     <LocalShipping key="shipped" sx={{ fontSize: 18 }} />,
     <CheckCircle key="delivered" sx={{ fontSize: 18 }} />,
@@ -328,6 +331,20 @@ const MyOrdersPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelReasons, setCancelReasons] = useState<string[]>([]);
+
+  const CUSTOMER_CANCEL_REASONS = [
+    'Changed my mind',
+    'Found a better price elsewhere',
+    'Ordered by mistake',
+    'Item no longer needed',
+    'Delivery time is too long',
+    'Other',
+  ];
+
+  useLayoutConfig({ showNavbar: true, showFooter: true });
 
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
@@ -355,13 +372,27 @@ const MyOrdersPage = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleCancelOrder = async (orderId: string) => {
+  const openCancelDialog = (orderId: string) => {
+    setCancelTargetId(orderId);
+    setCancelReasons([]);
+    setCancelDialogOpen(true);
+  };
+
+  const toggleCancelReason = (reason: string) => {
+    setCancelReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason],
+    );
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetId || cancelReasons.length === 0) return;
     try {
-      setCancellingOrderId(orderId);
-      await orderApi.cancelOrder(orderId);
+      setCancellingOrderId(cancelTargetId);
+      await orderApi.cancelOrder(cancelTargetId);
       toast.success('Order cancelled successfully');
+      setCancelDialogOpen(false);
       await fetchOrders();
-      if (selectedOrder?.id === orderId) {
+      if (selectedOrder?.id === cancelTargetId) {
         setDetailDialogOpen(false);
       }
     } catch (error) {
@@ -369,6 +400,7 @@ const MyOrdersPage = () => {
       toast.error('Failed to cancel order');
     } finally {
       setCancellingOrderId(null);
+      setCancelTargetId(null);
     }
   };
 
@@ -472,7 +504,7 @@ const MyOrdersPage = () => {
       case 'REFUNDED':
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'CONFIRMED':
-        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
     }
@@ -538,14 +570,16 @@ const MyOrdersPage = () => {
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return order.status === 'PENDING';
-    if (activeTab === 2) return order.status === 'PROCESSING';
-    if (activeTab === 3) return order.status === 'SHIPPED';
-    if (activeTab === 4) return order.status === 'DELIVERED';
-    if (activeTab === 5) return order.status === 'CANCELLED';
+    if (activeTab === 2) return order.status === 'CONFIRMED';
+    if (activeTab === 3) return order.status === 'PROCESSING';
+    if (activeTab === 4) return order.status === 'SHIPPED';
+    if (activeTab === 5) return order.status === 'DELIVERED';
+    if (activeTab === 6) return order.status === 'CANCELLED';
     return true;
   });
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+  const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
   const shippedCount = orders.filter((o) => o.status === 'SHIPPED').length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
@@ -603,6 +637,7 @@ const MyOrdersPage = () => {
           >
             <Tab label={`All (${orders.length})`} />
             <Tab label={`Pending (${pendingCount})`} />
+            <Tab label={`Confirmed (${confirmedCount})`} />
             <Tab label={`Processing (${processingCount})`} />
             <Tab label={`Shipped (${shippedCount})`} />
             <Tab label={`Delivered (${deliveredCount})`} />
@@ -827,26 +862,45 @@ const MyOrdersPage = () => {
                       {formatCurrency(order.totalAmount)}
                     </Typography>
                   </Box>
-                  <Button
-                    variant="outlined"
-                    endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
-                    onClick={() => handleViewDetails(order)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: 13,
-                      borderColor: theme.palette.custom.border.main,
-                      color: theme.palette.custom.neutral[700],
-                      borderRadius: '10px',
-                      px: 2.5,
-                      '&:hover': {
-                        borderColor: theme.palette.custom.neutral[400],
-                        bgcolor: theme.palette.custom.neutral[50],
-                      },
-                    }}
-                  >
-                    View Details
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1.5 }}>
+                    {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        disabled={cancellingOrderId === order.id}
+                        onClick={() => openCancelDialog(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                        }}
+                      >
+                        {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outlined"
+                      endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
+                      onClick={() => handleViewDetails(order)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        borderColor: theme.palette.custom.border.main,
+                        color: theme.palette.custom.neutral[700],
+                        borderRadius: '10px',
+                        px: 2.5,
+                        '&:hover': {
+                          borderColor: theme.palette.custom.neutral[400],
+                          bgcolor: theme.palette.custom.neutral[50],
+                        },
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </Box>
                 </Box>
               </Paper>
             );
@@ -1339,12 +1393,12 @@ const MyOrdersPage = () => {
                   </>
                   );
                 })()}
-                {selectedOrder.status === 'PENDING' && (
+                {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"
                     color="error"
                     disabled={cancellingOrderId === selectedOrder.id}
-                    onClick={() => handleCancelOrder(selectedOrder.id)}
+                    onClick={() => openCancelDialog(selectedOrder.id)}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
                     {cancellingOrderId === selectedOrder.id ? 'Cancelling...' : 'Cancel Order'}
@@ -1354,6 +1408,72 @@ const MyOrdersPage = () => {
             </>
           );
         })()}
+      </Dialog>
+
+      {/* ── Cancel Confirmation Dialog ───────────────────────────── */}
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Cancel sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+              Cancel Order
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+            Please tell us why you'd like to cancel. This action cannot be undone.
+          </Typography>
+        </DialogTitle>
+
+        <Divider />
+
+        <DialogContent sx={{ py: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {CUSTOMER_CANCEL_REASONS.map((reason) => (
+              <FormControlLabel
+                key={reason}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={cancelReasons.includes(reason)}
+                    onChange={() => toggleCancelReason(reason)}
+                    sx={{ color: theme.palette.custom.neutral[400] }}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                    {reason}
+                  </Typography>
+                }
+              />
+            ))}
+          </Box>
+          {cancelReasons.length === 0 && (
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.error.main, mt: 1 }}>
+              Please select at least one reason to proceed.
+            </Typography>
+          )}
+        </DialogContent>
+
+        <Divider />
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button
+            onClick={() => setCancelDialogOpen(false)}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Go Back
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelReasons.length === 0 || !!cancellingOrderId}
+            onClick={handleConfirmCancel}
+            startIcon={cancellingOrderId ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* ==================== RETURN REQUEST DIALOG ==================== */}

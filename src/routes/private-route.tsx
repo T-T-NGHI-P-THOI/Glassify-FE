@@ -1,7 +1,6 @@
 import { Route } from "react-router-dom"
 import AuthGuard from "../auth/guards/AuthGuard"
 import RoleBasedGuard from "../auth/guards/RoleBaseGuard"
-import MainPage from "../pages/MainPage"
 import { PAGE_ENDPOINTS } from "../api/endpoints"
 import DashboardPage from "@/pages/Dashboard/DashboardPage.tsx";
 import UserProfilePage from "@/pages/User/UserProfilePage"
@@ -16,9 +15,13 @@ import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
 import UserWalletPage from "@/pages/User/UserWalletPage"
-import ShippingPage from "@/pages/Shipping/DeliveryPage/ShippingPage"
 import ShipmentDetailPage from "@/pages/Shipping/DeliveryPage/ShipmentDetailPage"
 import ShopStaffPage from "@/pages/Shop/ShopStaffPage"
+import WarrantyPage from "@/pages/Warranty/WarrantyPage"
+import MyOrdersPage from "@/pages/Order/MyOrdersPage"
+import ShopProfilePage from "@/pages/Shop/ShopProfilePage"
+import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage"
+import ShopOrdersPage from "@/pages/Shop/ShopOrdersPage"
 import {
     BuyerRefundListPage,
     BuyerRefundDetailPage,
@@ -31,16 +34,49 @@ import {
 const PrivateRoutesComponent = () => {
     return (
         <>
-            {/*<Route*/}
-            {/*    path={PAGE_ENDPOINTS.HOME}*/}
-            {/*    element={*/}
-            {/*        <AuthGuard>*/}
-            {/*            <RoleBasedGuard accessibleRoles={["admin", "staff"]}>*/}
-            {/*                <MainPage />*/}
-            {/*            </RoleBasedGuard>*/}
-            {/*        </AuthGuard>*/}
-            {/*    }*/}
-            {/*/>*/}
+            <Route
+                path={PAGE_ENDPOINTS.TRACKING.SHOPS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER']}>
+                            <ShopTrackingPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PROFILE}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER']}>
+                            <ShopProfilePage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <MyOrdersPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.WARRANTY.MAIN}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <WarrantyPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
 
             <Route
                 path={PAGE_ENDPOINTS.DASHBOARD}
@@ -157,7 +193,7 @@ const PrivateRoutesComponent = () => {
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
-                            <ShippingPage />
+                            <ShopOrdersPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

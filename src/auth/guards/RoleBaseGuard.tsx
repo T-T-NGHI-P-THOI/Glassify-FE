@@ -20,7 +20,7 @@ const RoleBasedGuard: FC<RoleBasedGuardProps> = ({
   );
 
   if (import.meta.env.DEV) {
-    console.log('RoleBasedGuard check: ', user.roles);
+    console.log('RoleBasedGuard check: ', user?.roles);
   }
 
   if (user && !hasPermission) {

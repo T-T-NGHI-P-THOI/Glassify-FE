@@ -42,6 +42,7 @@ interface QuantitySelectorProps {
     quantity: number;
     onIncrease: () => void;
     onDecrease: () => void;
+    onAtMax?: () => void;
     size?: 'small' | 'medium';
     disabled?: boolean;
     maxQuantity?: number;
@@ -51,6 +52,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     quantity,
     onIncrease,
     onDecrease,
+    onAtMax,
     size = 'medium',
     disabled = false,
     maxQuantity,
@@ -99,15 +101,16 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
             </Typography>
             <IconButton
                 size="small"
-                onClick={onIncrease}
-                disabled={disabled || atMax}
-                title={atMax ? `Maximum stock reached (${maxQuantity})` : undefined}
+                onClick={atMax ? onAtMax : onIncrease}
+                disabled={disabled}
                 sx={{
                     borderRadius: 0,
                     p: isSmall ? '2px 6px' : '6px 10px',
-                    color: atMax ? '#f59e0b' : '#666',
+                    color: '#666',
+                    opacity: atMax ? 0.4 : 1,
+                    filter: atMax ? 'blur(0.5px)' : 'none',
                     '&:hover': { bgcolor: '#f5f5f5' },
-                    '&.Mui-disabled': { color: atMax ? '#f59e0b' : '#ccc', opacity: 0.7 },
+                    '&.Mui-disabled': { color: '#ccc' },
                 }}
             >
                 <AddIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
@@ -331,6 +334,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             quantity={item.quantity}
                             onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                             onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
+                            onAtMax={onAtMax}
                             size="small"
                             disabled={loading}
                             maxQuantity={item.stock_quantity}
@@ -387,6 +391,7 @@ interface CartItemRowProps {
     onFavorite: (itemId: string) => void;
     onEdit: (item: CartItemWithDetails) => void;
     onViewLensDetails: (lensItem: CartItemWithDetails, parentItem: CartItemWithDetails) => void;
+    onAtMax?: () => void;
     loading?: boolean;
 }
 
@@ -397,6 +402,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     onFavorite,
     onEdit,
     onViewLensDetails,
+    onAtMax,
     loading = false,
 }) => {
     const calculateItemTotal = (cartItem: CartItemWithDetails): number => {
@@ -572,6 +578,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         quantity={item.quantity}
                         onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                         onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
+                        onAtMax={onAtMax}
                         disabled={loading}
                         maxQuantity={item.stock_quantity}
                     />
@@ -1142,9 +1149,14 @@ const ShoppingCart: React.FC = () => {
         }
     };
 
+    const [showStockDialog, setShowStockDialog] = useState(false);
+
     const hasCoupon = !!summary.applied_coupon;
     const couponMatches = hasCoupon && summary.applied_coupon?.code === promoCode.toUpperCase();
     const items = cartData?.items || [];
+    const exceededItems = items.filter(
+        (i) => i.stock_quantity != null && i.quantity > i.stock_quantity,
+    );
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f8f8f8', py: 5, px: 3 }}>
@@ -1286,6 +1298,7 @@ const ShoppingCart: React.FC = () => {
                                     onFavorite={handleFavorite}
                                     onEdit={handleEditItem}
                                     onViewLensDetails={handleViewLensDetails}
+                                    onAtMax={() => showSnackbar('Đã đạt số lượng tối đa trong kho', 'error')}
                                     loading={updating}
                                 />
                             </React.Fragment>
@@ -1453,32 +1466,84 @@ const ShoppingCart: React.FC = () => {
                             </Box>
                         </Typography>
 
-                        <Button
-                            variant="contained"
-                            size="large"
-                            disableElevation
-                            disabled={isLoading || updating || items.length === 0}
-                            onClick={() => navigate('/checkout')}
-                            sx={{
-                                bgcolor: '#111',
-                                color: '#fff',
-                                px: 5,
-                                py: 1.5,
-                                borderRadius: '12px',
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                fontSize: '1rem',
-                                letterSpacing: '0.3px',
-                                transition: 'all 0.2s',
-                                '&:hover': { bgcolor: '#333' },
-                                '&.Mui-disabled': { bgcolor: '#ccc', color: '#fff' },
-                            }}
+                        <Box
+                            onClick={exceededItems.length > 0 && !isLoading && !updating ? () => setShowStockDialog(true) : undefined}
+                            sx={{ cursor: exceededItems.length > 0 ? 'not-allowed' : 'default' }}
                         >
-                            Check out
-                        </Button>
+                            <Button
+                                variant="contained"
+                                size="large"
+                                disableElevation
+                                disabled={isLoading || updating || items.length === 0}
+                                onClick={exceededItems.length > 0 ? undefined : () => navigate('/checkout')}
+                                sx={{
+                                    bgcolor: '#111',
+                                    color: '#fff',
+                                    px: 5,
+                                    py: 1.5,
+                                    borderRadius: '12px',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '1rem',
+                                    letterSpacing: '0.3px',
+                                    transition: 'all 0.2s',
+                                    '&:hover': { bgcolor: exceededItems.length > 0 ? '#111' : '#333' },
+                                    '&.Mui-disabled': { bgcolor: '#ccc', color: '#fff' },
+                                    ...(exceededItems.length > 0 && {
+                                        opacity: 0.5,
+                                        filter: 'blur(0.4px)',
+                                        pointerEvents: 'none',
+                                    }),
+                                }}
+                            >
+                                Check out
+                            </Button>
+                        </Box>
                     </Box>
                 </Box>
             </Box>
+
+            {/* Stock exceeded dialog */}
+            <Dialog open={showStockDialog} onClose={() => setShowStockDialog(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Typography sx={{ fontWeight: 700, fontSize: 16, color: '#d32f2f' }}>
+                            Vượt quá số lượng tồn kho
+                        </Typography>
+                        <IconButton size="small" onClick={() => setShowStockDialog(false)}>
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Typography sx={{ fontSize: 13, color: '#555', mb: 1.5 }}>
+                        Một số sản phẩm vượt quá số lượng còn lại. Vui lòng điều chỉnh số lượng trước khi thanh toán:
+                    </Typography>
+                    {exceededItems.map((item) => (
+                        <Box
+                            key={item.id}
+                            sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f0f0f0' }}
+                        >
+                            <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#111', flex: 1 }} noWrap>
+                                {item.product?.name || 'Sản phẩm'}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#d32f2f', flexShrink: 0, ml: 2 }}>
+                                Yêu cầu {item.quantity} / Còn {item.stock_quantity ?? 0}
+                            </Typography>
+                        </Box>
+                    ))}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button
+                        variant="contained"
+                        disableElevation
+                        onClick={() => setShowStockDialog(false)}
+                        sx={{ bgcolor: '#d32f2f', color: '#fff', '&:hover': { bgcolor: '#b71c1c' }, textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Đóng & điều chỉnh
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Lens Detail Dialog */}
             <LensDetailDialog

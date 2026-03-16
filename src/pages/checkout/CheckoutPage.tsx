@@ -43,10 +43,11 @@ import { orderApi } from '@/api/order-api';
 import { paymentApi } from '@/api/payment-api';
 import { userWalletApi, type UserWalletResponse } from '@/api/user-wallet-api';
 import { userAddressApi, type UserAddressResponse, type UserAddressRequest } from '@/api/user-address-api';
-import { ghnApi, type GhnShippingFeeRequest } from '@/api/ghnApi';
+import { ghnApi, type GhnCheckoutShippingFeeResponse } from '@/api/ghnApi';
 import type { GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== Address Form ====================
 
@@ -104,7 +105,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
   useEffect(() => {
     ghnApi.getProvinces().then((res) => {
       if (res.data) setProvinces(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Init form when dialog opens
@@ -143,7 +144,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
     }
     ghnApi.getDistricts(form.ghnProvinceId).then((res) => {
       if (res.data) setDistricts(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [form.ghnProvinceId]);
 
   // Fetch wards when district changes
@@ -154,7 +155,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
     }
     ghnApi.getWards(form.ghnDistrictId).then((res) => {
       if (res.data) setWards(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [form.ghnDistrictId]);
 
   const validate = (): boolean => {
@@ -509,7 +510,7 @@ const CheckoutPage = () => {
   const [wallet, setWallet] = useState<UserWalletResponse | null>(null);
 
   // Shipping fee state
-  const [shippingFee, setShippingFee] = useState<number | null>(null);
+  const [shippingFeeData, setShippingFeeData] = useState<GhnCheckoutShippingFeeResponse | null>(null);
   const [shippingFeeLoading, setShippingFeeLoading] = useState(false);
 
   // Prevents the district-change effect from resetting wardCode during applyAddress
@@ -566,6 +567,8 @@ const CheckoutPage = () => {
     setWardName(addr.ward);
   };
 
+  useLayoutConfig({ showNavbar: true, showFooter: true });
+
   useEffect(() => {
     if (user) {
       setShippingName(user.fullName || '');
@@ -579,7 +582,7 @@ const CheckoutPage = () => {
   useEffect(() => {
     userWalletApi.getMyWallet().then((res) => {
       if (res.data) setWallet(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -590,7 +593,7 @@ const CheckoutPage = () => {
   useEffect(() => {
     ghnApi.getProvinces().then((res) => {
       if (res.data) setProvinces(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Fetch districts when province changes
@@ -604,7 +607,7 @@ const CheckoutPage = () => {
     }
     ghnApi.getDistricts(selectedProvinceId).then((res) => {
       if (res.data) setDistricts(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) {
       setSelectedDistrictId('');
       setWards([]);
@@ -621,7 +624,7 @@ const CheckoutPage = () => {
     }
     ghnApi.getWards(selectedDistrictId).then((res) => {
       if (res.data) setWards(res.data);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) {
       setSelectedWardCode('');
     } else {
@@ -639,33 +642,27 @@ const CheckoutPage = () => {
   useEffect(() => {
     const cartItems = cartData?.items ?? [];
     if (!selectedDistrictId || !selectedWardCode || cartItems.length === 0) {
-      setShippingFee(null);
+      setShippingFeeData(null);
       return;
     }
     const shopId = cartItems.find(i => i.shop_id)?.shop_id;
     if (!shopId) return;
 
-    const totalWeight = cartItems.reduce((sum, i) => sum + i.quantity * 100, 0); // 100g per item
-    const insuranceValue = cartData?.summary.items_subtotal ?? 0;
+    const orderSubtotal = cartData?.summary.items_subtotal ?? 0;
 
-    const req: GhnShippingFeeRequest = {
+    const cartId = cartData?.cart?.id;
+    if (!cartId) return;
+
+    setShippingFeeLoading(true);
+    ghnApi.getCheckoutShippingFee({
       shopId,
       toDistrictId: selectedDistrictId as number,
       toWardCode: selectedWardCode,
-      weight: totalWeight,
-      length: 20,
-      width: 15,
-      height: 10,
-      insuranceValue,
-    };
-
-    setShippingFeeLoading(true);
-    ghnApi.getShippingFee(req)
-      .then((res) => {
-        const fee = res.data?.[0]?.totalFee;
-        setShippingFee(fee != null ? fee : null);
-      })
-      .catch(() => setShippingFee(null))
+      orderSubtotal,
+      cartId,
+    })
+      .then((res) => setShippingFeeData(res.data ?? null))
+      .catch(() => setShippingFeeData(null))
       .finally(() => setShippingFeeLoading(false));
   }, [selectedDistrictId, selectedWardCode, cartData]);
 
@@ -715,8 +712,14 @@ const CheckoutPage = () => {
     }
   };
 
+  const [showStockDialog, setShowStockDialog] = useState(false);
+
   const items = cartData?.items ?? [];
   const cartId = cartData?.cart?.id;
+
+  const exceededItems = items.filter(
+    (i) => i.stock_quantity != null && i.quantity > i.stock_quantity,
+  );
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -741,6 +744,8 @@ const CheckoutPage = () => {
 
     try {
       setSubmitting(true);
+      const cartItems = cartData?.items ?? [];
+      const shopId = cartItems.find(i => i.shop_id)?.shop_id;
       const response = await orderApi.createOrder({
         cartId,
         shippingName: shippingName.trim(),
@@ -749,6 +754,10 @@ const CheckoutPage = () => {
         shippingCity: shippingCity.trim() || undefined,
         customerNote: customerNote.trim() || undefined,
         paymentMethod,
+        shopId: shopId || undefined,
+        selectedServiceId: 0,
+        toDistrictId: selectedDistrictId !== '' ? selectedDistrictId as number : undefined,
+        toWardCode: selectedWardCode || undefined,
       });
 
       const order = response.data;
@@ -1136,21 +1145,41 @@ const CheckoutPage = () => {
                   </Typography>
                 </Box>
               )}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <Typography sx={{ fontSize: 14, color: '#666' }}>Shipping</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500 }}>
-                  {shippingFeeLoading ? (
-                    <CircularProgress size={14} thickness={4} />
-                  ) : shippingFee != null ? (
-                    shippingFee === 0 ? 'Free' : formatCurrency(shippingFee)
-                  ) : '—'}
-                </Typography>
+                {shippingFeeLoading ? (
+                  <CircularProgress size={14} thickness={4} />
+                ) : shippingFeeData ? (
+                  <Box sx={{ textAlign: 'right' }}>
+                    {shippingFeeData.freeShipping ? (
+                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#16a34a' }}>Free</Typography>
+                    ) : shippingFeeData.platformSubsidy > 0 ? (
+                      <>
+                        <Typography sx={{ fontSize: 12, color: '#9ca3af', textDecoration: 'line-through' }}>
+                          {formatCurrency(shippingFeeData.actualFee)}
+                        </Typography>
+                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#16a34a' }}>
+                          {formatCurrency(shippingFeeData.buyerFee)}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11, color: '#9ca3af' }}>
+                          Subsidy {formatCurrency(shippingFeeData.platformSubsidy)}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography sx={{ fontSize: 14, fontWeight: 500 }}>
+                        {formatCurrency(shippingFeeData.buyerFee)}
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography sx={{ fontSize: 14, color: '#9ca3af' }}>—</Typography>
+                )}
               </Box>
               <Divider sx={{ my: 1 }} />
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#111' }}>Total</Typography>
                 <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#111' }}>
-                  {formatCurrency(summary.total_amount + (shippingFee ?? 0))}
+                  {formatCurrency(summary.total_amount + (shippingFeeData?.buyerFee ?? 0))}
                 </Typography>
               </Box>
             </Box>
@@ -1228,28 +1257,38 @@ const CheckoutPage = () => {
           </Paper>
 
           {/* Place Order Button */}
-          <Button
-            variant="contained"
-            fullWidth
-            size="large"
-            disableElevation
-            disabled={submitting}
-            onClick={handlePlaceOrder}
-            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
-            sx={{
-              bgcolor: '#111',
-              color: '#fff',
-              py: 1.5,
-              borderRadius: 3,
-              textTransform: 'none',
-              fontWeight: 600,
-              fontSize: '1rem',
-              '&:hover': { bgcolor: '#333' },
-              '&.Mui-disabled': { bgcolor: '#ccc', color: '#fff' },
-            }}
+          <Box
+            onClick={exceededItems.length > 0 && !submitting ? () => setShowStockDialog(true) : undefined}
+            sx={{ cursor: exceededItems.length > 0 ? 'not-allowed' : 'default' }}
           >
-            {submitting ? 'Placing Order...' : paymentMethod === 'VNPAY' ? 'Place Order & Pay' : 'Place Order'}
-          </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              disableElevation
+              disabled={submitting}
+              onClick={exceededItems.length > 0 ? undefined : handlePlaceOrder}
+              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
+              sx={{
+                bgcolor: '#111',
+                color: '#fff',
+                py: 1.5,
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem',
+                '&:hover': { bgcolor: exceededItems.length > 0 ? '#111' : '#333' },
+                '&.Mui-disabled': { bgcolor: '#ccc', color: '#fff' },
+                ...(exceededItems.length > 0 && {
+                  opacity: 0.5,
+                  filter: 'blur(0.4px)',
+                  pointerEvents: 'none',
+                }),
+              }}
+            >
+              {submitting ? 'Placing Order...' : paymentMethod === 'VNPAY' ? 'Place Order & Pay' : 'Place Order'}
+            </Button>
+          </Box>
 
           {paymentMethod === 'VNPAY' && (
             <Alert severity="info" sx={{ mt: 2, fontSize: 12 }}>
@@ -1261,6 +1300,46 @@ const CheckoutPage = () => {
               Your wallet balance is insufficient. Please top up first.
             </Alert>
           )}
+
+          {/* Stock exceeded dialog */}
+          <Dialog open={showStockDialog} onClose={() => setShowStockDialog(false)} maxWidth="xs" fullWidth>
+            <DialogTitle>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 16, color: '#d32f2f' }}>
+                  Vượt quá số lượng tồn kho
+                </Typography>
+                <IconButton size="small" onClick={() => setShowStockDialog(false)}><Close /></IconButton>
+              </Box>
+            </DialogTitle>
+            <DialogContent dividers>
+              <Typography sx={{ fontSize: 13, color: '#555', mb: 1.5 }}>
+                Một số sản phẩm trong giỏ hàng vượt quá số lượng còn lại. Vui lòng điều chỉnh số lượng trước khi đặt hàng:
+              </Typography>
+              {exceededItems.map((item) => (
+                <Box
+                  key={item.id}
+                  sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f0f0f0' }}
+                >
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#111', flex: 1 }} noWrap>
+                    {item.product?.name || 'Sản phẩm'}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: '#d32f2f', flexShrink: 0, ml: 2 }}>
+                    Yêu cầu {item.quantity} / Còn {item.stock_quantity ?? 0}
+                  </Typography>
+                </Box>
+              ))}
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={() => { setShowStockDialog(false); navigate('/cart'); }}
+                sx={{ bgcolor: '#d32f2f', color: '#fff', '&:hover': { bgcolor: '#b71c1c' }, textTransform: 'none', fontWeight: 600 }}
+              >
+                Về giỏ hàng
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Box>
       </Box>
 
