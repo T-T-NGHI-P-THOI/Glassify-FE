@@ -164,6 +164,7 @@ export const PAGE_ENDPOINTS = {
     PRODUCTS: `/shop/products`,
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
+    REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
   },
 

@@ -194,6 +194,19 @@ export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
   [ReturnStatus.CANCELLED]: 'Đã hủy',
 };
 
+export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
+  ReturnStatus.REQUESTED,
+  ReturnStatus.SELLER_REVIEWING,
+  ReturnStatus.PLATFORM_REVIEWING,
+  ReturnStatus.APPROVED,
+  ReturnStatus.REJECTED,
+  ReturnStatus.RETURN_SHIPPING,
+  ReturnStatus.ITEM_RECEIVED,
+  ReturnStatus.REFUNDING,
+  ReturnStatus.COMPLETED,
+  ReturnStatus.CANCELLED,
+];
+
 export const ITEM_CONDITION_LABELS: Record<ItemCondition, string> = {
   [ItemCondition.EXCELLENT]: 'Xuất sắc',
   [ItemCondition.GOOD]: 'Tốt',

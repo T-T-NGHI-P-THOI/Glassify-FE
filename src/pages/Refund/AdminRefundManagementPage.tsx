@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Paper,
-  Container,
   Grid,
   Card,
   CardContent,
@@ -46,6 +45,9 @@ import {
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useLayout } from '@/layouts/LayoutContext';
+import { Sidebar } from '@/components/sidebar/Sidebar';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
   getReturnRequestDetail,
   platformReview,
@@ -68,6 +70,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 const AdminRefundManagementPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { setShowNavbar, setShowFooter } = useLayout();
   const { requestId } = useParams<{ requestId: string }>();
   
   // List view states
@@ -98,6 +101,16 @@ const AdminRefundManagementPage = () => {
   // Refund form
   const [refundMethod, setRefundMethod] = useState('WALLET');
   const [refundNotes, setRefundNotes] = useState('');
+
+  useEffect(() => {
+    setShowNavbar(false);
+    setShowFooter(false);
+
+    return () => {
+      setShowNavbar(true);
+      setShowFooter(true);
+    };
+  }, [setShowNavbar, setShowFooter]);
 
   const statusTabs = [
     { label: 'Tất cả', value: null, count: counts.all },
@@ -263,155 +276,172 @@ const AdminRefundManagementPage = () => {
   // List View
   if (!requestId) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box mb={4}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            <AdminPanelSettings sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
-            Quản lý Hoàn trả (Admin)
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Xét duyệt và quản lý các yêu cầu hoàn trả, xử lý tranh chấp
-          </Typography>
-        </Box>
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <Sidebar activeMenu={PAGE_ENDPOINTS.REFUND.ADMIN_LIST} />
 
-        {/* Tabs */}
-        <Paper sx={{ mb: 3 }}>
-          <Tabs
-            value={selectedTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              borderBottom: 1,
-              borderColor: 'divider',
-            }}
-          >
-            {statusTabs.map((tab, index) => (
-              <Tab
-                key={index}
-                label={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <span>{tab.label}</span>
-                    {tab.count > 0 && (
-                      <Badge badgeContent={tab.count} color="primary" />
-                    )}
-                  </Stack>
-                }
-              />
-            ))}
-          </Tabs>
-        </Paper>
-
-        {/* Loading */}
-        {listLoading && (
-          <Box display="flex" justifyContent="center" py={8}>
-            <CircularProgress />
-          </Box>
-        )}
-
-        {/* Empty state */}
-        {!listLoading && requests.length === 0 && (
-          <Paper sx={{ p: 8, textAlign: 'center' }}>
-            <AssignmentReturn sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
-              Không có yêu cầu hoàn trả nào
+        <Box sx={{ flex: 1, p: 4 }}>
+          <Box mb={4}>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              <AdminPanelSettings sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
+              Quản lý Hoàn trả (Admin)
             </Typography>
-          </Paper>
-        )}
+            <Typography variant="body2" color="text.secondary">
+              Xét duyệt và quản lý các yêu cầu hoàn trả, xử lý tranh chấp
+            </Typography>
+          </Box>
 
-        {/* Request list */}
-        {!listLoading && requests.length > 0 && (
-          <Grid container spacing={3}>
-            {requests.map((req) => (
-              <Grid item xs={12} key={req.id}>
-                <Card
-                  elevation={req.hasDispute ? 4 : 2}
-                  sx={{
-                    border: req.hasDispute ? `2px solid ${theme.palette.error.main}` : 'none',
-                  }}
-                >
-                  <CardContent>
-                    {req.hasDispute && (
-                      <Alert severity="error" sx={{ mb: 2 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          🚨 Có tranh chấp - Cần xem xét
-                        </Typography>
-                      </Alert>
-                    )}
-                    
-                    <Grid container spacing={2} alignItems="center">
-                      <Grid item xs={12} sm={2}>
-                        <Avatar
-                          src={req.productImageUrl}
-                          variant="rounded"
-                          sx={{ width: 80, height: 80 }}
-                        >
-                          <AssignmentReturn />
-                        </Avatar>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="h6" gutterBottom>
-                          #{req.requestNumber}
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                          {req.productName}
-                        </Typography>
-                        <Chip
-                          label={RETURN_STATUS_LABELS[req.status]}
-                          size="small"
-                          color={
-                            req.status === ReturnStatus.COMPLETED ? 'success' :
-                            req.status === ReturnStatus.REJECTED ? 'error' : 'warning'
-                          }
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={4} textAlign="right">
-                        <Typography variant="h6" color="primary">
-                          {formatCurrency(req.refundAmount)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatDate(req.requestedAt)}
-                        </Typography>
-                        <Box mt={2}>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Visibility />}
-                            onClick={() => handleViewDetail(req.id)}
+          {/* Tabs */}
+          <Paper sx={{ mb: 3 }}>
+            <Tabs
+              value={selectedTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                borderBottom: 1,
+                borderColor: 'divider',
+              }}
+            >
+              {statusTabs.map((tab, index) => (
+                <Tab
+                  key={index}
+                  label={
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <span>{tab.label}</span>
+                      {tab.count > 0 && (
+                        <Badge badgeContent={tab.count} color="primary" />
+                      )}
+                    </Stack>
+                  }
+                />
+              ))}
+            </Tabs>
+          </Paper>
+
+          {/* Loading */}
+          {listLoading && (
+            <Box display="flex" justifyContent="center" py={8}>
+              <CircularProgress />
+            </Box>
+          )}
+
+          {/* Empty state */}
+          {!listLoading && requests.length === 0 && (
+            <Paper sx={{ p: 8, textAlign: 'center' }}>
+              <AssignmentReturn sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                Không có yêu cầu hoàn trả nào
+              </Typography>
+            </Paper>
+          )}
+
+          {/* Request list */}
+          {!listLoading && requests.length > 0 && (
+            <Grid container spacing={3}>
+              {requests.map((req) => (
+                <Grid item xs={12} key={req.id}>
+                  <Card
+                    elevation={req.hasDispute ? 4 : 2}
+                    sx={{
+                      border: req.hasDispute ? `2px solid ${theme.palette.error.main}` : 'none',
+                    }}
+                  >
+                    <CardContent>
+                      {req.hasDispute && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            🚨 Có tranh chấp - Cần xem xét
+                          </Typography>
+                        </Alert>
+                      )}
+
+                      <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={2}>
+                          <Avatar
+                            src={req.productImageUrl}
+                            variant="rounded"
+                            sx={{ width: 80, height: 80 }}
                           >
-                            Xem chi tiết
-                          </Button>
-                        </Box>
+                            <AssignmentReturn />
+                          </Avatar>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="h6" gutterBottom>
+                            #{req.requestNumber}
+                          </Typography>
+                          <Typography variant="body2" gutterBottom>
+                            {req.productName}
+                          </Typography>
+                          <Chip
+                            label={RETURN_STATUS_LABELS[req.status]}
+                            size="small"
+                            color={
+                              req.status === ReturnStatus.COMPLETED ? 'success' :
+                              req.status === ReturnStatus.REJECTED ? 'error' : 'warning'
+                            }
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4} textAlign="right">
+                          <Typography variant="h6" color="primary">
+                            {formatCurrency(req.refundAmount)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDate(req.requestedAt)}
+                          </Typography>
+                          <Box mt={2}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Visibility />}
+                              onClick={() => handleViewDetail(req.id)}
+                            >
+                              Xem chi tiết
+                            </Button>
+                          </Box>
+                        </Grid>
                       </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Container>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Box>
+      </Box>
     );
   }
 
   // Detail View
   if (detailLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <Sidebar activeMenu={PAGE_ENDPOINTS.REFUND.ADMIN_LIST} />
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <CircularProgress />
+        </Box>
       </Box>
     );
   }
 
   if (!request) {
-    return null;
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <Sidebar activeMenu={PAGE_ENDPOINTS.REFUND.ADMIN_LIST} />
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn trả.</Typography>
+        </Box>
+      </Box>
+    );
   }
 
   const canReview = request.status === ReturnStatus.ITEM_RECEIVED || request.hasDispute;
   const canProcessRefund = request.status === ReturnStatus.REFUNDING;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+      <Sidebar activeMenu={PAGE_ENDPOINTS.REFUND.ADMIN_LIST} />
+
+      <Box sx={{ flex: 1, p: 4 }}>
       {/* Header */}
       <Box mb={4}>
         <Button
@@ -433,7 +463,7 @@ const AdminRefundManagementPage = () => {
       {request.hasDispute && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            🚨 Yêu cầu này có tranh chấp và cần được xem xét
+            Yêu cầu này có tranh chấp và cần được xem xét
           </Typography>
         </Alert>
       )}
@@ -441,7 +471,7 @@ const AdminRefundManagementPage = () => {
       {canReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            ⚠️ Yêu cầu chờ xét duyệt từ admin
+            Yêu cầu chờ xét duyệt từ admin
           </Typography>
         </Alert>
       )}
@@ -449,7 +479,7 @@ const AdminRefundManagementPage = () => {
       {canProcessRefund && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            💰 Chờ xử lý hoàn tiền cho khách hàng
+            Chờ xử lý hoàn tiền cho khách hàng
           </Typography>
         </Alert>
       )}
@@ -857,7 +887,8 @@ const AdminRefundManagementPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Box>
+    </Box>
   );
 };
 

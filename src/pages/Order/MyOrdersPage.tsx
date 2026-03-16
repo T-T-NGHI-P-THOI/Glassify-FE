@@ -51,7 +51,7 @@ import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
-import { ReturnReason, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
+import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
 import { checkReturnEligibility, createReturnRequest } from '@/api/refund-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
@@ -109,6 +109,9 @@ interface Order {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
+  refundRequestId?: string;
+  refundRequestedAt?: string;
+  refundStatus?: ReturnStatus;
 }
 
 // Mock data removed - using real API
@@ -184,6 +187,33 @@ const groupItemsByShop = (items: OrderItem[]) => {
     }
   });
   return Array.from(shopMap.values());
+};
+
+const getRefundStatusLabel = (status?: ReturnStatus) => {
+  switch (status) {
+    case ReturnStatus.REQUESTED:
+      return 'Đã gửi yêu cầu';
+    case ReturnStatus.SELLER_REVIEWING:
+      return 'Người bán đang xem xét';
+    case ReturnStatus.PLATFORM_REVIEWING:
+      return 'Sàn đang xem xét';
+    case ReturnStatus.APPROVED:
+      return 'Đã duyệt';
+    case ReturnStatus.REJECTED:
+      return 'Đã từ chối';
+    case ReturnStatus.RETURN_SHIPPING:
+      return 'Đang trả hàng';
+    case ReturnStatus.ITEM_RECEIVED:
+      return 'Người bán đã nhận hàng';
+    case ReturnStatus.REFUNDING:
+      return 'Đang hoàn tiền';
+    case ReturnStatus.COMPLETED:
+      return 'Hoàn tất';
+    case ReturnStatus.CANCELLED:
+      return 'Đã hủy';
+    default:
+      return 'Đã gửi yêu cầu';
+  }
 };
 
 // ==================== ORDER STEPPER ====================
@@ -302,11 +332,11 @@ const MyOrdersPage = () => {
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedOrderItemForReturn, setSelectedOrderItemForReturn] = useState<OrderItem | null>(null);
-  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE);
+  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE_LENS);
   const [returnDescription, setReturnDescription] = useState('');
   const [returnImages, setReturnImages] = useState<string[]>([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
-
+  
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -356,7 +386,7 @@ const MyOrdersPage = () => {
   // Return Request Handlers
   const handleOpenReturnDialog = (orderItem: OrderItem) => {
     setSelectedOrderItemForReturn(orderItem);
-    setReturnReason(ReturnReason.DEFECTIVE);
+    setReturnReason(ReturnReason.DEFECTIVE_LENS);
     setReturnDescription('');
     setReturnImages([]);
     setReturnDialogOpen(true);
@@ -417,7 +447,7 @@ const MyOrdersPage = () => {
       
       // Navigate to refund detail page
       if (response.data?.id) {
-        navigate(`${PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':id', response.data.id)}`);
+        navigate(`${PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', response.data.id)}`);
       }
     } catch (error: any) {
       console.error('Failed to create return request:', error);
@@ -521,7 +551,7 @@ const MyOrdersPage = () => {
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
 
-  const handleViewDetails = (order: Order) => {
+  const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
     setDetailDialogOpen(true);
   };
@@ -1232,30 +1262,67 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (
+                {selectedOrder.status === 'DELIVERED' && (() => {
+                  const hasRefundRequest = Boolean(selectedOrder.refundRequestId);
+                  const refundStatus = selectedOrder.refundStatus;
+                  const refundStatusChipColor =
+                    refundStatus === ReturnStatus.COMPLETED
+                      ? { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main }
+                      : refundStatus === ReturnStatus.REJECTED || refundStatus === ReturnStatus.CANCELLED
+                        ? { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main }
+                        : { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+                  
+                  return (
                   <>
+                    {hasRefundRequest && (
+                      <Chip
+                        label={getRefundStatusLabel(refundStatus)}
+                        size="small"
+                        sx={{
+                          bgcolor: refundStatusChipColor.bg,
+                          color: refundStatusChipColor.color,
+                          fontWeight: 600,
+                          fontSize: 11,
+                          height: 24,
+                        }}
+                      />
+                    )}
                     <Button
                       variant="outlined"
                       startIcon={<AssignmentReturn />}
                       onClick={() => {
-                        // For simplicity, open return dialog for the first item
-                        // In production, you might want to show a list of items to select
-                        if (selectedOrder.items.length > 0) {
+                        if (hasRefundRequest && selectedOrder.refundRequestId) {
+                          // Navigate to return request detail page
+                          navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', selectedOrder.refundRequestId));
+                        } else if (selectedOrder.items.length > 0) {
+                          // Open return dialog for the first item
                           handleOpenReturnDialog(selectedOrder.items[0]);
                         }
                       }}
                       sx={{
                         textTransform: 'none',
                         fontWeight: 600,
-                        borderColor: theme.palette.custom.status.warning.main,
-                        color: theme.palette.custom.status.warning.main,
+                        borderColor: hasRefundRequest
+                          ? theme.palette.custom.status.info.main
+                          : theme.palette.custom.status.warning.main,
+                        color: hasRefundRequest
+                          ? theme.palette.custom.status.info.main
+                          : theme.palette.custom.status.warning.main,
                         '&:hover': {
-                          borderColor: theme.palette.custom.status.warning.dark,
-                          bgcolor: theme.palette.custom.status.warning.light,
+                          borderColor: hasRefundRequest
+                            ? theme.palette.custom.status.info.main
+                            : theme.palette.custom.status.warning.main,
+                          bgcolor: hasRefundRequest
+                            ? theme.palette.custom.status.info.light
+                            : theme.palette.custom.status.warning.light,
+                        },
+                        '&.Mui-disabled': {
+                          borderColor: theme.palette.custom.neutral[300],
+                          color: theme.palette.custom.neutral[400],
                         },
                       }}
                     >
-                      Yêu cầu trả hàng
+                      {hasRefundRequest ? 'Xem yêu cầu' : 'Tạo yêu cầu hoàn tiền'}
                     </Button>
                     <Button
                       variant="contained"
@@ -1270,7 +1337,8 @@ const MyOrdersPage = () => {
                       Buy Again
                     </Button>
                   </>
-                )}
+                  );
+                })()}
                 {selectedOrder.status === 'PENDING' && (
                   <Button
                     variant="outlined"
@@ -1470,7 +1538,7 @@ const MyOrdersPage = () => {
               textTransform: 'none',
               fontWeight: 600,
               bgcolor: theme.palette.custom.status.warning.main,
-              '&:hover': { bgcolor: theme.palette.custom.status.warning.dark },
+              '&:hover': { bgcolor: theme.palette.custom.status.warning.main },
             }}
           >
             {submittingReturn ? 'Đang gửi...' : 'Gửi yêu cầu'}

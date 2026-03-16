@@ -66,6 +66,9 @@ export interface OrderResponse {
     status: string;
     paymentStatus: string;
     paymentMethod: string;
+    refundRequestId?: string;
+    refundRequestedAt?: string;
+    refundStatus?: string;
 }
 
 export interface OrderListResponse {

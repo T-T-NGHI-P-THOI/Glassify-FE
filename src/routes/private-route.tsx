@@ -11,6 +11,7 @@ import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
 import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
+import ShopRefundReviewPage from "@/pages/Shop/ShopRefundReviewPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
@@ -163,6 +164,17 @@ const PrivateRoutesComponent = () => {
             />
 
             <Route
+                path={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <ShopRefundReviewPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
                 path={PAGE_ENDPOINTS.SHOP.ORDER_DETAIL}
                 element={
                     <AuthGuard>
@@ -245,7 +257,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.REFUND.SELLER_LIST}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <SellerRefundListPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -256,7 +268,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.REFUND.SELLER_DETAIL}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <SellerRefundDetailPage />
                         </RoleBasedGuard>
                     </AuthGuard>

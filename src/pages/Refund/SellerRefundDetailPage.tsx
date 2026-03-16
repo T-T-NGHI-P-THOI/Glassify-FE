@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Paper,
-  Container,
   Grid,
   Card,
   CardContent,
@@ -12,6 +11,7 @@ import {
   Avatar,
   Stack,
   CircularProgress,
+  Skeleton,
   Alert,
   Dialog,
   DialogTitle,
@@ -43,16 +43,22 @@ import {
   Inventory,
   Info,
   Image as ImageIcon,
+  Videocam,
   VerifiedUser,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useLayout } from '@/layouts/LayoutContext';
+import { useAuth } from '@/hooks/useAuth';
+import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
   getReturnRequestDetail,
   reviewReturnRequest,
   confirmItemReceived,
 } from '@/api/refund-api';
+import { userApi } from '@/api/service/userApi';
 import type {
   RefundRequest,
 } from '@/models/Refund';
@@ -65,43 +71,55 @@ import {
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 
-const getStatusSteps = () => [
-  'Yêu cầu gửi',
-  'Đang xem xét',
-  'Chấp thuận',
-  'Khách gửi hàng',
-  'Nhận hàng trả',
-  'Đang hoàn tiền',
-  'Hoàn tất',
-];
+type BuyerInfo = {
+  name: string;
+  email: string;
+  phone: string;
+};
 
-const getActiveStep = (status: ReturnStatus) => {
-  switch (status) {
-    case ReturnStatus.REQUESTED:
-      return 0;
-    case ReturnStatus.SELLER_REVIEWING:
-      return 1;
-    case ReturnStatus.APPROVED:
-      return 2;
-    case ReturnStatus.RETURN_SHIPPING:
-      return 3;
-    case ReturnStatus.ITEM_RECEIVED:
-      return 4;
-    case ReturnStatus.REFUNDING:
-      return 5;
-    case ReturnStatus.COMPLETED:
-      return 6;
-    default:
-      return 0;
+type StepItem = { label: string; status: ReturnStatus };
+
+const getStatusSteps = (status: ReturnStatus): StepItem[] => {
+  const normalSteps: StepItem[] = [
+    { label: 'Yêu cầu gửi', status: ReturnStatus.REQUESTED },
+    { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
+    { label: 'Nền tảng xem xét', status: ReturnStatus.PLATFORM_REVIEWING },
+    { label: 'Chấp thuận', status: ReturnStatus.APPROVED },
+    { label: 'Khách gửi hàng', status: ReturnStatus.RETURN_SHIPPING },
+    { label: 'Nhận hàng trả', status: ReturnStatus.ITEM_RECEIVED },
+    { label: 'Đang hoàn tiền', status: ReturnStatus.REFUNDING },
+    { label: 'Hoàn tất', status: ReturnStatus.COMPLETED },
+  ];
+
+  if (status === ReturnStatus.REJECTED || status === ReturnStatus.CANCELLED) {
+    return [
+      { label: 'Yêu cầu gửi', status: ReturnStatus.REQUESTED },
+      { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
+      {
+        label: status === ReturnStatus.REJECTED ? 'Đã từ chối' : 'Đã hủy',
+        status,
+      },
+    ];
   }
+
+  return normalSteps;
+};
+
+const getActiveStep = (status: ReturnStatus, steps: StepItem[]) => {
+  const index = steps.findIndex((step) => step.status === status);
+  return index >= 0 ? index : 0;
 };
 
 const SellerRefundDetailPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { setShowNavbar, setShowFooter } = useLayout();
+  const { user } = useAuth();
   const { requestId } = useParams<{ requestId: string }>();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<RefundRequest | null>(null);
+  const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
+  const [buyerLoading, setBuyerLoading] = useState(false);
   
   // Review dialog
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -115,7 +133,15 @@ const SellerRefundDetailPage = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [itemCondition, setItemCondition] = useState<ItemCondition>(ItemCondition.GOOD);
   const [conditionNotes, setConditionNotes] = useState('');
-  const [actualRefundAmount, setActualRefundAmount] = useState<number>(0);
+
+  useEffect(() => {
+    setShowNavbar(false);
+    setShowFooter(false);
+    return () => {
+      setShowNavbar(true);
+      setShowFooter(true);
+    };
+  }, [setShowNavbar, setShowFooter]);
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -125,9 +151,6 @@ const SellerRefundDetailPage = () => {
       const response = await getReturnRequestDetail(requestId);
       if (response.data) {
         setRequest(response.data);
-      }
-      if (response.data?.refundAmount) {
-        setActualRefundAmount(response.data.refundAmount);
       }
     } catch (error: any) {
       console.error('Failed to fetch request detail:', error);
@@ -141,6 +164,38 @@ const SellerRefundDetailPage = () => {
   useEffect(() => {
     fetchRequestDetail();
   }, [requestId]);
+
+  useEffect(() => {
+    const fetchBuyerInfo = async () => {
+      if (!request?.userId) {
+        return;
+      }
+
+      try {
+        setBuyerLoading(true);
+        const response = await userApi.getUserByIdentifier(request.userId);
+        const rawData = response.data as any;
+        const user = rawData?.user ?? rawData;
+
+        setBuyerInfo({
+          name: user?.fullName || request.buyerName || 'N/A',
+          email: user?.email || request.buyerEmail || 'N/A',
+          phone: user?.phone || user?.phoneNumber || request.buyerPhone || 'N/A',
+        });
+      } catch (error) {
+        console.error('Failed to fetch buyer info:', error);
+        setBuyerInfo({
+          name: request.buyerName || 'N/A',
+          email: request.buyerEmail || 'N/A',
+          phone: request.buyerPhone || 'N/A',
+        });
+      } finally {
+        setBuyerLoading(false);
+      }
+    };
+
+    fetchBuyerInfo();
+  }, [request]);
 
   const handleOpenReviewDialog = (action: 'approve' | 'reject') => {
     setReviewAction(action);
@@ -240,26 +295,77 @@ const SellerRefundDetailPage = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <ShopOwnerSidebar
+          activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
+          shopName={user?.shop?.shopName}
+          shopLogo={user?.shop?.logoUrl}
+          ownerName={user?.fullName}
+          ownerEmail={user?.email}
+          ownerAvatar={user?.avatarUrl}
+        />
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <CircularProgress />
+        </Box>
       </Box>
     );
   }
 
   if (!request) {
-    return null;
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <ShopOwnerSidebar
+          activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
+          shopName={user?.shop?.shopName}
+          shopLogo={user?.shop?.logoUrl}
+          ownerName={user?.fullName}
+          ownerEmail={user?.email}
+          ownerAvatar={user?.avatarUrl}
+        />
+        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn trả.</Typography>
+        </Box>
+      </Box>
+    );
   }
 
   const canReview = request.status === ReturnStatus.REQUESTED || request.status === ReturnStatus.SELLER_REVIEWING;
   const canConfirmReceived = request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber;
+  const steps = getStatusSteps(request.status);
+  const activeStep = getActiveStep(request.status, steps);
+  const evidenceFiles = request.evidenceImages || [];
+  const isVideoFile = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    return /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(lowerUrl)
+      || lowerUrl.includes('/video/')
+      || lowerUrl.includes('resource_type/video');
+  };
+  const videoFiles = evidenceFiles.filter((fileUrl) => isVideoFile(fileUrl));
+  const imageFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl));
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box mb={4}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+      <ShopOwnerSidebar
+        activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
+        shopName={user?.shop?.shopName}
+        shopLogo={user?.shop?.logoUrl}
+        ownerName={user?.fullName}
+        ownerEmail={user?.email}
+        ownerAvatar={user?.avatarUrl}
+      />
+
+      <Box
+        sx={{
+          flex: 1,
+          px: { xs: 2, md: 4, xl: 6 },
+          py: 4,
+        }}
+      >
+        {/* Header */}
+        <Box mb={4}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/shop/refunds')}
+          onClick={() => navigate('/shop/refunds/review')}
           sx={{ mb: 2 }}
         >
           Quay lại danh sách
@@ -274,10 +380,10 @@ const SellerRefundDetailPage = () => {
 
       {/* Progress Stepper */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Stepper activeStep={getActiveStep(request.status)} alternativeLabel>
-          {getStatusSteps().map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+        <Stepper activeStep={activeStep} alternativeLabel>
+          {steps.map((step) => (
+            <Step key={step.status}>
+              <StepLabel>{step.label}</StepLabel>
             </Step>
           ))}
         </Stepper>
@@ -287,7 +393,7 @@ const SellerRefundDetailPage = () => {
       {canReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            ⚠️ Yêu cầu này cần bạn xem xét và phê duyệt
+            Yêu cầu này cần bạn xem xét và phê duyệt
           </Typography>
         </Alert>
       )}
@@ -295,7 +401,7 @@ const SellerRefundDetailPage = () => {
       {canConfirmReceived && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            📦 Khách hàng đã gửi hàng trả. Vui lòng kiểm tra và xác nhận khi nhận được hàng.
+            Khách hàng đã gửi hàng trả. Vui lòng kiểm tra và xác nhận khi nhận được hàng.
           </Typography>
         </Alert>
       )}
@@ -303,7 +409,7 @@ const SellerRefundDetailPage = () => {
       {request.status === ReturnStatus.REJECTED && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            ❌ Yêu cầu đã bị từ chối
+            Yêu cầu đã bị từ chối
           </Typography>
           {request.rejectionReason && (
             <Typography variant="body2" sx={{ mt: 1 }}>
@@ -313,20 +419,66 @@ const SellerRefundDetailPage = () => {
         </Alert>
       )}
 
-      <Grid container spacing={3}>
-        {/* Left Column - Product & Request Info */}
-        <Grid item xs={12} md={8}>
-          {/* Product Information */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                <Inventory sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Thông tin sản phẩm
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: { xs: 'flex-start', md: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+              flexDirection: { xs: 'column', md: 'row' },
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold">
+              <Inventory sx={{ verticalAlign: 'middle', mr: 1 }} />
+              Thông tin yêu cầu
+            </Typography>
+
+            {(canReview || canConfirmReceived) && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                {canReview && (
+                  <>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<ThumbUp />}
+                      onClick={() => handleOpenReviewDialog('approve')}
+                    >
+                      Chấp thuận
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<ThumbDown />}
+                      onClick={() => handleOpenReviewDialog('reject')}
+                    >
+                      Từ chối
+                    </Button>
+                  </>
+                )}
+
+                {canConfirmReceived && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<VerifiedUser />}
+                    onClick={handleOpenConfirmDialog}
+                  >
+                    Đã nhận hàng trả
+                  </Button>
+                )}
+              </Stack>
+            )}
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Grid container spacing={5} alignItems="flex-start">
+            <Grid item xs={12} md={7}>
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={4}>
                   <Avatar
                     src={request.productImageUrl}
                     variant="rounded"
@@ -335,31 +487,21 @@ const SellerRefundDetailPage = () => {
                     <AssignmentReturn />
                   </Avatar>
                 </Grid>
-                <Grid item xs={12} sm={9}>
+                <Grid item xs={12} sm={8}>
                   <Typography variant="h6" fontWeight="medium" gutterBottom>
                     {request.productName}
                   </Typography>
                   <Stack spacing={1}>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">
-                        Mã đơn hàng:
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium">
-                        {request.orderNumber}
-                      </Typography>
+                      <Typography variant="body2" color="text.secondary">Mã đơn hàng:</Typography>
+                      <Typography variant="body2" fontWeight="medium">{request.orderNumber}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">
-                        Số lượng:
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium">
-                        {request.quantity}
-                      </Typography>
+                      <Typography variant="body2" color="text.secondary">Số lượng:</Typography>
+                      <Typography variant="body2" fontWeight="medium">{request.quantity}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">
-                        Loại yêu cầu:
-                      </Typography>
+                      <Typography variant="body2" color="text.secondary">Loại yêu cầu:</Typography>
                       <Chip
                         label={request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
                         color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
@@ -369,30 +511,74 @@ const SellerRefundDetailPage = () => {
                   </Stack>
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
+            </Grid>
 
-          {/* Return Request Details */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
+            <Grid item xs={12} md={5}>
+              <Stack spacing={1.5}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+                  <Typography variant="body2" color="text.secondary">Trạng thái:</Typography>
+                  <Chip
+                    label={RETURN_STATUS_LABELS[request.status]}
+                    color={
+                      [ReturnStatus.COMPLETED].includes(request.status)
+                        ? 'success'
+                        : [ReturnStatus.REJECTED, ReturnStatus.CANCELLED].includes(request.status)
+                        ? 'error'
+                        : 'warning'
+                    }
+                    size="small"
+                  />
+                </Box>
+
+                <Box display="flex" justifyContent="space-between" gap={2}>
+                  <Typography variant="body2" color="text.secondary">Số tiền hoàn:</Typography>
+                  <Typography variant="body2" fontWeight="bold" color="primary.main">
+                    {formatCurrency(request.refundAmount)}
+                  </Typography>
+                </Box>
+
+                {request.sellerPaysShipping && (
+                  <Alert severity="info">
+                    <Typography variant="caption">Bạn chịu phí vận chuyển trả hàng</Typography>
+                  </Alert>
+                )}
+
+                <Divider sx={{ my: 1 }} />
+
+                <Box display="flex" justifyContent="space-between" gap={2}>
+                  <Typography variant="body2" color="text.secondary">Tên:</Typography>
+                  {buyerLoading ? <Skeleton width={120} /> : (
+                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.name}</Typography>
+                  )}
+                </Box>
+                <Box display="flex" justifyContent="space-between" gap={2}>
+                  <Typography variant="body2" color="text.secondary">Email:</Typography>
+                  {buyerLoading ? <Skeleton width={160} /> : (
+                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.email}</Typography>
+                  )}
+                </Box>
+                <Box display="flex" justifyContent="space-between" gap={2}>
+                  <Typography variant="body2" color="text.secondary">SĐT:</Typography>
+                  {buyerLoading ? <Skeleton width={100} /> : (
+                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.phone}</Typography>
+                  )}
+                </Box>
+              </Stack>
+            </Grid>
+
+            <Grid item xs={12} md={5}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 <Info sx={{ verticalAlign: 'middle', mr: 1 }} />
                 Chi tiết yêu cầu
               </Typography>
-              <Divider sx={{ my: 2 }} />
-              
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Lý do trả hàng:
                   </Typography>
-                  <Chip
-                    label={RETURN_REASON_LABELS[request.reason]}
-                    variant="outlined"
-                    color="primary"
-                  />
+                  <Chip label={RETURN_REASON_LABELS[request.reason]} variant="outlined" color="primary" />
                 </Box>
-                
+
                 {request.reasonDetail && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -403,218 +589,87 @@ const SellerRefundDetailPage = () => {
                     </Paper>
                   </Box>
                 )}
-                
+
                 <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Ngày gửi yêu cầu:
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {formatDate(request.requestedAt)}
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary">Ngày gửi yêu cầu:</Typography>
+                  <Typography variant="body2" fontWeight="medium">{formatDate(request.requestedAt)}</Typography>
                 </Box>
-                
+
                 {request.returnTrackingNumber && (
-                  <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2" color="text.secondary">
-                      Mã vận đơn trả hàng:
+                  <Box display="flex" justifyContent="space-between" alignItems="center" gap={1}>
+                    <Typography variant="body2" color="text.secondary">Mã vận đơn trả hàng:</Typography>
+                    <Chip label={request.returnTrackingNumber} size="small" icon={<LocalShipping />} color="info" />
+                  </Box>
+                )}
+
+                {request.returnInstructions && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Hướng dẫn trả hàng:
                     </Typography>
-                    <Chip
-                      label={request.returnTrackingNumber}
-                      size="small"
-                      icon={<LocalShipping />}
-                      color="info"
-                    />
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
+                      <Typography variant="body2">{request.returnInstructions}</Typography>
+                    </Paper>
                   </Box>
                 )}
               </Stack>
-            </CardContent>
-          </Card>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
-          {/* Evidence Images */}
-          {request.evidenceImages && request.evidenceImages.length > 0 && (
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Hình ảnh minh chứng ({request.evidenceImages.length})
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                
-                <ImageList cols={3} gap={8}>
-                  {request.evidenceImages.map((image, index) => (
-                    <ImageListItem key={index}>
-                      <img
-                        src={image}
-                        alt={`Evidence ${index + 1}`}
-                        loading="lazy"
-                        style={{ borderRadius: 8, cursor: 'pointer' }}
-                        onClick={() => window.open(image, '_blank')}
-                      />
-                    </ImageListItem>
-                  ))}
-                </ImageList>
-              </CardContent>
-            </Card>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight="bold" gutterBottom>
+            <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+            Ảnh/Video đính kèm ({evidenceFiles.length})
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+
+          {evidenceFiles.length === 0 && <Alert severity="info">Không có ảnh/video đính kèm</Alert>}
+
+          {imageFiles.length > 0 && (
+            <Box sx={{ mb: videoFiles.length > 0 ? 2 : 0 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                Ảnh minh chứng ({imageFiles.length})
+              </Typography>
+              <ImageList cols={3} gap={8}>
+                {imageFiles.map((image, index) => (
+                  <ImageListItem key={`${image}-${index}`}>
+                    <img
+                      src={image}
+                      alt={`Evidence image ${index + 1}`}
+                      loading="lazy"
+                      style={{ borderRadius: 8, cursor: 'pointer' }}
+                      onClick={() => window.open(image, '_blank')}
+                    />
+                  </ImageListItem>
+                ))}
+              </ImageList>
+            </Box>
           )}
 
-          {/* Return Instructions (if approved) */}
-          {request.returnInstructions && (
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  <LocalShipping sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Hướng dẫn trả hàng
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
-                  <Typography variant="body2">{request.returnInstructions}</Typography>
-                </Paper>
-              </CardContent>
-            </Card>
+          {videoFiles.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                <Videocam sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
+                Video minh chứng ({videoFiles.length})
+              </Typography>
+              <Grid container spacing={2}>
+                {videoFiles.map((video, index) => (
+                  <Grid item xs={12} md={6} lg={4} key={`${video}-${index}`}>
+                    <video
+                      src={video}
+                      controls
+                      style={{ width: '100%', borderRadius: 8, backgroundColor: '#000' }}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           )}
-        </Grid>
-
-        {/* Right Column - Status & Actions */}
-        <Grid item xs={12} md={4}>
-          {/* Status Card */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Trạng thái
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              
-              <Chip
-                label={RETURN_STATUS_LABELS[request.status]}
-                color={
-                  [ReturnStatus.COMPLETED].includes(request.status)
-                    ? 'success'
-                    : [ReturnStatus.REJECTED, ReturnStatus.CANCELLED].includes(request.status)
-                    ? 'error'
-                    : 'warning'
-                }
-                sx={{ width: '100%', py: 2 }}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Refund Amount Card */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Số tiền hoàn
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="h4" color="primary" fontWeight="bold" textAlign="center">
-                {formatCurrency(request.refundAmount)}
-              </Typography>
-              
-              {request.sellerPaysShipping && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <Typography variant="caption">
-                    Bạn chịu phí vận chuyển trả hàng
-                  </Typography>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Action Buttons */}
-          {canReview && (
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Xử lý yêu cầu
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                
-                <Stack spacing={2}>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    size="large"
-                    startIcon={<ThumbUp />}
-                    onClick={() => handleOpenReviewDialog('approve')}
-                    fullWidth
-                  >
-                    Chấp thuận
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    size="large"
-                    startIcon={<ThumbDown />}
-                    onClick={() => handleOpenReviewDialog('reject')}
-                    fullWidth
-                  >
-                    Từ chối
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          )}
-
-          {canConfirmReceived && (
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Xác nhận nhận hàng
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  startIcon={<VerifiedUser />}
-                  onClick={handleOpenConfirmDialog}
-                  fullWidth
-                >
-                  Đã nhận hàng trả
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Customer Info Card */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Thông tin khách hàng
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              
-              <Stack spacing={1}>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Tên:
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {request.buyerName || 'N/A'}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Email:
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {request.buyerEmail || 'N/A'}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    SĐT:
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {request.buyerPhone || 'N/A'}
-                  </Typography>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        </CardContent>
+      </Card>
 
       {/* Review Dialog */}
       <Dialog
@@ -761,17 +816,6 @@ const SellerRefundDetailPage = () => {
             sx={{ mb: 2 }}
           />
           
-          <TextField
-            fullWidth
-            type="number"
-            label="Số tiền hoàn trả thực tế"
-            value={actualRefundAmount}
-            onChange={(e) => setActualRefundAmount(Number(e.target.value))}
-            InputProps={{
-              endAdornment: 'VNĐ',
-            }}
-            helperText="Có thể điều chỉnh nếu sản phẩm bị hư hỏng"
-          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseConfirmDialog} disabled={submitting}>
@@ -787,7 +831,8 @@ const SellerRefundDetailPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Box>
+    </Box>
   );
 };
 

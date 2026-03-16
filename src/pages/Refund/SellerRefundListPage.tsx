@@ -261,7 +261,7 @@ const SellerRefundListPage = () => {
                   {needsAction(request) && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                       <Typography variant="body2" fontWeight="medium">
-                        ⚠️ Cần xử lý ngay
+                        Cần xử lý ngay
                       </Typography>
                     </Alert>
                   )}
