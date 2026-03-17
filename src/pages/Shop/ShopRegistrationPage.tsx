@@ -45,11 +45,11 @@ import {
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -100,7 +100,6 @@ interface ShopFormData {
 
 const ShopRegistrationPage = () => {
   const theme = useTheme();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<ShopFormData>({
@@ -139,15 +138,7 @@ const ShopRegistrationPage = () => {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(true);
-
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: true });
 
   // Fetch provinces on mount
   useEffect(() => {
