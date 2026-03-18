@@ -11,6 +11,11 @@ export interface GhnCheckoutShippingFeeResponse {
   freeShipping: boolean;
 }
 
+export interface GhnLeadTimeResponse {
+  leadtime: number;
+  expectedDeliveryTime: string; // ISO date string
+}
+
 export const ghnApi = {
   getProvinces: async (): Promise<ApiResponse<GhnProvince[]>> => {
     const response = await axiosInstance.get<ApiResponse<GhnProvince[]>>(
@@ -31,6 +36,18 @@ export const ghnApi = {
     const response = await axiosInstance.get<ApiResponse<GhnWard[]>>(
       `${GHN_BASE_URL}/wards`,
       { params: { districtId } },
+    );
+    return response.data;
+  },
+
+  getLeadTime: async (params: {
+    shopId: string;
+    toDistrictId: number;
+    toWardCode: string;
+  }): Promise<ApiResponse<GhnLeadTimeResponse>> => {
+    const response = await axiosInstance.get<ApiResponse<GhnLeadTimeResponse>>(
+      `${GHN_BASE_URL}/leadtime`,
+      { params },
     );
     return response.data;
   },
