@@ -35,6 +35,7 @@ import { userWalletApi, type UserWalletResponse, type UserTransactionResponse } 
 import { paymentApi } from '@/api/payment-api';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -48,39 +49,39 @@ const formatDate = (dateStr: string) => {
 
 const getTransactionIcon = (type: string) => {
   switch (type) {
-    case 'TOP_UP':    return <ArrowDownward sx={{ fontSize: 16 }} />;
-    case 'REFUND':    return <ArrowDownward sx={{ fontSize: 16 }} />;
+    case 'TOP_UP': return <ArrowDownward sx={{ fontSize: 16 }} />;
+    case 'REFUND': return <ArrowDownward sx={{ fontSize: 16 }} />;
     case 'ORDER_PAYMENT': return <ArrowUpward sx={{ fontSize: 16 }} />;
-    default:          return <ArrowUpward sx={{ fontSize: 16 }} />;
+    default: return <ArrowUpward sx={{ fontSize: 16 }} />;
   }
 };
 
 const getTransactionColor = (type: string): 'success' | 'error' | 'default' => {
   switch (type) {
     case 'TOP_UP':
-    case 'REFUND':       return 'success';
+    case 'REFUND': return 'success';
     case 'ORDER_PAYMENT': return 'error';
-    default:              return 'default';
+    default: return 'default';
   }
 };
 
 const getTransactionLabel = (type: string) => {
   switch (type) {
-    case 'TOP_UP':        return 'Top Up';
+    case 'TOP_UP': return 'Top Up';
     case 'ORDER_PAYMENT': return 'Order Payment';
-    case 'REFUND':        return 'Refund';
-    default:              return type;
+    case 'REFUND': return 'Refund';
+    default: return type;
   }
 };
 
 const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'default' => {
   switch (status) {
-    case 'COMPLETED':   return 'success';
+    case 'COMPLETED': return 'success';
     case 'PENDING':
-    case 'PROCESSING':  return 'warning';
+    case 'PROCESSING': return 'warning';
     case 'FAILED':
-    case 'CANCELLED':   return 'error';
-    default:            return 'default';
+    case 'CANCELLED': return 'error';
+    default: return 'default';
   }
 };
 
@@ -129,6 +130,8 @@ const UserWalletPage = () => {
       setTxLoading(false);
     }
   }, []);
+
+  useLayoutConfig({ showNavbar: true, showFooter: true });
 
   useEffect(() => {
     fetchWallet();

@@ -27,11 +27,11 @@ import {
   PeopleAlt,
   Search,
 } from '@mui/icons-material';
-import { useEffect, useState } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
+import { useState } from 'react';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ===================== Mock Data =====================
 
@@ -285,19 +285,11 @@ const AddMemberDialog = ({ open, onClose, onConfirm, existingIds }: AddMemberDia
 const ShopStaffPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
-  const { setShowNavbar, setShowFooter } = useLayout();
   const [staffList, setStaffList] = useState<StaffMember[]>(MOCK_STAFF);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const handleAddMember = (staff: StaffMember) => {
     setStaffList((prev) => [...prev, staff]);

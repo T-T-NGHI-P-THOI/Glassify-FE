@@ -14,6 +14,7 @@ import ProductAPI from '../api/product-api';
 import EmblaCarousel from '../components/custom/CustomEmblaCarousel'
 import type { EmblaOptionsType } from 'embla-carousel';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const MainPage = () => {
   const navigate = useNavigate();
@@ -29,6 +30,8 @@ const MainPage = () => {
     sku: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useLayoutConfig({ showNavbar: true, showFooter: true });
 
   // Fetch best seller products from API
   useEffect(() => {

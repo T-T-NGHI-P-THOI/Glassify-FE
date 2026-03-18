@@ -41,13 +41,13 @@ import {
   LocalMall,
 } from '@mui/icons-material';
 import { useEffect, useState, useMemo } from 'react';
-import { useLayout } from '../../layouts/LayoutContext';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse } from '@/models/Shop';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const SortIcon = () => (
   <UnfoldMore sx={{ fontSize: 14, color: '#9ca3af', ml: 0.5, verticalAlign: 'middle' }} />
@@ -56,7 +56,6 @@ const SortIcon = () => (
 const ShopProductsPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
-  const { setShowNavbar, setShowFooter } = useLayout();
 
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [products, setProducts] = useState<ApiProduct[]>([]);
@@ -68,14 +67,7 @@ const ShopProductsPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
 
-  useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   useEffect(() => {
     (async () => {
