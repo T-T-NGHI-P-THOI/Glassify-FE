@@ -66,6 +66,8 @@ export interface OrderResponse {
     completedAt?: string;
     cancelledAt?: string;
     trackingNumber?: string;
+    toDistrictId?: number;
+    toWardCode?: string;
     items: OrderItemResponse[];
     status: string;
     paymentStatus: string;

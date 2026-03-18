@@ -50,8 +50,11 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
+import { ghnApi } from '@/api/ghnApi';
+import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import AccessTime from '@mui/icons-material/AccessTime';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
 import { checkReturnEligibility, createReturnRequest } from '@/api/refund-api';
@@ -107,6 +110,8 @@ interface Order {
   completedAt?: string;
   cancelledAt?: string;
   trackingNumber?: string;
+  toDistrictId?: number;
+  toWardCode?: string;
   items: OrderItem[];
   status: OrderStatus;
   paymentStatus: PaymentStatus;
@@ -334,6 +339,9 @@ const MyOrdersPage = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelReasons, setCancelReasons] = useState<string[]>([]);
+  const [leadTime, setLeadTime] = useState<string | null>(null);
+  const [leadTimeLoading, setLeadTimeLoading] = useState(false);
+  const [userAddresses, setUserAddresses] = useState<UserAddressResponse[]>([]);
 
   const CUSTOMER_CANCEL_REASONS = [
     'Changed my mind',
@@ -370,6 +378,9 @@ const MyOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    userAddressApi.getAll().then((res) => {
+      if (res.data) setUserAddresses(res.data);
+    }).catch(() => {});
   }, [fetchOrders]);
 
   const openCancelDialog = (orderId: string) => {
@@ -587,7 +598,29 @@ const MyOrdersPage = () => {
 
   const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
+    setLeadTime(null);
     setDetailDialogOpen(true);
+
+    const shopId = order.items[0]?.shopId;
+    // toDistrictId/toWardCode may not be in order response — fall back to matched user address
+    const toDistrictId = order.toDistrictId
+      ?? userAddresses.find(
+          (a) => a.recipientPhone === order.shippingPhone && a.recipientName === order.shippingName,
+        )?.ghnDistrictId;
+    const toWardCode = order.toWardCode
+      ?? userAddresses.find(
+          (a) => a.recipientPhone === order.shippingPhone && a.recipientName === order.shippingName,
+        )?.ghnWardCode;
+
+    if (shopId && toDistrictId && toWardCode) {
+      setLeadTimeLoading(true);
+      ghnApi.getLeadTime({ shopId, toDistrictId, toWardCode })
+        .then((res) => {
+          if (res.data?.expectedDeliveryTime) setLeadTime(res.data.expectedDeliveryTime);
+        })
+        .catch(() => {})
+        .finally(() => setLeadTimeLoading(false));
+    }
   };
 
   return (
@@ -996,6 +1029,25 @@ const MyOrdersPage = () => {
                         {selectedOrder.shippingAddress}
                         {selectedOrder.shippingCity && `, ${selectedOrder.shippingCity}`}
                       </Typography>
+                      {(leadTimeLoading || leadTime) && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                          {leadTimeLoading ? (
+                            <CircularProgress size={12} sx={{ color: theme.palette.custom.neutral[400] }} />
+                          ) : leadTime ? (
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                              Estimated delivery:{' '}
+                              <span style={{ fontWeight: 600 }}>
+                                {new Date(leadTime).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      )}
                     </Box>
                   </Grid>
 
