@@ -60,6 +60,7 @@ const getStatusSteps = (request: RefundRequest) => {
   const baseSteps = [
     { label: 'Yêu cầu đã gửi', status: ReturnStatus.REQUESTED },
     { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
+    { label: 'Shop đã chấp thuận', status: ReturnStatus.SHOP_APPROVED },
     { label: 'Đã chấp thuận', status: ReturnStatus.APPROVED },
     { label: 'Đang gửi trả', status: ReturnStatus.RETURN_SHIPPING },
     { label: 'Đã nhận hàng', status: ReturnStatus.ITEM_RECEIVED },
@@ -191,8 +192,42 @@ const BuyerRefundDetailPage = () => {
   const steps = getStatusSteps(request);
   const activeStep = getActiveStep(request.status, steps);
   const canCancel = request.status === ReturnStatus.REQUESTED;
-  const canUpdateTracking =
-    request.status === ReturnStatus.APPROVED && !request.returnTrackingNumber;
+  const isAdminApproved = request.status === ReturnStatus.APPROVED;
+  const waitingForAdminApproval =
+    request.status === ReturnStatus.SHOP_APPROVED ||
+    request.status === ReturnStatus.PLATFORM_REVIEWING;
+  const canUpdateTracking = isAdminApproved && !request.returnTrackingNumber;
+  const evidenceFiles = request.evidenceImages || [];
+
+  const isVideoFile = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    return /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(lowerUrl)
+      || lowerUrl.includes('/video/')
+      || lowerUrl.includes('resource_type/video');
+  };
+
+  const isImageFile = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(lowerUrl)
+      || lowerUrl.includes('/image/')
+      || lowerUrl.includes('resource_type/image');
+  };
+
+  const videoFiles = evidenceFiles.filter((fileUrl) => isVideoFile(fileUrl));
+  const imageFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl) && isImageFile(fileUrl));
+  const attachmentFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl) && !isImageFile(fileUrl));
+
+  const getFileNameFromUrl = (url: string) => {
+    try {
+      const pathname = new URL(url).pathname;
+      const parts = pathname.split('/').filter(Boolean);
+      return decodeURIComponent(parts[parts.length - 1] || 'tap-tin-dinh-kem');
+    } catch {
+      const sanitized = url.split('?')[0].split('#')[0];
+      const parts = sanitized.split('/').filter(Boolean);
+      return parts[parts.length - 1] || 'tap-tin-dinh-kem';
+    }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -240,10 +275,21 @@ const BuyerRefundDetailPage = () => {
       </Paper>
 
       {/* Alert messages based on status */}
-      {request.status === ReturnStatus.APPROVED && !request.returnTrackingNumber && (
+      {waitingForAdminApproval && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Yêu cầu đang chờ admin phê duyệt
+          </Typography>
+          <Typography variant="body2">
+            Sau khi admin chấp thuận, bạn sẽ nhận được hướng dẫn gửi hàng và có thể cập nhật mã vận đơn.
+          </Typography>
+        </Alert>
+      )}
+
+      {isAdminApproved && !request.returnTrackingNumber && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Yêu cầu đã được chấp thuận!
+            Admin đã chấp thuận yêu cầu!
           </Typography>
           <Typography variant="body2">
             Vui lòng gửi trả sản phẩm và cập nhật mã vận đơn
@@ -273,7 +319,7 @@ const BuyerRefundDetailPage = () => {
 
       <Grid container spacing={3}>
         {/* Product information */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -281,7 +327,7 @@ const BuyerRefundDetailPage = () => {
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Avatar
                     src={request.productImageUrl}
                     variant="rounded"
@@ -290,7 +336,7 @@ const BuyerRefundDetailPage = () => {
                     <AssignmentReturn sx={{ fontSize: 60 }} />
                   </Avatar>
                 </Grid>
-                <Grid item xs={12} sm={9}>
+                <Grid size={{ xs: 12, sm: 9 }}>
                   <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                     {request.productName}
                   </Typography>
@@ -319,7 +365,7 @@ const BuyerRefundDetailPage = () => {
                 Thông tin hoàn trả
               </Typography>
               <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">
                     Loại yêu cầu
                   </Typography>
@@ -327,7 +373,7 @@ const BuyerRefundDetailPage = () => {
                     {request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
                   </Typography>
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">
                     Lý do
                   </Typography>
@@ -336,7 +382,7 @@ const BuyerRefundDetailPage = () => {
                   </Typography>
                 </Grid>
                 {request.reasonDetail && (
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <Typography variant="body2" color="text.secondary">
                       Chi tiết lý do
                     </Typography>
@@ -345,7 +391,7 @@ const BuyerRefundDetailPage = () => {
                 )}
                 {request.returnTrackingNumber && (
                   <>
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         Mã vận đơn
                       </Typography>
@@ -354,7 +400,7 @@ const BuyerRefundDetailPage = () => {
                       </Typography>
                     </Grid>
                     {request.returnCarrier && (
-                      <Grid item xs={6}>
+                      <Grid size={{ xs: 6 }}>
                         <Typography variant="body2" color="text.secondary">
                           Đơn vị vận chuyển
                         </Typography>
@@ -367,33 +413,91 @@ const BuyerRefundDetailPage = () => {
                 )}
               </Grid>
 
-              {/* Evidence images */}
-              {request.evidenceImages && request.evidenceImages.length > 0 && (
-                <>
-                  <Divider sx={{ my: 3 }} />
-                  <Typography variant="h6" gutterBottom>
-                    Hình ảnh bằng chứng
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Ảnh/Video/File minh chứng ({evidenceFiles.length})
+              </Typography>
+
+              {evidenceFiles.length === 0 && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Chưa có minh chứng đính kèm.
+                </Alert>
+              )}
+
+              {imageFiles.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Hình ảnh ({imageFiles.length})
                   </Typography>
-                  <ImageList cols={3} gap={8} sx={{ mt: 2 }}>
-                    {request.evidenceImages.map((url, index) => (
-                      <ImageListItem key={index}>
+                  <ImageList cols={3} gap={8}>
+                    {imageFiles.map((url, index) => (
+                      <ImageListItem key={`${url}-${index}`}>
                         <img
                           src={url}
-                          alt={`Evidence ${index + 1}`}
+                          alt={`Evidence image ${index + 1}`}
                           loading="lazy"
-                          style={{ borderRadius: 8 }}
+                          style={{ borderRadius: 8, cursor: 'pointer' }}
+                          onClick={() => window.open(url, '_blank')}
                         />
                       </ImageListItem>
                     ))}
                   </ImageList>
-                </>
+                </Box>
+              )}
+
+              {videoFiles.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Video ({videoFiles.length})
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {videoFiles.map((video, index) => (
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${video}-${index}`}>
+                        <video
+                          src={video}
+                          controls
+                          style={{ width: '100%', borderRadius: 8, backgroundColor: '#000' }}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              {attachmentFiles.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Tệp đính kèm ({attachmentFiles.length})
+                  </Typography>
+                  <Stack spacing={1}>
+                    {attachmentFiles.map((fileUrl, index) => (
+                      <Paper key={`${fileUrl}-${index}`} variant="outlined" sx={{ p: 1.5 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                            <AttachFile color="action" fontSize="small" />
+                            <Typography variant="body2" noWrap>
+                              {getFileNameFromUrl(fileUrl)}
+                            </Typography>
+                          </Stack>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => window.open(fileUrl, '_blank')}
+                          >
+                            Mở
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
               )}
             </CardContent>
           </Card>
         </Grid>
 
         {/* Summary sidebar */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>

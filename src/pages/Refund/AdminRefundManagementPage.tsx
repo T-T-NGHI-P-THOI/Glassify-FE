@@ -113,10 +113,10 @@ const AdminRefundManagementPage = () => {
   }, [setShowNavbar, setShowFooter]);
 
   const statusTabs = [
-    { label: 'Tất cả', value: null, count: counts.all },
-    { label: 'Cần xem xét', value: 'NEEDS_REVIEW', count: counts.needsReview },
-    { label: 'Tranh chấp', value: 'DISPUTE', count: counts.disputes },
-    { label: 'Chờ hoàn tiền', value: ReturnStatus.REFUNDING, count: counts.pendingRefund },
+    { label: 'Tất cả', status: null as ReturnStatus | null, count: counts.all },
+    { label: 'Cần xem xét', status: ReturnStatus.SHOP_APPROVED, count: counts.needsReview },
+    { label: 'Tranh chấp', status: null as ReturnStatus | null, count: counts.disputes, isDisputeTab: true },
+    { label: 'Chờ hoàn tiền', status: ReturnStatus.ITEM_RECEIVED, count: counts.pendingRefund },
   ];
 
   const fetchRequests = async () => {
@@ -124,11 +124,7 @@ const AdminRefundManagementPage = () => {
       setListLoading(true);
       const currentTab = statusTabs[selectedTab];
       const response = await listReturnRequests({
-        status: currentTab.value === 'NEEDS_REVIEW'
-          ? ReturnStatus.ITEM_RECEIVED
-          : currentTab.value === 'DISPUTE'
-          ? undefined // Filter disputes on client side
-          : (currentTab.value as ReturnStatus) || undefined,
+        status: currentTab.isDisputeTab ? undefined : currentTab.status || undefined,
         sortBy: 'requestedAt',
         sortDirection: 'DESC',
       });
@@ -136,7 +132,7 @@ const AdminRefundManagementPage = () => {
       let filteredRequests = response.data || [];
       
       // Client-side filtering for disputes
-      if (currentTab.value === 'DISPUTE') {
+      if (currentTab.isDisputeTab) {
         filteredRequests = filteredRequests.filter(r => r.hasDispute);
       }
       
@@ -146,9 +142,9 @@ const AdminRefundManagementPage = () => {
       const allRequests = response.data || [];
       setCounts({
         all: allRequests.length,
-        needsReview: allRequests.filter(r => r.status === ReturnStatus.ITEM_RECEIVED).length,
+        needsReview: allRequests.filter(r => r.status === ReturnStatus.SHOP_APPROVED).length,
         disputes: allRequests.filter(r => r.hasDispute).length,
-        pendingRefund: allRequests.filter(r => r.status === ReturnStatus.REFUNDING).length,
+        pendingRefund: allRequests.filter(r => r.status === ReturnStatus.ITEM_RECEIVED).length,
       });
     } catch (error: any) {
       console.error('Failed to fetch requests:', error);
@@ -434,8 +430,9 @@ const AdminRefundManagementPage = () => {
     );
   }
 
-  const canReview = request.status === ReturnStatus.ITEM_RECEIVED || request.hasDispute;
-  const canProcessRefund = request.status === ReturnStatus.REFUNDING;
+  const canReview = request.status === ReturnStatus.SHOP_APPROVED || request.hasDispute;
+  const canProcessRefund =
+    request.status === ReturnStatus.ITEM_RECEIVED || request.status === ReturnStatus.REFUNDING;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>

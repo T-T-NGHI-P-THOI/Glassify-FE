@@ -48,6 +48,7 @@ const getStatusIcon = (status: ReturnStatus) => {
     case ReturnStatus.REQUESTED:
     case ReturnStatus.SELLER_REVIEWING:
       return <HourglassEmpty />;
+    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
     case ReturnStatus.ITEM_RECEIVED:
@@ -68,6 +69,7 @@ const getStatusColor = (status: ReturnStatus) => {
     case ReturnStatus.REQUESTED:
     case ReturnStatus.SELLER_REVIEWING:
       return 'warning';
+    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
       return 'info';
@@ -121,7 +123,7 @@ const SellerRefundListPage = () => {
       setCounts({
         all: allRequests.length,
         pending: allRequests.filter(r => r.status === ReturnStatus.REQUESTED || r.status === ReturnStatus.SELLER_REVIEWING).length,
-        approved: allRequests.filter(r => r.status === ReturnStatus.APPROVED).length,
+        approved: allRequests.filter(r => r.status === ReturnStatus.SHOP_APPROVED || r.status === ReturnStatus.APPROVED).length,
         itemReceived: allRequests.filter(r => r.status === ReturnStatus.ITEM_RECEIVED).length,
         completed: allRequests.filter(r => r.status === ReturnStatus.COMPLETED).length,
       });

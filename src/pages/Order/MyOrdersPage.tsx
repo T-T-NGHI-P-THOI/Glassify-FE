@@ -16,11 +16,11 @@ import {
   Grid,
   Checkbox,
   TextField,
-  Radio,
-  RadioGroup,
   FormControlLabel,
   FormControl,
-  FormLabel,
+  InputLabel,
+  Select,
+  MenuItem,
   Alert,
   IconButton,
 } from '@mui/material';
@@ -357,7 +357,7 @@ const MyOrdersPage = () => {
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedOrderItemForReturn, setSelectedOrderItemForReturn] = useState<OrderItem | null>(null);
-  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE_LENS);
+  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE);
   const [returnDescription, setReturnDescription] = useState('');
   const [returnImages, setReturnImages] = useState<string[]>([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
@@ -429,7 +429,7 @@ const MyOrdersPage = () => {
   // Return Request Handlers
   const handleOpenReturnDialog = (orderItem: OrderItem) => {
     setSelectedOrderItemForReturn(orderItem);
-    setReturnReason(ReturnReason.DEFECTIVE_LENS);
+    setReturnReason(ReturnReason.DEFECTIVE);
     setReturnDescription('');
     setReturnImages([]);
     setReturnDialogOpen(true);
@@ -1582,24 +1582,20 @@ const MyOrdersPage = () => {
               </Box>
 
               {/* Return Reason */}
-              <FormControl component="fieldset" fullWidth sx={{ mb: 3 }}>
-                <FormLabel component="legend" sx={{ fontSize: 14, fontWeight: 600, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
-                  Lý do trả hàng *
-                </FormLabel>
-                <RadioGroup value={returnReason} onChange={(e) => setReturnReason(e.target.value as ReturnReason)}>
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel id="return-reason-label">Lý do trả hàng *</InputLabel>
+                <Select
+                  labelId="return-reason-label"
+                  value={returnReason}
+                  label="Lý do trả hàng *"
+                  onChange={(e) => setReturnReason(e.target.value as ReturnReason)}
+                >
                   {Object.values(ReturnReason).map((reason) => (
-                    <FormControlLabel
-                      key={reason}
-                      value={reason}
-                      control={<Radio size="small" />}
-                      label={
-                        <Typography sx={{ fontSize: 13 }}>
-                          {RETURN_REASON_LABELS[reason]}
-                        </Typography>
-                      }
-                    />
+                    <MenuItem key={reason} value={reason}>
+                      {RETURN_REASON_LABELS[reason]}
+                    </MenuItem>
                   ))}
-                </RadioGroup>
+                </Select>
               </FormControl>
 
               {/* Description */}

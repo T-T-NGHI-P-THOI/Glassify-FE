@@ -49,7 +49,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.PROFILE}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <ShopProfilePage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -60,7 +60,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <MyOrdersPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -71,7 +71,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.WARRANTY.MAIN}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <WarrantyPage />
                         </RoleBasedGuard>
                     </AuthGuard>

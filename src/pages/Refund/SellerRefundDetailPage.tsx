@@ -84,6 +84,7 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
     { label: 'Yêu cầu gửi', status: ReturnStatus.REQUESTED },
     { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
     { label: 'Nền tảng xem xét', status: ReturnStatus.PLATFORM_REVIEWING },
+    { label: 'Shop chấp thuận', status: ReturnStatus.SHOP_APPROVED },
     { label: 'Chấp thuận', status: ReturnStatus.APPROVED },
     { label: 'Khách gửi hàng', status: ReturnStatus.RETURN_SHIPPING },
     { label: 'Nhận hàng trả', status: ReturnStatus.ITEM_RECEIVED },
