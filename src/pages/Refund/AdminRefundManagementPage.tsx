@@ -41,6 +41,8 @@ import {
   Info,
   Visibility,
   LocalShipping,
+  Videocam,
+  InsertDriveFile,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -335,7 +337,7 @@ const AdminRefundManagementPage = () => {
           {!listLoading && requests.length > 0 && (
             <Grid container spacing={3}>
               {requests.map((req) => (
-                <Grid item xs={12} key={req.id}>
+                <Grid size={{ xs: 12 }} key={req.id}>
                   <Card
                     elevation={req.hasDispute ? 4 : 2}
                     sx={{
@@ -352,7 +354,7 @@ const AdminRefundManagementPage = () => {
                       )}
 
                       <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={2}>
+                        <Grid size={{ xs: 12, sm: 2 }}>
                           <Avatar
                             src={req.productImageUrl}
                             variant="rounded"
@@ -361,7 +363,7 @@ const AdminRefundManagementPage = () => {
                             <AssignmentReturn />
                           </Avatar>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="h6" gutterBottom>
                             #{req.requestNumber}
                           </Typography>
@@ -377,7 +379,7 @@ const AdminRefundManagementPage = () => {
                             }
                           />
                         </Grid>
-                        <Grid item xs={12} sm={4} textAlign="right">
+                        <Grid size={{ xs: 12, sm: 4 }} textAlign="right">
                           <Typography variant="h6" color="primary">
                             {formatCurrency(req.refundAmount)}
                           </Typography>
@@ -433,6 +435,37 @@ const AdminRefundManagementPage = () => {
   const canReview = request.status === ReturnStatus.SHOP_APPROVED || request.hasDispute;
   const canProcessRefund =
     request.status === ReturnStatus.ITEM_RECEIVED || request.status === ReturnStatus.REFUNDING;
+  const evidenceFiles = request.evidenceImages || [];
+
+  const isVideoFile = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    return /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(lowerUrl)
+      || lowerUrl.includes('/video/')
+      || lowerUrl.includes('resource_type/video');
+  };
+
+  const isImageFile = (url: string) => {
+    const lowerUrl = url.toLowerCase();
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(lowerUrl)
+      || lowerUrl.includes('/image/')
+      || lowerUrl.includes('resource_type/image');
+  };
+
+  const getFileNameFromUrl = (url: string) => {
+    try {
+      const pathname = new URL(url).pathname;
+      const parts = pathname.split('/').filter(Boolean);
+      return decodeURIComponent(parts[parts.length - 1] || 'tep-dinh-kem');
+    } catch {
+      const sanitized = url.split('?')[0].split('#')[0];
+      const parts = sanitized.split('/').filter(Boolean);
+      return parts[parts.length - 1] || 'tep-dinh-kem';
+    }
+  };
+
+  const videoFiles = evidenceFiles.filter((fileUrl) => isVideoFile(fileUrl));
+  const imageFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl) && isImageFile(fileUrl));
+  const attachmentFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl) && !isImageFile(fileUrl));
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -483,7 +516,7 @@ const AdminRefundManagementPage = () => {
 
       <Grid container spacing={3}>
         {/* Left Column */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           {/* Product Info */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
@@ -493,7 +526,7 @@ const AdminRefundManagementPage = () => {
               <Divider sx={{ my: 2 }} />
               
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={3}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <Avatar
                     src={request.productImageUrl}
                     variant="rounded"
@@ -502,7 +535,7 @@ const AdminRefundManagementPage = () => {
                     <AssignmentReturn />
                   </Avatar>
                 </Grid>
-                <Grid item xs={12} sm={9}>
+                <Grid size={{ xs: 12, sm: 9 }}>
                   <Typography variant="h6" gutterBottom>
                     {request.productName}
                   </Typography>
@@ -603,32 +636,85 @@ const AdminRefundManagementPage = () => {
             </CardContent>
           </Card>
 
-          {/* Evidence Images */}
-          {request.evidenceImages && request.evidenceImages.length > 0 && (
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Hình ảnh minh chứng
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                
-                <ImageList cols={3} gap={8}>
-                  {request.evidenceImages.map((image, index) => (
-                    <ImageListItem key={index}>
-                      <img
-                        src={image}
-                        alt={`Evidence ${index + 1}`}
-                        loading="lazy"
-                        style={{ borderRadius: 8, cursor: 'pointer' }}
-                        onClick={() => window.open(image, '_blank')}
-                      />
-                    </ImageListItem>
-                  ))}
-                </ImageList>
-              </CardContent>
-            </Card>
-          )}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                Ảnh/Video/File minh chứng ({evidenceFiles.length})
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+
+              {evidenceFiles.length === 0 && (
+                <Alert severity="info">Không có minh chứng đính kèm</Alert>
+              )}
+
+              {imageFiles.length > 0 && (
+                <Box sx={{ mb: videoFiles.length > 0 || attachmentFiles.length > 0 ? 2 : 0 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Ảnh minh chứng ({imageFiles.length})
+                  </Typography>
+                  <ImageList cols={3} gap={8}>
+                    {imageFiles.map((image, index) => (
+                      <ImageListItem key={`${image}-${index}`}>
+                        <img
+                          src={image}
+                          alt={`Evidence image ${index + 1}`}
+                          loading="lazy"
+                          style={{ borderRadius: 8, cursor: 'pointer' }}
+                          onClick={() => window.open(image, '_blank')}
+                        />
+                      </ImageListItem>
+                    ))}
+                  </ImageList>
+                </Box>
+              )}
+
+              {videoFiles.length > 0 && (
+                <Box sx={{ mb: attachmentFiles.length > 0 ? 2 : 0 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    <Videocam sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
+                    Video minh chứng ({videoFiles.length})
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {videoFiles.map((video, index) => (
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${video}-${index}`}>
+                        <video
+                          src={video}
+                          controls
+                          style={{ width: '100%', borderRadius: 8, backgroundColor: '#000' }}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              )}
+
+              {attachmentFiles.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Tệp đính kèm ({attachmentFiles.length})
+                  </Typography>
+                  <Stack spacing={1}>
+                    {attachmentFiles.map((fileUrl, index) => (
+                      <Paper key={`${fileUrl}-${index}`} variant="outlined" sx={{ p: 1.5 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                            <InsertDriveFile color="action" fontSize="small" />
+                            <Typography variant="body2" noWrap>
+                              {getFileNameFromUrl(fileUrl)}
+                            </Typography>
+                          </Stack>
+                          <Button size="small" variant="outlined" onClick={() => window.open(fileUrl, '_blank')}>
+                            Mở
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Admin Notes */}
           {request.adminNotes && (
@@ -648,7 +734,7 @@ const AdminRefundManagementPage = () => {
         </Grid>
 
         {/* Right Column */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           {/* Status */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
