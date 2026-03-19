@@ -12,7 +12,6 @@ export interface CreateOrderRequest {
     customerNote?: string;
     paymentMethod: string;
     couponCode?: string;
-    shopId?: string;
     selectedServiceId?: number;
     toDistrictId?: number;
     toWardCode?: string;

@@ -8,6 +8,7 @@ export interface AddToCartParams {
     productId: string;
     productType: string;
     brandName?: string;
+    shopName?: string;
     sku?: string;
     color?: string;
     size?: string;
