@@ -101,7 +101,6 @@ const AdminRefundManagementPage = () => {
   const [finalRefundAmount, setFinalRefundAmount] = useState<number>(0);
   
   // Refund form
-  const [refundMethod, setRefundMethod] = useState('WALLET');
   const [refundNotes, setRefundNotes] = useState('');
 
   useEffect(() => {
@@ -921,30 +920,12 @@ const AdminRefundManagementPage = () => {
               Số tiền hoàn: <strong>{formatCurrency(request.refundAmount)}</strong>
             </Typography>
           </Alert>
-          
-          <FormControl component="fieldset" sx={{ mb: 3 }}>
-            <FormLabel>Phương thức hoàn tiền:</FormLabel>
-            <RadioGroup
-              value={refundMethod}
-              onChange={(e) => setRefundMethod(e.target.value)}
-            >
-              <FormControlLabel
-                value="WALLET"
-                control={<Radio />}
-                label="Hoàn vào ví Glassify"
-              />
-              <FormControlLabel
-                value="BANK"
-                control={<Radio />}
-                label="Hoàn vào tài khoản ngân hàng"
-              />
-              <FormControlLabel
-                value="ORIGINAL"
-                control={<Radio />}
-                label="Hoàn theo phương thức gốc"
-              />
-            </RadioGroup>
-          </FormControl>
+
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              Hệ thống sẽ hoàn tiền trực tiếp vào ví Glassify của khách hàng.
+            </Typography>
+          </Alert>
           
           <TextField
             fullWidth
