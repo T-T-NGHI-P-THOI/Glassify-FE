@@ -81,23 +81,23 @@ type StepItem = { label: string; status: ReturnStatus };
 
 const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   const normalSteps: StepItem[] = [
-    { label: 'Yêu cầu gửi', status: ReturnStatus.REQUESTED },
-    { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
-    { label: 'Nền tảng xem xét', status: ReturnStatus.PLATFORM_REVIEWING },
-    { label: 'Shop chấp thuận', status: ReturnStatus.SHOP_APPROVED },
-    { label: 'Chấp thuận', status: ReturnStatus.APPROVED },
-    { label: 'Khách gửi hàng', status: ReturnStatus.RETURN_SHIPPING },
-    { label: 'Nhận hàng trả', status: ReturnStatus.ITEM_RECEIVED },
-    { label: 'Đang hoàn tiền', status: ReturnStatus.REFUNDING },
-    { label: 'Hoàn tất', status: ReturnStatus.COMPLETED },
+    { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
+    { label: 'Seller Reviewing', status: ReturnStatus.SELLER_REVIEWING },
+    { label: 'Platform Review', status: ReturnStatus.PLATFORM_REVIEWING },
+    { label: 'Shop Approved', status: ReturnStatus.SHOP_APPROVED },
+    { label: 'Approved', status: ReturnStatus.APPROVED },
+    { label: 'Customer Returning Item', status: ReturnStatus.RETURN_SHIPPING },
+    { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
+    { label: 'Processing Refund', status: ReturnStatus.REFUNDING },
+    { label: 'Completed', status: ReturnStatus.COMPLETED },
   ];
 
   if (status === ReturnStatus.REJECTED || status === ReturnStatus.CANCELLED) {
     return [
-      { label: 'Yêu cầu gửi', status: ReturnStatus.REQUESTED },
-      { label: 'Đang xem xét', status: ReturnStatus.SELLER_REVIEWING },
+      { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
+      { label: 'Seller Reviewing', status: ReturnStatus.SELLER_REVIEWING },
       {
-        label: status === ReturnStatus.REJECTED ? 'Đã từ chối' : 'Đã hủy',
+        label: status === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
         status,
       },
     ];
@@ -155,7 +155,7 @@ const SellerRefundDetailPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch request detail:', error);
-      toast.error(error.response?.data?.message || 'Không thể tải thông tin yêu cầu hoàn trả');
+      toast.error(error.response?.data?.message || 'Unable to load return request information');
       navigate('/shop/refunds');
     } finally {
       setLoading(false);
@@ -214,12 +214,12 @@ const SellerRefundDetailPage = () => {
     if (!requestId) return;
     
     if (reviewAction === 'reject' && !rejectionReason.trim()) {
-      toast.error('Vui lòng nhập lý do từ chối');
+      toast.error('Please enter rejection reason');
       return;
     }
     
     if (reviewAction === 'approve' && !returnInstructions.trim()) {
-      toast.error('Vui lòng nhập hướng dẫn trả hàng cho khách');
+      toast.error('Please enter return instructions for the customer');
       return;
     }
     
@@ -234,14 +234,14 @@ const SellerRefundDetailPage = () => {
       
       toast.success(
         reviewAction === 'approve'
-          ? 'Đã chấp thuận yêu cầu hoàn trả'
-          : 'Đã từ chối yêu cầu hoàn trả'
+          ? 'Return request approved'
+          : 'Return request rejected'
       );
       handleCloseReviewDialog();
       await fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to review request:', error);
-      toast.error(error.response?.data?.message || 'Không thể xử lý yêu cầu');
+      toast.error(error.response?.data?.message || 'Unable to process request');
     } finally {
       setSubmitting(false);
     }

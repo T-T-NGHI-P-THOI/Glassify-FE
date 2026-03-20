@@ -114,10 +114,10 @@ const AdminRefundManagementPage = () => {
   }, [setShowNavbar, setShowFooter]);
 
   const statusTabs = [
-    { label: 'Tất cả', status: null as ReturnStatus | null, count: counts.all },
-    { label: 'Cần xem xét', status: ReturnStatus.SHOP_APPROVED, count: counts.needsReview },
-    { label: 'Tranh chấp', status: null as ReturnStatus | null, count: counts.disputes, isDisputeTab: true },
-    { label: 'Chờ hoàn tiền', status: ReturnStatus.ITEM_RECEIVED, count: counts.pendingRefund },
+    { label: 'All', status: null as ReturnStatus | null, count: counts.all },
+    { label: 'Needs Review', status: ReturnStatus.SHOP_APPROVED, count: counts.needsReview },
+    { label: 'Disputes', status: null as ReturnStatus | null, count: counts.disputes, isDisputeTab: true },
+    { label: 'Pending Refund', status: ReturnStatus.ITEM_RECEIVED, count: counts.pendingRefund },
   ];
 
   const fetchRequests = async () => {
@@ -208,7 +208,7 @@ const AdminRefundManagementPage = () => {
     if (!requestId) return;
     
     if (!adminNotes.trim()) {
-      toast.error('Vui lòng nhập ghi chú xét duyệt');
+      toast.error('Please enter review notes');
       return;
     }
     
@@ -219,13 +219,13 @@ const AdminRefundManagementPage = () => {
                        disputeDecision === DisputeDecision.PARTIAL_REFUND;
       await platformReview(requestId, approved, adminNotes);
       
-      toast.success('Đã hoàn tất xét duyệt yêu cầu hoàn trả');
+      toast.success('Refund request review completed');
       handleCloseReviewDialog();
       await fetchRequestDetail(requestId);
       await fetchRequests();
     } catch (error: any) {
       console.error('Failed to submit review:', error);
-      toast.error(error.response?.data?.message || 'Không thể xét duyệt yêu cầu');
+      toast.error(error.response?.data?.message || 'Failed to review request');
     } finally {
       setSubmitting(false);
     }
@@ -248,13 +248,13 @@ const AdminRefundManagementPage = () => {
       // processRefund only takes requestId, no additional params
       await processRefund(requestId);
       
-      toast.success('Đã xử lý hoàn tiền thành công');
+      toast.success('Refund processed successfully');
       handleCloseRefundDialog();
       await fetchRequestDetail(requestId);
       await fetchRequests();
     } catch (error: any) {
       console.error('Failed to process refund:', error);
-      toast.error(error.response?.data?.message || 'Không thể xử lý hoàn tiền');
+      toast.error(error.response?.data?.message || 'Failed to process refund');
     } finally {
       setSubmitting(false);
     }
@@ -280,10 +280,10 @@ const AdminRefundManagementPage = () => {
           <Box mb={4}>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               <AdminPanelSettings sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
-              Quản lý Hoàn trả (Admin)
+              Refund Management (Admin)
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Xét duyệt và quản lý các yêu cầu hoàn trả, xử lý tranh chấp
+              Review and manage refund requests, handle disputes
             </Typography>
           </Box>
 
@@ -327,7 +327,7 @@ const AdminRefundManagementPage = () => {
             <Paper sx={{ p: 8, textAlign: 'center' }}>
               <AssignmentReturn sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h6" color="text.secondary">
-                Không có yêu cầu hoàn trả nào
+                No refund requests
               </Typography>
             </Paper>
           )}
@@ -347,7 +347,7 @@ const AdminRefundManagementPage = () => {
                       {req.hasDispute && (
                         <Alert severity="error" sx={{ mb: 2 }}>
                           <Typography variant="body2" fontWeight="medium">
-                            🚨 Có tranh chấp - Cần xem xét
+                            🚨 Has dispute - Needs review
                           </Typography>
                         </Alert>
                       )}
@@ -392,7 +392,7 @@ const AdminRefundManagementPage = () => {
                               startIcon={<Visibility />}
                               onClick={() => handleViewDetail(req.id)}
                             >
-                              Xem chi tiết
+                              View Details
                             </Button>
                           </Box>
                         </Grid>
@@ -425,7 +425,7 @@ const AdminRefundManagementPage = () => {
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
         <Sidebar activeMenu={PAGE_ENDPOINTS.REFUND.ADMIN_LIST} />
         <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn trả.</Typography>
+          <Typography color="text.secondary">Refund request not found.</Typography>
         </Box>
       </Box>
     );
@@ -478,13 +478,13 @@ const AdminRefundManagementPage = () => {
           onClick={handleBackToList}
           sx={{ mb: 2 }}
         >
-          Quay lại danh sách
+          Back to List
         </Button>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Chi tiết yêu cầu hoàn trả (Admin)
+          Refund Request Details (Admin)
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Mã yêu cầu: <strong>#{request.requestNumber}</strong>
+          Request ID: <strong>#{request.requestNumber}</strong>
         </Typography>
       </Box>
 
@@ -492,7 +492,7 @@ const AdminRefundManagementPage = () => {
       {request.hasDispute && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Yêu cầu này có tranh chấp và cần được xem xét
+            This request has a dispute and needs review
           </Typography>
         </Alert>
       )}
@@ -500,7 +500,7 @@ const AdminRefundManagementPage = () => {
       {canReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Yêu cầu chờ xét duyệt từ admin
+            Request pending admin review
           </Typography>
         </Alert>
       )}
@@ -508,7 +508,7 @@ const AdminRefundManagementPage = () => {
       {canProcessRefund && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Chờ xử lý hoàn tiền cho khách hàng
+            Waiting to process refund for customer
           </Typography>
         </Alert>
       )}
@@ -520,7 +520,7 @@ const AdminRefundManagementPage = () => {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Thông tin sản phẩm
+                Product Information
               </Typography>
               <Divider sx={{ my: 2 }} />
               
@@ -573,14 +573,14 @@ const AdminRefundManagementPage = () => {
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 <Info sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Chi tiết yêu cầu
+                Request Details
               </Typography>
               <Divider sx={{ my: 2 }} />
               
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Lý do:
+                    Reason:
                   </Typography>
                   <Chip label={RETURN_REASON_LABELS[request.reason]} variant="outlined" />
                 </Box>
@@ -588,7 +588,7 @@ const AdminRefundManagementPage = () => {
                 {request.reasonDetail && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Mô tả:
+                      Description:
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
                       <Typography variant="body2">{request.reasonDetail}</Typography>
@@ -599,7 +599,7 @@ const AdminRefundManagementPage = () => {
                 {request.returnTrackingNumber && (
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2" color="text.secondary">
-                      Mã vận đơn:
+                      Tracking Number:
                     </Typography>
                     <Chip
                       label={request.returnTrackingNumber}
@@ -613,7 +613,7 @@ const AdminRefundManagementPage = () => {
                 {request.itemCondition && (
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2" color="text.secondary">
-                      Tình trạng hàng nhận:
+                      Item Condition Received:
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
                       {ITEM_CONDITION_LABELS[request.itemCondition]}
@@ -624,7 +624,7 @@ const AdminRefundManagementPage = () => {
                 {request.conditionNotes && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Ghi chú tình trạng (Seller):
+                      Condition Notes (Seller):
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
                       <Typography variant="body2">{request.conditionNotes}</Typography>
@@ -639,18 +639,18 @@ const AdminRefundManagementPage = () => {
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Ảnh/Video/File minh chứng ({evidenceFiles.length})
+                Images/Videos/Evidence Files ({evidenceFiles.length})
               </Typography>
               <Divider sx={{ my: 2 }} />
 
               {evidenceFiles.length === 0 && (
-                <Alert severity="info">Không có minh chứng đính kèm</Alert>
+                <Alert severity="info">No evidence attached</Alert>
               )}
 
               {imageFiles.length > 0 && (
                 <Box sx={{ mb: videoFiles.length > 0 || attachmentFiles.length > 0 ? 2 : 0 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    Ảnh minh chứng ({imageFiles.length})
+                    Evidence Images ({imageFiles.length})
                   </Typography>
                   <ImageList cols={3} gap={8}>
                     {imageFiles.map((image, index) => (
@@ -672,7 +672,7 @@ const AdminRefundManagementPage = () => {
                 <Box sx={{ mb: attachmentFiles.length > 0 ? 2 : 0 }}>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                     <Videocam sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
-                    Video minh chứng ({videoFiles.length})
+                    Evidence Videos ({videoFiles.length})
                   </Typography>
                   <Grid container spacing={2}>
                     {videoFiles.map((video, index) => (
@@ -691,7 +691,7 @@ const AdminRefundManagementPage = () => {
               {attachmentFiles.length > 0 && (
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                    Tệp đính kèm ({attachmentFiles.length})
+                    Attachments ({attachmentFiles.length})
                   </Typography>
                   <Stack spacing={1}>
                     {attachmentFiles.map((fileUrl, index) => (
@@ -704,7 +704,7 @@ const AdminRefundManagementPage = () => {
                             </Typography>
                           </Stack>
                           <Button size="small" variant="outlined" onClick={() => window.open(fileUrl, '_blank')}>
-                            Mở
+                            Open
                           </Button>
                         </Stack>
                       </Paper>
@@ -738,7 +738,7 @@ const AdminRefundManagementPage = () => {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Trạng thái
+                Status
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Chip
@@ -756,7 +756,7 @@ const AdminRefundManagementPage = () => {
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Số tiền hoàn
+                Refund Amount
               </Typography>
               <Divider sx={{ my: 2 }} />
               <Typography variant="h4" color="primary" textAlign="center">
@@ -770,7 +770,7 @@ const AdminRefundManagementPage = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Xét duyệt Admin
+                  Admin Review
                 </Typography>
                 <Divider sx={{ my: 2 }} />
                 <Button
@@ -781,7 +781,7 @@ const AdminRefundManagementPage = () => {
                   onClick={handleOpenReviewDialog}
                   fullWidth
                 >
-                  Xét duyệt yêu cầu
+                  Review Request
                 </Button>
               </CardContent>
             </Card>
@@ -791,7 +791,7 @@ const AdminRefundManagementPage = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Xử lý hoàn tiền
+                  Process Refund
                 </Typography>
                 <Divider sx={{ my: 2 }} />
                 <Button
@@ -802,7 +802,7 @@ const AdminRefundManagementPage = () => {
                   onClick={handleOpenRefundDialog}
                   fullWidth
                 >
-                  Hoàn tiền
+                  Process Refund
                 </Button>
               </CardContent>
             </Card>
@@ -812,12 +812,12 @@ const AdminRefundManagementPage = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Các bên liên quan
+                Parties Involved
               </Typography>
               <Divider sx={{ my: 2 }} />
               
               <Typography variant="body2" fontWeight="medium" gutterBottom>
-                Khách hàng:
+                Customer:
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {request.buyerName || 'N/A'}
@@ -826,7 +826,7 @@ const AdminRefundManagementPage = () => {
               </Typography>
               
               <Typography variant="body2" fontWeight="medium" gutterBottom>
-                Cửa hàng:
+                Shop:
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {request.shopName || 'N/A'}
@@ -840,15 +840,15 @@ const AdminRefundManagementPage = () => {
       <Dialog open={reviewDialogOpen} onClose={handleCloseReviewDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Gavel sx={{ verticalAlign: 'middle', mr: 1 }} />
-          Xét duyệt yêu cầu hoàn trả
+          Review Refund Request
         </DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Đưa ra quyết định cuối cùng cho yêu cầu hoàn trả này
+            Make a final decision on this refund request
           </Alert>
           
           <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
-            <FormLabel>Quyết định:</FormLabel>
+            <FormLabel>Decision:</FormLabel>
             <RadioGroup
               value={disputeDecision}
               onChange={(e) => setDisputeDecision(e.target.value as DisputeDecision)}
@@ -856,17 +856,17 @@ const AdminRefundManagementPage = () => {
               <FormControlLabel
                 value={DisputeDecision.APPROVE_BUYER}
                 control={<Radio />}
-                label="Chấp thuận phía khách hàng - Hoàn tiền đầy đủ"
+                label="Approve Customer - Full Refund"
               />
               <FormControlLabel
                 value={DisputeDecision.APPROVE_SELLER}
                 control={<Radio />}
-                label="Chấp thuận phía cửa hàng - Từ chối hoàn tiền"
+                label="Approve Shop - Reject Refund"
               />
               <FormControlLabel
                 value={DisputeDecision.PARTIAL_REFUND}
                 control={<Radio />}
-                label="Hoàn tiền một phần"
+                label="Partial Refund"
               />
             </RadioGroup>
           </FormControl>
@@ -875,7 +875,7 @@ const AdminRefundManagementPage = () => {
             <TextField
               fullWidth
               type="number"
-              label="Số tiền hoàn cuối cùng"
+              label="Final Refund Amount"
               value={finalRefundAmount}
               onChange={(e) => setFinalRefundAmount(Number(e.target.value))}
               InputProps={{ endAdornment: 'VNĐ' }}
@@ -887,15 +887,15 @@ const AdminRefundManagementPage = () => {
             fullWidth
             multiline
             rows={4}
-            label="Ghi chú xét duyệt *"
-            placeholder="Giải thích lý do quyết định..."
+            label="Review Notes *"
+            placeholder="Explain the reason for your decision..."
             value={adminNotes}
             onChange={(e) => setAdminNotes(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseReviewDialog} disabled={submitting}>
-            Hủy
+            Cancel
           </Button>
           <Button
             onClick={handleSubmitReview}
@@ -903,7 +903,7 @@ const AdminRefundManagementPage = () => {
             color="primary"
             disabled={submitting}
           >
-            {submitting ? <CircularProgress size={24} /> : 'Xác nhận quyết định'}
+            {submitting ? <CircularProgress size={24} /> : 'Confirm Decision'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -912,18 +912,18 @@ const AdminRefundManagementPage = () => {
       <Dialog open={refundDialogOpen} onClose={handleCloseRefundDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           <AttachMoney sx={{ verticalAlign: 'middle', mr: 1 }} />
-          Xử lý hoàn tiền
+          Process Refund
         </DialogTitle>
         <DialogContent>
           <Alert severity="success" sx={{ mb: 3 }}>
             <Typography variant="body2">
-              Số tiền hoàn: <strong>{formatCurrency(request.refundAmount)}</strong>
+              Refund Amount: <strong>{formatCurrency(request.refundAmount)}</strong>
             </Typography>
           </Alert>
 
           <Alert severity="info" sx={{ mb: 3 }}>
             <Typography variant="body2">
-              Hệ thống sẽ hoàn tiền trực tiếp vào ví Glassify của khách hàng.
+              The system will refund directly to the customer's Glassify wallet.
             </Typography>
           </Alert>
           
@@ -931,15 +931,15 @@ const AdminRefundManagementPage = () => {
             fullWidth
             multiline
             rows={3}
-            label="Ghi chú"
-            placeholder="Ghi chú về việc hoàn tiền..."
+            label="Notes"
+            placeholder="Notes about the refund..."
             value={refundNotes}
             onChange={(e) => setRefundNotes(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRefundDialog} disabled={submitting}>
-            Hủy
+            Cancel
           </Button>
           <Button
             onClick={handleProcessRefund}
@@ -947,7 +947,7 @@ const AdminRefundManagementPage = () => {
             color="success"
             disabled={submitting}
           >
-            {submitting ? <CircularProgress size={24} /> : 'Xác nhận hoàn tiền'}
+            {submitting ? <CircularProgress size={24} /> : 'Confirm Refund'}
           </Button>
         </DialogActions>
       </Dialog>

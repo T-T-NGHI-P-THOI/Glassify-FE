@@ -165,35 +165,35 @@ export interface RefundRequestFilter {
 }
 
 export const RETURN_REASON_LABELS: Record<ReturnReason, string> = {
-  [ReturnReason.NOT_RECEIVED]: 'Chưa nhận được hàng',
-  [ReturnReason.MISSING_ITEMS]: 'Thiếu sản phẩm',
-  [ReturnReason.DAMAGED_IN_SHIPPING]: 'Hỏng trong quá trình vận chuyển',
-  [ReturnReason.WRONG_ITEM]: 'Sản phẩm sai',
-  [ReturnReason.WRONG_COLOR]: 'Sai màu',
-  [ReturnReason.WRONG_SIZE]: 'Sai kích thước',
-  [ReturnReason.DEFECTIVE]: 'Sản phẩm bị lỗi',
-  [ReturnReason.NOT_AS_DESCRIBED]: 'Không đúng mô tả',
-  [ReturnReason.WRONG_PRESCRIPTION]: 'Sai độ kính',
-  [ReturnReason.SELLER_AGREEMENT]: 'Thỏa thuận với người bán',
-  [ReturnReason.CHANGED_MIND]: 'Đổi ý',
-  [ReturnReason.WRONG_SELECTION]: 'Chọn nhầm',
-  [ReturnReason.BETTER_PRICE_FOUND]: 'Tìm thấy giá tốt hơn',
-  [ReturnReason.NO_LONGER_NEEDED]: 'Không còn cần nữa',
-  [ReturnReason.OTHER]: 'Lý do khác',
+  [ReturnReason.NOT_RECEIVED]: 'Not Received',
+  [ReturnReason.MISSING_ITEMS]: 'Missing Items',
+  [ReturnReason.DAMAGED_IN_SHIPPING]: 'Damaged in Shipping',
+  [ReturnReason.WRONG_ITEM]: 'Wrong Item',
+  [ReturnReason.WRONG_COLOR]: 'Wrong Color',
+  [ReturnReason.WRONG_SIZE]: 'Wrong Size',
+  [ReturnReason.DEFECTIVE]: 'Defective Product',
+  [ReturnReason.NOT_AS_DESCRIBED]: 'Not As Described',
+  [ReturnReason.WRONG_PRESCRIPTION]: 'Wrong Prescription',
+  [ReturnReason.SELLER_AGREEMENT]: 'Seller Agreement',
+  [ReturnReason.CHANGED_MIND]: 'Changed Mind',
+  [ReturnReason.WRONG_SELECTION]: 'Wrong Selection',
+  [ReturnReason.BETTER_PRICE_FOUND]: 'Better Price Found',
+  [ReturnReason.NO_LONGER_NEEDED]: 'No Longer Needed',
+  [ReturnReason.OTHER]: 'Other',
 };
 
 export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
-  [ReturnStatus.REQUESTED]: 'Đã yêu cầu',
-  [ReturnStatus.SELLER_REVIEWING]: 'Người bán đang xem xét',
-  [ReturnStatus.PLATFORM_REVIEWING]: 'Nền tảng đang xem xét',
-  [ReturnStatus.SHOP_APPROVED]: 'Shop đã chấp thuận',
-  [ReturnStatus.APPROVED]: 'Đã chấp thuận',
-  [ReturnStatus.REJECTED]: 'Đã từ chối',
-  [ReturnStatus.RETURN_SHIPPING]: 'Đang gửi trả hàng',
-  [ReturnStatus.ITEM_RECEIVED]: 'Đã nhận hàng trả',
-  [ReturnStatus.REFUNDING]: 'Đang hoàn tiền',
-  [ReturnStatus.COMPLETED]: 'Hoàn tất',
-  [ReturnStatus.CANCELLED]: 'Đã hủy',
+  [ReturnStatus.REQUESTED]: 'Requested',
+  [ReturnStatus.SELLER_REVIEWING]: 'Seller Reviewing',
+  [ReturnStatus.PLATFORM_REVIEWING]: 'Platform Reviewing',
+  [ReturnStatus.SHOP_APPROVED]: 'Shop Approved',
+  [ReturnStatus.APPROVED]: 'Approved',
+  [ReturnStatus.REJECTED]: 'Rejected',
+  [ReturnStatus.RETURN_SHIPPING]: 'Return Shipping',
+  [ReturnStatus.ITEM_RECEIVED]: 'Item Received',
+  [ReturnStatus.REFUNDING]: 'Processing Refund',
+  [ReturnStatus.COMPLETED]: 'Completed',
+  [ReturnStatus.CANCELLED]: 'Cancelled',
 };
 
 export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
@@ -211,10 +211,10 @@ export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
 ];
 
 export const ITEM_CONDITION_LABELS: Record<ItemCondition, string> = {
-  [ItemCondition.EXCELLENT]: 'Xuất sắc',
-  [ItemCondition.GOOD]: 'Tốt',
-  [ItemCondition.ACCEPTABLE]: 'Chấp nhận được',
-  [ItemCondition.DAMAGED]: 'Hư hỏng',
-  [ItemCondition.NOT_AS_RETURNED]: 'Không như hàng trả',
-  [ItemCondition.NOT_MATCH]: 'Không khớp với hàng đã mua',
+  [ItemCondition.EXCELLENT]: 'Excellent',
+  [ItemCondition.GOOD]: 'Good',
+  [ItemCondition.ACCEPTABLE]: 'Acceptable',
+  [ItemCondition.DAMAGED]: 'Damaged',
+  [ItemCondition.NOT_AS_RETURNED]: 'Not As Returned',
+  [ItemCondition.NOT_MATCH]: 'Does Not Match Purchase',
 };

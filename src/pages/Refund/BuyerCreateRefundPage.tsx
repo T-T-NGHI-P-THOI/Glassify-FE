@@ -63,7 +63,7 @@ interface OrderItem {
   shopName: string;
 }
 
-const steps = ['Kiểm tra điều kiện', 'Chọn lý do', 'Xác nhận'];
+const steps = ['Check Eligibility', 'Select Reason', 'Confirm'];
 
 const BuyerCreateRefundPage = () => {
   const theme = useTheme();
@@ -103,11 +103,11 @@ const BuyerCreateRefundPage = () => {
       setEligibility(response.data || null);
       
       if (!response.data?.eligible) {
-        toast.error(response.data?.ineligibilityReason || 'Sản phẩm không đủ điều kiện hoàn trả');
+        toast.error(response.data?.ineligibilityReason || 'Product is not eligible for return');
       }
     } catch (error: any) {
       console.error('Failed to check eligibility:', error);
-      toast.error('Không thể kiểm tra điều kiện hoàn trả');
+      toast.error('Unable to check return eligibility');
     } finally {
       setLoadingEligibility(false);
     }
@@ -115,11 +115,11 @@ const BuyerCreateRefundPage = () => {
 
   const handleNext = () => {
     if (activeStep === 0 && !eligibility?.eligible) {
-      toast.error('Sản phẩm không đủ điều kiện hoàn trả');
+      toast.error('Product is not eligible for return');
       return;
     }
     if (activeStep === 1 && !reason) {
-      toast.error('Vui lòng chọn lý do hoàn trả');
+      toast.error('Please select a return reason');
       return;
     }
     setActiveStep((prev) => prev + 1);
@@ -137,7 +137,7 @@ const BuyerCreateRefundPage = () => {
     
     // Limit to 5 images
     if (imageFiles.length + newFiles.length > 5) {
-      toast.error('Chỉ được tải lên tối đa 5 hình ảnh');
+      toast.error('Maximum 5 images can be uploaded');
       return;
     }
 
@@ -173,11 +173,11 @@ const BuyerCreateRefundPage = () => {
       };
 
       const response = await createReturnRequest(requestData);
-      toast.success('Yêu cầu hoàn trả đã được gửi thành công');
+      toast.success('Return request submitted successfully');
       navigate(`/user/refunds/${response.data?.id || ''}`);
     } catch (error: any) {
       console.error('Failed to create return request:', error);
-      toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu hoàn trả');
+      toast.error(error.response?.data?.message || 'Unable to create return request');
     } finally {
       setLoading(false);
     }
@@ -204,11 +204,11 @@ const BuyerCreateRefundPage = () => {
       {/* Header */}
       <Box mb={3}>
         <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
-          Quay lại
+          Back
         </Button>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           <AssignmentReturn sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
-          Yêu cầu Hoàn trả / Đổi trả
+          Return / Exchange Request
         </Typography>
       </Box>
 
