@@ -9,7 +9,10 @@
       "Read(//Users/lamiee/Study/CapstoneProject/Glassify-BE/**)",
       "Bash(grep -r \"@AuthenticationPrincipal\\\\|SecurityConfig\\\\|JwtAuthenticationFilter\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/config --include=*.java)",
       "Bash(git checkout:*)",
-      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)"
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name application*.properties -o -name application*.yml)",
+      "Bash(grep -rn \"countBy\\\\|sumBy\\\\|groupBy\\\\|aggregat\\\\|statistic\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository --include=*.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",

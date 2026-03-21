@@ -219,7 +219,7 @@ const ProductDetailPage: React.FC = () => {
           sku: product.sku,
           imageUrl: product.images?.[0],
           unitPrice: product.price,
-          itemType: 'FRAME',
+          itemType: product.productType === 'ACCESSORIES' ? 'ACCESSORY' : 'FRAME',
           shopId: product.shopId,
           shopName: product.shop?.shopName,
           variantId: product.variantId,
