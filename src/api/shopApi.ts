@@ -73,7 +73,26 @@ export interface ShopOrderResponse {
   items: ShopOrderItemResponse[];
 }
 
+export interface MonthlyRevenueItem {
+  month: number;
+  revenue: number;
+  orders: number;
+}
+
+export interface SalesByCategoryItem {
+  categoryName: string;
+  percentage: number;
+  totalRevenue: number;
+}
+
+export interface ShopAnalyticsSummary {
+  totalRevenue: number;
+  totalOrders: number;
+  avgOrderValue: number;
+}
+
 const SHOP_BASE_URL = '/api/v1/shops';
+const ANALYTICS_BASE_URL = '/api/v1/shop/analytics';
 
 export const shopApi = {
   register: async (
@@ -266,6 +285,28 @@ export const shopApi = {
     const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/cancel`,
       reason ? { reason } : {},
+    );
+    return response.data;
+  },
+
+  getMonthlyRevenue: async (shopId: string, year?: number): Promise<ApiResponse<MonthlyRevenueItem[]>> => {
+    const response = await axiosInstance.get<ApiResponse<MonthlyRevenueItem[]>>(
+      `${ANALYTICS_BASE_URL}/${shopId}/monthly-revenue`,
+      { params: { year: year ?? new Date().getFullYear() } },
+    );
+    return response.data;
+  },
+
+  getSalesByCategory: async (shopId: string): Promise<ApiResponse<SalesByCategoryItem[]>> => {
+    const response = await axiosInstance.get<ApiResponse<SalesByCategoryItem[]>>(
+      `${ANALYTICS_BASE_URL}/${shopId}/sales-by-category`,
+    );
+    return response.data;
+  },
+
+  getAnalyticsSummary: async (shopId: string): Promise<ApiResponse<ShopAnalyticsSummary>> => {
+    const response = await axiosInstance.get<ApiResponse<ShopAnalyticsSummary>>(
+      `${ANALYTICS_BASE_URL}/${shopId}/summary`,
     );
     return response.data;
   },

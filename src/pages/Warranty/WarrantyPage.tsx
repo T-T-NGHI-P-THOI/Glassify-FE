@@ -9,7 +9,6 @@ import {
   Button,
   TextField,
   Grid,
-  Divider,
   Avatar,
   Dialog,
   DialogTitle,
@@ -19,13 +18,19 @@ import {
   Select,
   FormControl,
   InputLabel,
+  IconButton,
+  Tooltip,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  Alert,
+  Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   VerifiedUser,
   Build,
   Schedule,
-  CheckCircle,
   Cancel,
   ArrowForward,
   ShoppingBag,
@@ -39,30 +44,31 @@ import {
   AssignmentTurnedIn,
   CloudUpload,
   Close,
-  Image as ImageIcon,
-  AttachMoney,
+  LocationOn,
+  Edit,
+  Person,
+  Payment,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { warrantyApi } from '@/api/warranty-api';
+import { paymentApi } from '@/api/payment-api';
+import { userWalletApi } from '@/api/user-wallet-api';
+import type { UserWalletResponse } from '@/api/user-wallet-api';
+import { orderApi } from '@/api/order-api';
+import type { OrderResponse } from '@/api/order-api';
+import { userAddressApi } from '@/api/user-address-api';
+import type { UserAddressResponse } from '@/api/user-address-api';
+import { ghnApi } from '@/api/ghnApi';
+import type { GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== ENUMS (matching backend) ====================
-type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'COMPLETED';
-type WarrantyIssueType =
-  | 'BROKEN_FRAME'
-  | 'BROKEN_LENS'
-  | 'LOOSE_HINGE'
-  | 'COATING_DAMAGE'
-  | 'LENS_SCRATCHED'
-  | 'LENS_COATING_PEELING'
-  | 'FRAME_BROKEN'
-  | 'HINGE_ISSUE'
-  | 'NOSE_PAD_REPLACEMENT'
-  | 'TEMPLE_ARM_ISSUE'
-  | 'COLOR_FADING'
-  | 'OTHER';
+type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'COMPLETED' | 'DELIVERED';
+type WarrantyIssueType = 'BROKEN_FRAME' | 'BROKEN_LENS' | 'LOOSE_HINGE' | 'COATING_DAMAGE' | 'OTHER';
 
 // ==================== INTERFACES (matching backend models) ====================
 interface WarrantyClaim {
@@ -75,12 +81,18 @@ interface WarrantyClaim {
   shopName: string;
   issueType: WarrantyIssueType;
   issueDescription: string;
-  issueImages: string[];
+  issueImages: string[] | null;
   resolutionType?: string;
-  repairCost?: number;
-  customerPays?: number;
+  repairCost?: number | null;
+  customerPays?: number | null;
   returnTrackingNumber?: string;
+  returnDeliveredAt?: string;
   replacementTrackingNumber?: string;
+  replacementDeliveredAt?: string;
+  customerShippingFeeToShop?: number | null;
+  platformSubsidyToShop?: number | null;
+  customerShippingFeeToCustomer?: number | null;
+  platformSubsidyToCustomer?: number | null;
   submittedAt: string;
   approvedAt?: string;
   rejectionReason?: string;
@@ -103,22 +115,22 @@ const policyFeatures = [
   },
   {
     icon: <Build sx={{ fontSize: 28 }} />,
-    title: 'Free Repairs',
-    description: 'Repairs for manufacturing defects including frame breakage, hinge issues, and lens coating defects are covered free of charge.',
+    title: 'Transparent Repair Cost',
+    description: 'Repair costs depend on the shop and type of damage. You will receive a cost estimate after the shop reviews your claim before any work begins.',
     color: '#2563eb',
     bgColor: '#dbeafe',
   },
   {
     icon: <Schedule sx={{ fontSize: 28 }} />,
     title: '5-7 Business Days',
-    description: 'Standard maintenance and repair turnaround time is 5-7 business days from the date we receive your product.',
+    description: 'Standard maintenance and repair turnaround time is 5-7 business days from the date the shop receives your product.',
     color: '#d97706',
     bgColor: '#fef3c7',
   },
   {
     icon: <LocalShipping sx={{ fontSize: 28 }} />,
-    title: 'Free Shipping',
-    description: 'Free two-way shipping for all warranty claims. We will provide a prepaid return label.',
+    title: 'Two-Way Shipping',
+    description: 'Shipping costs (customer → shop and shop → customer) are calculated based on distance and included in the total fee estimate.',
     color: '#8b5cf6',
     bgColor: '#f5f3ff',
   },
@@ -158,13 +170,6 @@ const getIssueTypeLabel = (type: WarrantyIssueType) => {
     case 'BROKEN_LENS': return 'Broken Lens';
     case 'LOOSE_HINGE': return 'Loose Hinge';
     case 'COATING_DAMAGE': return 'Coating Damage';
-    case 'LENS_SCRATCHED': return 'Lens Scratched';
-    case 'LENS_COATING_PEELING': return 'Lens Coating Peeling';
-    case 'FRAME_BROKEN': return 'Frame Broken';
-    case 'HINGE_ISSUE': return 'Hinge Issue';
-    case 'NOSE_PAD_REPLACEMENT': return 'Nose Pad Replacement';
-    case 'TEMPLE_ARM_ISSUE': return 'Temple Arm Issue';
-    case 'COLOR_FADING': return 'Color Fading';
     case 'OTHER': return 'Other';
     default: return type;
   }
@@ -182,20 +187,53 @@ const getResolutionTypeLabel = (type?: string) => {
 // ==================== MAIN PAGE ====================
 const WarrantyPage = () => {
   const theme = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<WarrantyClaim | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+
+  // Payment dialog
+  const [payOpen, setPayOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState<'VNPAY' | 'E_WALLET'>('VNPAY');
+  const [wallet, setWallet] = useState<UserWalletResponse | null>(null);
+  const [paying, setPaying] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    orderId: '',
+    orderItemId: '',
     issueType: '' as WarrantyIssueType | '',
     issueDescription: '',
   });
+
+  // Order selection state
+  const [deliveredOrders, setDeliveredOrders] = useState<OrderResponse[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
+
+  // Pickup address state
+  const [savedAddresses, setSavedAddresses] = useState<UserAddressResponse[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showAddressSelector, setShowAddressSelector] = useState(false);
+  const [pickupName, setPickupName] = useState('');
+  const [pickupPhone, setPickupPhone] = useState('');
+  const [pickupAddressLine, setPickupAddressLine] = useState('');
+  const [selectedProvinceId, setSelectedProvinceId] = useState<number | ''>('');
+  const [selectedDistrictId, setSelectedDistrictId] = useState<number | ''>('');
+  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [provinceName, setProvinceName] = useState('');
+  const [districtName, setDistrictName] = useState('');
+  const [wardName, setWardName] = useState('');
+  const [provinces, setProvinces] = useState<GhnProvince[]>([]);
+  const [districts, setDistricts] = useState<GhnDistrict[]>([]);
+  const [wards, setWards] = useState<GhnWard[]>([]);
+  const [pickupErrors, setPickupErrors] = useState<Record<string, string>>({});
+  const skipWardReset = useRef(false);
 
   const fetchClaims = useCallback(async () => {
     try {
@@ -216,20 +254,148 @@ const WarrantyPage = () => {
     fetchClaims();
   }, [fetchClaims]);
 
+  const handleOpenPay = async () => {
+    setPayOpen(true);
+    try {
+      const res = await userWalletApi.getMyWallet();
+      if (res.data) setWallet(res.data);
+    } catch {
+      setWallet(null);
+    }
+  };
+
+  const handlePay = async () => {
+    if (!selectedClaim) return;
+    try {
+      setPaying(true);
+      if (payMethod === 'VNPAY') {
+        const res = await warrantyApi.payClaimVnpay(selectedClaim.id);
+        const url = res.data;
+        if (url) { window.location.href = url; return; }
+      } else {
+        await warrantyApi.payClaimWallet(selectedClaim.id);
+        toast.success('Payment successful!');
+        setPayOpen(false);
+        fetchClaims();
+      }
+    } catch {
+      toast.error('Payment failed. Please try again.');
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const fetchDeliveredOrders = useCallback(async () => {
+    try {
+      setLoadingOrders(true);
+      const response = await orderApi.getMyOrders({ status: 'DELIVERED', size: 100 });
+      if (response.data) {
+        setDeliveredOrders(response.data.orders);
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
+  // Load GHN provinces once; re-trigger district load if province already selected
+  useEffect(() => {
+    ghnApi.getProvinces().then((res) => {
+      setProvinces(res.data || []);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProvinceId) { setDistricts([]); return; }
+    ghnApi.getDistricts(selectedProvinceId).then((res) => {
+      const list = res.data || [];
+      setDistricts(list);
+    }).catch(() => {});
+    if (!skipWardReset.current) { setSelectedDistrictId(''); setDistrictName(''); setSelectedWardCode(''); setWardName(''); }
+    skipWardReset.current = false;
+  }, [selectedProvinceId]);
+
+  useEffect(() => {
+    if (!selectedDistrictId) { setWards([]); return; }
+    ghnApi.getWards(selectedDistrictId as number).then((res) => {
+      setWards(res.data || []);
+    }).catch(() => {});
+    if (!skipWardReset.current) { setSelectedWardCode(''); setWardName(''); }
+  }, [selectedDistrictId]);
+
+  const applyAddress = (addr: UserAddressResponse) => {
+    skipWardReset.current = true;
+    setSelectedAddressId(addr.id);
+    setPickupName(addr.recipientName);
+    setPickupPhone(addr.recipientPhone);
+    setPickupAddressLine(addr.addressLine1);
+    setSelectedProvinceId(addr.ghnProvinceId);
+    setProvinceName(addr.city);
+    setSelectedDistrictId(addr.ghnDistrictId);
+    setDistrictName(addr.district);
+    setSelectedWardCode(addr.ghnWardCode);
+    setWardName(addr.ward);
+    setPickupErrors({});
+  };
+
+  const handleOpenRegisterDialog = async () => {
+    setRegisterDialogOpen(true);
+    fetchDeliveredOrders();
+
+    // Ensure provinces are loaded before applying a saved address
+    // (provinces may already be in state from the mount effect)
+    const ensureProvinces = provinces.length > 0
+      ? Promise.resolve(provinces)
+      : ghnApi.getProvinces().then((res) => { const list = res.data || []; setProvinces(list); return list; }).catch(() => provinces);
+
+    const [, addressRes] = await Promise.all([
+      ensureProvinces,
+      userAddressApi.getAll().catch(() => ({ data: [] as typeof savedAddresses })),
+    ]);
+
+    const list = (addressRes as { data: typeof savedAddresses }).data || [];
+    setSavedAddresses(list);
+    const defaultAddr = list.find((a) => a.isDefault) || list[0];
+    if (defaultAddr) applyAddress(defaultAddr);
+    else if (user) setPickupName(user.fullName || '');
+  };
+
+  const handleCloseRegisterDialog = () => {
+    setRegisterDialogOpen(false);
+    setFormData({ orderItemId: '', issueType: '', issueDescription: '' });
+    setSelectedOrder(null);
+    uploadedImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setUploadedImages([]);
+    // Reset address fields
+    setSelectedAddressId(null);
+    setPickupName(''); setPickupPhone(''); setPickupAddressLine('');
+    setSelectedProvinceId(''); setSelectedDistrictId(''); setSelectedWardCode('');
+    setProvinceName(''); setDistrictName(''); setWardName('');
+    setPickupErrors({});
+    setShowAddressSelector(false);
+  };
+
   const handleSubmitClaim = async () => {
-    if (!formData.orderId || !formData.issueType || !formData.issueDescription) return;
+    if (!formData.orderItemId || !formData.issueType || !formData.issueDescription) return;
+    if (!pickupName || !pickupPhone || !pickupAddressLine || !selectedDistrictId || !selectedWardCode) {
+      toast.error('Please fill in all pickup contact fields');
+      return;
+    }
     try {
       setSubmitting(true);
       await warrantyApi.submitClaim({
-        orderItemId: formData.orderId,
+        orderItemId: formData.orderItemId,
         issueType: formData.issueType,
         issueDescription: formData.issueDescription,
+        customerName: pickupName,
+        customerPhone: pickupPhone,
+        customerAddress: pickupAddressLine,
+        customerDistrictId: selectedDistrictId as number,
+        customerWardCode: selectedWardCode,
       });
       toast.success('Warranty claim submitted successfully');
-      setRegisterDialogOpen(false);
-      setFormData({ orderId: '', issueType: '', issueDescription: '' });
-      uploadedImages.forEach((img) => URL.revokeObjectURL(img.preview));
-      setUploadedImages([]);
+      handleCloseRegisterDialog();
       await fetchClaims();
     } catch (error) {
       console.error('Failed to submit warranty claim:', error);
@@ -252,6 +418,8 @@ const WarrantyPage = () => {
         return { bg: theme.palette.custom.status.purple.light, color: theme.palette.custom.status.purple.main };
       case 'COMPLETED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'DELIVERED':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'REJECTED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       default:
@@ -267,6 +435,7 @@ const WarrantyPage = () => {
       case 'IN_PROGRESS': return 'In Progress';
       case 'IN_REPAIR': return 'In Repair';
       case 'COMPLETED': return 'Completed';
+      case 'DELIVERED': return 'Awaiting Payment';
       case 'REJECTED': return 'Rejected';
       default: return status;
     }
@@ -278,10 +447,6 @@ const WarrantyPage = () => {
       month: '2-digit',
       year: 'numeric',
     });
-  };
-
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('vi-VN') + ' VND';
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -306,14 +471,14 @@ const WarrantyPage = () => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return claim.status === 'SUBMITTED' || claim.status === 'UNDER_REVIEW';
     if (activeTab === 2) return claim.status === 'APPROVED' || claim.status === 'IN_PROGRESS' || claim.status === 'IN_REPAIR';
-    if (activeTab === 3) return claim.status === 'COMPLETED';
+    if (activeTab === 3) return claim.status === 'COMPLETED' || claim.status === 'DELIVERED';
     if (activeTab === 4) return claim.status === 'REJECTED';
     return true;
   });
 
   const submittedCount = claims.filter((c) => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW').length;
   const activeCount = claims.filter((c) => c.status === 'APPROVED' || c.status === 'IN_PROGRESS' || c.status === 'IN_REPAIR').length;
-  const completedCount = claims.filter((c) => c.status === 'COMPLETED').length;
+  const completedCount = claims.filter((c) => c.status === 'COMPLETED' || c.status === 'DELIVERED').length;
   const rejectedCount = claims.filter((c) => c.status === 'REJECTED').length;
 
   // Static warranty exclusion list for display
@@ -345,7 +510,7 @@ const WarrantyPage = () => {
           <Button
             variant="contained"
             startIcon={<Build />}
-            onClick={() => setRegisterDialogOpen(true)}
+            onClick={handleOpenRegisterDialog}
             sx={{
               textTransform: 'none',
               fontWeight: 600,
@@ -665,27 +830,40 @@ const WarrantyPage = () => {
                       </Typography>
                     </Box>
 
-                    {/* Repair Cost */}
-                    {claim.repairCost !== undefined && (
-                      <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 120 }}>
-                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
-                          Repair cost
-                        </Typography>
-                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
-                          {formatCurrency(claim.repairCost)}
-                        </Typography>
-                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: claim.customerPays === 0 ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main }}>
-                          {claim.customerPays === 0 ? 'Free' : `You pay: ${formatCurrency(claim.customerPays!)}`}
-                        </Typography>
-                      </Box>
-                    )}
+                    {/* Cost summary */}
+                    <Box sx={{ textAlign: 'right', flexShrink: 0, minWidth: 120 }}>
+                      {claim.customerPays != null ? (
+                        <>
+                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>Total</Typography>
+                          <Typography sx={{ fontSize: 14, fontWeight: 700, color: claim.customerPays === 0 ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[800] }}>
+                            {claim.customerPays === 0 ? 'Free' : `${claim.customerPays.toLocaleString('vi-VN')} VND`}
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>Cost</Typography>
+                          <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+                            Pending review
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
 
                     <Button
                       variant="outlined"
                       endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
-                      onClick={() => {
-                        setSelectedClaim(claim);
+                      onClick={async () => {
                         setDetailDialogOpen(true);
+                        setSelectedClaim(claim);
+                        try {
+                          setLoadingDetail(true);
+                          const res = await warrantyApi.getClaimDetail(claim.id);
+                          if (res.data) setSelectedClaim(res.data as WarrantyClaim);
+                        } catch {
+                          // giữ nguyên data từ list nếu fetch detail thất bại
+                        } finally {
+                          setLoadingDetail(false);
+                        }
                       }}
                       sx={{
                         textTransform: 'none',
@@ -770,269 +948,466 @@ const WarrantyPage = () => {
         </Paper>
       </Container>
 
+      {/* ==================== IMAGE PREVIEW DIALOG ==================== */}
+      <Dialog
+        open={!!previewImageUrl}
+        onClose={() => setPreviewImageUrl(null)}
+        maxWidth="lg"
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible' } } }}
+      >
+        <Box sx={{ position: 'relative' }}>
+          <IconButton
+            onClick={() => setPreviewImageUrl(null)}
+            sx={{
+              position: 'absolute',
+              top: -16,
+              right: -16,
+              bgcolor: 'white',
+              boxShadow: 2,
+              zIndex: 1,
+              '&:hover': { bgcolor: theme.palette.custom.neutral[100] },
+            }}
+          >
+            <Close sx={{ fontSize: 20 }} />
+          </IconButton>
+          <Box
+            component="img"
+            src={previewImageUrl ?? ''}
+            sx={{ maxWidth: '85vw', maxHeight: '85vh', display: 'block', borderRadius: '12px', objectFit: 'contain' }}
+          />
+        </Box>
+      </Dialog>
+
       {/* ==================== CLAIM DETAIL DIALOG ==================== */}
       <Dialog
         open={detailDialogOpen}
         onClose={() => setDetailDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
       >
         {selectedClaim && (
           <>
-            <DialogTitle sx={{ pb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                    Claim Details
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                    {selectedClaim.claimNumber}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={getStatusLabel(selectedClaim.status)}
-                  sx={{
-                    bgcolor: getStatusColor(selectedClaim.status).bg,
-                    color: getStatusColor(selectedClaim.status).color,
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                />
-              </Box>
-            </DialogTitle>
-
-            <DialogContent dividers>
-              {/* Product Info */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                <Avatar
-                  variant="rounded"
-                  src={selectedClaim.productImageUrl}
-                  sx={{
-                    width: 72,
-                    height: 72,
-                    bgcolor: theme.palette.custom.neutral[100],
-                    borderRadius: '10px',
-                  }}
-                >
-                  <ShoppingBag sx={{ fontSize: 32 }} />
-                </Avatar>
-                <Box>
-                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                    {selectedClaim.productName}
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                    Shop: {selectedClaim.shopName}
-                  </Typography>
-                  {selectedClaim.warrantyExpiresAt && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                      <VerifiedUser sx={{ fontSize: 14, color: theme.palette.custom.status.success.main }} />
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
-                        Warranty until {formatDate(selectedClaim.warrantyExpiresAt)}
+            {/* ---- Header ---- */}
+            <DialogTitle sx={{ p: 0 }}>
+              <Box
+                sx={{
+                  px: 3,
+                  pt: 3,
+                  pb: 2,
+                  background: `linear-gradient(135deg, ${theme.palette.custom.neutral[50]} 0%, white 100%)`,
+                  borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box>
+                      <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.custom.neutral[800], lineHeight: 1.3 }}>
+                        {selectedClaim.productName}
                       </Typography>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
+                        {selectedClaim.shopName}
+                      </Typography>
+                      {selectedClaim.warrantyExpiresAt && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                          <VerifiedUser sx={{ fontSize: 13, color: theme.palette.custom.status.success.main }} />
+                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
+                            Warranty valid until {formatDate(selectedClaim.warrantyExpiresAt)}
+                          </Typography>
+                        </Box>
+                      )}
                     </Box>
-                  )}
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                    <IconButton size="small" onClick={() => setDetailDialogOpen(false)}>
+                      <Close sx={{ fontSize: 18 }} />
+                    </IconButton>
+                    <Chip
+                      label={getStatusLabel(selectedClaim.status)}
+                      sx={{
+                        bgcolor: getStatusColor(selectedClaim.status).bg,
+                        color: getStatusColor(selectedClaim.status).color,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        height: 26,
+                      }}
+                    />
+                  </Box>
                 </Box>
-              </Box>
 
-              <Divider sx={{ mb: 2.5 }} />
-
-              {/* Issue Details */}
-              <Box sx={{ mb: 2.5 }}>
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 1 }}>
-                  Issue
-                </Typography>
-                <Chip
-                  label={getIssueTypeLabel(selectedClaim.issueType)}
-                  size="small"
-                  sx={{
-                    bgcolor: theme.palette.custom.neutral[100],
-                    color: theme.palette.custom.neutral[700],
-                    fontWeight: 600,
-                    fontSize: 13,
-                    mb: 1,
-                  }}
-                />
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.6 }}>
-                  {selectedClaim.issueDescription}
-                </Typography>
-              </Box>
-
-              {/* Uploaded Images */}
-              {selectedClaim.issueImages.length > 0 && (
-                <Box sx={{ mb: 2.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <ImageIcon sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>
-                      Product Images ({selectedClaim.issueImages.length})
+                {/* Claim meta row */}
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', fontWeight: 600 }}>Claim No.</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>
+                      {selectedClaim.claimNumber}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {selectedClaim.issueImages.map((img, index) => (
-                      <Box
-                        key={index}
-                        component="img"
-                        src={img}
-                        sx={{
-                          width: 100,
-                          height: 100,
-                          borderRadius: '8px',
-                          objectFit: 'cover',
-                          border: `1px solid ${theme.palette.custom.border.light}`,
-                          cursor: 'pointer',
-                          transition: 'opacity 0.2s',
-                          '&:hover': { opacity: 0.8 },
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Resolution & Repair Cost */}
-              {(selectedClaim.repairCost !== undefined || selectedClaim.resolutionType) && (
-                <Box
-                  sx={{
-                    mb: 2.5,
-                    p: 2,
-                    borderRadius: '10px',
-                    bgcolor: theme.palette.custom.neutral[50],
-                    border: `1px solid ${theme.palette.custom.border.light}`,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <AttachMoney sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>
-                      Resolution & Cost
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                    {selectedClaim.resolutionType && (
-                      <Box>
-                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Resolution Type</Typography>
-                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                          {getResolutionTypeLabel(selectedClaim.resolutionType)}
-                        </Typography>
-                      </Box>
-                    )}
-                    {selectedClaim.repairCost !== undefined && (
-                      <>
-                        <Box>
-                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Total Cost</Typography>
-                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                            {formatCurrency(selectedClaim.repairCost)}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Warranty Covers</Typography>
-                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
-                            {formatCurrency(selectedClaim.repairCost - (selectedClaim.customerPays || 0))}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>You Pay</Typography>
-                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: selectedClaim.customerPays === 0 ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main }}>
-                            {selectedClaim.customerPays === 0 ? 'Free' : formatCurrency(selectedClaim.customerPays!)}
-                          </Typography>
-                        </Box>
-                      </>
-                    )}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Tracking Numbers */}
-              {(selectedClaim.returnTrackingNumber || selectedClaim.replacementTrackingNumber) && (
-                <Box sx={{ mb: 2.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>
-                      Tracking
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                    {selectedClaim.returnTrackingNumber && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Return Tracking</Typography>
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.purple.main }}>
-                          {selectedClaim.returnTrackingNumber}
-                        </Typography>
-                      </Box>
-                    )}
-                    {selectedClaim.replacementTrackingNumber && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Replacement Tracking</Typography>
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.success.main }}>
-                          {selectedClaim.replacementTrackingNumber}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              )}
-
-              {/* Dates */}
-              <Box sx={{ mb: 2.5 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Submitted</Typography>
-                    <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', fontWeight: 600 }}>Submitted</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[700] }}>
                       {formatDate(selectedClaim.submittedAt)}
                     </Typography>
                   </Box>
-                  {selectedClaim.approvedAt && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Approved</Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.status.success.main }}>
-                        {formatDate(selectedClaim.approvedAt)}
-                      </Typography>
-                    </Box>
-                  )}
-                  {selectedClaim.completedAt && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Completed</Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.status.success.main }}>
-                        {formatDate(selectedClaim.completedAt)}
-                      </Typography>
-                    </Box>
-                  )}
-                  {selectedClaim.rejectedAt && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Rejected</Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.status.error.main }}>
-                        {formatDate(selectedClaim.rejectedAt)}
-                      </Typography>
-                    </Box>
-                  )}
+                  <Box>
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', fontWeight: 600 }}>Service Cost</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+                      Pending shop review
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
+            </DialogTitle>
 
-              {/* Rejection Reason */}
-              {selectedClaim.rejectionReason && (
-                <Box
-                  sx={{
-                    p: 2,
-                    borderRadius: '10px',
-                    bgcolor: theme.palette.custom.status.error.light,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: theme.palette.custom.status.error.main,
-                      mb: 0.5,
-                    }}
-                  >
-                    Rejection Reason
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.6 }}>
-                    {selectedClaim.rejectionReason}
-                  </Typography>
+            <DialogContent sx={{ p: 0 }}>
+              {loadingDetail ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                  <CircularProgress size={36} />
+                </Box>
+              ) : (
+                <Box sx={{ px: 3, py: 2.5, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+
+                  {/* ---- Issue Section ---- */}
+                  <Box>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                      Issue Details
+                    </Typography>
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: '10px',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                        bgcolor: theme.palette.custom.neutral[50],
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Chip
+                          icon={<Warning sx={{ fontSize: '14px !important' }} />}
+                          label={getIssueTypeLabel(selectedClaim.issueType)}
+                          size="small"
+                          sx={{
+                            bgcolor: theme.palette.custom.status.warning.light,
+                            color: theme.palette.custom.status.warning.main,
+                            fontWeight: 700,
+                            fontSize: 12,
+                            '& .MuiChip-icon': { color: theme.palette.custom.status.warning.main },
+                          }}
+                        />
+                      </Box>
+                      <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.7 }}>
+                        {selectedClaim.issueDescription}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* ---- Cost Breakdown ---- */}
+                  <Box sx={{ borderRadius: '12px', border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                    <Box sx={{ px: 2.5, py: 1.5, bgcolor: theme.palette.custom.neutral[50], borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ReceiptLong sx={{ fontSize: 15, color: theme.palette.custom.neutral[600] }} />
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[600], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Cost Breakdown
+                      </Typography>
+                    </Box>
+                    <Box sx={{ px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Repair / Service Cost</Typography>
+                        {selectedClaim.repairCost != null ? (
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                            {selectedClaim.repairCost === 0 ? 'Free' : `${Number(selectedClaim.repairCost).toLocaleString('vi-VN')} VND`}
+                          </Typography>
+                        ) : (
+                          <Chip label="Pending shop review" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 22, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
+                        )}
+                      </Box>
+                      {/* Shipping Fee breakdown */}
+                      {selectedClaim.customerShippingFeeToShop == null && selectedClaim.customerShippingFeeToCustomer == null ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping Fee (2-way)</Typography>
+                          <Chip label="Pending shop review" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 22, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
+                        </Box>
+                      ) : (
+                        <>
+                          {/* Leg 1: Customer → Shop */}
+                          {selectedClaim.customerShippingFeeToShop != null && (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping (Customer → Shop)</Typography>
+                                <Box sx={{ textAlign: 'right' }}>
+                                  {selectedClaim.platformSubsidyToShop != null && (
+                                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                                      {(Number(selectedClaim.customerShippingFeeToShop) + Number(selectedClaim.platformSubsidyToShop)).toLocaleString('vi-VN')} VND
+                                    </Typography>
+                                  )}
+                                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                    {Number(selectedClaim.customerShippingFeeToShop).toLocaleString('vi-VN')} VND
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              {selectedClaim.platformSubsidyToShop != null && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pl: 1.5 }}>
+                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main }}>↳ Platform support</Typography>
+                                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.success.main }}>
+                                    −{Number(selectedClaim.platformSubsidyToShop).toLocaleString('vi-VN')} VND
+                                  </Typography>
+                                </Box>
+                              )}
+                            </>
+                          )}
+                          {/* Leg 2: Shop → Customer */}
+                          {selectedClaim.customerShippingFeeToCustomer != null ? (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping (Shop → Customer)</Typography>
+                                <Box sx={{ textAlign: 'right' }}>
+                                  {selectedClaim.platformSubsidyToCustomer != null && (
+                                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                                      {(Number(selectedClaim.customerShippingFeeToCustomer) + Number(selectedClaim.platformSubsidyToCustomer)).toLocaleString('vi-VN')} VND
+                                    </Typography>
+                                  )}
+                                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                    {Number(selectedClaim.customerShippingFeeToCustomer).toLocaleString('vi-VN')} VND
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              {selectedClaim.platformSubsidyToCustomer != null && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pl: 1.5 }}>
+                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main }}>↳ Platform support</Typography>
+                                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.success.main }}>
+                                    −{Number(selectedClaim.platformSubsidyToCustomer).toLocaleString('vi-VN')} VND
+                                  </Typography>
+                                </Box>
+                              )}
+                            </>
+                          ) : (
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping (Shop → Customer)</Typography>
+                              <Chip label="After repair" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 22, bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main }} />
+                            </Box>
+                          )}
+                        </>
+                      )}
+                      <Box sx={{ height: 1, bgcolor: theme.palette.custom.border.light }} />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>Total</Typography>
+                        {selectedClaim.customerPays != null ? (
+                          <Typography sx={{ fontSize: 15, fontWeight: 700, color: selectedClaim.customerPays === 0 ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[800] }}>
+                            {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
+                          </Typography>
+                        ) : (
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+                            Will be notified after review
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* ---- Submitted Photos ---- */}
+                  {(selectedClaim.issueImages ?? []).length > 0 && (
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Submitted Photos
+                        </Typography>
+                        <Chip
+                          label={selectedClaim.issueImages?.length ?? 0}
+                          size="small"
+                          sx={{ height: 18, fontSize: 11, fontWeight: 700, bgcolor: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[600] }}
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                          gap: 1.5,
+                        }}
+                      >
+                        {(selectedClaim.issueImages ?? []).map((img, index) => (
+                          <Tooltip key={index} title="Click to view full size" placement="top" arrow>
+                            <Box
+                              component="img"
+                              src={img}
+                              onClick={() => setPreviewImageUrl(img)}
+                              sx={{
+                                width: '100%',
+                                aspectRatio: '1 / 1',
+                                borderRadius: '10px',
+                                objectFit: 'cover',
+                                border: `1.5px solid ${theme.palette.custom.border.light}`,
+                                cursor: 'zoom-in',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  transform: 'scale(1.03)',
+                                  boxShadow: `0 4px 16px rgba(0,0,0,0.15)`,
+                                  border: `1.5px solid ${theme.palette.primary.main}`,
+                                },
+                              }}
+                            />
+                          </Tooltip>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* ---- Timeline ---- */}
+                  <Box>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
+                      Activity Timeline
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {[
+                        { label: 'Claim submitted', date: selectedClaim.submittedAt, color: theme.palette.primary.main, always: true },
+                        { label: 'Approved by shop', date: selectedClaim.approvedAt, color: theme.palette.custom.status.success.main, always: false },
+                        { label: 'Product delivered to shop', date: selectedClaim.returnDeliveredAt, color: theme.palette.custom.status.info.main, always: false },
+                        { label: 'Repair completed', date: selectedClaim.completedAt, color: theme.palette.custom.status.success.main, always: false },
+                        { label: 'Product delivered back to you', date: selectedClaim.replacementDeliveredAt, color: theme.palette.custom.status.success.main, always: false },
+                        { label: 'Rejected', date: selectedClaim.rejectedAt, color: theme.palette.custom.status.error.main, always: false },
+                      ]
+                        .filter((e) => e.always || e.date)
+                        .map((event, i, arr) => (
+                          <Box key={i} sx={{ display: 'flex', gap: 2 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <Box
+                                sx={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: '50%',
+                                  bgcolor: event.date ? event.color : theme.palette.custom.neutral[200],
+                                  border: `2px solid ${event.date ? event.color : theme.palette.custom.neutral[300]}`,
+                                  mt: 0.5,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {i < arr.length - 1 && (
+                                <Box sx={{ width: 2, flex: 1, minHeight: 20, bgcolor: theme.palette.custom.border.light, my: 0.5 }} />
+                              )}
+                            </Box>
+                            <Box sx={{ pb: i < arr.length - 1 ? 1.5 : 0 }}>
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: event.date ? theme.palette.custom.neutral[800] : theme.palette.custom.neutral[400] }}>
+                                {event.label}
+                              </Typography>
+                              {event.date && (
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                                  {formatDate(event.date)}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        ))}
+                    </Box>
+                  </Box>
+
+                  {/* ---- Resolution ---- */}
+                  {selectedClaim.resolutionType && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: '12px',
+                        bgcolor: theme.palette.custom.status.success.light,
+                        border: `1px solid ${theme.palette.custom.status.success.main}30`,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 1.5,
+                      }}
+                    >
+                      <AssignmentTurnedIn sx={{ fontSize: 22, color: theme.palette.custom.status.success.main, mt: 0.25 }} />
+                      <Box>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.status.success.main, textTransform: 'uppercase', mb: 0.25 }}>
+                          Resolution
+                        </Typography>
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                          {getResolutionTypeLabel(selectedClaim.resolutionType)}
+                        </Typography>
+                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
+                          Cost breakdown will be updated once confirmed by shop
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* ---- Tracking Numbers ---- */}
+                  {(selectedClaim.returnTrackingNumber || selectedClaim.replacementTrackingNumber) && (
+                    <Box>
+                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                        Tracking
+                      </Typography>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: '10px',
+                          border: `1px solid ${theme.palette.custom.border.light}`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                        }}
+                      >
+                        {selectedClaim.returnTrackingNumber && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Return Tracking</Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.purple.main, fontFamily: 'monospace' }}>
+                              {selectedClaim.returnTrackingNumber}
+                            </Typography>
+                          </Box>
+                        )}
+                        {selectedClaim.replacementTrackingNumber && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Replacement Tracking</Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.success.main, fontFamily: 'monospace' }}>
+                              {selectedClaim.replacementTrackingNumber}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* ---- Rejection Reason ---- */}
+                  {selectedClaim.rejectionReason && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderRadius: '12px',
+                        bgcolor: theme.palette.custom.status.error.light,
+                        border: `1px solid ${theme.palette.custom.status.error.main}30`,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 1.5,
+                      }}
+                    >
+                      <Cancel sx={{ fontSize: 22, color: theme.palette.custom.status.error.main, mt: 0.25 }} />
+                      <Box>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.status.error.main, textTransform: 'uppercase', mb: 0.25 }}>
+                          Rejection Reason
+                        </Typography>
+                        <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.7 }}>
+                          {selectedClaim.rejectionReason}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+
                 </Box>
               )}
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1 }}>
+              {selectedClaim.status === 'COMPLETED' && selectedClaim.customerPays != null && (
+                <Button
+                  variant="contained"
+                  startIcon={<Payment />}
+                  onClick={() => { setDetailDialogOpen(false); handleOpenPay(); }}
+                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#b45309' } }}
+                >
+                  Pay Now — {selectedClaim.customerPays != null ? `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND` : '...'}
+                </Button>
+              )}
+              <Box sx={{ flex: 1 }} />
               <Button
                 onClick={() => setDetailDialogOpen(false)}
                 sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
@@ -1044,205 +1419,503 @@ const WarrantyPage = () => {
         )}
       </Dialog>
 
+      {/* ==================== ADDRESS SELECTOR DIALOG ==================== */}
+      <Dialog open={showAddressSelector} onClose={() => setShowAddressSelector(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700 }}>My Saved Addresses</Typography>
+          <IconButton size="small" onClick={() => setShowAddressSelector(false)}><Close sx={{ fontSize: 18 }} /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {savedAddresses.map((addr) => (
+            <Box
+              key={addr.id}
+              onClick={() => { applyAddress(addr); setShowAddressSelector(false); }}
+              sx={{
+                px: 2.5, py: 2, cursor: 'pointer', borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+                bgcolor: selectedAddressId === addr.id ? theme.palette.custom.neutral[50] : 'white',
+                '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1,
+              }}
+            >
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                  {addr.label && <Chip label={addr.label} size="small" sx={{ fontSize: 11, height: 20, bgcolor: theme.palette.custom.neutral[100] }} />}
+                  {addr.isDefault && <Chip label="Default" size="small" color="primary" sx={{ fontSize: 11, height: 20 }} />}
+                </Box>
+                <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{addr.recipientName}</Typography>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>{addr.recipientPhone}</Typography>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                  {[addr.addressLine1, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')}
+                </Typography>
+              </Box>
+              {selectedAddressId === addr.id && <AssignmentTurnedIn sx={{ fontSize: 18, color: theme.palette.primary.main, flexShrink: 0, mt: 0.25 }} />}
+            </Box>
+          ))}
+        </DialogContent>
+      </Dialog>
+
       {/* ==================== REGISTER MAINTENANCE DIALOG ==================== */}
       <Dialog
         open={registerDialogOpen}
-        onClose={() => setRegisterDialogOpen(false)}
-        maxWidth="sm"
+        onClose={handleCloseRegisterDialog}
+        maxWidth="lg"
         fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px', maxHeight: '92vh' } } }}
       >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: 2,
-                bgcolor: theme.palette.custom.neutral[100],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Build sx={{ fontSize: 22, color: theme.palette.custom.neutral[700] }} />
+        <DialogTitle sx={{ pb: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}`, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ width: 44, height: 44, borderRadius: '10px', bgcolor: theme.palette.custom.neutral[100], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Build sx={{ fontSize: 22, color: theme.palette.custom.neutral[700] }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                  Request Maintenance
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                  Submit a warranty or maintenance request for your product
+                </Typography>
+              </Box>
             </Box>
-            <Box>
-              <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                Request Maintenance
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                Submit a warranty or maintenance request for your product
-              </Typography>
-            </Box>
+            <IconButton size="small" onClick={handleCloseRegisterDialog}><Close sx={{ fontSize: 18 }} /></IconButton>
           </Box>
         </DialogTitle>
 
-        <DialogContent dividers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
-            {/* Order ID */}
-            <TextField
-              label="Order ID"
-              placeholder="e.g. ORD-2024-001"
-              fullWidth
-              value={formData.orderId}
-              onChange={(e) => setFormData({ ...formData, orderId: e.target.value })}
-              InputProps={{
-                startAdornment: (
-                  <ReceiptLong sx={{ fontSize: 20, color: theme.palette.custom.neutral[400], mr: 1 }} />
-                ),
-              }}
-            />
+        {/* Two-column body — scrolls as a whole */}
+        <DialogContent sx={{ p: 0, overflow: 'auto' }}>
+          <Box sx={{ display: 'flex', alignItems: 'stretch', minHeight: 0 }}>
 
-            {/* Issue Type */}
-            <FormControl fullWidth>
-              <InputLabel>Issue Type</InputLabel>
-              <Select
-                value={formData.issueType}
-                onChange={(e) => setFormData({ ...formData, issueType: e.target.value as WarrantyIssueType })}
-                label="Issue Type"
-              >
-                <MenuItem value="BROKEN_FRAME">Broken Frame</MenuItem>
-                <MenuItem value="BROKEN_LENS">Broken Lens</MenuItem>
-                <MenuItem value="LOOSE_HINGE">Loose Hinge</MenuItem>
-                <MenuItem value="COATING_DAMAGE">Coating Damage</MenuItem>
-                <MenuItem value="OTHER">Other</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Description */}
-            <TextField
-              label="Issue Description"
-              placeholder="Please describe the issue in detail..."
-              fullWidth
-              multiline
-              rows={4}
-              value={formData.issueDescription}
-              onChange={(e) => setFormData({ ...formData, issueDescription: e.target.value })}
-            />
-
-            {/* Image Upload */}
-            <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
-                Upload Images
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 1.5 }}>
-                Please upload clear photos of the damaged/defective area
+            {/* ===== LEFT: Issue Info ===== */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2.5, p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Issue Details
               </Typography>
 
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                multiple
-                style={{ display: 'none' }}
+              {/* Select Order */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Select Order</InputLabel>
+                <Select
+                  value={selectedOrder?.id ?? ''}
+                  onChange={(e) => {
+                    const order = deliveredOrders.find((o) => o.id === e.target.value) ?? null;
+                    setSelectedOrder(order);
+                    setFormData({ ...formData, orderItemId: '' });
+                  }}
+                  label="Select Order"
+                  disabled={loadingOrders}
+                  startAdornment={<ReceiptLong sx={{ fontSize: 18, color: theme.palette.custom.neutral[400], mr: 1 }} />}
+                >
+                  {loadingOrders && <MenuItem disabled>Loading orders...</MenuItem>}
+                  {!loadingOrders && deliveredOrders.length === 0 && <MenuItem disabled>No delivered orders found</MenuItem>}
+                  {deliveredOrders.map((order) => (
+                    <MenuItem key={order.id} value={order.id}>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{order.orderNumber}</Typography>
+                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                          {new Date(order.orderedAt).toLocaleDateString('vi-VN')} · {order.items.length} item(s)
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Select Item */}
+              {selectedOrder && (
+                <FormControl fullWidth size="small">
+                  <InputLabel>Select Item</InputLabel>
+                  <Select
+                    value={formData.orderItemId}
+                    onChange={(e) => setFormData({ ...formData, orderItemId: e.target.value })}
+                    label="Select Item"
+                  >
+                    {selectedOrder.items.map((item) => (
+                      <MenuItem key={item.id} value={item.id}>
+                        <Box>
+                          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{item.productName}</Typography>
+                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                            {item.shopName}{item.warrantyExpiresAt && ` · Warranty until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')}`}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Issue Type */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Issue Type</InputLabel>
+                <Select
+                  value={formData.issueType}
+                  onChange={(e) => setFormData({ ...formData, issueType: e.target.value as WarrantyIssueType })}
+                  label="Issue Type"
+                >
+                  <MenuItem value="BROKEN_FRAME">Broken Frame</MenuItem>
+                  <MenuItem value="BROKEN_LENS">Broken Lens</MenuItem>
+                  <MenuItem value="LOOSE_HINGE">Loose Hinge</MenuItem>
+                  <MenuItem value="COATING_DAMAGE">Coating Damage</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Description */}
+              <TextField
+                label="Issue Description"
+                placeholder="Please describe the issue in detail..."
+                fullWidth
+                multiline
+                rows={4}
+                size="small"
+                value={formData.issueDescription}
+                onChange={(e) => setFormData({ ...formData, issueDescription: e.target.value })}
               />
 
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                {uploadedImages.map((img, index) => (
-                  <Box key={index} sx={{ position: 'relative' }}>
-                    <Box
-                      component="img"
-                      src={img.preview}
-                      sx={{
-                        width: 88,
-                        height: 88,
-                        borderRadius: '8px',
-                        objectFit: 'cover',
-                        border: `1px solid ${theme.palette.custom.border.light}`,
-                      }}
-                    />
-                    <Box
-                      onClick={() => handleRemoveImage(index)}
-                      sx={{
-                        position: 'absolute',
-                        top: -6,
-                        right: -6,
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        bgcolor: theme.palette.custom.status.error.main,
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: '#b91c1c' },
-                      }}
-                    >
-                      <Close sx={{ fontSize: 14 }} />
+              {/* Image Upload */}
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+                  Upload Images
+                </Typography>
+                <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" multiple style={{ display: 'none' }} />
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  {uploadedImages.map((img, index) => (
+                    <Box key={index} sx={{ position: 'relative' }}>
+                      <Box component="img" src={img.preview} sx={{ width: 76, height: 76, borderRadius: '8px', objectFit: 'cover', border: `1px solid ${theme.palette.custom.border.light}` }} />
+                      <Box onClick={() => handleRemoveImage(index)} sx={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', bgcolor: theme.palette.custom.status.error.main, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', '&:hover': { bgcolor: '#b91c1c' } }}>
+                        <Close sx={{ fontSize: 13 }} />
+                      </Box>
                     </Box>
+                  ))}
+                  <Box onClick={() => fileInputRef.current?.click()} sx={{ width: 76, height: 76, borderRadius: '8px', border: `2px dashed ${theme.palette.custom.border.main}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', '&:hover': { borderColor: theme.palette.primary.main, bgcolor: theme.palette.custom.neutral[50] } }}>
+                    <CloudUpload sx={{ fontSize: 20, color: theme.palette.custom.neutral[400], mb: 0.25 }} />
+                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>Add Photo</Typography>
                   </Box>
-                ))}
+                </Box>
+              </Box>
 
-                <Box
-                  onClick={() => fileInputRef.current?.click()}
-                  sx={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: '8px',
-                    border: `2px dashed ${theme.palette.custom.border.main}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      borderColor: theme.palette.primary.main,
-                      bgcolor: theme.palette.custom.neutral[50],
-                    },
-                  }}
-                >
-                  <CloudUpload sx={{ fontSize: 22, color: theme.palette.custom.neutral[400], mb: 0.25 }} />
-                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                    Add Photo
+              {/* Fee Estimate — pushed to bottom */}
+              <Box sx={{ mt: 'auto', borderRadius: '10px', border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                <Box sx={{ px: 2, py: 1.25, bgcolor: theme.palette.custom.neutral[50], borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ReceiptLong sx={{ fontSize: 15, color: theme.palette.custom.neutral[600] }} />
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[700] }}>Estimated Cost</Typography>
+                </Box>
+                <Box sx={{ px: 2, py: 1.75, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>Repair / Service Cost</Typography>
+                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>Depends on shop & damage type</Typography>
+                    </Box>
+                    <Chip label="TBD by shop" size="small" sx={{ fontSize: 11, fontWeight: 600, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main, height: 22 }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>Shipping Fee (2-way via GHN)</Typography>
+                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>Customer → Shop + Shop → Customer</Typography>
+                    </Box>
+                    <Chip label="TBD by distance" size="small" sx={{ fontSize: 11, fontWeight: 600, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main, height: 22 }} />
+                  </Box>
+                  <Box sx={{ height: 1, bgcolor: theme.palette.custom.border.light }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>Total</Typography>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>Notified after shop review</Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ px: 2, py: 1.25, bgcolor: theme.palette.custom.status.info.light, borderTop: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                  <Info sx={{ fontSize: 14, color: theme.palette.custom.status.info.main, mt: 0.1 }} />
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.5 }}>
+                    Full cost breakdown sent via email after shop review. Your approval is required before any repair begins.
                   </Typography>
                 </Box>
               </Box>
             </Box>
 
-            {/* Info Note */}
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: '10px',
-                bgcolor: theme.palette.custom.neutral[50],
-                border: `1px solid ${theme.palette.custom.border.light}`,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <Info sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[600] }}>
-                  What happens next?
+            {/* ===== RIGHT: Pickup Contact ===== */}
+            <Box sx={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Pickup Contact
+                </Typography>
+                {savedAddresses.length > 0 && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<LocationOn sx={{ fontSize: 14 }} />}
+                    onClick={() => setShowAddressSelector(true)}
+                    sx={{ textTransform: 'none', fontSize: 12, fontWeight: 600, borderRadius: '8px', borderColor: theme.palette.custom.border.main, color: theme.palette.custom.neutral[700], py: 0.5, px: 1.5 }}
+                  >
+                    {selectedAddressId ? 'Change' : 'My Addresses'}
+                  </Button>
+                )}
+              </Box>
+
+              {/* GHN info banner */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.status.info.light, border: `1px solid ${theme.palette.custom.status.info.main}20` }}>
+                <LocalShipping sx={{ fontSize: 15, color: theme.palette.custom.status.info.main, mt: 0.1 }} />
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.5 }}>
+                  GHN shipper will pick up from this address. Make sure name & phone are reachable.
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], lineHeight: 1.6 }}>
-                After submitting, our team will review your request within 1-2 business days. You'll receive an email notification with the result and further instructions.
-              </Typography>
+
+              {/* Selected address badge */}
+              {selectedAddressId && (() => {
+                const addr = savedAddresses.find((a) => a.id === selectedAddressId);
+                return addr ? (
+                  <Box sx={{ p: 1.75, bgcolor: theme.palette.custom.neutral[50], borderRadius: '10px', border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box>
+                      <Box sx={{ display: 'flex', gap: 0.75, mb: 0.5 }}>
+                        {addr.label && <Chip label={addr.label} size="small" sx={{ fontSize: 11, height: 20, bgcolor: theme.palette.custom.neutral[200] }} />}
+                        {addr.isDefault && <Chip label="Default" size="small" color="primary" sx={{ fontSize: 11, height: 20 }} />}
+                      </Box>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{addr.recipientName}</Typography>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{addr.recipientPhone}</Typography>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                        {[addr.addressLine1, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')}
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" onClick={() => setShowAddressSelector(true)} sx={{ color: theme.palette.custom.neutral[500] }}>
+                      <Edit sx={{ fontSize: 15 }} />
+                    </IconButton>
+                  </Box>
+                ) : null;
+              })()}
+
+              {/* Recipient Name + Phone side-by-side */}
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <TextField
+                  label="Recipient Name"
+                  size="small"
+                  sx={{ flex: 1 }}
+                  value={pickupName}
+                  onChange={(e) => { setPickupName(e.target.value); setSelectedAddressId(null); }}
+                  error={!!pickupErrors.pickupName}
+                  helperText={pickupErrors.pickupName}
+                  slotProps={{ input: { startAdornment: <Person sx={{ fontSize: 16, color: theme.palette.custom.neutral[400], mr: 0.75 }} /> } }}
+                />
+                <TextField
+                  label="Phone"
+                  size="small"
+                  sx={{ width: 140 }}
+                  value={pickupPhone}
+                  onChange={(e) => { setPickupPhone(e.target.value.replace(/\D/g, '')); setSelectedAddressId(null); }}
+                  error={!!pickupErrors.pickupPhone}
+                  helperText={pickupErrors.pickupPhone}
+                  slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 11 } }}
+                  placeholder="0xxxxxxxxx"
+                />
+              </Box>
+
+              {/* Street address */}
+              <TextField
+                label="Street Address"
+                fullWidth
+                size="small"
+                multiline
+                rows={2}
+                value={pickupAddressLine}
+                onChange={(e) => { setPickupAddressLine(e.target.value); setSelectedAddressId(null); }}
+                error={!!pickupErrors.pickupAddressLine}
+                helperText={pickupErrors.pickupAddressLine}
+                placeholder="Street number, building, ward..."
+              />
+
+              {/* Province + District side-by-side */}
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <FormControl size="small" sx={{ flex: 1 }}>
+                  <InputLabel>Province / City</InputLabel>
+                  <Select
+                    value={provinces.some((p) => p.ProvinceID === selectedProvinceId) ? selectedProvinceId : ''}
+                    label="Province / City"
+                    onChange={(e) => {
+                      const id = e.target.value as number;
+                      setSelectedProvinceId(id);
+                      setProvinceName(provinces.find((p) => p.ProvinceID === id)?.ProvinceName ?? '');
+                      setSelectedAddressId(null);
+                    }}
+                  >
+                    {provinces.map((p) => (
+                      <MenuItem key={p.ProvinceID} value={p.ProvinceID}>{p.ProvinceName}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={!selectedProvinceId}>
+                  <InputLabel>District</InputLabel>
+                  <Select
+                    value={districts.some((d) => d.DistrictID === selectedDistrictId) ? selectedDistrictId : ''}
+                    label="District"
+                    onChange={(e) => {
+                      const id = e.target.value as number;
+                      setSelectedDistrictId(id);
+                      setDistrictName(districts.find((d) => d.DistrictID === id)?.DistrictName ?? '');
+                      setSelectedAddressId(null);
+                    }}
+                  >
+                    {districts.map((d) => (
+                      <MenuItem key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Ward — full width */}
+              <FormControl fullWidth size="small" disabled={!selectedDistrictId}>
+                <InputLabel>Ward</InputLabel>
+                <Select
+                  value={wards.some((w) => w.WardCode === selectedWardCode) ? selectedWardCode : ''}
+                  label="Ward"
+                  onChange={(e) => {
+                    const code = e.target.value as string;
+                    setSelectedWardCode(code);
+                    setWardName(wards.find((w) => w.WardCode === code)?.WardName ?? '');
+                    setSelectedAddressId(null);
+                  }}
+                >
+                  {wards.map((w) => (
+                    <MenuItem key={w.WardCode} value={w.WardCode}>{w.WardName}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Full address preview */}
+              {(pickupAddressLine || wardName || districtName || provinceName) && (
+                <Box sx={{ p: 1.5, bgcolor: theme.palette.custom.neutral[50], borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], fontWeight: 600, mb: 0.5 }}>Pickup address</Typography>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                    {[pickupAddressLine, wardName, districtName, provinceName].filter(Boolean).join(', ')}
+                  </Typography>
+                </Box>
+              )}
             </Box>
+
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            onClick={() => setRegisterDialogOpen(false)}
-            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
-          >
+        <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1, flexShrink: 0 }}>
+          <Button onClick={handleCloseRegisterDialog} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
             Cancel
           </Button>
+          <Box sx={{ flex: 1 }} />
           <Button
             variant="contained"
-            disabled={!formData.orderId || !formData.issueType || !formData.issueDescription || submitting}
+            disabled={!formData.orderItemId || !formData.issueType || !formData.issueDescription || !pickupName || !pickupPhone || !pickupAddressLine || !selectedDistrictId || !selectedWardCode || submitting}
             onClick={handleSubmitClaim}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              bgcolor: '#111',
-              '&:hover': { bgcolor: '#333' },
-            }}
+            sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '10px', bgcolor: '#111', '&:hover': { bgcolor: '#333' } }}
           >
-            {submitting ? 'Submitting...' : 'Submit Claim'}
+            {submitting ? <CircularProgress size={18} color="inherit" /> : 'Submit Claim'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== PAYMENT DIALOG ==================== */}
+      <Dialog
+        open={payOpen}
+        onClose={() => !paying && setPayOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
+      >
+        <DialogTitle sx={{ pb: 1.5, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Payment sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Pay for Warranty Service</Typography>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selectedClaim?.claimNumber}</Typography>
+              </Box>
+            </Box>
+            <IconButton size="small" onClick={() => setPayOpen(false)} disabled={paying}>
+              <Close sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 2.5 }}>
+          {/* Amount */}
+          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: theme.palette.custom.status.warning.light, border: `1px solid ${theme.palette.custom.status.warning.main}40`, mb: 2.5, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 0.5 }}>Total amount due</Typography>
+            <Typography sx={{ fontSize: 24, fontWeight: 800, color: theme.palette.custom.status.warning.main }}>
+              {selectedClaim?.customerPays != null ? `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND` : '—'}
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+              {selectedClaim?.productName}
+            </Typography>
+          </Box>
+
+          {/* Payment method */}
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: '0.07em', mb: 1.5 }}>
+            Payment method
+          </Typography>
+          <RadioGroup value={payMethod} onChange={(e) => setPayMethod(e.target.value as 'VNPAY' | 'E_WALLET')}>
+            <Paper
+              variant="outlined"
+              onClick={() => setPayMethod('VNPAY')}
+              sx={{ mb: 1.25, p: 1.5, borderRadius: '10px', cursor: 'pointer', borderColor: payMethod === 'VNPAY' ? theme.palette.primary.main : theme.palette.custom.border.light, borderWidth: payMethod === 'VNPAY' ? 2 : 1 }}
+            >
+              <FormControlLabel
+                value="VNPAY"
+                control={<Radio size="small" />}
+                label={
+                  <Box>
+                    <Typography sx={{ fontWeight: 600, fontSize: 14 }}>VNPay</Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Pay via VNPay gateway — you will be redirected</Typography>
+                  </Box>
+                }
+                sx={{ m: 0, alignItems: 'flex-start', '& .MuiRadio-root': { pt: 0.25 } }}
+              />
+            </Paper>
+            <Paper
+              variant="outlined"
+              onClick={() => setPayMethod('E_WALLET')}
+              sx={{ p: 1.5, borderRadius: '10px', cursor: 'pointer', borderColor: payMethod === 'E_WALLET' ? theme.palette.primary.main : theme.palette.custom.border.light, borderWidth: payMethod === 'E_WALLET' ? 2 : 1 }}
+            >
+              <FormControlLabel
+                value="E_WALLET"
+                control={<Radio size="small" />}
+                label={
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <AccountBalanceWallet sx={{ fontSize: 16, color: theme.palette.custom.neutral[600] }} />
+                      <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Glassify Wallet</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                      {wallet ? `Balance: ${Number(wallet.availableBalance).toLocaleString('vi-VN')} VND` : 'Loading balance...'}
+                    </Typography>
+                    {wallet && selectedClaim?.customerPays != null && wallet.availableBalance < Number(selectedClaim.customerPays) && (
+                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main, fontWeight: 600 }}>Insufficient balance</Typography>
+                    )}
+                  </Box>
+                }
+                sx={{ m: 0, alignItems: 'flex-start', '& .MuiRadio-root': { pt: 0.25 } }}
+              />
+            </Paper>
+          </RadioGroup>
+
+          {payMethod === 'VNPAY' && (
+            <Alert severity="info" sx={{ mt: 2, fontSize: 12, borderRadius: '8px' }}>
+              You will be redirected to VNPay to complete payment.
+            </Alert>
+          )}
+          {payMethod === 'E_WALLET' && wallet && selectedClaim?.customerPays != null && wallet.availableBalance < Number(selectedClaim.customerPays) && (
+            <Alert severity="warning" sx={{ mt: 2, fontSize: 12, borderRadius: '8px' }}>
+              Your wallet balance is insufficient. Please top up first.
+            </Alert>
+          )}
+        </DialogContent>
+
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button onClick={() => setPayOpen(false)} disabled={paying} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+            Cancel
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="contained"
+            disabled={paying || (payMethod === 'E_WALLET' && !!wallet && !!selectedClaim?.customerPays && wallet.availableBalance < Number(selectedClaim.customerPays))}
+            onClick={handlePay}
+            sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#b45309' } }}
+          >
+            {paying ? <CircularProgress size={18} color="inherit" /> : payMethod === 'VNPAY' ? 'Pay via VNPay' : 'Pay from Wallet'}
           </Button>
         </DialogActions>
       </Dialog>

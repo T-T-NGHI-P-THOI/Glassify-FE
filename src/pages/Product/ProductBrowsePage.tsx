@@ -66,6 +66,9 @@ const ProductBrowsePage: React.FC = () => {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const PAGE_SIZE = 10;
 
   // Fetch categories on mount
   useEffect(() => {
@@ -106,6 +109,8 @@ const ProductBrowsePage: React.FC = () => {
           categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
           isFeatured: activeFilters.isFeatured,
           isReturnable: activeFilters.isReturnable,
+          page: currentPage,
+          unitPerPage: PAGE_SIZE,
         };
 
         // Map sortBy to API params
@@ -135,8 +140,8 @@ const ProductBrowsePage: React.FC = () => {
           }
         }
 
-        const apiProducts = await ProductAPI.getAllProducts(filterParams);
-        
+        const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
+
         // Transform API products to BrowseProduct format
         const transformedProducts: BrowseProduct[] = apiProducts.map((product) => ({
           id: product.id,
@@ -161,6 +166,7 @@ const ProductBrowsePage: React.FC = () => {
 
         setProducts(transformedProducts);
         setFilteredProducts(transformedProducts);
+        setHasNextPage(transformedProducts.length === PAGE_SIZE);
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
@@ -169,7 +175,7 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames]);
+  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, currentPage]);
 
   // No client-side filtering needed - all filtering done by API
   useEffect(() => {
@@ -177,6 +183,7 @@ const ProductBrowsePage: React.FC = () => {
   }, [products]);
 
   const handleFilterChange = (newFilters: ActiveFilters) => {
+    setCurrentPage(1);
     setActiveFilters(newFilters);
     
     // Update URL params to match filters
@@ -207,6 +214,7 @@ const ProductBrowsePage: React.FC = () => {
   };
 
   const handleClearFilters = () => {
+    setCurrentPage(1);
     setActiveFilters({
       productType: undefined,
       brandIds: [],
@@ -218,6 +226,7 @@ const ProductBrowsePage: React.FC = () => {
   };
 
   const handleSearch = (query: string) => {
+    setCurrentPage(1);
     setActiveFilters(prev => ({ ...prev, searchQuery: query }));
     if (query) {
       setSearchParams({ q: query });
@@ -336,11 +345,30 @@ const ProductBrowsePage: React.FC = () => {
               <p>Loading products...</p>
             </div>
           ) : filteredProducts.length > 0 ? (
-            <ProductGrid 
-              products={filteredProducts}
-              onAddToFavorites={(id) => console.log('Add to favorites:', id)}
-              viewMode={viewMode}
-            />
+            <>
+              <ProductGrid
+                products={filteredProducts}
+                onAddToFavorites={(id) => console.log('Add to favorites:', id)}
+                viewMode={viewMode}
+              />
+              <div className="pagination-controls">
+                <button
+                  className="pagination-btn"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">Page {currentPage}</span>
+                <button
+                  className="pagination-btn"
+                  disabled={!hasNextPage}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >
+                  Next →
+                </button>
+              </div>
+            </>
           ) : (
             <div className="no-results">
               <h2>No products found</h2>

@@ -16,7 +16,7 @@ function App() {
               <RouteComponent />
             </Layout>
           </LayoutProvider>
-        </CartProvider>
+          </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   )

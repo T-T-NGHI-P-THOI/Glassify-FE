@@ -124,15 +124,15 @@ interface Order {
 // Mock data removed - using real API
 
 // ==================== HELPERS ====================
-const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered'];
+const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
     case 'PENDING':    return 0;
     case 'CONFIRMED':  return 1;
     case 'PROCESSING': return 2;
-    case 'SHIPPED':    return 3;
-    case 'DELIVERED':  return 4;
+    case 'SHIPPED':    return 2;
+    case 'DELIVERED':  return 3;
     case 'CANCELLED':  return -1;
     case 'REFUNDED':   return -1;
     default:           return 0;
@@ -258,7 +258,6 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
     <HourglassEmpty key="pending" sx={{ fontSize: 18 }} />,
     <VerifiedUser key="confirmed" sx={{ fontSize: 18 }} />,
     <Inventory key="processing" sx={{ fontSize: 18 }} />,
-    <LocalShipping key="shipped" sx={{ fontSize: 18 }} />,
     <CheckCircle key="delivered" sx={{ fontSize: 18 }} />,
   ];
 
@@ -715,8 +714,9 @@ const MyOrdersPage = () => {
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Store sx={{ fontSize: 16, color: theme.palette.custom.neutral[600] }} />
                     <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                      {order.orderNumber}
+                      {[...new Set(order.items.map(i => i.shopName).filter(Boolean))].join(', ') || order.orderNumber}
                     </Typography>
                     <Chip
                       label={getStatusLabel(order.status)}

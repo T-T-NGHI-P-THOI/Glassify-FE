@@ -21,6 +21,7 @@ import {
   Store,
   ExpandMore,
   PeopleAlt,
+  Build,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -55,6 +56,7 @@ export const ShopOwnerSidebar = ({
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
     { icon: <PeopleAlt />, label: 'Staff', path: PAGE_ENDPOINTS.SHOP.STAFF },
+    { icon: <Build />, label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
   ];
 
   const isActive = (path: string) => {

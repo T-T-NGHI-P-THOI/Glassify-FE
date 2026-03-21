@@ -101,6 +101,15 @@ export const API_ENDPOINTS = {
   WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/warranty-claims`,
     CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}`,
+    PAY_VNPAY: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/vnpay`,
+    PAY_WALLET: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/wallet`,
+  },
+  SHOP_WARRANTY: {
+    CLAIMS: `${API_ENDPOINT}/shop/warranty-claims`,
+    APPROVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/approve`,
+    RECEIVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/receive`,
+    REJECT: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/reject`,
+    COMPLETE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/complete`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
@@ -166,6 +175,7 @@ export const PAGE_ENDPOINTS = {
     ORDER_DETAIL: `/shop/orders/:id`,
     REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
+    WARRANTY: `/shop/warranty`,
   },
 
   ADMIN: {

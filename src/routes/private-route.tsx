@@ -22,6 +22,7 @@ import MyOrdersPage from "@/pages/Order/MyOrdersPage"
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage"
 import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage"
 import ShopOrdersPage from "@/pages/Shop/ShopOrdersPage"
+import ShopWarrantyPage from "@/pages/Shop/ShopWarrantyPage"
 import {
     BuyerRefundListPage,
     BuyerRefundDetailPage,
@@ -227,6 +228,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopStaffPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.WARRANTY}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopWarrantyPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
