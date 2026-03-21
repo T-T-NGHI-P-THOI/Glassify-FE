@@ -131,6 +131,7 @@ export interface CartResponse {
 export interface CartItemWithDetails extends CartItem {
     product: Product;
     shop_id?: string | null;
+    shop_name?: string | null;
     variant_details?: {
         sku: string;
         color?: string;

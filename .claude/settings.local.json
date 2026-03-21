@@ -4,7 +4,17 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
       "Bash(npx vite build:*)",
-      "Bash(npm install recharts --legacy-peer-deps)"
+      "Bash(npm install recharts --legacy-peer-deps)",
+      "Bash(grep -n \"confirmShopOrder\\\\|processShopOrder\\\\|cancelShopOrder\\\\|ghnApi\\\\|leadtime\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Shop/*.tsx)",
+      "Read(//Users/lamiee/Study/CapstoneProject/Glassify-BE/**)",
+      "Bash(grep -r \"@AuthenticationPrincipal\\\\|SecurityConfig\\\\|JwtAuthenticationFilter\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/config --include=*.java)",
+      "Bash(git checkout:*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)"
+    ],
+    "additionalDirectories": [
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller"
     ]
   }
 }

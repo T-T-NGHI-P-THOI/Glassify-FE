@@ -56,6 +56,7 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
             productId: params.productId,
             productType: params.productType,
             brandName: params.brandName,
+            shopName: params.shopName,
             sku: params.sku,
             color: params.color,
             size: params.size,

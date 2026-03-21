@@ -42,7 +42,7 @@ const ShopInfo: React.FC<ShopInfoProps> = ({ shop }) => {
           <div className="shop-stats">
             <div className="shop-stat">
               <Star className="star-icon" />
-              <span>{shop.avgRating.toFixed(1)}</span>
+              <span>{(shop.avgRating ?? 0).toFixed(1)}</span>
             </div>
             <div className="shop-stat-divider">|</div>
             <div className="shop-stat">

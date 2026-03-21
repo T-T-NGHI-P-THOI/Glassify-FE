@@ -221,6 +221,7 @@ const ProductDetailPage: React.FC = () => {
           unitPrice: product.price,
           itemType: 'FRAME',
           shopId: product.shopId,
+          shopName: product.shop?.shopName,
           variantId: product.variantId,
           stockQuantity: product.stockQuantity,
         });
@@ -258,6 +259,7 @@ const ProductDetailPage: React.FC = () => {
         unitPrice: product.price,
         itemType: 'FRAME' as const,
         shopId: product.shopId,
+        shopName: product.shop?.shopName,
         variantId: product.variantId,
         stockQuantity: product.stockQuantity,
       };
