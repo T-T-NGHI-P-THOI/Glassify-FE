@@ -47,7 +47,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, v
             </div>
 
             <div className="product-grid-info">
-              <h3 className="product-grid-name">{product.name}</h3>
+              <h3 className="product-grid-name" title={product.name}>{product.name}</h3>
               
               <div className="product-grid-rating">
                 <Star className="star" />
