@@ -27,10 +27,7 @@ import CreateFrameVariantPage, {
     type CreateFrameVariantFormData,
 } from './CreateFrameVariantPage';
 
-import Upload3DModelPage, {
-    type Upload3DModelPageRef,
-    type Model3DFile,
-} from './Upload3DModel';
+import { type Upload3DModelPageRef } from './Upload3DModel';
 
 import ReviewFramePage from './ReviewFramePage';
 
@@ -52,7 +49,6 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
 const registrationSteps = [
     { label: 'Frame Info', key: 'FRAME_INFO' },
     { label: 'Frame Variant', key: 'VARIANT' },
-    { label: 'Upload 3D Model', key: 'UPLOAD' },
     { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
@@ -65,18 +61,15 @@ const CreateFramePage = () => {
     // ── Step ──────────────────────────────────────────────────────────────────
     const [activeStep, setActiveStep] = useState(0);
 
-    // ── Refs to child submit() ────────────────────────────────────────────────
+    // ── Refs ──────────────────────────────────────────────────────────────────
     const frameInfoRef = useRef<CreateFrameGroupPageRef>(null);
     const variantRef = useRef<CreateFrameVariantPageRef>(null);
     const upload3DModelRef = useRef<Upload3DModelPageRef>(null);
 
-    // ── Persisted data (survive Back navigation) ──────────────────────────────
+    // ── Persisted data ────────────────────────────────────────────────────────
     const [frameGroupId, setFrameGroupId] = useState<string>('');
-    const [variantId, setVariantId] = useState<string>('');
     const [savedGroupData, setSavedGroupData] = useState<Partial<CreateFrameFormData>>({});
     const [savedVariantData, setSavedVariantData] = useState<Partial<CreateFrameVariantFormData>>({});
-    const [savedModelFile, setSavedModelFile] = useState<Model3DFile | null>(null);
-    const [savedModelUrl, setSavedModelUrl] = useState<string>('');
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -86,8 +79,6 @@ const CreateFramePage = () => {
                 await frameInfoRef.current?.submit();
             } else if (activeStep === 1) {
                 await variantRef.current?.submit();
-            } else if (activeStep === 2) {
-                await upload3DModelRef.current?.submit();
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         } catch {
@@ -100,7 +91,6 @@ const CreateFramePage = () => {
     };
 
     const handleSubmit = () => {
-        // TODO: final submit API call if needed
         navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
     };
 
@@ -194,11 +184,14 @@ const CreateFramePage = () => {
                         border: `1px solid ${theme.palette.custom.border.light}`,
                     }}
                 >
-                    {/* ── Step 0: Frame Info ── */}
+                    {/* ── Step 0: Frame Info + 3D Model viewer ── */}
                     {activeStep === 0 && (
                         <CreateFrameGroupPage
                             ref={frameInfoRef}
                             initialData={savedGroupData}
+                            // upload3DModelRef được gắn vào Upload3DModelPage bên trong
+                            // để sau này CreateFrameVariantPage có thể gọi applyTexture()
+                            upload3DModelRef={upload3DModelRef}
                             onCreated={(id, data) => {
                                 setFrameGroupId(id);
                                 setSavedGroupData(data);
@@ -206,38 +199,26 @@ const CreateFramePage = () => {
                         />
                     )}
 
-                    {/* ── Step 1: Frame Variant ── */}
+                    {/* ── Step 1: Frame Variant + Texture upload + local viewer ── */}
                     {activeStep === 1 && (
                         <CreateFrameVariantPage
                             ref={variantRef}
                             frameGroupId={frameGroupId}
                             initialData={savedVariantData}
+                            upload3DModelRef={upload3DModelRef}
+                            modelFile={savedGroupData.model3dFile ?? null}
                             onCreated={(id, data) => {
-                                setVariantId(id);
                                 setSavedVariantData(data);
                             }}
                         />
                     )}
 
-                    {/* ── Step 2: Upload 3D Model ── */}
+                    {/* ── Step 2: Review & Submit ── */}
                     {activeStep === 2 && (
-                        <Upload3DModelPage
-                            ref={upload3DModelRef}
-                            variantId={variantId}
-                            initialFile={savedModelFile}
-                            onUploaded={(modelUrl, file) => {
-                                setSavedModelUrl(modelUrl);
-                                setSavedModelFile(file);
-                            }}
-                        />
-                    )}
-
-                    {/* ── Step 3: Review & Submit ── */}
-                    {activeStep === 3 && (
                         <ReviewFramePage
                             groupData={savedGroupData}
                             variantData={savedVariantData}
-                            modelFile={savedModelFile}
+                            modelFile={savedGroupData.model3dFile ?? null}
                         />
                     )}
 
@@ -261,7 +242,11 @@ const CreateFramePage = () => {
                         </Button>
 
                         {activeStep < registrationSteps.length - 1 ? (
-                            <Button variant="contained" onClick={handleNext} sx={{ px: 4 }}>
+                            <Button
+                                variant="contained"
+                                onClick={handleNext}
+                                sx={{ px: 4 }}
+                            >
                                 Continue
                             </Button>
                         ) : (

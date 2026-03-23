@@ -4,6 +4,7 @@ import {
     Paper,
     IconButton,
     Avatar,
+    Button,
     FormControl,
     Grid,
     InputLabel,
@@ -17,11 +18,13 @@ import {
     CircularProgress,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
-import { Delete, CloudUpload } from '@mui/icons-material';
-import { useState, forwardRef, useImperativeHandle } from 'react';
+import { Delete, CloudUpload, Refresh } from '@mui/icons-material';
+import { useState, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from '@/api/product-api';
-// import VariantAPI from '@/api/variant-api'; // ← uncomment khi có API thật
+import { ThreeJsService } from '@/services/ThreeJsService';
+import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +36,13 @@ export interface ProductImage {
     file?: File;
 }
 
+export interface TextureFile {
+    name: string;
+    size: number;
+    preview: string;
+    file: File;
+}
+
 export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
@@ -42,9 +52,6 @@ export interface CreateFrameVariantFormData {
     lensHeightMm: string;
     bridgeWidthMm: string;
     templeLengthMm: string;
-    hasNosepads: boolean;
-    hasSpringHinge: boolean;
-    vrEnabled: boolean;
     stock: string;
     stockThreshold: string;
     warrantyMonths: string;
@@ -53,6 +60,7 @@ export interface CreateFrameVariantFormData {
     compareAtPrice: string;
     isReturnable: boolean;
     images: ProductImage[];
+    textureFile: TextureFile | null;
 }
 
 export interface CreateFrameVariantPageRef {
@@ -61,10 +69,12 @@ export interface CreateFrameVariantPageRef {
 
 interface CreateFrameVariantPageProps {
     frameGroupId?: string;
-    /** Restore dữ liệu khi user ấn Back rồi quay lại */
     initialData?: Partial<CreateFrameVariantFormData>;
-    /** Callback sau khi API thành công */
     onCreated?: (variantId: string, data: CreateFrameVariantFormData) => void;
+    /** Ref của Upload3DModelPage từ Step 0 — dùng để apply texture vào viewer Step 0 */
+    upload3DModelRef?: React.RefObject<Upload3DModelPageRef | null>;
+    /** File model 3D đã upload ở Step 0 — để render viewer local */
+    modelFile?: Model3DFile | null;
 }
 
 // ─── Styled ───────────────────────────────────────────────────────────────────
@@ -93,9 +103,6 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     lensHeightMm: '',
     bridgeWidthMm: '',
     templeLengthMm: '',
-    hasNosepads: false,
-    hasSpringHinge: false,
-    vrEnabled: false,
     stock: '',
     stockThreshold: '',
     warrantyMonths: '',
@@ -104,21 +111,88 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     compareAtPrice: '',
     isReturnable: false,
     images: [],
+    textureFile: null,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrameVariantPageProps>(
-    ({ frameGroupId, initialData, onCreated }, ref) => {
+    ({ frameGroupId, initialData, onCreated, upload3DModelRef, modelFile }, ref) => {
         const theme = useTheme();
 
         const [formData, setFormData] = useState<CreateFrameVariantFormData>({
             ...DEFAULT_FORM,
-            ...initialData, // ← restore khi back về rồi quay lại
+            ...initialData,
         });
 
         const [errors, setErrors] = useState<Partial<Record<keyof CreateFrameVariantFormData, string>>>({});
         const [loading, setLoading] = useState(false);
+
+        // ── Local Three.js viewer ─────────────────────────────────────────────
+        const canvasRef = useRef<HTMLCanvasElement>(null);
+        const containerRef = useRef<HTMLDivElement>(null);
+        const cleanupRef = useRef<(() => void) | null>(null);
+        const threeServiceRef = useRef<ThreeJsService | null>(null);
+
+        useEffect(() => {
+            if (!modelFile?.file) return;
+
+            const container = containerRef.current;
+            const canvas = canvasRef.current;
+            if (!container || !canvas) return;
+
+            let initialized = false;
+
+            const startViewer = (w: number, h: number) => {
+                if (initialized || w === 0 || h === 0) return;
+                initialized = true;
+
+                canvas.width = w;
+                canvas.height = h;
+
+                const service = new ThreeJsService();
+                threeServiceRef.current = service;
+                cleanupRef.current = service.initializeThreeDViewer(canvas, modelFile.file);
+
+                // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
+                if (formData.textureFile?.file) {
+                    setTimeout(() => {
+                        if (service.viewerModel) {
+                            service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
+                        }
+                    }, 1500);
+                }
+            };
+
+            const { offsetWidth, offsetHeight } = container;
+            if (offsetWidth > 0 && offsetHeight > 0) {
+                startViewer(offsetWidth, offsetHeight);
+                return () => {
+                    cleanupRef.current?.();
+                    cleanupRef.current = null;
+                    threeServiceRef.current = null;
+                };
+            }
+
+            const observer = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    const { inlineSize: w, blockSize: h } = entry.contentBoxSize[0];
+                    startViewer(Math.round(w), Math.round(h));
+                    if (initialized) {
+                        observer.disconnect();
+                        break;
+                    }
+                }
+            });
+            observer.observe(container);
+
+            return () => {
+                observer.disconnect();
+                cleanupRef.current?.();
+                cleanupRef.current = null;
+                threeServiceRef.current = null;
+            };
+        }, [modelFile]);
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -143,16 +217,12 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
             if (!formData.colorName.trim())
                 e.colorName = 'Color name is required';
-
             if (!formData.size)
                 e.size = 'Please select frame size';
-
             if (!formData.basePrice || Number(formData.basePrice) <= 0)
                 e.basePrice = 'Base price must be greater than 0';
-
             if (!formData.stock || Number(formData.stock) <= 0)
                 e.stock = 'Stock must be greater than 0';
-
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
 
@@ -160,21 +230,18 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             return Object.keys(e).length === 0;
         };
 
-        // ── Submit (exposed via ref) ───────────────────────────────────────────
+        // ── Submit ────────────────────────────────────────────────────────────
 
         const handleSubmit = async () => {
             if (!validate()) throw new Error('Validation failed');
             if (!frameGroupId) throw new Error('frameGroupId is missing');
-            console.log(frameGroupId)
+
             setLoading(true);
             try {
                 const payload = new FormData();
 
                 payload.append('frameGroupId', frameGroupId);
-
-                // tạm thời phải có shopId nếu backend đang yêu cầu
                 payload.append('shopId', '321a10bc-76f5-48e5-9032-19f0e51098fb');
-
                 payload.append('colorName', formData.colorName.trim());
                 payload.append('colorHex', formData.colorHex);
                 payload.append('size', formData.size);
@@ -184,10 +251,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 if (formData.lensHeightMm) payload.append('lensHeightMm', formData.lensHeightMm);
                 if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', formData.bridgeWidthMm);
                 if (formData.templeLengthMm) payload.append('templeLengthMm', formData.templeLengthMm);
-
-                payload.append('hasNosepads', String(formData.hasNosepads));
-                payload.append('hasSpringHinge', String(formData.hasSpringHinge));
-                payload.append('vrEnabled', String(formData.vrEnabled));
 
                 if (formData.stock) payload.append('stock', formData.stock);
                 if (formData.stockThreshold) payload.append('stockThreshold', formData.stockThreshold);
@@ -200,10 +263,12 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 payload.append('isReturnable', String(formData.isReturnable));
 
                 formData.images.forEach(img => {
-                    if (img.file) {
-                        payload.append('productImages', img.file);
-                    }
+                    if (img.file) payload.append('productImages', img.file);
                 });
+
+                if (formData.textureFile?.file) {
+                    payload.append('textureFile', formData.textureFile.file);
+                }
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, formData);
@@ -231,7 +296,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
             setFormData(prev => ({
                 ...prev,
-                images: [...prev.images, ...newImages].slice(0, 4), // max 4
+                images: [...prev.images, ...newImages].slice(0, 4),
             }));
             if (errors.images) setErrors(prev => ({ ...prev, images: undefined }));
             e.target.value = '';
@@ -242,6 +307,41 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 ...prev,
                 images: prev.images.filter((_, i) => i !== index),
             }));
+        };
+
+        // ── Texture handlers ──────────────────────────────────────────────────
+
+        const handleTextureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            const file = files[0];
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+            if (!validTypes.includes(file.type)) {
+                setErrors(prev => ({ ...prev, textureFile: 'Invalid type. Accepted: PNG, JPG, WEBP' }));
+                e.target.value = '';
+                return;
+            }
+
+            const preview = URL.createObjectURL(file);
+            const texture: TextureFile = { name: file.name, size: file.size, preview, file };
+            setField('textureFile', texture);
+
+            // Apply vào local viewer (Step 1)
+            const service = threeServiceRef.current;
+            if (service?.viewerModel) {
+                service.applyTextureToModel(service.viewerModel, file);
+            }
+
+            // Apply vào viewer Step 0 nếu vẫn còn mount
+            upload3DModelRef?.current?.applyTexture(file);
+
+            e.target.value = '';
+        };
+
+        const handleRemoveTexture = () => {
+            setField('textureFile', null);
         };
 
         // ── Render ────────────────────────────────────────────────────────────
@@ -357,49 +457,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             />
                         </Grid>
                     ))}
-                </Grid>
-
-                <Divider sx={{ my: 4 }} />
-
-                {/* ── Features ── */}
-                <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 2 }}>
-                    Frame Features
-                </Typography>
-
-                <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={formData.hasNosepads}
-                                    onChange={e => setField('hasNosepads', e.target.checked)}
-                                />
-                            }
-                            label="Has Nose Pads"
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={formData.hasSpringHinge}
-                                    onChange={e => setField('hasSpringHinge', e.target.checked)}
-                                />
-                            }
-                            label="Spring Hinge"
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={formData.vrEnabled}
-                                    onChange={e => setField('vrEnabled', e.target.checked)}
-                                />
-                            }
-                            label="VR Enabled"
-                        />
-                    </Grid>
                 </Grid>
 
                 <Divider sx={{ my: 4 }} />
@@ -528,20 +585,9 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 />
 
                 <label htmlFor="variant-image-upload">
-                    <UploadArea
-                        sx={errors.images ? { borderColor: theme.palette.error.main } : {}}
-                    >
-                        <CloudUpload
-                            sx={{ fontSize: 48, color: theme.palette.custom.neutral[400], mb: 2 }}
-                        />
-                        <Typography
-                            sx={{
-                                fontSize: 16,
-                                fontWeight: 500,
-                                color: theme.palette.custom.neutral[700],
-                                mb: 1,
-                            }}
-                        >
+                    <UploadArea sx={errors.images ? { borderColor: theme.palette.error.main } : {}}>
+                        <CloudUpload sx={{ fontSize: 48, color: theme.palette.custom.neutral[400], mb: 2 }} />
+                        <Typography sx={{ fontSize: 16, fontWeight: 500, color: theme.palette.custom.neutral[700], mb: 1 }}>
                             Drag and drop files here or click to browse
                         </Typography>
                         <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
@@ -558,14 +604,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 {formData.images.length > 0 && (
                     <Box sx={{ mt: 3 }}>
-                        <Typography
-                            sx={{
-                                fontSize: 14,
-                                fontWeight: 600,
-                                color: theme.palette.custom.neutral[700],
-                                mb: 2,
-                            }}
-                        >
+                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
                             Uploaded Files ({formData.images.length})
                         </Typography>
 
@@ -586,26 +625,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 <Avatar
                                     variant="rounded"
                                     src={file.preview}
-                                    sx={{
-                                        width: 56,
-                                        height: 56,
-                                        borderRadius: 1,
-                                        bgcolor: theme.palette.grey[100],
-                                    }}
+                                    sx={{ width: 56, height: 56, borderRadius: 1, bgcolor: theme.palette.grey[100] }}
                                 />
                                 <Box sx={{ flex: 1 }}>
-                                    <Typography
-                                        sx={{
-                                            fontSize: 14,
-                                            fontWeight: 500,
-                                            color: theme.palette.custom.neutral[800],
-                                        }}
-                                    >
+                                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
                                         {file.name}
                                     </Typography>
-                                    <Typography
-                                        sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}
-                                    >
+                                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
                                         {formatFileSize(file.size)}
                                     </Typography>
                                 </Box>
@@ -618,6 +644,192 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 </IconButton>
                             </Paper>
                         ))}
+                    </Box>
+                )}
+
+                <Divider sx={{ my: 4 }} />
+
+                {/* ── Texture Map + 3D Viewer ── */}
+                <Typography
+                    sx={{
+                        fontSize: 16,
+                        fontWeight: 600,
+                        mb: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                    }}
+                >
+                    <ViewInArIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                    Texture Map
+                    <Typography
+                        component="span"
+                        sx={{ fontSize: 13, fontWeight: 400, color: theme.palette.custom.neutral[500], ml: 0.5 }}
+                    >
+                        (optional — PNG, JPG, WEBP)
+                    </Typography>
+                </Typography>
+                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
+                    {modelFile
+                        ? 'Upload a texture to apply onto the 3D model below.'
+                        : 'No 3D model uploaded in the previous step.'}
+                </Typography>
+
+                {/* Texture upload / preview */}
+                {!formData.textureFile ? (
+                    <>
+                        <input
+                            type="file"
+                            id="texture-upload"
+                            accept=".png,.jpg,.jpeg,.webp"
+                            style={{ display: 'none' }}
+                            onChange={handleTextureUpload}
+                        />
+                        <label htmlFor="texture-upload">
+                            <UploadArea
+                                sx={{
+                                    py: 3,
+                                    ...(errors.textureFile ? { borderColor: theme.palette.error.main } : {}),
+                                }}
+                            >
+                                <CloudUpload sx={{ fontSize: 36, color: theme.palette.custom.neutral[400], mb: 1 }} />
+                                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+                                    Click to upload texture
+                                </Typography>
+                            </UploadArea>
+                        </label>
+                        {errors.textureFile && (
+                            <Typography color="error" fontSize={12} sx={{ mt: 1 }}>
+                                {errors.textureFile}
+                            </Typography>
+                        )}
+                    </>
+                ) : (
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 2,
+                            mb: 2,
+                            borderRadius: 2,
+                            border: `1px solid ${theme.palette.custom.border.light}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 2,
+                        }}
+                    >
+                        <Box
+                            component="img"
+                            src={formData.textureFile.preview}
+                            sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 1,
+                                objectFit: 'cover',
+                                flexShrink: 0,
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                            }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {formData.textureFile.name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                                {formatFileSize(formData.textureFile.size)}
+                            </Typography>
+                        </Box>
+
+                        <label htmlFor="texture-upload" style={{ cursor: 'pointer' }}>
+                            <input
+                                type="file"
+                                id="texture-upload"
+                                accept=".png,.jpg,.jpeg,.webp"
+                                style={{ display: 'none' }}
+                                onChange={handleTextureUpload}
+                            />
+                            <Button
+                                component="span"
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Refresh sx={{ fontSize: 16 }} />}
+                                sx={{ fontSize: 13, textTransform: 'none', mr: 1 }}
+                            >
+                                Replace
+                            </Button>
+                        </label>
+
+                        <IconButton
+                            size="small"
+                            onClick={handleRemoveTexture}
+                            sx={{ color: theme.palette.custom.status.error.main }}
+                        >
+                            <Delete />
+                        </IconButton>
+                    </Paper>
+                )}
+
+                {/* ── Local 3D viewer — chỉ hiện khi có modelFile ── */}
+                {modelFile?.file && (
+                    <Box
+                        ref={containerRef}
+                        sx={{
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            border: `1px solid ${theme.palette.custom.border.light}`,
+                            position: 'relative',
+                            width: '100%',
+                            height: 380,
+                            mt: 2,
+                        }}
+                    >
+                        <canvas
+                            ref={canvasRef}
+                            style={{ width: '100%', height: '100%', display: 'block' }}
+                        />
+
+                        {/* Texture badge */}
+                        {formData.textureFile && (
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: 10,
+                                    left: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    bgcolor: 'rgba(0,0,0,0.5)',
+                                    borderRadius: 1,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    pointerEvents: 'none',
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={formData.textureFile.preview}
+                                    sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }}
+                                />
+                                <Typography sx={{ fontSize: 11, color: '#fff' }}>
+                                    {formData.textureFile.name}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: 12,
+                                right: 14,
+                                bgcolor: 'rgba(0,0,0,0.45)',
+                                borderRadius: 1,
+                                px: 1.5,
+                                py: 0.5,
+                                pointerEvents: 'none',
+                            }}
+                        >
+                            <Typography sx={{ fontSize: 11, color: '#fff' }}>
+                                Drag to rotate · Scroll to zoom
+                            </Typography>
+                        </Box>
                     </Box>
                 )}
 

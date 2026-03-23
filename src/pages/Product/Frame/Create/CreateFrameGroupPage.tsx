@@ -12,11 +12,17 @@ import {
     useTheme,
     Alert,
     CircularProgress,
+    FormControlLabel,
+    Switch,
 } from "@mui/material";
-import { useState, forwardRef, useImperativeHandle } from "react";
+import { useState, forwardRef, useImperativeHandle, useRef } from "react";
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from "@/api/product-api";
-// import ProductAPI from '@/api/product-api'; // ← uncomment khi có API thật
+import Upload3DModelPage, {
+    type Model3DFile,
+    type Upload3DModelPageRef,
+} from './Upload3DModel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,18 +49,21 @@ export interface CreateFrameFormData {
     frameShape: FrameShape | '';
     frameStructure: FrameStructure | '';
     frameMaterial: FrameMaterial | '';
+    hasNosePads: boolean;
+    hasSpringHinge: boolean;
+    vrEnabled: boolean;
     genderTarget: GenderTarget | '';
     ageGroup: AgeGroup | '';
     description: string;
+    model3dFile: Model3DFile | null;
 }
 
 interface CreateFrameGroupPageProps {
-    /** Callback sau khi API thành công — trả về cả id lẫn formData để parent lưu lại */
     onCreated?: (frameGroupId: string, data: CreateFrameFormData) => void;
-    /** Restore dữ liệu khi user ấn Back rồi quay lại */
     initialData?: Partial<CreateFrameFormData>;
-    /** Shop/user UUID for createdBy field */
     createdBy?: string;
+    /** Expose ref của Upload3DModelPage lên CreateFramePage để truyền cho VariantPage */
+    upload3DModelRef?: React.RefObject<Upload3DModelPageRef | null>;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -64,15 +73,19 @@ const DEFAULT_FORM: CreateFrameFormData = {
     frameShape: '',
     frameStructure: '',
     frameMaterial: '',
+    hasNosePads: false,
+    hasSpringHinge: false,
+    vrEnabled: false,
     genderTarget: '',
     ageGroup: '',
     description: '',
+    model3dFile: null,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGroupPageProps>(
-    ({ onCreated, initialData, createdBy }, ref) => {
+    ({ onCreated, initialData, createdBy, upload3DModelRef }, ref) => {
         const theme = useTheme();
 
         const [formData, setFormData] = useState<CreateFrameFormData>({
@@ -125,7 +138,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
             return Object.keys(e).length === 0;
         };
 
-        // ── Submit (exposed via ref) ───────────────────────────────────────────
+        // ── Submit ────────────────────────────────────────────────────────────
 
         const handleSubmit = async () => {
             setSuccess(false);
@@ -133,20 +146,23 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
 
             setLoading(true);
             try {
-                // ── Call API ───────────────────────────────────────────────────
                 const payload = new FormData();
                 payload.append('productName', formData.frameName.trim());
                 payload.append('frameShape', formData.frameShape);
                 payload.append('frameStructure', formData.frameStructure);
                 payload.append('frameMaterial', formData.frameMaterial);
+                payload.append('hasNosePads', String(formData.hasNosePads));
+                payload.append('hasSpringHinge', String(formData.hasSpringHinge));
+                payload.append('vrEnabled', String(formData.vrEnabled));
                 payload.append('genderTarget', formData.genderTarget);
                 payload.append('ageGroup', formData.ageGroup);
                 payload.append('description', formData.description.trim());
 
-                const response = await ProductAPI.createFrameGroup(payload)
-                console.log("Response: ", response);
-
-                // ── Mock: xóa khi có API thật ──────────────────────────────────
+                console.log("model3dFile: ", formData.model3dFile?.file);
+                if (formData.model3dFile?.file && formData.vrEnabled == true) {
+                    payload.append('model3dFile', formData.model3dFile.file);
+                }
+                const response = await ProductAPI.createFrameGroup(payload);
                 const frameGroupId = response.id;
                 setSuccess(true);
                 onCreated?.(frameGroupId, formData);
@@ -186,7 +202,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
 
                 <Grid container spacing={3}>
                     {/* Frame Name */}
-                    <Grid size={{ xs: 12, md: 8 }}>
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             fullWidth
                             required
@@ -276,8 +292,65 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                         </FormControl>
                     </Grid>
 
-                    {/* Gender Target */}
+                    {/* ── Frame Features ── */}
+                    <Grid size={{ xs: 12 }}>
+                        <Typography sx={{
+                            fontSize: 18,
+                            fontWeight: 600,
+                            color: theme.palette.custom.neutral[800],
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                        }}>
+                            <ViewInArIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                            Frame Features
+                        </Typography>
+                    </Grid>
+
                     <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={formData.hasNosePads}
+                                    onChange={e =>
+                                        setFormData(prev => ({ ...prev, hasNosePads: e.target.checked }))
+                                    }
+                                />
+                            }
+                            label="Has Nose Pads"
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={formData.hasSpringHinge}
+                                    onChange={e =>
+                                        setFormData(prev => ({ ...prev, hasSpringHinge: e.target.checked }))
+                                    }
+                                />
+                            }
+                            label="Spring Hinge"
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={formData.vrEnabled}
+                                    onChange={e =>
+                                        setFormData(prev => ({ ...prev, vrEnabled: e.target.checked }))
+                                    }
+                                />
+                            }
+                            label="VR Enabled"
+                        />
+                    </Grid>
+
+                    {/* Gender Target */}
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth required error={!!errors.genderTarget}>
                             <InputLabel>Gender Target</InputLabel>
                             <Select
@@ -335,36 +408,48 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                     </Grid>
                 </Grid>
 
-                <Divider sx={{ my: 3, borderColor: '#E5E7EB', borderBottomWidth: 1 }} />
+                <Divider sx={{ my: 3 }} />
 
-                {/* ── Frame Variants (read-only preview) ── */}
+                {/* ── 3D Model (optional) ── */}
                 <Typography
                     sx={{
                         fontSize: 18,
                         fontWeight: 600,
                         color: theme.palette.custom.neutral[800],
-                        mb: 3,
+                        mb: 1,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 1,
                     }}
                 >
-                    <ViewModuleIcon sx={{ color: theme.palette.primary.main }} />
-                    Frame Variants
+                    <ViewInArIcon sx={{ color: theme.palette.primary.main }} />
+                    3D Model
+                    <Typography
+                        component="span"
+                        sx={{
+                            fontSize: 13,
+                            fontWeight: 400,
+                            color: theme.palette.custom.neutral[500],
+                            ml: 1,
+                        }}
+                    >
+                        (optional)
+                    </Typography>
+                </Typography>
+                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
+                    Upload a 3D model. Texture can be applied in the next step.
                 </Typography>
 
-                <Box
-                    sx={{
-                        border: '1px dashed #E5E7EB',
-                        borderRadius: 1,
-                        py: 4,
-                        textAlign: 'center',
+                {/* upload3DModelRef được truyền từ CreateFramePage */}
+                <Upload3DModelPage
+                    ref={upload3DModelRef}
+                    variantId={undefined}
+                    initialFile={formData.model3dFile}
+                    onUploaded={(url, file) => {
+                        console.log('onUploaded called:', file); // ← thêm log này
+                        setFormData(prev => ({ ...prev, model3dFile: file }));
                     }}
-                >
-                    <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-                        No frame variants yet. Please add at least one variant.
-                    </Typography>
-                </Box>
+                />
 
                 {loading && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>

@@ -7,7 +7,6 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { CloudUpload, Delete, InsertDriveFile, Refresh } from '@mui/icons-material';
 import {
     useState,
@@ -19,7 +18,6 @@ import {
 import { UploadArea } from './CreateFrameVariantPage';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import ProductAPI from '@/api/product-api';
-// import ModelAPI from '@/api/model-api'; // ← uncomment khi có API thật
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,13 +30,13 @@ export interface Model3DFile {
 
 export interface Upload3DModelPageRef {
     submit: () => Promise<void>;
+    /** Apply texture file vào model đang chạy trong viewer */
+    applyTexture: (file: File) => void;
 }
 
 interface Upload3DModelPageProps {
     variantId?: string;
-    /** Restore file khi user back rồi quay lại */
     initialFile?: Model3DFile | null;
-    /** Callback sau khi API thành công */
     onUploaded?: (modelUrl: string, file: Model3DFile) => void;
 }
 
@@ -66,24 +64,17 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
         const [error, setError] = useState<string | null>(null);
         const [loading, setLoading] = useState(false);
 
-        // ref tới <canvas> element
         const canvasRef = useRef<HTMLCanvasElement>(null);
-        // ref tới container Box để đo kích thước thực
         const containerRef = useRef<HTMLDivElement>(null);
-        // cleanup function trả về từ ThreeJsService
         const cleanupRef = useRef<(() => void) | null>(null);
+        const threeServiceRef = useRef<ThreeJsService | null>(null);
 
         // ── Khởi Three.js viewer ──────────────────────────────────────────────
-        //
-        // Vấn đề: useEffect chạy trước khi browser paint → canvas.clientWidth = 0
-        // Fix: dùng ResizeObserver trên container, khởi viewer ngay khi
-        //      container có kích thước > 0 lần đầu tiên.
-        //
         useEffect(() => {
             if (!modelFile) return;
 
             const container = containerRef.current;
-            const canvas    = canvasRef.current;
+            const canvas = canvasRef.current;
             if (!container || !canvas) return;
 
             let initialized = false;
@@ -92,25 +83,24 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                 if (initialized || w === 0 || h === 0) return;
                 initialized = true;
 
-                // Gán kích thước thực vào canvas attribute (không dùng CSS-only)
-                canvas.width  = w;
+                canvas.width = w;
                 canvas.height = h;
 
                 const threeJsService = new ThreeJsService();
+                threeServiceRef.current = threeJsService;
                 cleanupRef.current = threeJsService.initializeThreeDViewer(canvas, modelFile.file);
             };
 
-            // Nếu container đã có kích thước ngay (ví dụ khi restore từ back)
             const { offsetWidth, offsetHeight } = container;
             if (offsetWidth > 0 && offsetHeight > 0) {
                 startViewer(offsetWidth, offsetHeight);
                 return () => {
                     cleanupRef.current?.();
                     cleanupRef.current = null;
+                    threeServiceRef.current = null;
                 };
             }
 
-            // Chờ container được paint lần đầu
             const observer = new ResizeObserver(entries => {
                 for (const entry of entries) {
                     const { inlineSize: w, blockSize: h } = entry.contentBoxSize[0];
@@ -127,6 +117,7 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                 observer.disconnect();
                 cleanupRef.current?.();
                 cleanupRef.current = null;
+                threeServiceRef.current = null;
             };
         }, [modelFile]);
 
@@ -151,21 +142,26 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
             }
 
             setError(null);
-            // cleanup viewer cũ trước khi set file mới
             cleanupRef.current?.();
             cleanupRef.current = null;
-            setModelFile({ name: file.name, size: file.size, type: file.type, file });
+            threeServiceRef.current = null;
+
+            const model3dFile: Model3DFile = { name: file.name, size: file.size, type: file.type, file };
+            setModelFile(model3dFile);
+            onUploaded?.('', model3dFile);
             e.target.value = '';
         };
 
         const handleRemoveFile = () => {
             cleanupRef.current?.();
             cleanupRef.current = null;
+            threeServiceRef.current = null;
             setModelFile(null);
             setError(null);
+            onUploaded?.('', null as any); 
         };
 
-        // ── Submit (exposed via ref) ───────────────────────────────────────────
+        // ── Submit ────────────────────────────────────────────────────────────
 
         const handleSubmit = async () => {
             if (!modelFile) {
@@ -175,49 +171,32 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
 
             setLoading(true);
             try {
-                // ── Build payload ──────────────────────────────────────────────
                 const payload = new FormData();
                 payload.append('frameVariantId', variantId ?? '');
                 payload.append('file', modelFile.file);
 
-                // ── Call API ───────────────────────────────────────────────────
                 const response = await ProductAPI.upload3DModelFile(payload);
                 onUploaded?.(response.modelUrl, modelFile);
-
-                // ── Mock: xóa khi có API thật ──────────────────────────────────
-                await new Promise(r => setTimeout(r, 800));
-                onUploaded?.('https://cdn.example.com/models/mock.glb', modelFile);
-
             } finally {
                 setLoading(false);
             }
         };
 
-        useImperativeHandle(ref, () => ({ submit: handleSubmit }));
+        useImperativeHandle(ref, () => ({
+            submit: handleSubmit,
+            // ✅ Expose applyTexture — CreateFrameVariantPage gọi khi user upload texture
+            applyTexture: (file: File) => {
+                const service = threeServiceRef.current;
+                if (service?.viewerModel) {
+                    service.applyTextureToModel(service.viewerModel, file);
+                }
+            },
+        }));
 
         // ── Render ────────────────────────────────────────────────────────────
 
         return (
             <Box>
-                <Typography
-                    sx={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                        color: theme.palette.custom.neutral[800],
-                        mb: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                    }}
-                >
-                    <ViewModuleIcon sx={{ color: theme.palette.primary.main }} />
-                    Upload 3D Model
-                </Typography>
-
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-                    Please upload 1 3D model file. Accepted: {ACCEPTED_EXTENSIONS.join(', ')} (max {MAX_SIZE_MB} MB)
-                </Typography>
-
                 <input
                     type="file"
                     id="model-3d-upload"
@@ -226,7 +205,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                     onChange={handleFileUpload}
                 />
 
-                {/* ── Upload area (chỉ hiện khi chưa có file) ── */}
                 {!modelFile && (
                     <label htmlFor="model-3d-upload">
                         <UploadArea sx={error ? { borderColor: theme.palette.error.main } : {}}>
@@ -256,10 +234,8 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                     </Typography>
                 )}
 
-                {/* ── File info + 3D viewer ── */}
                 {modelFile && (
                     <Box>
-                        {/* File info bar */}
                         <Paper
                             elevation={0}
                             sx={{
@@ -305,7 +281,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                                 </Typography>
                             </Box>
 
-                            {/* Replace */}
                             <label htmlFor="model-3d-upload" style={{ cursor: 'pointer' }}>
                                 <Button
                                     component="span"
@@ -318,7 +293,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                                 </Button>
                             </label>
 
-                            {/* Delete */}
                             <IconButton
                                 size="small"
                                 onClick={handleRemoveFile}
@@ -328,8 +302,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                             </IconButton>
                         </Paper>
 
-                        {/* ── Canvas container ── */}
-                        {/* ref={containerRef} để đo kích thước thực trước khi khởi Three.js */}
                         <Box
                             ref={containerRef}
                             sx={{
@@ -343,14 +315,8 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                         >
                             <canvas
                                 ref={canvasRef}
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    display: 'block',
-                                }}
+                                style={{ width: '100%', height: '100%', display: 'block' }}
                             />
-
-                            {/* Hint overlay */}
                             <Box
                                 sx={{
                                     position: 'absolute',

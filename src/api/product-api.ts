@@ -212,7 +212,12 @@ export default class ProductAPI {
   static async createFrameGroup(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.CREATE_FRAME_GROUP,
-      body
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
     );
     return response.data.data;
   }

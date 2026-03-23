@@ -23,6 +23,7 @@ export class ThreeJsService {
     private camera?: THREE.OrthographicCamera;
     private renderer?: THREE.WebGLRenderer;
     private animFrameId?: number;
+    viewerModel?: THREE.Object3D;
 
     animate = (
         bg: THREE.Texture,
@@ -204,10 +205,8 @@ export class ThreeJsService {
                     child.receiveShadow = true;
                 });
 
-                // ← dùng normalizeModelForViewer, KHÔNG dùng normalizeModel()
                 this.normalizeModelForViewer(mesh);
 
-                // Đặt orbit target vào tâm model sau khi normalize
                 const box = new THREE.Box3().setFromObject(mesh);
                 const center = new THREE.Vector3();
                 box.getCenter(center);
@@ -215,6 +214,7 @@ export class ThreeJsService {
                 controls.update();
 
                 scene.add(mesh);
+                this.viewerModel = mesh; // ✅ lưu lại để apply texture sau
                 URL.revokeObjectURL(objectURL);
             },
             (xhr) => {
@@ -255,6 +255,44 @@ export class ThreeJsService {
             renderer.dispose();
             scene.clear();
         };
+    }
+
+    // ThreeJsService.ts — thêm method này
+
+    applyTextureToModel(model: THREE.Object3D, textureFile: File): void {
+        const objectURL = URL.createObjectURL(textureFile);
+        const loader = new THREE.TextureLoader();
+
+        loader.load(
+            objectURL,
+            (texture) => {
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.flipY = false; // GLTF cần flipY = false
+
+                model.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        const mat = child.material;
+
+                        if (Array.isArray(mat)) {
+                            mat.forEach(m => {
+                                m.map = texture;
+                                m.needsUpdate = true;
+                            });
+                        } else {
+                            mat.map = texture;
+                            mat.needsUpdate = true;
+                        }
+                    }
+                });
+
+                URL.revokeObjectURL(objectURL);
+            },
+            undefined,
+            (err) => {
+                console.error('[Texture] load error', err);
+                URL.revokeObjectURL(objectURL);
+            }
+        );
     }
 
     /** Call after detectAndApply() to refresh the canvas with glasses on. */
