@@ -28,7 +28,7 @@ const PUBLIC_ENDPOINTS = [
     '/auth/forgot-password',
     '/auth/google',
     '/api/v1/auth/google',
-    '/product',
+    // '/product',
     '/categories'
 ];
 

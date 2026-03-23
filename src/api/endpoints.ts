@@ -29,6 +29,10 @@ export const API_ENDPOINTS = {
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
+    CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
+    CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
+    ACTIVATE_PRODUCT: (id: string) => `/product/${id}/activate`,
+    UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
@@ -166,6 +170,8 @@ export const PAGE_ENDPOINTS = {
   SHOP: {
     REGISTER: `/shop/register`,
     PROFILE: `/shop/profile`,
+    PRODUCT_FRAME: `/shop/product/frame`,
+    CREATE_FRAME: `/shop/product/frame/create`,
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
