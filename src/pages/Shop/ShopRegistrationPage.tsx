@@ -140,6 +140,15 @@ const ShopRegistrationPage = () => {
 
   useLayoutConfig({ showNavbar: false, showFooter: true });
 
+  // Redirect if user already has a shop
+  useEffect(() => {
+    shopApi.getMyShops().then((res) => {
+      if (res.data && res.data.length > 0) {
+        navigate(PAGE_ENDPOINTS.SHOP.PROFILE, { replace: true });
+      }
+    }).catch(() => {});
+  }, []);
+
   // Fetch provinces on mount
   useEffect(() => {
     const fetchProvinces = async () => {
@@ -205,6 +214,12 @@ const ShopRegistrationPage = () => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData((prev) => ({ ...prev, phone: digits }));
+    if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+  };
+
   const handleSelectChange = (field: keyof ShopFormData) => (e: any) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
@@ -220,9 +235,15 @@ const ShopRegistrationPage = () => {
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Please enter a valid email address';
       }
-      if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+      if (!formData.phone.trim()) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!/^0[35789]\d{8}$/.test(formData.phone)) {
+        newErrors.phone = 'Invalid phone number (must be 10 digits, e.g. 0912345678)';
+      }
       if (!formData.address.trim()) newErrors.address = 'Street address is required';
       if (!formData.city) newErrors.city = 'City/Province is required';
+      if (!formData.district) newErrors.district = 'District is required';
+      if (!formData.ward) newErrors.ward = 'Ward is required';
     }
 
     if (step === 1) {
@@ -231,6 +252,13 @@ const ShopRegistrationPage = () => {
       if (!formData.businessType) newErrors.businessType = 'Business type is required';
       if (!formData.taxId.trim()) newErrors.taxId = 'Tax ID is required';
       if (!formData.legalRepresentative.trim()) newErrors.legalRepresentative = 'Legal representative name is required';
+      if (formData.expiryDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(formData.expiryDate) <= today) {
+          newErrors.expiryDate = 'Expiry date must be a future date';
+        }
+      }
     }
 
     if (step === 2) {
@@ -241,8 +269,23 @@ const ShopRegistrationPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validateStep(activeStep)) return;
+
+    if (activeStep === 0) {
+      try {
+        const res = await shopApi.checkEmail(formData.email);
+        if (!res.data?.available) {
+          setErrors((prev) => ({ ...prev, email: res.data?.message || 'This email is already used by another shop' }));
+          return;
+        }
+      } catch (err: any) {
+        const msg = err?.originalError?.response?.data?.data?.message || err?.message || 'This email is already used by another shop';
+        setErrors((prev) => ({ ...prev, email: msg }));
+        return;
+      }
+    }
+
     setErrors({});
     setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
   };
@@ -290,9 +333,15 @@ const ShopRegistrationPage = () => {
       await shopApi.register(requestData);
       setSuccessDialogOpen(true);
     } catch (err: any) {
-      const message =
-        err?.message || err?.errors?.[0] || 'Registration failed. Please try again.';
-      setSubmitError(message);
+      const rawErrors = err?.originalError?.response?.data?.errors;
+      const beError = Array.isArray(rawErrors) ? rawErrors[0] : rawErrors?.[Object.keys(rawErrors ?? {})[0]]?.[0];
+      const message = beError || err?.message || 'Registration failed. Please try again.';
+      if (message.toLowerCase().includes('email')) {
+        setActiveStep(0);
+        setErrors({ email: message });
+      } else {
+        setSubmitError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -331,9 +380,7 @@ const ShopRegistrationPage = () => {
             placeholder="Enter your shop name"
             error={!!errors.shopName}
             helperText={errors.shopName}
-            InputProps={{
-              startAdornment: <Store sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Store sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -348,9 +395,7 @@ const ShopRegistrationPage = () => {
             placeholder="Enter email address"
             error={!!errors.email}
             helperText={errors.email}
-            InputProps={{
-              startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -360,13 +405,12 @@ const ShopRegistrationPage = () => {
             required
             label="Phone Number"
             value={formData.phone}
-            onChange={handleInputChange('phone')}
-            placeholder="Enter phone number"
+            onChange={handlePhoneChange}
+            placeholder="e.g. 0912345678"
             error={!!errors.phone}
-            helperText={errors.phone}
-            InputProps={{
-              startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.phone || '10 digits, starts with 0'}
+            inputMode="numeric"
+            slotProps={{ htmlInput: { maxLength: 10, inputMode: 'numeric' }, input: { startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -409,9 +453,7 @@ const ShopRegistrationPage = () => {
             placeholder="Enter street address"
             error={!!errors.address}
             helperText={errors.address}
-            InputProps={{
-              startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -436,36 +478,44 @@ const ShopRegistrationPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required error={!!errors.district}>
             <InputLabel>District</InputLabel>
             <Select
               value={formData.district}
               label="District"
+              error={!!errors.district}
               disabled={!formData.city || loadingDistricts}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, district: e.target.value, ward: '' }));
+                if (errors.district) setErrors((prev) => ({ ...prev, district: '' }));
               }}
             >
               {districts.map((d) => (
                 <MenuItem key={d.DistrictID} value={String(d.DistrictID)}>{d.DistrictName}</MenuItem>
               ))}
             </Select>
+            {errors.district && <FormHelperText>{errors.district}</FormHelperText>}
           </FormControl>
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required error={!!errors.ward}>
             <InputLabel>Ward</InputLabel>
             <Select
               value={formData.ward}
               label="Ward"
+              error={!!errors.ward}
               disabled={!formData.district || loadingWards}
-              onChange={handleSelectChange('ward')}
+              onChange={(e) => {
+                handleSelectChange('ward')(e);
+                if (errors.ward) setErrors((prev) => ({ ...prev, ward: '' }));
+              }}
             >
               {wards.map((w) => (
                 <MenuItem key={w.WardCode} value={w.WardCode}>{w.WardName}</MenuItem>
               ))}
             </Select>
+            {errors.ward && <FormHelperText>{errors.ward}</FormHelperText>}
           </FormControl>
         </Grid>
       </Grid>
@@ -508,9 +558,7 @@ const ShopRegistrationPage = () => {
             placeholder="e.g. 0312345678"
             error={!!errors.licenseNumber}
             helperText={errors.licenseNumber}
-            InputProps={{
-              startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -524,9 +572,7 @@ const ShopRegistrationPage = () => {
             placeholder="Registered business name"
             error={!!errors.businessName}
             helperText={errors.businessName}
-            InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -558,9 +604,7 @@ const ShopRegistrationPage = () => {
             placeholder="e.g. 0312345678"
             error={!!errors.taxId}
             helperText={errors.taxId}
-            InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -571,10 +615,7 @@ const ShopRegistrationPage = () => {
             type="date"
             value={formData.issuedDate}
             onChange={handleInputChange('issuedDate')}
-            slotProps={{ inputLabel: { shrink: true } }}
-            InputProps={{
-              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -585,9 +626,12 @@ const ShopRegistrationPage = () => {
             type="date"
             value={formData.expiryDate}
             onChange={handleInputChange('expiryDate')}
-            slotProps={{ inputLabel: { shrink: true } }}
-            InputProps={{
-              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            error={!!errors.expiryDate}
+            helperText={errors.expiryDate}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { min: new Date().toISOString().split('T')[0] },
+              input: { startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> },
             }}
           />
         </Grid>
@@ -599,9 +643,7 @@ const ShopRegistrationPage = () => {
             value={formData.issuedBy}
             onChange={handleInputChange('issuedBy')}
             placeholder="e.g. Sở Kế hoạch và Đầu tư TP.HCM"
-            InputProps={{
-              startAdornment: <AccountBalance sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <AccountBalance sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -612,9 +654,7 @@ const ShopRegistrationPage = () => {
             value={formData.licenseImageUrl}
             onChange={handleInputChange('licenseImageUrl')}
             placeholder="Paste the URL of your scanned license document"
-            InputProps={{
-              startAdornment: <LinkIcon sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <LinkIcon sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
             helperText="Upload your document to a cloud storage and paste the public link here."
           />
         </Grid>
@@ -637,9 +677,7 @@ const ShopRegistrationPage = () => {
             placeholder="Full name as on ID card"
             error={!!errors.legalRepresentative}
             helperText={errors.legalRepresentative}
-            InputProps={{
-              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -650,9 +688,7 @@ const ShopRegistrationPage = () => {
             value={formData.registeredAddress}
             onChange={handleInputChange('registeredAddress')}
             placeholder="Business registered address"
-            InputProps={{
-              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
       </Grid>
@@ -1167,7 +1203,7 @@ const ShopRegistrationPage = () => {
             {registrationSteps.map((step, index) => (
               <Step key={step.key} completed={index < activeStep}>
                 <StepLabel
-                  StepIconComponent={() => (
+                  slots={{ stepIcon: () => (
                     <Box
                       sx={{
                         width: 32,
@@ -1190,7 +1226,7 @@ const ShopRegistrationPage = () => {
                     >
                       {index < activeStep ? <CheckCircle sx={{ fontSize: 20 }} /> : index + 1}
                     </Box>
-                  )}
+                  ) }}
                 >
                   <Typography
                     sx={{
