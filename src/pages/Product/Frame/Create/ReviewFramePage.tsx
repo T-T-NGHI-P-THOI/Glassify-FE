@@ -24,6 +24,7 @@ import type { Model3DFile } from './Upload3DModel';
 
 interface ReviewFramePageProps {
     groupData: Partial<CreateFrameFormData>;
+    productId: string;
     variantData: Partial<CreateFrameVariantFormData>;
     modelFile: Model3DFile | null;
 }
@@ -114,6 +115,14 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
 
             const service = new ThreeJsService();
             cleanupRef.current = service.initializeThreeDViewer(canvas, modelFile.file);
+
+            if (variantData.textureFile?.file) {
+                setTimeout(() => {
+                    if (service.viewerModel) {
+                        service.applyTextureToModel(service.viewerModel, variantData.textureFile!.file);
+                    }
+                }, 1500);
+            }
         };
 
         const { offsetWidth, offsetHeight } = container;
@@ -195,6 +204,30 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                         <InfoRow label="Gender Target" value={groupData.genderTarget ? formatLabel(groupData.genderTarget) : undefined} />
                         <InfoRow label="Age Group" value={groupData.ageGroup ? formatLabel(groupData.ageGroup) : undefined} />
 
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                            {[
+                                { label: 'Nose Pads', val: groupData.hasNosePads },
+                                { label: 'Spring Hinge', val: groupData.hasSpringHinge },
+                                { label: 'VR Enabled', val: groupData.vrEnabled },
+                            ].map(({ label, val }) => (
+                                <Chip
+                                    key={label}
+                                    label={label}
+                                    size="small"
+                                    sx={{
+                                        fontSize: 12,
+                                        bgcolor: val
+                                            ? theme.palette.custom.status.success.light
+                                            : theme.palette.custom.neutral[100],
+                                        color: val
+                                            ? theme.palette.custom.status.success.main
+                                            : theme.palette.custom.neutral[400],
+                                        fontWeight: val ? 600 : 400,
+                                    }}
+                                />
+                            ))}
+                        </Box>
+
                         {groupData.description && (
                             <Box sx={{ mt: 1.5 }}>
                                 <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 0.5 }}>
@@ -215,6 +248,77 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                             </Box>
                         )}
                     </Paper>
+
+                    {/* ── 3D Model viewer ── */}
+                    {modelFile ? (
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                borderRadius: 2,
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                            }}
+                        >
+                            <SectionTitle
+                                icon={<InsertDriveFile sx={{ color: theme.palette.primary.main, fontSize: 20 }} />}
+                                title="3D Preview"
+                            />
+                            <Divider sx={{ mb: 2 }} />
+
+                            <Box
+                                ref={containerRef}
+                                sx={{
+                                    borderRadius: 1.5,
+                                    overflow: 'hidden',
+                                    position: 'relative',
+                                    width: '100%',
+                                    height: 300,
+                                    bgcolor: '#1a1a2e',
+                                }}
+                            >
+                                <canvas
+                                    ref={canvasRef}
+                                    style={{ width: '100%', height: '100%', display: 'block' }}
+                                />
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        bottom: 8,
+                                        right: 10,
+                                        bgcolor: 'rgba(0,0,0,0.45)',
+                                        borderRadius: 1,
+                                        px: 1.5,
+                                        py: 0.5,
+                                        pointerEvents: 'none',
+                                    }}
+                                >
+                                    <Typography sx={{ fontSize: 10, color: '#fff' }}>
+                                        Drag to rotate · Scroll to zoom
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        </Paper>
+                    ) : (
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 3,
+                                borderRadius: 2,
+                                border: `1px dashed ${theme.palette.custom.border.light}`,
+                                textAlign: 'center',
+                            }}
+                        >
+                            <InsertDriveFile sx={{ fontSize: 40, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
+                                No 3D model uploaded
+                            </Typography>
+                        </Paper>
+                    )}
+                </Grid>
+
+                {/* ── Right column ── */}
+                <Grid size={{ xs: 12, md: 5 }}>
+
 
                     {/* ── Variant Info ── */}
                     <Paper
@@ -304,11 +408,9 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                         <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[500], mb: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             Features
                         </Typography>
+
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
                             {[
-                                { label: 'Nose Pads', val: variantData.hasNosepads },
-                                { label: 'Spring Hinge', val: variantData.hasSpringHinge },
-                                { label: 'VR Enabled', val: variantData.vrEnabled },
                                 { label: 'Returnable', val: variantData.isReturnable },
                             ].map(({ label, val }) => (
                                 <Chip
@@ -340,10 +442,6 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                         <InfoRow label="Stock Threshold" value={variantData.stockThreshold ? variantData.stockThreshold + ' units' : undefined} />
                         <InfoRow label="Warranty" value={variantData.warrantyMonths ? variantData.warrantyMonths + ' months' : undefined} />
                     </Paper>
-                </Grid>
-
-                {/* ── Right column ── */}
-                <Grid size={{ xs: 12, md: 5 }}>
 
                     {/* ── Product images ── */}
                     {(variantData.images?.length ?? 0) > 0 && (
@@ -378,72 +476,6 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                                     </Grid>
                                 ))}
                             </Grid>
-                        </Paper>
-                    )}
-
-                    {/* ── 3D Model viewer ── */}
-                    {modelFile ? (
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 3,
-                                borderRadius: 2,
-                                border: `1px solid ${theme.palette.custom.border.light}`,
-                            }}
-                        >
-                            <SectionTitle
-                                icon={<InsertDriveFile sx={{ color: theme.palette.primary.main, fontSize: 20 }} />}
-                                title="3D Preview"
-                            />
-                            <Divider sx={{ mb: 2 }} />
-
-                            <Box
-                                ref={containerRef}
-                                sx={{
-                                    borderRadius: 1.5,
-                                    overflow: 'hidden',
-                                    position: 'relative',
-                                    width: '100%',
-                                    height: 300,
-                                    bgcolor: '#1a1a2e',
-                                }}
-                            >
-                                <canvas
-                                    ref={canvasRef}
-                                    style={{ width: '100%', height: '100%', display: 'block' }}
-                                />
-                                <Box
-                                    sx={{
-                                        position: 'absolute',
-                                        bottom: 8,
-                                        right: 10,
-                                        bgcolor: 'rgba(0,0,0,0.45)',
-                                        borderRadius: 1,
-                                        px: 1.5,
-                                        py: 0.5,
-                                        pointerEvents: 'none',
-                                    }}
-                                >
-                                    <Typography sx={{ fontSize: 10, color: '#fff' }}>
-                                        Drag to rotate · Scroll to zoom
-                                    </Typography>
-                                </Box>
-                            </Box>
-                        </Paper>
-                    ) : (
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 3,
-                                borderRadius: 2,
-                                border: `1px dashed ${theme.palette.custom.border.light}`,
-                                textAlign: 'center',
-                            }}
-                        >
-                            <InsertDriveFile sx={{ fontSize: 40, color: theme.palette.custom.neutral[300], mb: 1 }} />
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
-                                No 3D model uploaded
-                            </Typography>
                         </Paper>
                     )}
                 </Grid>

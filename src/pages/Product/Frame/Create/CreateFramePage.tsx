@@ -30,6 +30,7 @@ import CreateFrameVariantPage, {
 import { type Upload3DModelPageRef } from './Upload3DModel';
 
 import ReviewFramePage from './ReviewFramePage';
+import ProductAPI from '@/api/product-api';
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ const CreateFramePage = () => {
     const navigate = useNavigate();
 
     // ── Step ──────────────────────────────────────────────────────────────────
-    const [activeStep, setActiveStep] = useState(2);
+    const [activeStep, setActiveStep] = useState(0);
 
     // ── Refs ──────────────────────────────────────────────────────────────────
     const frameInfoRef = useRef<CreateFrameGroupPageRef>(null);
@@ -91,7 +92,16 @@ const CreateFramePage = () => {
         setActiveStep(prev => Math.max(prev - 1, 0));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        try {
+            // Nếu cần activate product sau khi review
+            if (productId) {
+                await ProductAPI.activateProduct(productId); // ví dụ
+            }
+            navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
+        } catch {
+            // handle error
+        }
         navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
     };
 

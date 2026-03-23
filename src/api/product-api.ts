@@ -235,6 +235,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async activateProduct(productId: string) {
+    const response = await axiosInstance.patch(
+      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId), // ✅ endpoint đúng
+    );
+    return response.data.data;
+  }
+
   static async upload3DModelFile(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.UPLOAD_3D_MODEL,
