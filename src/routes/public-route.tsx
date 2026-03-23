@@ -8,7 +8,9 @@ import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage";
 import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
-
+import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
+import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
+import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import MyOrdersPage from "@/pages/Order/MyOrdersPage";
 import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
@@ -51,6 +53,25 @@ const PublicRoutesComponent = () => {
                 element={
                     <GuestGuard>
                         <ImageTryOnPage />
+                    </GuestGuard>
+                }
+            />
+
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME}
+                element={
+                    <GuestGuard>
+                        <FrameProductPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_FRAME}
+                element={
+                    <GuestGuard>
+                        <CreateFramePage />
                     </GuestGuard>
                 }
             />

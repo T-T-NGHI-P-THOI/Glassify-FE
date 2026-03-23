@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FACE_OVAL } from './FaceLandmarkerService';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const CANVAS_WIDTH = 640;
 
@@ -22,6 +23,7 @@ export class ThreeJsService {
     private camera?: THREE.OrthographicCamera;
     private renderer?: THREE.WebGLRenderer;
     private animFrameId?: number;
+    viewerModel?: THREE.Object3D;
 
     animate = (
         bg: THREE.Texture,
@@ -75,11 +77,6 @@ export class ThreeJsService {
     }
 
     // ── IMAGE mode (photo upload page) ───────────────────────────────────
-    /**
-     * Same as initalizeThreeJs but uses a static HTMLImageElement as the
-     * background instead of a VideoTexture.  No animation loop is started —
-     * a single render() call is made after glasses are placed.
-     */
     async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement) {
         const vw = img.naturalWidth;
         const vh = img.naturalHeight;
@@ -93,7 +90,6 @@ export class ThreeJsService {
         const scene = new THREE.Scene();
         this.scene = scene;
 
-        // ── Static image background ──
         const texture = new THREE.TextureLoader().load(img.src);
         texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -103,12 +99,11 @@ export class ThreeJsService {
             side: THREE.DoubleSide,
         }));
         sprite.center.set(0.5, 0.5);
-        sprite.scale.set(-vw, vh, 1);   // negative X mirrors like webcam feed
+        sprite.scale.set(-vw, vh, 1);
         sprite.position.copy(camera.position);
         sprite.position.z = 0;
         scene.add(sprite);
 
-        // ── Environment / lights ──
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileCubemapShader();
         scene.environment = pmrem.fromScene(new THREE.Scene()).texture;
@@ -117,19 +112,187 @@ export class ThreeJsService {
         const lights = await this.createLights();
         lights.forEach(l => scene.add(l));
 
-        // ── Face occluder ──
         this.faceObj = await this.createDynamicFaceMesh();
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        // ── Glasses model ──
         this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
         this.normalizeModel(this.glassesObj);
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
 
-        // Render once immediately (glasses are placed after this resolves)
         renderer.render(scene, camera);
+    }
+
+    // ── 3D VIEWER mode (Upload3DModelPage) ───────────────────────────────
+    /**
+     * Khởi Three.js viewer độc lập cho trang upload model.
+     *
+     * normalizeModel() gốc dùng TARGET_WIDTH=140 (pixel-space webcam) — sẽ
+     * scale model lên rất lớn so với PerspectiveCamera fov45/z=6.
+     * Method này dùng normalizeModelForViewer() riêng: scale về maxDim=2 units
+     * rồi đặt đáy ngay mặt ground y=0.
+     *
+     * @param canvas  HTMLCanvasElement đã set width/height attribute thực
+     * @param file    File object (.glb/.gltf/...) từ user upload
+     * @returns       cleanup function — gọi khi unmount hoặc đổi file
+     */
+    initializeThreeDViewer(canvas: HTMLCanvasElement, file: File): () => void {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.setSize(w, h, false); // false = không override CSS
+        renderer.setClearColor(0x555555);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 1000);
+        camera.position.set(0, 2, 6);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.enablePan = false;
+        controls.minDistance = 1;
+        controls.maxDistance = 20;
+        controls.minPolarAngle = 0.3;
+        controls.maxPolarAngle = Math.PI / 2 + 0.2;
+        controls.autoRotateSpeed = 1.5;
+        controls.target.set(0, 1, 0);
+        controls.update();
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
+        groundGeometry.rotateX(-Math.PI / 2);
+        const groundMesh = new THREE.Mesh(
+            groundGeometry,
+            new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.DoubleSide })
+        );
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        // Lights
+        const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambient);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 80, 30, 0.4, 0.5);
+        spotLight.position.set(0, 8, 4);
+        spotLight.castShadow = true;
+        spotLight.shadow.bias = -0.0001;
+        scene.add(spotLight);
+
+        const fillLight = new THREE.DirectionalLight(0xaabbff, 1.0);
+        fillLight.position.set(-4, 3, 4);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        rimLight.position.set(4, 2, -4);
+        scene.add(rimLight);
+
+        // Load model từ File object
+        const objectURL = URL.createObjectURL(file);
+        const loader = new GLTFLoader();
+        loader.load(
+            objectURL,
+            (gltf) => {
+                const mesh = gltf.scene;
+                mesh.traverse((child) => {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                });
+
+                this.normalizeModelForViewer(mesh);
+
+                const box = new THREE.Box3().setFromObject(mesh);
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                controls.target.set(center.x, center.y, center.z);
+                controls.update();
+
+                scene.add(mesh);
+                this.viewerModel = mesh; // ✅ lưu lại để apply texture sau
+                URL.revokeObjectURL(objectURL);
+            },
+            (xhr) => {
+                if (xhr.total > 0) {
+                    console.log(`[3D Viewer] ${(xhr.loaded / xhr.total * 100).toFixed(0)}%`);
+                }
+            },
+            (error) => {
+                console.error('[3D Viewer] load error', error);
+                URL.revokeObjectURL(objectURL);
+            }
+        );
+
+        // Resize
+        const onResize = () => {
+            const cw = canvas.clientWidth;
+            const ch = canvas.clientHeight;
+            if (cw === 0 || ch === 0) return;
+            camera.aspect = cw / ch;
+            camera.updateProjectionMatrix();
+            renderer.setSize(cw, ch, false);
+        };
+        window.addEventListener('resize', onResize);
+
+        // Animate loop
+        let animId: number;
+        const animate = () => {
+            animId = requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        return () => {
+            cancelAnimationFrame(animId);
+            window.removeEventListener('resize', onResize);
+            controls.dispose();
+            renderer.dispose();
+            scene.clear();
+        };
+    }
+
+    // ThreeJsService.ts — thêm method này
+
+    applyTextureToModel(model: THREE.Object3D, textureFile: File): void {
+        const objectURL = URL.createObjectURL(textureFile);
+        const loader = new THREE.TextureLoader();
+
+        loader.load(
+            objectURL,
+            (texture) => {
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.flipY = false; // GLTF cần flipY = false
+
+                model.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        const mat = child.material;
+
+                        if (Array.isArray(mat)) {
+                            mat.forEach(m => {
+                                m.map = texture;
+                                m.needsUpdate = true;
+                            });
+                        } else {
+                            mat.map = texture;
+                            mat.needsUpdate = true;
+                        }
+                    }
+                });
+
+                URL.revokeObjectURL(objectURL);
+            },
+            undefined,
+            (err) => {
+                console.error('[Texture] load error', err);
+                URL.revokeObjectURL(objectURL);
+            }
+        );
     }
 
     /** Call after detectAndApply() to refresh the canvas with glasses on. */
@@ -174,23 +337,18 @@ export class ThreeJsService {
     }
 
     async createLights() {
-        // Key light — main illumination from upper front
         let key = new THREE.DirectionalLight(0xffffff, 1.2);
         key.position.set(0, 120, 250);
 
-        // Fill light — softer, from left side to reduce harsh shadows
         let fill = new THREE.DirectionalLight(0xeef0ff, 0.5);
         fill.position.set(-100, 40, 120);
 
-        // Rim light — back-lighting for edge highlights on frame
         let rim = new THREE.DirectionalLight(0xffffff, 0.4);
         rim.position.set(60, 80, -100);
 
-        // Top accent — helps clearcoat reflections on brow line
         let topAccent = new THREE.DirectionalLight(0xffffff, 0.25);
         topAccent.position.set(0, 200, 50);
 
-        // Ambient — hemisphere for natural outdoor feel
         let amb = new THREE.HemisphereLight(0xffffff, 0x444466, 0.5);
 
         return [key, fill, rim, topAccent, amb];
@@ -250,6 +408,10 @@ export class ThreeJsService {
         return mesh;
     }
 
+    /**
+     * normalize cho webcam/image mode — scale theo TARGET_WIDTH pixel-space.
+     * KHÔNG dùng cho initializeThreeDViewer.
+     */
     normalizeModel(model: THREE.Object3D) {
         model.position.set(0, 0, 0);
         model.rotation.set(0, 0, 0);
@@ -270,5 +432,38 @@ export class ThreeJsService {
         model.position.sub(center);
 
         return model;
+    }
+
+    /**
+     * normalize cho PerspectiveCamera viewer (fov 45, camera z≈6).
+     * Scale model về maxDim = 2 world-units, đặt đáy ngay y=0 (ground).
+     */
+    private normalizeModelForViewer(model: THREE.Object3D) {
+        // Reset trước
+        model.position.set(0, 0, 0);
+        model.rotation.set(0, 0, 0);
+        model.scale.set(1, 1, 1);
+
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+
+        // Scale: chiều dài lớn nhất = 2 world units
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0) {
+            model.scale.setScalar(2 / maxDim);
+        }
+
+        // Tính lại bounding box sau scale
+        const scaledBox = new THREE.Box3().setFromObject(model);
+        const scaledCenter = new THREE.Vector3();
+        scaledBox.getCenter(scaledCenter);
+
+        // Căn giữa X/Z, đáy model chạm y=0
+        model.position.x = -scaledCenter.x;
+        model.position.z = -scaledCenter.z;
+        model.position.y = -scaledBox.min.y;
     }
 }

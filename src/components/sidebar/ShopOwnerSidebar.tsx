@@ -15,11 +15,13 @@ import {
   AccountBalance,
   AccountBalanceWallet,
   StorefrontOutlined,
+  AssignmentReturn,
   Settings,
   HelpCenter,
   Store,
   ExpandMore,
   PeopleAlt,
+  Build,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -50,9 +52,11 @@ export const ShopOwnerSidebar = ({
     { icon: <StorefrontOutlined />, label: 'Shop Profile', path: PAGE_ENDPOINTS.SHOP.EDIT_PROFILE },
     { icon: <Inventory />, label: 'Products', path: '/shop/products' },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
+    { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
     { icon: <PeopleAlt />, label: 'Staff', path: PAGE_ENDPOINTS.SHOP.STAFF },
+    { icon: <Build />, label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
   ];
 
   const isActive = (path: string) => {

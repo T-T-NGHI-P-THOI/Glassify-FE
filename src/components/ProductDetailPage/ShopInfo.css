@@ -1,28 +1,33 @@
 .shop-info-container {
   background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  overflow: hidden;
   margin-bottom: 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .shop-info-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
-  color: #333;
+  padding: 14px 20px;
+  background: #f7fafa;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .shop-info-header .shop-icon {
-  font-size: 24px;
-  color: #666;
+  font-size: 18px;
+  color: #00838f;
 }
 
 .shop-info-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
+  color: #00838f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .shop-info-content {
@@ -30,25 +35,24 @@
   align-items: center;
   gap: 16px;
   cursor: pointer;
+  padding: 18px 20px;
   transition: background-color 0.2s;
-  padding: 12px;
-  border-radius: 6px;
 }
 
 .shop-info-content:hover {
-  background-color: #f5f5f5;
+  background-color: #f7fafa;
 }
 
 .shop-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 8px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #e0f2f3;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f9f9f9;
+  background: #f0fafb;
   flex-shrink: 0;
 }
 
@@ -60,7 +64,7 @@
 
 .shop-placeholder-icon {
   font-size: 32px;
-  color: #999;
+  color: #00838f;
 }
 
 .shop-details {
@@ -71,30 +75,30 @@
 .shop-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .shop-name {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 700;
+  color: #222;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .verified-icon {
-  font-size: 18px;
-  color: #4caf50;
+  font-size: 17px !important;
+  color: #00838f;
   flex-shrink: 0;
 }
 
 .shop-stats {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -102,55 +106,61 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: #555;
 }
 
 .shop-stat .star-icon {
-  font-size: 16px;
-  color: #ffa000;
+  font-size: 15px !important;
+  color: #f5a623;
 }
 
 .shop-stat-divider {
-  color: #ddd;
+  color: #d0d0d0;
+  font-size: 13px;
 }
 
 .shop-tier {
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .shop-tier.tier-bronze {
-  background-color: #cd7f32;
-  color: #fff;
+  background-color: #fdf0e6;
+  color: #a0522d;
+  border: 1px solid #e8c49a;
 }
 
 .shop-tier.tier-silver {
-  background-color: #c0c0c0;
-  color: #333;
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ccc;
 }
 
 .shop-tier.tier-gold {
-  background-color: #ffd700;
-  color: #333;
+  background-color: #fffbea;
+  color: #b8860b;
+  border: 1px solid #f5d64a;
 }
 
 .shop-tier.tier-platinum {
-  background-color: #e5e4e2;
-  color: #333;
+  background-color: #f0f4f8;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
 }
 
 .visit-shop-btn {
-  padding: 8px 20px;
+  padding: 8px 18px;
   background-color: #fff;
-  color: #333;
-  border: 1px solid #333;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
+  color: #00838f;
+  border: 1.5px solid #00838f;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -158,28 +168,29 @@
 }
 
 .visit-shop-btn:hover {
-  background-color: #333;
+  background-color: #00838f;
   color: #fff;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .shop-info-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 14px;
   }
 
   .shop-logo {
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
   }
 
   .shop-details {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .visit-shop-btn {
     width: 100%;
+    text-align: center;
   }
 }

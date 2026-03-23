@@ -1,6 +1,6 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
-import type { Prescription, CreatePrescriptionData, UpdatePrescriptionData } from '../models/Prescription';
+import type { Prescription, CreatePrescriptionData } from '../models/Prescription';
 
 // API Response type
 export interface PrescriptionApiResponse {

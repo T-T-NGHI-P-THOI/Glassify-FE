@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
+import { CartService } from '@/api/service/CartService';
 import { orderApi } from '@/api/order-api';
 import { paymentApi } from '@/api/payment-api';
 import { userWalletApi, type UserWalletResponse } from '@/api/user-wallet-api';
@@ -744,8 +745,6 @@ const CheckoutPage = () => {
 
     try {
       setSubmitting(true);
-      const cartItems = cartData?.items ?? [];
-      const shopId = cartItems.find(i => i.shop_id)?.shop_id;
       const response = await orderApi.createOrder({
         cartId,
         shippingName: shippingName.trim(),
@@ -754,7 +753,6 @@ const CheckoutPage = () => {
         shippingCity: shippingCity.trim() || undefined,
         customerNote: customerNote.trim() || undefined,
         paymentMethod,
-        shopId: shopId || undefined,
         selectedServiceId: 0,
         toDistrictId: selectedDistrictId !== '' ? selectedDistrictId as number : undefined,
         toWardCode: selectedWardCode || undefined,
@@ -784,6 +782,7 @@ const CheckoutPage = () => {
         try {
           await paymentApi.payFromWallet({ orderId: order.id });
           toast.success('Order paid from wallet successfully!');
+          CartService.resetCartId();
           navigate('/my-orders');
           return;
         } catch {
@@ -792,6 +791,7 @@ const CheckoutPage = () => {
       }
 
       toast.success('Order placed successfully!');
+      CartService.resetCartId();
       navigate('/my-orders');
     } catch (error: unknown) {
       console.error('Failed to create order:', error);
@@ -1113,6 +1113,11 @@ const CheckoutPage = () => {
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111' }} noWrap>
                       {item.product?.name || 'Product'}
                     </Typography>
+                    {item.shop_name && (
+                      <Typography sx={{ fontSize: 11, color: '#00838f' }} noWrap>
+                        Shop: {item.shop_name}
+                      </Typography>
+                    )}
                     {item.children.length > 0 && (
                       <Typography sx={{ fontSize: 11, color: '#888' }}>
                         + {item.children.map(c => c.product?.name || c.item_type).join(', ')}

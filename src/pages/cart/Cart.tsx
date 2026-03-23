@@ -30,6 +30,7 @@ import {
     Visibility as LensIcon,
     Edit as EditIcon,
     Info as InfoIcon,
+    Storefront as StorefrontIcon,
 } from '@mui/icons-material';
 import type { CartItemWithDetails, ItemType } from '@/api/service/Type';
 import { useCart } from '@/hooks/useCart';
@@ -1287,23 +1288,44 @@ const ShoppingCart: React.FC = () => {
                                 Continue Shopping
                             </Button>
                         </Box>
-                    ) : (
-                        items.map((item: CartItemWithDetails, index: number) => (
-                            <React.Fragment key={item.id}>
-                                {index > 0 && <Divider sx={{ borderColor: '#f0f0f0' }} />}
-                                <CartItemRow
-                                    item={item}
-                                    onQuantityChange={handleQuantityChange}
-                                    onRemove={handleRemoveItem}
-                                    onFavorite={handleFavorite}
-                                    onEdit={handleEditItem}
-                                    onViewLensDetails={handleViewLensDetails}
-                                    onAtMax={() => showSnackbar('Đã đạt số lượng tối đa trong kho', 'error')}
-                                    loading={updating}
-                                />
+                    ) : (() => {
+                        const groups: { shopName: string; shopId: string; items: CartItemWithDetails[] }[] = [];
+                        for (const item of items) {
+                            const key = item.shop_id || 'unknown';
+                            const name = item.shop_name || '';
+                            const existing = groups.find(g => g.shopId === key);
+                            if (existing) existing.items.push(item);
+                            else groups.push({ shopId: key, shopName: name, items: [item] });
+                        }
+                        return groups.map((group, gi) => (
+                            <React.Fragment key={group.shopId}>
+                                {gi > 0 && <Divider sx={{ borderColor: '#f0f0f0' }} />}
+                                {/* Shop Header */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 3, py: 1.5, bgcolor: '#fafafa' }}>
+                                    <StorefrontIcon sx={{ fontSize: 10, color: '#555' }} />
+                                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#333', letterSpacing: '0.5px' }}>
+                                        {group.shopName || 'SHOP'}
+                                    </Typography>
+                                </Box>
+                                <Divider sx={{ borderColor: '#f0f0f0' }} />
+                                {group.items.map((item, idx) => (
+                                    <React.Fragment key={item.id}>
+                                        {idx > 0 && <Divider sx={{ borderColor: '#f0f0f0' }} />}
+                                        <CartItemRow
+                                            item={item}
+                                            onQuantityChange={handleQuantityChange}
+                                            onRemove={handleRemoveItem}
+                                            onFavorite={handleFavorite}
+                                            onEdit={handleEditItem}
+                                            onViewLensDetails={handleViewLensDetails}
+                                            onAtMax={() => showSnackbar('Đã đạt số lượng tối đa trong kho', 'error')}
+                                            loading={updating}
+                                        />
+                                    </React.Fragment>
+                                ))}
                             </React.Fragment>
-                        ))
-                    )}
+                        ));
+                    })()}
                 </Paper>
 
                 {/* Promo Code Section */}
