@@ -59,7 +59,7 @@ const CreateFramePage = () => {
     const navigate = useNavigate();
 
     // ── Step ──────────────────────────────────────────────────────────────────
-    const [activeStep, setActiveStep] = useState(0);
+    const [activeStep, setActiveStep] = useState(2);
 
     // ── Refs ──────────────────────────────────────────────────────────────────
     const frameInfoRef = useRef<CreateFrameGroupPageRef>(null);
@@ -68,6 +68,7 @@ const CreateFramePage = () => {
 
     // ── Persisted data ────────────────────────────────────────────────────────
     const [frameGroupId, setFrameGroupId] = useState<string>('');
+    const [productId, setProductId] = useState<string>('');
     const [savedGroupData, setSavedGroupData] = useState<Partial<CreateFrameFormData>>({});
     const [savedVariantData, setSavedVariantData] = useState<Partial<CreateFrameVariantFormData>>({});
 
@@ -207,9 +208,11 @@ const CreateFramePage = () => {
                             initialData={savedVariantData}
                             upload3DModelRef={upload3DModelRef}
                             modelFile={savedGroupData.model3dFile ?? null}
-                            onCreated={(id, data) => {
+                            onCreated={(variantId, pid, data) => {
+                                setProductId(pid);
                                 setSavedVariantData(data);
                             }}
+
                         />
                     )}
 
@@ -218,6 +221,7 @@ const CreateFramePage = () => {
                         <ReviewFramePage
                             groupData={savedGroupData}
                             variantData={savedVariantData}
+                            productId={productId} // ✅
                             modelFile={savedGroupData.model3dFile ?? null}
                         />
                     )}

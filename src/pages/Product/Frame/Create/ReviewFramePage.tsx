@@ -87,7 +87,7 @@ const InfoRow = ({ label, value }: { label: string; value?: string | React.React
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ReviewFramePage = ({ groupData, variantData, modelFile }: ReviewFramePageProps) => {
+const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: ReviewFramePageProps) => {
     const theme = useTheme();
 
     const canvasRef = useRef<HTMLCanvasElement>(null);

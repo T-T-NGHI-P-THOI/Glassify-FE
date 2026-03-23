@@ -70,10 +70,8 @@ export interface CreateFrameVariantPageRef {
 interface CreateFrameVariantPageProps {
     frameGroupId?: string;
     initialData?: Partial<CreateFrameVariantFormData>;
-    onCreated?: (variantId: string, data: CreateFrameVariantFormData) => void;
-    /** Ref của Upload3DModelPage từ Step 0 — dùng để apply texture vào viewer Step 0 */
+    onCreated?: (variantId: string, productId: string, data: CreateFrameVariantFormData) => void;
     upload3DModelRef?: React.RefObject<Upload3DModelPageRef | null>;
-    /** File model 3D đã upload ở Step 0 — để render viewer local */
     modelFile?: Model3DFile | null;
 }
 
@@ -271,7 +269,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 }
 
                 const response = await ProductAPI.createFrameVariant(payload);
-                onCreated?.(response.id, formData);
+                onCreated?.(response.id, response.productId, formData);
             } finally {
                 setLoading(false);
             }
