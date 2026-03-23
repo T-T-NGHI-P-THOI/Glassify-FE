@@ -6,7 +6,6 @@ import { Layout } from './layouts/Layout'
 import { LayoutProvider } from './layouts/LayoutContext'
 import CartProvider from './contexts/CartProvider'
 
-
 function App() {
   return (
     <BrowserRouter>

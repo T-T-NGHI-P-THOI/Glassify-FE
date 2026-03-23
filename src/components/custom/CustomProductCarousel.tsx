@@ -1,7 +1,7 @@
 import React from 'react'
 import type { EmblaOptionsType } from 'embla-carousel'
 import useEmblaCarousel from 'embla-carousel-react'
-import { Box, Typography, Rating, Stack } from '@mui/material'
+import { Box, Typography, Rating, Stack, Tooltip } from '@mui/material'
 import { Link } from 'react-router-dom'
 import {
   NextButton,
@@ -52,9 +52,12 @@ const CustomProductCarousel = (props: PropType) => {
                     bgcolor: 'white',
                     borderRadius: 0.5,
                     overflow: 'hidden',
+                    minHeight: { xs: 340, sm: 360 },
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     cursor: 'pointer',
                     transition: 'transform 0.2s, box-shadow 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
                     '&:hover': {
                       transform: 'translateY(-4px)',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -78,20 +81,31 @@ const CustomProductCarousel = (props: PropType) => {
                       color: '#6b7280',
                       fontSize: '0.75rem',
                       mb: 0.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {product.shape}
                   </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      mb: 1,
-                    }}
-                  >
-                    {product.title}
-                  </Typography>
+                  <Tooltip title={product.title} arrow enterDelay={250}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '1rem',
+                        mb: 1,
+                        lineHeight: 1.35,
+                        minHeight: '2.7em',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {product.title}
+                    </Typography>
+                  </Tooltip>
                   <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
                     <Rating value={product.rating} precision={0.5} size="small" readOnly />
                     <Typography variant="caption" sx={{ color: '#6b7280' }}>

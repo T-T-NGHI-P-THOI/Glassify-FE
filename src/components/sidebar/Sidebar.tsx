@@ -60,6 +60,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       key: 'admin',
       subItems: [
         { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
+        { label: 'Refund Management', path: PAGE_ENDPOINTS.REFUND.ADMIN_LIST },
       ],
     },
     { icon: <Inventory />, label: 'Order', path: PAGE_ENDPOINTS.ORDER.MY_ORDERS },
