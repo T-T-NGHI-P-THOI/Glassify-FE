@@ -10,6 +10,7 @@ import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
 import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
+import ShopRefundReviewPage from "@/pages/Shop/ShopRefundReviewPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
 import CheckoutPage from "@/pages/checkout/CheckoutPage"
@@ -22,6 +23,14 @@ import ShopProfilePage from "@/pages/Shop/ShopProfilePage"
 import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage"
 import ShopOrdersPage from "@/pages/Shop/ShopOrdersPage"
 import ShopWarrantyPage from "@/pages/Shop/ShopWarrantyPage"
+import {
+    BuyerRefundListPage,
+    BuyerRefundDetailPage,
+    BuyerCreateRefundPage,
+    SellerRefundListPage,
+    SellerRefundDetailPage,
+    AdminRefundManagementPage,
+} from "@/pages/Refund"
 
 const PrivateRoutesComponent = () => {
     return (
@@ -41,7 +50,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.PROFILE}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <ShopProfilePage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -52,7 +61,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <MyOrdersPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -63,7 +72,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.WARRANTY.MAIN}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <WarrantyPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -74,7 +83,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.DASHBOARD}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                        <RoleBasedGuard accessibleRoles={["ADMIN", "STAFF", 'CUSTOMER']}>
                             <DashboardPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -107,7 +116,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.DASHBOARD}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopDashboardPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -118,7 +127,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.PRODUCTS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopProductsPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -129,7 +138,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.EDIT_PROFILE}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopEditProfilePage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -140,7 +149,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopBankAccountPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -151,7 +160,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.WALLET}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopWalletPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -184,8 +193,19 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.ORDERS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopOrdersPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <ShopRefundReviewPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
@@ -195,7 +215,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.ORDER_DETAIL}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShipmentDetailPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -241,6 +261,86 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminShopDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            {/* Buyer Refund Routes */}
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.BUYER_LIST}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <BuyerRefundListPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.BUYER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <BuyerRefundDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.BUYER_CREATE}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <BuyerCreateRefundPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            {/* Seller Refund Routes */}
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.SELLER_LIST}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <SellerRefundListPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.SELLER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <SellerRefundDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            {/* Admin Refund Routes */}
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.ADMIN_LIST}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminRefundManagementPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.REFUND.ADMIN_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminRefundManagementPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

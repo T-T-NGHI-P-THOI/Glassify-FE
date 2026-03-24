@@ -75,6 +75,17 @@ export const userApi = {
         return response.data;
     },
 
+    /**
+     * Lấy thông tin user theo identifier linh hoạt (number hoặc UUID string)
+     * @param userId - ID của user cần lấy
+     */
+    getUserByIdentifier: async (userId: string | number): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.get<ApiResponse<any>>(
+            `${USER_BASE_URL}/${userId}`
+        );
+        return response.data;
+    },
+
     // ==================== UPDATE PROFILE ====================
 
     /**

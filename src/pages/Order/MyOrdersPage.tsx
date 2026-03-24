@@ -14,8 +14,15 @@ import {
   DialogActions,
   Divider,
   Grid,
-  FormControlLabel,
   Checkbox,
+  TextField,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -35,8 +42,13 @@ import {
   Description,
   Store,
   Visibility,
+  AssignmentReturn,
+  Close,
+  CloudUpload,
+  Delete,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
@@ -44,6 +56,9 @@ import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import AccessTime from '@mui/icons-material/AccessTime';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
+import { checkReturnEligibility, createReturnRequest } from '@/api/refund-api';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
 // ==================== ENUMS (matching backend) ====================
 type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
@@ -101,6 +116,9 @@ interface Order {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
+  refundRequestId?: string;
+  refundRequestedAt?: string;
+  refundStatus?: ReturnStatus;
 }
 
 // Mock data removed - using real API
@@ -176,6 +194,33 @@ const groupItemsByShop = (items: OrderItem[]) => {
     }
   });
   return Array.from(shopMap.values());
+};
+
+const getRefundStatusLabel = (status?: ReturnStatus) => {
+  switch (status) {
+    case ReturnStatus.REQUESTED:
+      return 'Đã gửi yêu cầu';
+    case ReturnStatus.SELLER_REVIEWING:
+      return 'Người bán đang xem xét';
+    case ReturnStatus.PLATFORM_REVIEWING:
+      return 'Sàn đang xem xét';
+    case ReturnStatus.APPROVED:
+      return 'Đã duyệt';
+    case ReturnStatus.REJECTED:
+      return 'Đã từ chối';
+    case ReturnStatus.RETURN_SHIPPING:
+      return 'Đang trả hàng';
+    case ReturnStatus.ITEM_RECEIVED:
+      return 'Người bán đã nhận hàng';
+    case ReturnStatus.REFUNDING:
+      return 'Đang hoàn tiền';
+    case ReturnStatus.COMPLETED:
+      return 'Hoàn tất';
+    case ReturnStatus.CANCELLED:
+      return 'Đã hủy';
+    default:
+      return 'Đã gửi yêu cầu';
+  }
 };
 
 // ==================== ORDER STEPPER ====================
@@ -283,6 +328,7 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 // ==================== MAIN PAGE ====================
 const MyOrdersPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -307,6 +353,14 @@ const MyOrdersPage = () => {
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
+  // Return Request Dialog States
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [selectedOrderItemForReturn, setSelectedOrderItemForReturn] = useState<OrderItem | null>(null);
+  const [returnReason, setReturnReason] = useState<ReturnReason>(ReturnReason.DEFECTIVE);
+  const [returnDescription, setReturnDescription] = useState('');
+  const [returnImages, setReturnImages] = useState<string[]>([]);
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+  
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -368,6 +422,80 @@ const MyOrdersPage = () => {
     } catch (error) {
       console.error('Failed to re-order:', error);
       toast.error('Failed to re-order');
+    }
+  };
+
+  // Return Request Handlers
+  const handleOpenReturnDialog = (orderItem: OrderItem) => {
+    setSelectedOrderItemForReturn(orderItem);
+    setReturnReason(ReturnReason.DEFECTIVE);
+    setReturnDescription('');
+    setReturnImages([]);
+    setReturnDialogOpen(true);
+  };
+
+  const handleCloseReturnDialog = () => {
+    setReturnDialogOpen(false);
+    setSelectedOrderItemForReturn(null);
+    setReturnDescription('');
+    setReturnImages([]);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    // Convert files to base64 or upload to server
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReturnImages((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReturnImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitReturnRequest = async () => {
+    if (!selectedOrderItemForReturn || !selectedOrder) {
+      toast.error('Không tìm thấy thông tin sản phẩm');
+      return;
+    }
+
+    if (!returnDescription.trim()) {
+      toast.error('Vui lòng nhập mô tả chi tiết lý do trả hàng');
+      return;
+    }
+
+    try {
+      setSubmittingReturn(true);
+
+      const requestData = {
+        orderItemId: selectedOrderItemForReturn.id,
+        returnType: ReturnType.REFUND,
+        reason: returnReason,
+        reasonDetail: returnDescription,
+        quantity: selectedOrderItemForReturn.quantity,
+        evidenceImages: returnImages,
+      };
+
+      const response = await createReturnRequest(requestData);
+      toast.success('Tạo yêu cầu trả hàng thành công');
+      handleCloseReturnDialog();
+      setDetailDialogOpen(false);
+      
+      // Navigate to refund detail page
+      if (response.data?.id) {
+        navigate(`${PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', response.data.id)}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to create return request:', error);
+      toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu trả hàng');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -467,7 +595,7 @@ const MyOrdersPage = () => {
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
 
-  const handleViewDetails = (order: Order) => {
+  const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
     setLeadTime(null);
     setDetailDialogOpen(true);
@@ -1240,20 +1368,83 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (
-                  <Button
-                    variant="contained"
-                    onClick={() => handleReOrder(selectedOrder.id)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      bgcolor: '#111',
-                      '&:hover': { bgcolor: '#333' },
-                    }}
-                  >
-                    Buy Again
-                  </Button>
-                )}
+                {selectedOrder.status === 'DELIVERED' && (() => {
+                  const hasRefundRequest = Boolean(selectedOrder.refundRequestId);
+                  const refundStatus = selectedOrder.refundStatus;
+                  const refundStatusChipColor =
+                    refundStatus === ReturnStatus.COMPLETED
+                      ? { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main }
+                      : refundStatus === ReturnStatus.REJECTED || refundStatus === ReturnStatus.CANCELLED
+                        ? { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main }
+                        : { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+                  
+                  return (
+                  <>
+                    {hasRefundRequest && (
+                      <Chip
+                        label={getRefundStatusLabel(refundStatus)}
+                        size="small"
+                        sx={{
+                          bgcolor: refundStatusChipColor.bg,
+                          color: refundStatusChipColor.color,
+                          fontWeight: 600,
+                          fontSize: 11,
+                          height: 24,
+                        }}
+                      />
+                    )}
+                    <Button
+                      variant="outlined"
+                      startIcon={<AssignmentReturn />}
+                      onClick={() => {
+                        if (hasRefundRequest && selectedOrder.refundRequestId) {
+                          // Navigate to return request detail page
+                          navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', selectedOrder.refundRequestId));
+                        } else if (selectedOrder.items.length > 0) {
+                          // Open return dialog for the first item
+                          handleOpenReturnDialog(selectedOrder.items[0]);
+                        }
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderColor: hasRefundRequest
+                          ? theme.palette.custom.status.info.main
+                          : theme.palette.custom.status.warning.main,
+                        color: hasRefundRequest
+                          ? theme.palette.custom.status.info.main
+                          : theme.palette.custom.status.warning.main,
+                        '&:hover': {
+                          borderColor: hasRefundRequest
+                            ? theme.palette.custom.status.info.main
+                            : theme.palette.custom.status.warning.main,
+                          bgcolor: hasRefundRequest
+                            ? theme.palette.custom.status.info.light
+                            : theme.palette.custom.status.warning.light,
+                        },
+                        '&.Mui-disabled': {
+                          borderColor: theme.palette.custom.neutral[300],
+                          color: theme.palette.custom.neutral[400],
+                        },
+                      }}
+                    >
+                      {hasRefundRequest ? 'Xem yêu cầu' : 'Tạo yêu cầu hoàn tiền'}
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => handleReOrder(selectedOrder.id)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        bgcolor: '#111',
+                        '&:hover': { bgcolor: '#333' },
+                      }}
+                    >
+                      Buy Again
+                    </Button>
+                  </>
+                  );
+                })()}
                 {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"
@@ -1333,6 +1524,192 @@ const MyOrdersPage = () => {
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== RETURN REQUEST DIALOG ==================== */}
+      <Dialog
+        open={returnDialogOpen}
+        onClose={handleCloseReturnDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AssignmentReturn sx={{ fontSize: 24, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Yêu cầu trả hàng / hoàn tiền
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseReturnDialog}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          {selectedOrderItemForReturn && (
+            <>
+              {/* Product Info */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: theme.palette.custom.neutral[50], borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Avatar
+                    variant="rounded"
+                    src={selectedOrderItemForReturn.productImageUrl}
+                    sx={{
+                      width: 64,
+                      height: 64,
+                      bgcolor: theme.palette.custom.neutral[100],
+                      border: `1px solid ${theme.palette.custom.border.light}`,
+                    }}
+                  >
+                    <ShoppingBag />
+                  </Avatar>
+                  <Box>
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                      {selectedOrderItemForReturn.productName}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+                      {formatVariantInfo(selectedOrderItemForReturn.variantInfo)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], mt: 0.5 }}>
+                      Số lượng: {selectedOrderItemForReturn.quantity}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Return Reason */}
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel id="return-reason-label">Lý do trả hàng *</InputLabel>
+                <Select
+                  labelId="return-reason-label"
+                  value={returnReason}
+                  label="Lý do trả hàng *"
+                  onChange={(e) => setReturnReason(e.target.value as ReturnReason)}
+                >
+                  {Object.values(ReturnReason).map((reason) => (
+                    <MenuItem key={reason} value={reason}>
+                      {RETURN_REASON_LABELS[reason]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Description */}
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Mô tả chi tiết *"
+                placeholder="Vui lòng mô tả chi tiết lý do trả hàng, tình trạng sản phẩm..."
+                value={returnDescription}
+                onChange={(e) => setReturnDescription(e.target.value)}
+                sx={{ mb: 3 }}
+              />
+
+              {/* Evidence Images */}
+              <Box>
+                <Typography sx={{ fontSize: 14, fontWeight: 600, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
+                  Hình ảnh minh chứng
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+                  {returnImages.map((image, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        position: 'relative',
+                        width: 80,
+                        height: 80,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                      }}
+                    >
+                      <img
+                        src={image}
+                        alt={`Evidence ${index + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveImage(index)}
+                        sx={{
+                          position: 'absolute',
+                          top: 2,
+                          right: 2,
+                          bgcolor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                        }}
+                      >
+                        <Delete sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                  
+                  {returnImages.length < 5 && (
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 2,
+                        borderStyle: 'dashed',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.5,
+                      }}
+                    >
+                      <CloudUpload sx={{ fontSize: 24 }} />
+                      <Typography sx={{ fontSize: 10 }}>Thêm ảnh</Typography>
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageUpload}
+                      />
+                    </Button>
+                  )}
+                </Box>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                  Tối đa 5 ảnh. Hỗ trợ: JPG, PNG
+                </Typography>
+              </Box>
+
+              <Alert severity="info" sx={{ mt: 3 }}>
+                <Typography sx={{ fontSize: 13 }}>
+                  Yêu cầu trả hàng sẽ được gửi đến người bán để xem xét. Bạn sẽ nhận được thông báo khi có phản hồi.
+                </Typography>
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleCloseReturnDialog}
+            disabled={submittingReturn}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitReturnRequest}
+            disabled={submittingReturn || !returnDescription.trim()}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              bgcolor: theme.palette.custom.status.warning.main,
+              '&:hover': { bgcolor: theme.palette.custom.status.warning.main },
+            }}
+          >
+            {submittingReturn ? 'Đang gửi...' : 'Gửi yêu cầu'}
           </Button>
         </DialogActions>
       </Dialog>
