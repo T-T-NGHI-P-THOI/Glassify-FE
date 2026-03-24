@@ -22,9 +22,7 @@ export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider];
  * Interface cho Role của User
  */
 export interface Role {
-    id: number;
     name: string;
-    description?: string;
 }
 
 /**
@@ -61,7 +59,7 @@ export interface UserResponse {
     enabled: boolean;
     authProviders: UserAuthProvider[];
     shop?: ShopReference;
-    roles: Role[];
+    roles: string[];
     createdAt?: string;
     updatedAt?: string;
     gender?: string;
