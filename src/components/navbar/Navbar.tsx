@@ -26,6 +26,7 @@ import {
   Logout,
   Receipt,
   VerifiedUser,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -242,6 +243,11 @@ export const Navbar = () => {
                       <Typography variant="body2">My warranty</Typography>
                     </MenuItem>
 
+                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
+                      <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
+                      <Typography variant="body2">View my wallet</Typography>
+                    </MenuItem>
+
                     {myShop ? (
                       <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
                         <Store fontSize="small" sx={{ color: "#6b7280" }} />
@@ -292,6 +298,7 @@ export const Navbar = () => {
 
               <IconButton
                 size="small"
+                onClick={() => navigate(PAGE_ENDPOINTS.USER.HELP)}
                 sx={{
                   flexDirection: "column",
                   color: "#1f2937",

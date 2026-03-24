@@ -12,7 +12,10 @@
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)",
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name application*.properties -o -name application*.yml)",
       "Bash(grep -rn \"countBy\\\\|sumBy\\\\|groupBy\\\\|aggregat\\\\|statistic\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository --include=*.java)",
-      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})"
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name ShopService*.java -o -name IShopService.java)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
