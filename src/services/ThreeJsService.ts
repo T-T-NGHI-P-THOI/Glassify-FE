@@ -258,7 +258,36 @@ export class ThreeJsService {
         };
     }
 
-    // ThreeJsService.ts — thêm method này
+    // Trong ThreeJsService.ts
+    applyTextureFromUrl(object: THREE.Object3D, url: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const loader = new THREE.TextureLoader();
+            loader.setCrossOrigin('anonymous'); // Tránh lỗi CORS
+
+            loader.load(
+                url,
+                (texture) => {
+                    texture.colorSpace = "srgb"; // Đảm bảo màu sắc chuẩn
+                    object.traverse((child) => {
+                        if ((child as any).isMesh) {
+                            const mesh = child as THREE.Mesh;
+                            if (mesh.material) {
+                                (mesh.material as any).map = texture;
+                                (mesh.material as any).needsUpdate = true;
+                            }
+                        }
+                    });
+                    console.log("Texture loaded successfully");
+                    resolve(); // Báo hiệu đã xong
+                },
+                undefined,
+                (err) => {
+                    console.error("Texture load failed", err);
+                    reject(err);
+                }
+            );
+        });
+    }
 
     applyTextureToModel(model: THREE.Object3D, textureFile: File): void {
         const objectURL = URL.createObjectURL(textureFile);

@@ -1,24 +1,19 @@
-import { Box, Typography } from "@mui/material";
-import { useEffect, useRef, useCallback } from "react";
+import { Box } from "@mui/material";
+import { useEffect, useRef, useCallback, useState } from "react";
 import Webcam from "react-webcam";
-import { FaceLandmarkerService } from "@/services/FaceLandmarkerService";
-import { ThreeJsService } from "@/services/ThreeJsService";
-import { analyzeFaceShape, type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
-import { AgeDetectionService, type AgeGenderResult } from "@/services/AgeDetectionService";
+import { FaceLandmarkerService } from "../../../services/FaceLandmarkerService";
+import { ThreeJsService } from "../../../services/ThreeJsService";
+import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
+import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
 import { T, type TextureVariant } from "./TryOnTypes";
-import { frameGroup } from "three/src/nodes/TSL.js";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface VideoTryOnProps {
     frameGroupId: string;
-    /** Active texture variant to apply to the glasses model */
     activeTexture: TextureVariant | null;
-    /** Called once face landmarks are detected and shape is analyzed */
     onAnalysisReady: (result: FaceAnalysisResult) => void;
-    /** Called when age/gender is detected */
     onAgeReady: (result: AgeGenderResult) => void;
-    /** Called when the user clicks Reload */
     onReload: () => void;
 }
 
@@ -61,22 +56,34 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
             ageServiceRef.current = ageSvc;
             ageSvc.loadModels().catch(console.error);
 
-            // Face engine
+            // Face engine & ThreeJS
             const faceEngine = new FaceLandmarkerService();
             faceEngineRef.current = faceEngine;
 
             const threeJsService = new ThreeJsService();
             threeRef.current = threeJsService;
 
+            // Chờ video sẵn sàng
             await new Promise<void>((resolve) => {
-                if (video.readyState >= 1) return resolve();
-                video.onloadedmetadata = () => resolve();
+                if (video.readyState >= 2) return resolve();
+                video.onloadeddata = () => resolve();
             });
+            
             if (cancelled) return;
 
+            // 1. Khởi tạo ThreeJS
             await threeJsService.initalizeThreeJs(video, canvas, frameGroupId);
+            
+            // 2. Nạp texture ban đầu (nếu có) TRƯỚC khi bắt đầu loop
+            if (activeTexture?.url && threeJsService.glassesObj) {
+                await threeJsService.applyTextureFromUrl(threeJsService.glassesObj, activeTexture.url).catch(console.error);
+            }
+
+            // 3. Khởi tạo Face Engine
             await faceEngine.initializeEngine();
-            faceEngine.setThreeObjects(threeJsService.glassesObj!, threeJsService.faceObj!);
+            if (threeJsService.glassesObj && threeJsService.faceObj) {
+                faceEngine.setThreeObjects(threeJsService.glassesObj, threeJsService.faceObj);
+            }
 
             hasAnalyzedRef.current = false;
 
@@ -88,25 +95,40 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                 onAnalysisReady(result);
             };
 
+            // Bắt đầu vòng lặp dự đoán
             faceEngine.scheduleNextPrediction(video);
         };
 
         init().catch(console.error);
-        return () => { cancelled = true; };
+        
+        return () => { 
+            cancelled = true; 
+            // Dọn dẹp loop nếu FaceEngine có hỗ trợ stop
+            if (faceEngineRef.current) (faceEngineRef.current as any).stop?.();
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Apply texture when changed ──
+    // ── Cập nhật texture khi người dùng chọn màu mới ──
     useEffect(() => {
-        if (!activeTexture || !threeRef.current) return;
-        const three = threeRef.current;
-        // Adapt to your ThreeJsService API:
-        if (typeof (three as any).applyTexture === "function") {
-            (three as any).applyTexture(activeTexture.texturePath);
-        }
+        const updateTexture = async () => {
+            const three = threeRef.current;
+            if (!three || !three.glassesObj || !activeTexture?.url) return;
+
+            try {
+                // Sử dụng await để đảm bảo texture được nạp xong vào GPU
+                // Trong Video mode, loop render sẽ tự động lấy texture mới ở frame tiếp theo
+                await three.applyTextureFromUrl(three.glassesObj, activeTexture.url);
+                console.log("Video Texture Updated:", activeTexture.url);
+            } catch (err) {
+                console.error("Failed to update video texture:", err);
+            }
+        };
+
+        updateTexture();
     }, [activeTexture]);
 
-    // ── Reload: restart prediction loop ──
+    // ── Reload ──
     const handleReload = useCallback(() => {
         hasAnalyzedRef.current = false;
         ageThrottleRef.current = 0;
@@ -118,12 +140,16 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
     }, [onReload]);
 
     return (
-        <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
-            {/* Hidden webcam feed */}
+        <Box sx={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", bgcolor: "#000" }}>
             <Webcam
                 ref={webcamRef}
                 mirrored={false}
                 audio={false}
+                videoConstraints={{
+                    facingMode: "user",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }}
                 style={{
                     position: "absolute",
                     width: "100%", height: "100%",
@@ -133,7 +159,6 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                 }}
             />
 
-            {/* Three.js output canvas */}
             <canvas
                 ref={canvasRef}
                 style={{

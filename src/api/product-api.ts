@@ -254,4 +254,11 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  static async getTextureFiles(frameGroupId: string) {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
+      params: { frameGroupId }
+    });
+    return response.data.data;
+  }
 }

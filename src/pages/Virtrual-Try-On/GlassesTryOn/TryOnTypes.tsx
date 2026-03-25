@@ -2,13 +2,16 @@
 
 export type DrawerType = "lens" | "rec" | null;
 
+// export interface TextureVariant {
+//     id: string;
+//     label: string;
+//     cssPreview: string;
+//     texturePath: string;
+// }
 export interface TextureVariant {
-    id: string;
-    label: string;
-    cssPreview: string;
-    texturePath: string;
+    colorHex: string;
+    url: string;
 }
-
 export interface LensOption {
     id: string;
     name: string;
@@ -59,26 +62,26 @@ export const T = {
 
 // ─── Static data ───────────────────────────────────────────────────────────────
 
-export const TEXTURE_VARIANTS: TextureVariant[] = [
-    {
-        id: "wood",
-        label: "Wood",
-        cssPreview: "repeating-linear-gradient(90deg,#c8a870 0px,#b8945c 3px,#c8a870 6px)",
-        texturePath: "/textures/wood.jpg",
-    },
-    {
-        id: "acetate-black",
-        label: "Acetate",
-        cssPreview: "repeating-linear-gradient(45deg,#2a2a2a 0px,#444 2px,#2a2a2a 4px)",
-        texturePath: "/textures/acetate-black.jpg",
-    },
-    {
-        id: "tortoise",
-        label: "Tortoise",
-        cssPreview: "repeating-linear-gradient(30deg,#7a4e2d 0px,#5a3520 3px,#9a6040 6px)",
-        texturePath: "/textures/tortoise.jpg",
-    }
-];
+// export const TEXTURE_VARIANTS: TextureVariant[] = [
+//     {
+//         id: "wood",
+//         label: "Wood",
+//         cssPreview: "repeating-linear-gradient(90deg,#c8a870 0px,#b8945c 3px,#c8a870 6px)",
+//         texturePath: "/textures/wood.jpg",
+//     },
+//     {
+//         id: "acetate-black",
+//         label: "Acetate",
+//         cssPreview: "repeating-linear-gradient(45deg,#2a2a2a 0px,#444 2px,#2a2a2a 4px)",
+//         texturePath: "/textures/acetate-black.jpg",
+//     },
+//     {
+//         id: "tortoise",
+//         label: "Tortoise",
+//         cssPreview: "repeating-linear-gradient(30deg,#7a4e2d 0px,#5a3520 3px,#9a6040 6px)",
+//         texturePath: "/textures/tortoise.jpg",
+//     }
+// ];
 
 export const LENS_VENDORS: LensVendor[] = [
     {

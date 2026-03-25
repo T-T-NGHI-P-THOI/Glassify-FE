@@ -64,7 +64,7 @@ const ImageTryOnPage = () => {
 
             const canvas = canvasRef.current!;
             const threeService = new ThreeJsService();
-            await threeService.initializeWithImage(img, canvas);
+            await threeService.initializeWithImage(img, canvas, frame);
 
             faceEngineRef.current!.setThreeObjects(
                 threeService.glassesObj!,

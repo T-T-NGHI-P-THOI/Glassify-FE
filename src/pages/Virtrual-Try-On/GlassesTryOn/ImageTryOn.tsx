@@ -22,7 +22,13 @@ interface ImageTryOnProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, reloadSignal }: ImageTryOnProps) => {
+const ImageTryOn = ({
+    frameGroupId,
+    activeTexture,
+    onAnalysisReady,
+    onAgeReady,
+    reloadSignal
+}: ImageTryOnProps) => {
     const [status, setStatus] = useState<Status>("idle");
     const [dragging, setDragging] = useState(false);
 
@@ -48,31 +54,41 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
             URL.revokeObjectURL(prevUrlRef.current);
             prevUrlRef.current = null;
         }
-        const canvas = canvasRef.current;
     }, [reloadSignal]);
 
-    // ── Apply texture when changed ──
+    // ── Xử lý thay đổi Texture sau khi đã có ảnh ──
     useEffect(() => {
-        if (!activeTexture || !threeRef.current) return;
-        const three = threeRef.current;
-        if (typeof (three as any).applyTexture === "function") {
-            (three as any).applyTexture(activeTexture.texturePath);
-        }
-        if (typeof three.renderOnce === "function") {
-            three.renderOnce();
-        }
-    }, [activeTexture]);
+        const updateTexture = async () => {
+            const three = threeRef.current;
+            // Chỉ chạy khi đã có kết quả (status === "done") và có texture mới
+            if (!three || !three.glassesObj || !activeTexture?.url || status !== "done") return;
+
+            try {
+                // Đợi texture nạp xong vào material
+                await three.applyTextureFromUrl(three.glassesObj, activeTexture.url);
+                // Sau đó mới vẽ lại khung hình duy nhất
+                three.renderOnce?.();
+            } catch (err) {
+                console.error("Failed to update texture:", err);
+            }
+        };
+
+        updateTexture();
+    }, [activeTexture, status]);
 
     // ── Process uploaded image ──
     const processImage = useCallback(async (file: File) => {
         if (!file.type.startsWith("image/")) return;
 
         setStatus("loading");
+        
+        // Dọn dẹp URL cũ nếu có
         if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
         const url = URL.createObjectURL(file);
         prevUrlRef.current = url;
 
         try {
+            // Load ảnh vào bộ nhớ
             const img = new Image();
             img.src = url;
             await new Promise<void>((res, rej) => {
@@ -83,18 +99,37 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
             const canvas = canvasRef.current;
             if (!canvas) return;
 
+            // Khởi tạo AI Engine nếu chưa có
             if (!faceEngineRef.current) {
                 const engine = new ImageFaceLandmarkerService();
                 await engine.initializeEngine();
                 faceEngineRef.current = engine;
             }
 
+            // Khởi tạo Scene 3D
             const threeService = new ThreeJsService();
             threeRef.current = threeService;
+            
+            // 1. Load Model kính và nền ảnh
             await threeService.initializeWithImage(img, canvas, frameGroupId);
-            faceEngineRef.current.setThreeObjects(threeService.glassesObj!, threeService.faceObj!);
+            
+            if (threeService.glassesObj && threeService.faceObj) {
+                faceEngineRef.current.setThreeObjects(threeService.glassesObj, threeService.faceObj);
+            }
 
+            // 2. LOAD TEXTURE TRƯỚC KHI RENDER
+            if (activeTexture?.url && threeService.glassesObj) {
+                try {
+                    await threeService.applyTextureFromUrl(threeService.glassesObj, activeTexture.url);
+                } catch (e) {
+                    console.warn("Texture load failed, using default.");
+                }
+            }
+
+            // 3. Tính toán vị trí kính dựa trên khuôn mặt
             const { found, landmarks } = await faceEngineRef.current.detectAndApply(img);
+
+            // 4. BÂY GIỜ MỚI RENDER (Lúc này chắc chắn đã có cả Model và Texture)
             threeService.renderOnce();
 
             if (found && landmarks) {
@@ -110,10 +145,10 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
 
             setStatus(found ? "done" : "no_face");
         } catch (err) {
-            console.error(err);
+            console.error("Processing error:", err);
             setStatus("error");
         }
-    }, [onAnalysisReady, onAgeReady]);
+    }, [onAnalysisReady, onAgeReady, frameGroupId, activeTexture]);
 
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -133,7 +168,6 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
 
     return (
         <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
-
             {/* ── Drop zone ── */}
             {showDropZone && (
                 <Box
@@ -155,7 +189,6 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                         },
                     }}
                 >
-                    {/* Icon circle */}
                     <Box sx={{
                         width: 56, height: 56, borderRadius: "50%",
                         border: `1.5px solid ${dragging ? T.teal : T.overlayBorder}`,
@@ -169,19 +202,10 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                             <line x1="12" y1="3" x2="12" y2="15" />
                         </svg>
                     </Box>
-
-                    <Typography sx={{
-                        fontFamily: T.fontSans,
-                        color: T.overlayText,
-                        fontSize: "0.9rem", fontWeight: 500,
-                    }}>
+                    <Typography sx={{ fontFamily: T.fontSans, color: T.overlayText, fontSize: "0.9rem", fontWeight: 500 }}>
                         Drop photo here
                     </Typography>
-                    <Typography sx={{
-                        fontFamily: T.fontSans,
-                        color: T.overlayTextMuted,
-                        fontSize: "0.76rem",
-                    }}>
+                    <Typography sx={{ fontFamily: T.fontSans, color: T.overlayTextMuted, fontSize: "0.76rem" }}>
                         or click to upload · JPG, PNG, WEBP
                     </Typography>
                 </Box>
@@ -192,9 +216,7 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                 ref={canvasRef}
                 style={{
                     display: showDropZone ? "none" : "block",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
+                    width: "100%", height: "100%", objectFit: "cover",
                 }}
             />
 
@@ -208,43 +230,31 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                     gap: 2,
                 }}>
                     <CircularProgress size={38} sx={{ color: T.teal }} />
-                    <Typography sx={{
-                        fontFamily: T.fontSans,
-                        color: T.overlayTextMuted,
-                        fontSize: "0.82rem", letterSpacing: "0.04em",
-                    }}>
+                    <Typography sx={{ fontFamily: T.fontSans, color: T.overlayTextMuted, fontSize: "0.82rem" }}>
                         Detecting face…
                     </Typography>
                 </Box>
             )}
 
-            {/* ── Status pill — sits below topbar (top: 56) ── */}
+            {/* ── Status pill ── */}
             {(status === "no_face" || status === "error") && (
                 <Box sx={{
-                    position: "absolute", top: 56, left: "50%",
-                    transform: "translateX(-50%)",
-                    bgcolor: T.overlayBg,
-                    border: `1px solid ${T.overlayBorder}`,
+                    position: "absolute", top: 56, left: "50%", transform: "translateX(-50%)",
+                    bgcolor: T.overlayBg, border: `1px solid ${T.overlayBorder}`,
                     borderRadius: "20px", px: 2, py: 0.7,
-                    display: "flex", alignItems: "center", gap: 0.8,
-                    whiteSpace: "nowrap",
+                    display: "flex", alignItems: "center", gap: 0.8, whiteSpace: "nowrap",
                 }}>
                     <Box sx={{
                         width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
                         bgcolor: status === "no_face" ? "#f59e0b" : "#ef4444",
                     }} />
-                    <Typography sx={{
-                        fontFamily: T.fontSans, fontSize: "0.75rem",
-                        color: status === "no_face" ? "#fbbf24" : "#f87171",
-                    }}>
-                        {status === "no_face"
-                            ? "No face detected — try a clearer, front-facing photo"
-                            : "Something went wrong — please try again"}
+                    <Typography sx={{ fontFamily: T.fontSans, fontSize: "0.75rem", color: status === "no_face" ? "#fbbf24" : "#f87171" }}>
+                        {status === "no_face" ? "No face detected" : "Something went wrong"}
                     </Typography>
                 </Box>
             )}
 
-            {/* ── Download button — sits below topbar (top: 56) ── */}
+            {/* ── Download button ── */}
             {status === "done" && (
                 <Box
                     component="button"
@@ -258,31 +268,19 @@ const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
                     }}
                     sx={{
                         position: "absolute", top: 56, right: 14,
-                        border: "none", borderRadius: "50%",
+                        border: "none", borderRadius: "20px",
                         bgcolor: T.teal, color: "#fff",
                         fontFamily: T.fontSans, fontWeight: 600, fontSize: "0.72rem",
                         px: 1.8, py: 0.6, cursor: "pointer",
-                        transition: "background 0.2s",
                         "&:hover": { bgcolor: "#005560" },
                         display: "flex", alignItems: "center", gap: 0.6,
                     }}
                 >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
+                    Download
                 </Box>
             )}
 
-            {/* ── Hidden file input ── */}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={onFileChange}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={onFileChange} />
         </Box>
     );
 };

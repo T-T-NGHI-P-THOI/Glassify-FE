@@ -1,17 +1,17 @@
 import { Box, Typography } from "@mui/material";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
 import { FaceShapeSuggestionPanel } from "../FaceShapeSuggestionPanel";
 import VideoTryOn from "./VideoTryOn";
 import ImageTryOn from "./ImageTryOn";
 import {
     T,
-    TEXTURE_VARIANTS,
     LENS_VENDORS,
     type DrawerType,
-    type TextureVariant,
     type LensOption,
+    type TextureVariant,
 } from "./TryOnTypes";
+import ProductAPI from "@/api/product-api";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -187,11 +187,14 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
 
     const [mode, setMode] = useState<"video" | "image">("video");
     const [drawer, setDrawer] = useState<DrawerType>(null);
-    const [activeTexture, setActiveTexture] = useState<TextureVariant>(TEXTURE_VARIANTS[0]);
+    const [activeTexture, setActiveTexture] = useState<TextureVariant | null>(null);
     const [activeLens, setActiveLens] = useState<LensOption | null>(null);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
     const [reloadSignal, setReloadSignal] = useState(0);
-    const [frameGroupId, setFrameGroupId] = useState<string>('4c24d103-a8a9-4c08-86fe-37c34b70ff1e');
+    const [frameGroupId, setFrameGroupId] = useState<string>('22477344-8f7e-4a22-b0c3-2a42bc800418');
+    const [textures, setTextures] = useState<TextureVariant[]>([]);
+    const [loadingTextures, setLoadingTextures] = useState(false);
+
     const drawerOpen = drawer !== null;
 
     const toggleDrawer = (type: NonNullable<DrawerType>) => {
@@ -214,6 +217,28 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
         setAnalysisResult(null);
         setReloadSignal((n) => n + 1);
     };
+
+
+    useEffect(() => {
+        if (!frameGroupId) return;
+
+        const fetchTextures = async () => {
+            try {
+                setLoadingTextures(true);
+
+                const data = await ProductAPI.getTextureFiles(frameGroupId);
+
+                setTextures(data);
+                setActiveTexture(data[0])
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoadingTextures(false);
+            }
+        };
+
+        fetchTextures();
+    }, [frameGroupId]);
 
     if (!open) return null;
 
@@ -363,23 +388,47 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
                             }}>
                                 Variant:
                             </Typography>
-                            {TEXTURE_VARIANTS.map((tv) => {
-                                const isActive = activeTexture.id === tv.id;
+                            {textures.map((tv) => {
+                                const isActive = activeTexture?.colorHex === tv.colorHex;
+
+                                const isColor = tv.colorHex; // ví dụ field backend trả
+
                                 return (
                                     <Box
-                                        key={tv.id}
-                                        component="button"
-                                        title={tv.label}
-                                        onClick={() => setActiveTexture(tv)}
+                                        key={tv.colorHex}
+                                        onClick={() => {
+                                            console.log("CLICK", tv);
+                                            setActiveTexture(tv);
+                                        }}
                                         sx={{
-                                            width: 30, height: 30, borderRadius: "50%",
-                                            border: `2px solid ${isActive ? "#fff" : "rgba(255,255,255,0.2)"}`,
-                                            cursor: "pointer", flexShrink: 0,
-                                            overflow: "hidden", transition: "border-color 0.15s",
-                                            background: tv.cssPreview || "rgba(255,255,255,0.15)",
-                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: "8px",
+                                            cursor: "pointer",
+                                            border: isActive ? "2px solid white" : "1px solid #ccc",
+                                            overflow: "hidden"
                                         }}
                                     >
+                                        {isColor ? (
+                                            // 🎨 Render color
+                                            <Box
+                                                sx={{
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    backgroundColor: tv.colorHex
+                                                }}
+                                            />
+                                        ) : (
+                                            // 🖼️ Render image
+                                            <img
+                                                src={tv.url}
+                                                style={{
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    objectFit: "cover"
+                                                }}
+                                            />
+                                        )}
                                     </Box>
                                 );
                             })}
@@ -484,13 +533,13 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
                                         color: T.textMuted, mb: 0.8,
                                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                     }}>
-                                        {activeLens.name} · {activeTexture.label}
+                                        {activeLens.name} · {activeTexture?.colorHex}
                                     </Typography>
                                 )}
                                 <Box
                                     component="button"
                                     disabled={!activeLens}
-                                    onClick={() => onAddToCart?.(activeLens?.id ?? null, activeTexture.id)}
+                                    onClick={() => onAddToCart?.(activeLens?.id ?? null, activeTexture!.colorHex)}
                                     sx={{
                                         width: "100%", border: "none", borderRadius: "8px",
                                         bgcolor: activeLens ? T.teal : T.bgTertiary,
