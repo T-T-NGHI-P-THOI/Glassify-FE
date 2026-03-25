@@ -3,7 +3,7 @@ import { FACE_OVAL } from './FaceLandmarkerService';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const CANVAS_WIDTH = 640;
+const CANVAS_WIDTH = 880;
 
 function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, vw: number, vh: number) {
     camera.left = -vw / 2;

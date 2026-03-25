@@ -6,6 +6,7 @@ import { analyzeFaceShape, type FaceAnalysisResult } from "@/services/FaceShapeA
 import { AgeDetectionService, type AgeGenderResult } from "@/services/AgeDetectionService";
 import { FaceShapeSuggestionPanel } from "./FaceShapeSuggestionPanel";
 import { AgeGenderBadge } from "./AgeGenderBadge";
+import GlassesTryOnPopup from "./GlassesTryOn/GlassesTryOnPopup";
 
 type Status = "idle" | "initializing" | "loading" | "done" | "no_face" | "error";
 
