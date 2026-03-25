@@ -1,10 +1,12 @@
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import Webcam from "react-webcam";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { FaceLandmarkerService } from "@/services/FaceLandmarkerService";
 import { ThreeJsService } from "@/services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
+import { AgeDetectionService, type AgeGenderResult } from "@/services/AgeDetectionService";
 import { FaceShapeSuggestionPanel } from "./FaceShapeSuggestionPanel";
+import { AgeGenderBadge } from "./AgeGenderBadge";
 
 const VirtualTryOnPage = () => {
     const webcamRef = useRef<Webcam>(null);
@@ -13,10 +15,30 @@ const VirtualTryOnPage = () => {
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-    // Throttle analysis — run at most once every 3 seconds
-    // const lastAnalysisRef = useRef(0);
+    // Age/gender state
+    const [ageResult, setAgeResult] = useState<AgeGenderResult | null>(null);
+    const [isDetectingAge, setIsDetectingAge] = useState(false);
+
     const faceEngineRef = useRef<FaceLandmarkerService | null>(null);
+    const ageServiceRef = useRef<AgeDetectionService | null>(null);
     const hasAnalyzedRef = useRef(false);
+    const ageThrottleRef = useRef(0);
+    const AGE_INTERVAL_MS = 4000; // Re-detect age every 4 seconds
+
+    // Age detection loop — throttled, runs on video frames
+    const detectAge = useCallback(async (video: HTMLVideoElement) => {
+        const now = performance.now();
+        if (now - ageThrottleRef.current < AGE_INTERVAL_MS) return;
+        ageThrottleRef.current = now;
+
+        const svc = ageServiceRef.current;
+        if (!svc) return;
+
+        setIsDetectingAge(true);
+        const result = await svc.detectFromVideo(video);
+        if (result) setAgeResult(result);
+        setIsDetectingAge(false);
+    }, []);
 
     useEffect(() => {
         const init = async () => {
@@ -24,9 +46,15 @@ const VirtualTryOnPage = () => {
             const canvas = canvasRef.current;
             if (!video || !canvas) return;
 
+            // Init face shape engine
             const faceEngine = new FaceLandmarkerService();
             faceEngineRef.current = faceEngine;
             const threeJsService = new ThreeJsService();
+
+            // Init age/gender service (non-blocking)
+            const ageSvc = new AgeDetectionService();
+            ageServiceRef.current = ageSvc;
+            ageSvc.loadModels().catch(console.error); // load in background
 
             await new Promise<void>((resolve) => {
                 video.onloadedmetadata = () => resolve();
@@ -40,9 +68,13 @@ const VirtualTryOnPage = () => {
                 threeJsService.faceObj!
             );
 
-            // Hook into landmark results for face analysis
+            // Face shape: run once
             faceEngine.onLandmarksDetected = (landmarks, width, height) => {
-                if (hasAnalyzedRef.current) return;  // ← chặn sau lần đầu
+                if (hasAnalyzedRef.current) {
+                    // Still trigger age detection on subsequent frames (throttled)
+                    detectAge(video);
+                    return;
+                }
                 hasAnalyzedRef.current = true;
 
                 setIsAnalyzing(true);
@@ -51,13 +83,16 @@ const VirtualTryOnPage = () => {
                     setAnalysisResult(result);
                     setIsAnalyzing(false);
                 }, 0);
+
+                // First age detection
+                detectAge(video);
             };
 
             faceEngine.scheduleNextPrediction(video);
         };
 
         init();
-    }, []);
+    }, [detectAge]);
 
     return (
         <Box
@@ -116,6 +151,16 @@ const VirtualTryOnPage = () => {
                         display: "block",
                     }}
                 />
+
+                {/* Age/gender badge — overlaid bottom-left of canvas */}
+                <Box sx={{
+                    position: "absolute",
+                    bottom: 16,
+                    left: 16,
+                    zIndex: 10,
+                }}>
+                    <AgeGenderBadge result={ageResult} isDetecting={isDetectingAge && !ageResult} />
+                </Box>
             </Box>
 
             {/* Face shape suggestion panel */}

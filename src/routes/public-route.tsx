@@ -17,10 +17,15 @@ import AuthPage from "@/pages/auth/Login";
 import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
 import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
 import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
+import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 
 const PublicRoutesComponent = () => {
     return (
         <>
+            <Route
+                path="/test-try-on"
+                element={<TestTryOnPage />}
+            />
             {/* Home Page */}
             <Route
                 path="/"
@@ -48,7 +53,7 @@ const PublicRoutesComponent = () => {
                 }
             />
 
-             <Route
+            <Route
                 path={'/image-try-on'}
                 element={
                     <GuestGuard>
