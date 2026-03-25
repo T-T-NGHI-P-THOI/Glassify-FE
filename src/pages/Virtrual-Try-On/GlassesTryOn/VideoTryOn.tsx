@@ -6,10 +6,12 @@ import { ThreeJsService } from "@/services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "@/services/AgeDetectionService";
 import { T, type TextureVariant } from "./TryOnTypes";
+import { frameGroup } from "three/src/nodes/TSL.js";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface VideoTryOnProps {
+    frameGroupId: string;
     /** Active texture variant to apply to the glasses model */
     activeTexture: TextureVariant | null;
     /** Called once face landmarks are detected and shape is analyzed */
@@ -22,7 +24,7 @@ interface VideoTryOnProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const VideoTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, onReload }: VideoTryOnProps) => {
+const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, onReload }: VideoTryOnProps) => {
     const webcamRef = useRef<Webcam>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -72,7 +74,7 @@ const VideoTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, onReload }: Vi
             });
             if (cancelled) return;
 
-            await threeJsService.initalizeThreeJs(video, canvas);
+            await threeJsService.initalizeThreeJs(video, canvas, frameGroupId);
             await faceEngine.initializeEngine();
             faceEngine.setThreeObjects(threeJsService.glassesObj!, threeJsService.faceObj!);
 

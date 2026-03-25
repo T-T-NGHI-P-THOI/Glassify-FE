@@ -191,7 +191,7 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
     const [activeLens, setActiveLens] = useState<LensOption | null>(null);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
     const [reloadSignal, setReloadSignal] = useState(0);
-
+    const [frameGroupId, setFrameGroupId] = useState<string>('4c24d103-a8a9-4c08-86fe-37c34b70ff1e');
     const drawerOpen = drawer !== null;
 
     const toggleDrawer = (type: NonNullable<DrawerType>) => {
@@ -259,6 +259,7 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
                     <Box sx={{ position: "absolute", inset: 0 }}>
                         {mode === "video" ? (
                             <VideoTryOn
+                                frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
                                 onAnalysisReady={setAnalysisResult}
                                 onAgeReady={() => { }}
@@ -266,6 +267,7 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
                             />
                         ) : (
                             <ImageTryOn
+                                frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
                                 onAnalysisReady={setAnalysisResult}
                                 onAgeReady={() => { }}

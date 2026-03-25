@@ -13,6 +13,7 @@ type Status = "idle" | "loading" | "done" | "no_face" | "error";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ImageTryOnProps {
+    frameGroupId: string;
     activeTexture: TextureVariant | null;
     onAnalysisReady: (result: FaceAnalysisResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
@@ -21,7 +22,7 @@ interface ImageTryOnProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ImageTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, reloadSignal }: ImageTryOnProps) => {
+const ImageTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, reloadSignal }: ImageTryOnProps) => {
     const [status, setStatus] = useState<Status>("idle");
     const [dragging, setDragging] = useState(false);
 
@@ -90,7 +91,7 @@ const ImageTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, reloadSignal }
 
             const threeService = new ThreeJsService();
             threeRef.current = threeService;
-            await threeService.initializeWithImage(img, canvas);
+            await threeService.initializeWithImage(img, canvas, frameGroupId);
             faceEngineRef.current.setThreeObjects(threeService.glassesObj!, threeService.faceObj!);
 
             const { found, landmarks } = await faceEngineRef.current.detectAndApply(img);
@@ -257,7 +258,7 @@ const ImageTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, reloadSignal }
                     }}
                     sx={{
                         position: "absolute", top: 56, right: 14,
-                        border: "none", borderRadius: "20px",
+                        border: "none", borderRadius: "50%",
                         bgcolor: T.teal, color: "#fff",
                         fontFamily: T.fontSans, fontWeight: 600, fontSize: "0.72rem",
                         px: 1.8, py: 0.6, cursor: "pointer",
@@ -271,7 +272,6 @@ const ImageTryOn = ({ activeTexture, onAnalysisReady, onAgeReady, reloadSignal }
                         <polyline points="7 10 12 15 17 10" />
                         <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    Download
                 </Box>
             )}
 

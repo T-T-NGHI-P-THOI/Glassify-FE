@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FACE_OVAL } from './FaceLandmarkerService';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { API_CONFIG } from '@/api/axios.config';
 
 const CANVAS_WIDTH = 880;
 
@@ -39,7 +40,7 @@ export class ThreeJsService {
     };
 
     // ── VIDEO mode (webcam page) ──────────────────────────────────────────
-    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement, frameGroupId: string) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
@@ -66,7 +67,7 @@ export class ThreeJsService {
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
+        this.glassesObj = await this.loadGlassesModel(frameGroupId);
         this.normalizeModel(this.glassesObj);
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
@@ -77,7 +78,7 @@ export class ThreeJsService {
     }
 
     // ── IMAGE mode (photo upload page) ───────────────────────────────────
-    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement) {
+    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string) {
         const vw = img.naturalWidth;
         const vh = img.naturalHeight;
 
@@ -116,7 +117,7 @@ export class ThreeJsService {
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
+        this.glassesObj = await this.loadGlassesModel(frameGroupId);
         this.normalizeModel(this.glassesObj);
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
@@ -395,9 +396,9 @@ export class ThreeJsService {
         return mesh;
     }
 
-    async loadGlassesModel(path: string) {
+    async loadGlassesModel(frameGroupId: string) {
         const loader = new GLTFLoader();
-        const gltf = await loader.loadAsync(path);
+        const gltf = await loader.loadAsync(`${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${frameGroupId}`);
         const mesh = gltf.scene;
 
         mesh.traverse((child: THREE.Object3D) => {
