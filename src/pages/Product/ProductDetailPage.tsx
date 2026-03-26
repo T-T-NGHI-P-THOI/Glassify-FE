@@ -10,7 +10,7 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
-import ProductAPI, { type ReviewResponse } from '../../api/product-api';
+import ProductAPI, { type ApiProduct, type ReviewResponse } from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
@@ -21,11 +21,13 @@ const ProductDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { addItem, addFrameWithLens, removeItem, cartData } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
+  const [accessories, setAccessories] = useState<ApiProduct[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -137,6 +139,10 @@ const ProductDetailPage: React.FC = () => {
           setIsLoadingReviews(false);
         }
 
+        // Fetch accessories linked to current product
+        const accessoryProducts = await ProductAPI.getAccessoriesByParentProductId(apiProduct.id);
+        setAccessories(accessoryProducts.filter(item => item.isActive));
+
         // Fetch recommended products
         const allProducts = await ProductAPI.getAllProducts();
         const recommended: RecommendedProduct[] = allProducts
@@ -167,6 +173,55 @@ const ProductDetailPage: React.FC = () => {
 
     fetchProduct();
   }, [slug, sku]);
+
+  const getProductImage = (apiProduct: ApiProduct) => {
+    const imageFile = apiProduct.fileResponses?.find(file => file.publicUrl || file.url);
+    return imageFile?.publicUrl || imageFile?.url ||
+      'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name);
+  };
+
+  const handleAddAccessoryToCart = async (accessory: ApiProduct) => {
+    try {
+      await addItem({
+        productName: accessory.name,
+        productSlug: accessory.slug,
+        productId: accessory.id,
+        productType: accessory.productType,
+        sku: accessory.sku,
+        imageUrl: getProductImage(accessory),
+        unitPrice: accessory.basePrice,
+        itemType: 'ACCESSORY',
+        shopId: accessory.shopId,
+        shopName: accessory.shop?.shopName,
+        variantId: accessory.variantId || accessory.id,
+        stockQuantity: accessory.stockQuantity,
+      });
+
+      setSnackbar({ open: true, message: `Da them ${accessory.name} vao gio hang!`, severity: 'success' });
+    } catch (error) {
+      console.error('Error adding accessory to cart:', error);
+      setSnackbar({ open: true, message: 'Co loi xay ra khi them phu kien vao gio hang.', severity: 'error' });
+    }
+  };
+
+  const ACCESSORIES_PER_VIEW = 3;
+  const maxAccessoryIndex = Math.max(0, accessories.length - ACCESSORIES_PER_VIEW);
+  const visibleAccessories = accessories.slice(
+    currentAccessoryIndex,
+    currentAccessoryIndex + ACCESSORIES_PER_VIEW
+  );
+
+  const handlePrevAccessory = () => {
+    setCurrentAccessoryIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextAccessory = () => {
+    setCurrentAccessoryIndex(prev => Math.min(maxAccessoryIndex, prev + 1));
+  };
+
+  useEffect(() => {
+    setCurrentAccessoryIndex(0);
+  }, [product?.id]);
 
   // Cleanup lens dialog state when leaving the product page
   useEffect(() => {
@@ -369,24 +424,59 @@ const ProductDetailPage: React.FC = () => {
         initialSelection={editLensSelection}
       />
 
-      <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
-
-      <div className="accessories-section">
-        <h2>Accessories</h2>
-        <div className="accessory-card">
-          <img src="https://placehold.co/200x200/E8E8E8/666666?text=Eyewear+Case" alt="Deluxe Eyewear Case" />
-          <div className="accessory-info">
-            <p className="accessory-price">$3.95</p>
-            <h4>Deluxe Eyewear Case</h4>
-            <p className="accessory-sku">SKU: A60105621</p>
-            <p className="accessory-description">
-              Protect your eyewear wherever life takes you with this reliable case. Features premium materials, 
-              soft interior lining, and compact design perfect for travel.
-              <a href="#"> Read more</a>
-            </p>
-            <button className="add-to-cart-btn">Add to cart</button>
-          </div>
+      <div className="product-secondary">
+        <div className="product-details-column">
+          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
         </div>
+
+        {accessories.length > 0 && (
+          <aside className="product-accessories-column">
+            <div className="accessories-sidebar">
+              <div className="accessories-sidebar-header">
+                <h3>Accessories</h3>
+                {accessories.length > ACCESSORIES_PER_VIEW && (
+                  <div className="accessories-nav">
+                    <button
+                      type="button"
+                      className="accessories-nav-btn"
+                      onClick={handlePrevAccessory}
+                      disabled={currentAccessoryIndex === 0}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className="accessories-nav-btn"
+                      onClick={handleNextAccessory}
+                      disabled={currentAccessoryIndex >= maxAccessoryIndex}
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="accessories-sidebar-list">
+                {visibleAccessories.map((accessory) => (
+                  <div key={accessory.id} className="accessories-sidebar-item">
+                    <img src={getProductImage(accessory)} alt={accessory.name} />
+                    <div className="accessories-sidebar-item-info">
+                      <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
+                      <h4>{accessory.name}</h4>
+                      <p className="accessory-sku">SKU: {accessory.sku}</p>
+                      <button
+                        className="add-to-cart-btn"
+                        onClick={() => handleAddAccessoryToCart(accessory)}
+                      >
+                        Add to cart
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
 
       <RecommendedProducts products={recommendedProducts} />

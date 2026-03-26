@@ -31,6 +31,8 @@ export interface ApiShopInfo {
   id: string;
   shopCode: string;
   shopName: string;
+  address?: string;
+  city?: string;
   logoUrl: string;
   status: string;
   tier: string;
@@ -70,7 +72,13 @@ export interface ApiProduct {
   productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
-  fileResponses?: { id: string; url: string; altText?: string }[];
+  fileResponses?: {
+    id: string;
+    url?: string;
+    publicUrl?: string;
+    altText?: string;
+    originalName?: string;
+  }[];
 }
 
 // Product filter parameters
@@ -122,6 +130,23 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
+  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
+    if (Array.isArray(payload)) {
+      return payload as ApiProduct[];
+    }
+    if (payload && typeof payload === 'object') {
+      const maybeWrapped = payload as { data?: unknown };
+      if (Array.isArray(maybeWrapped.data)) {
+        return maybeWrapped.data as ApiProduct[];
+      }
+      if (maybeWrapped.data && typeof maybeWrapped.data === 'object') {
+        return [maybeWrapped.data as ApiProduct];
+      }
+      return [payload as ApiProduct];
+    }
+    return [];
+  }
+
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
       const response = await api.get<ProductApiResponse>(API_ENDPOINTS.PRODUCTS.GET_ALL, {
@@ -131,6 +156,18 @@ export default class ProductAPI {
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
+    }
+  }
+
+  static async getAccessoriesByParentProductId(productId: string): Promise<ApiProduct[]> {
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.PRODUCTS.GET_ACCESSORIES_BY_PARENT_ID(productId)
+      );
+      return ProductAPI.normalizeProductsPayload(response.data);
+    } catch (error) {
+      console.error(`Error fetching accessories for product ${productId}:`, error);
+      return [];
     }
   }
 
