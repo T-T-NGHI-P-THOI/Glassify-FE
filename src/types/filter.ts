@@ -2,6 +2,7 @@ export interface FilterOptions {
   productTypes: Array<'FRAME' | 'LENS' | 'ACCESSORIES'>;
   brands: Array<{ id: string; name: string }>;
   categories: Array<{ id: string; name: string }>;
+  shopCities: string[];
   priceRange: {
     min: number;
     max: number;
@@ -13,6 +14,7 @@ export interface ActiveFilters {
   productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   brandIds: string[];
   categoryNames: string[];
+  shopCities: string[];
   priceMin?: number;
   priceMax?: number;
   minRating?: number;
@@ -50,4 +52,6 @@ export interface BrowseProduct {
   stockQuantity: number;
   brandId: string | null;
   categoryName?: string;
+  shopCity?: string;
+  shopAddress?: string;
 }

@@ -41,11 +41,21 @@ export interface ApiShopInfo {
   isVerified: boolean;
 }
 
+export interface ApiShopBasicInfo {
+  id?: string;
+  shopCode?: string;
+  shopName?: string;
+  address?: string;
+  city?: string;
+}
+
 // Product type từ API
 export interface ApiProduct {
   id: string;
   shopId: string;
   shop?: ApiShopInfo;
+  shopBasicInfo?: ApiShopBasicInfo;
+  shopbasicinfo?: ApiShopBasicInfo;
   brandId: string | null;
   categoryId: string;
   categoryName: string;
