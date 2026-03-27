@@ -16,6 +16,7 @@ import ProductAPI from "@/api/product-api";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface GlassesTryOnPopupProps {
+    frameGroupId: string,
     open: boolean;
     onClose: () => void;
     onAddToCart?: (lensId: string | null, textureId: string | null) => void;
@@ -183,7 +184,7 @@ const RecDrawer = ({ result }: { result: FaceAnalysisResult | null }) => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProps) => {
+const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: GlassesTryOnPopupProps) => {
 
     const [mode, setMode] = useState<"video" | "image">("video");
     const [drawer, setDrawer] = useState<DrawerType>(null);
@@ -191,7 +192,6 @@ const GlassesTryOnPopup = ({ open, onClose, onAddToCart }: GlassesTryOnPopupProp
     const [activeLens, setActiveLens] = useState<LensOption | null>(null);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
     const [reloadSignal, setReloadSignal] = useState(0);
-    const [frameGroupId, setFrameGroupId] = useState<string>('22477344-8f7e-4a22-b0c3-2a42bc800418');
     const [textures, setTextures] = useState<TextureVariant[]>([]);
     const [loadingTextures, setLoadingTextures] = useState(false);
 
