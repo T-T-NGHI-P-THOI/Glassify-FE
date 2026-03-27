@@ -11,297 +11,540 @@ import {
   Chip,
   IconButton,
   TableSortLabel,
-  Checkbox,
   Avatar,
   TextField,
   InputAdornment,
+  Tooltip,
+  Pagination,
+  FormControl,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
-  Store,
-  LocationOn,
-  Phone,
   MoreVert,
   Search,
   Add,
   Inventory,
-  Star,
   Verified,
-  Storefront,
   Inventory2,
-  CheckCircle,
   Warehouse,
   RemoveShoppingCart,
   EditNote,
+  Visibility,
+  Edit,
+  DeleteOutline,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
+  InfoOutlined,
 } from '@mui/icons-material';
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sidebar } from '../../../components/sidebar/Sidebar';
+import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useLayout } from '../../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { CustomButton } from '@/components/custom';
+import { useAuth } from '@/hooks/useAuth';
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
+import ProductAPI from '@/api/product-api';
+import { ProductImagesCell } from './ImageGalleryCell';
+import type { CreateFrameVariantFormData } from './Create/CreateFrameVariantPage';
+import FrameVariantDetailDialog from './View/FrameVariantDetailDialog';
 
-type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
+// ─── API Types (from real response) ──────────────────────────────────────────
 
-interface Shop {
-  shopId: number;
-  shopName: string;
-  shopLogo: string;
-  shopCode: string;
-  businessType: string;
-  address: string;
-  city: string;
-  district: string;
-  phone: string;
-  email: string;
-  ownerId: number;
-  ownerName: string;
-  ownerAvatar: string;
-  status: ShopStatus;
-  isVerified: boolean;
-  rating: number;
-  totalReviews: number;
-  createdAt: string;
-  // Stats
-  totalProducts: number;
-  totalOrders: number;
-  totalRevenue: number;
+interface FrameVariantResponse {
+  id: string;
+  frameGroupId: string;
+  colorName: string;
+  colorHex: string;
+  frameWidthMm: number;
+  lensWidthMm: number;
+  lensHeightMm: number;
+  bridgeWidthMm: number;
+  templeLengthMm: number;
+  size: 'SMALL' | 'MEDIUM' | 'LARGE' | string;
+  isActive: boolean | null;
+  productId: string | null;
+  productName: string | null;
+  slug: string | null;
+  basePrice: number;
+  costPrice: number;
+  compareAtPrice: number;
+  stockQuantity: number;
 }
 
-// Mock data for shops
-const shopsData: Shop[] = [
-  {
-    shopId: 1,
-    shopName: 'Optical Vision Store',
-    shopLogo: '/shops/optical-vision.png',
-    shopCode: 'SHOP-OVS-001',
-    businessType: 'Company/Corporation',
-    address: '123 Nguyễn Huệ, Phường Bến Nghé',
-    city: 'TP. Hồ Chí Minh',
-    district: 'Quận 1',
-    phone: '028-3823-4567',
-    email: 'contact@opticalvision.vn',
-    ownerId: 101,
-    ownerName: 'Nguyễn Văn A',
-    ownerAvatar: '/avatars/owner1.jpg',
-    status: 'ACTIVE',
-    isVerified: true,
-    rating: 4.8,
-    totalReviews: 256,
-    createdAt: '2023-01-15T08:00:00',
-    totalProducts: 150,
-    totalOrders: 1250,
-    totalRevenue: 850000000,
-  },
-  {
-    shopId: 2,
-    shopName: 'EyeWear Plus',
-    shopLogo: '/shops/eyewear-plus.png',
-    shopCode: 'SHOP-EWP-002',
-    businessType: 'Individual/Sole Proprietor',
-    address: '456 Lê Lợi, Phường Bến Thành',
-    city: 'TP. Hồ Chí Minh',
-    district: 'Quận 1',
-    phone: '028-3773-8900',
-    email: 'info@eyewearplus.vn',
-    ownerId: 102,
-    ownerName: 'Trần Thị B',
-    ownerAvatar: '/avatars/owner2.jpg',
-    status: 'ACTIVE',
-    isVerified: true,
-    rating: 4.5,
-    totalReviews: 189,
-    createdAt: '2023-02-20T08:00:00',
-    totalProducts: 98,
-    totalOrders: 980,
-    totalRevenue: 620000000,
-  },
-  {
-    shopId: 3,
-    shopName: 'Lens World',
-    shopLogo: '/shops/lens-world.png',
-    shopCode: 'SHOP-LW-003',
-    businessType: 'Partnership',
-    address: '789 Trần Hưng Đạo',
-    city: 'Đà Nẵng',
-    district: 'Hải Châu',
-    phone: '0236-382-1234',
-    email: 'hello@lensworld.vn',
-    ownerId: 103,
-    ownerName: 'Lê Văn C',
-    ownerAvatar: '/avatars/owner3.jpg',
-    status: 'ACTIVE',
-    isVerified: false,
-    rating: 4.2,
-    totalReviews: 87,
-    createdAt: '2023-03-10T08:00:00',
-    totalProducts: 65,
-    totalOrders: 450,
-    totalRevenue: 280000000,
-  },
-  {
-    shopId: 4,
-    shopName: 'Quick Glasses',
-    shopLogo: '/shops/quick-glasses.png',
-    shopCode: 'SHOP-QG-004',
-    businessType: 'Household Business',
-    address: '321 Hai Bà Trưng, Phường 15',
-    city: 'TP. Hồ Chí Minh',
-    district: 'Quận Bình Thạnh',
-    phone: '028-3840-5678',
-    email: 'support@quickglasses.vn',
-    ownerId: 104,
-    ownerName: 'Phạm Văn D',
-    ownerAvatar: '/avatars/owner4.jpg',
-    status: 'INACTIVE',
-    isVerified: false,
-    rating: 3.8,
-    totalReviews: 42,
-    createdAt: '2023-04-05T08:00:00',
-    totalProducts: 0,
-    totalOrders: 120,
-    totalRevenue: 45000000,
-  },
-  {
-    shopId: 5,
-    shopName: 'Sun Shades Co.',
-    shopLogo: '/shops/sun-shades.png',
-    shopCode: 'SHOP-SSC-005',
-    businessType: 'Company/Corporation',
-    address: '555 Phạm Văn Đồng',
-    city: 'TP. Hồ Chí Minh',
-    district: 'TP. Thủ Đức',
-    phone: '028-3811-9012',
-    email: 'sales@sunshades.vn',
-    ownerId: 105,
-    ownerName: 'Hoàng Thị E',
-    ownerAvatar: '/avatars/owner5.jpg',
-    status: 'PENDING',
-    isVerified: false,
-    rating: 0,
-    totalReviews: 0,
-    createdAt: '2024-01-21T08:00:00',
-    totalProducts: 25,
-    totalOrders: 0,
-    totalRevenue: 0,
-  },
-  {
-    shopId: 6,
-    shopName: 'Premium Optics',
-    shopLogo: '/shops/premium-optics.png',
-    shopCode: 'SHOP-PO-006',
-    businessType: 'Company/Corporation',
-    address: '987 Nguyễn Thị Minh Khai',
-    city: 'TP. Hồ Chí Minh',
-    district: 'Quận 3',
-    phone: '028-3930-1234',
-    email: 'info@premiumoptics.vn',
-    ownerId: 106,
-    ownerName: 'Ngô Văn F',
-    ownerAvatar: '/avatars/owner6.jpg',
-    status: 'ACTIVE',
-    isVerified: true,
-    rating: 4.9,
-    totalReviews: 512,
-    createdAt: '2022-11-01T08:00:00',
-    totalProducts: 230,
-    totalOrders: 2100,
-    totalRevenue: 1500000000,
-  },
-];
+interface ProductResponse {
+  id: string;
+  name: string;
+  slug: string;
+  basePrice: number;
+  costPrice: number;
+  compareAtPrice: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  productType: string;
+  productImages: string[];
+  sku: string | null;
+  categoryName: string | null;
+  fileResponses: { url: string }[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface FrameGroup {
+  id: string;
+  frameName: string;
+  frameShape: string;
+  frameStructure: string;
+  frameMaterial: string;
+  genderTarget: string;
+  ageGroup: string;
+  vrEnabled?: boolean;
+  suitableFaceShapes: string[] | null;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+  productResponses: ProductResponse[];
+  frameVariantResponses: FrameVariantResponse[];
+}
+
+// ─── Variant status helper ────────────────────────────────────────────────────
+
+const LOW_STOCK_THRESHOLD = 10;
+
+function getVariantStatus(stock: number): 'in_stock' | 'low_stock' | 'out_of_stock' {
+  if (stock === 0) return 'out_of_stock';
+  if (stock <= LOW_STOCK_THRESHOLD) return 'low_stock';
+  return 'in_stock';
+}
+
+const variantStatusConfig = {
+  in_stock: { label: 'In Stock', bg: '#dcfce7', color: '#16a34a' },
+  low_stock: { label: 'Low Stock', bg: '#fef9c3', color: '#ca8a04' },
+  out_of_stock: { label: 'Out of Stock', bg: '#fee2e2', color: '#dc2626' },
+};
+
+// ─── Helper: map FrameVariantResponse → CreateFrameVariantFormData ────────────
+
+function mapVariantResponseToFormData(v: FrameVariantResponse): CreateFrameVariantFormData {
+  return {
+    colorName: v.colorName,
+    colorHex: v.colorHex,
+    size: v.size as 'SMALL' | 'MEDIUM' | 'LARGE' | '',
+    frameWidthMm: String(v.frameWidthMm ?? ''),
+    lensWidthMm: String(v.lensWidthMm ?? ''),
+    lensHeightMm: String(v.lensHeightMm ?? ''),
+    bridgeWidthMm: String(v.bridgeWidthMm ?? ''),
+    templeLengthMm: String(v.templeLengthMm ?? ''),
+    stock: String(v.stockQuantity ?? ''),
+    stockThreshold: '',
+    warrantyMonths: '',
+    costPrice: String(v.costPrice ?? ''),
+    basePrice: String(v.basePrice ?? ''),
+    compareAtPrice: String(v.compareAtPrice ?? ''),
+    isReturnable: false,
+    isFeatured: false,
+    images: [],
+    textureFile: null,
+  };
+}
+
+// ─── Variant sub-table ────────────────────────────────────────────────────────
+
+interface VariantRowsProps {
+  variants: FrameVariantResponse[];
+  colSpan: number;
+  vrEnabled?: boolean;
+}
+
+const VariantRows = ({ variants, colSpan, vrEnabled }: VariantRowsProps) => {
+  const theme = useTheme();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<(CreateFrameVariantFormData & { id?: string }) | null>(null);
+
+  const handleOpenDetail = (v: FrameVariantResponse) => {
+    const mapped = mapVariantResponseToFormData(v);
+    setSelectedVariant({ ...mapped, id: v.id });
+    setDetailOpen(true);
+  };
+
+  if (variants.length === 0) {
+    return (
+      <TableRow>
+        <TableCell
+          colSpan={colSpan}
+          sx={{ p: 0, borderBottom: `2px solid ${theme.palette.custom.border.light}` }}
+        >
+          <Box sx={{ bgcolor: theme.palette.custom.neutral[50], borderTop: `1px solid ${theme.palette.custom.border.light}`, px: 3, py: 2 }}>
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], textAlign: 'center' }}>
+              No variants for this frame group
+            </Typography>
+          </Box>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <>
+      <TableRow>
+        <TableCell
+          colSpan={colSpan}
+          sx={{ p: 0, borderBottom: `2px solid ${theme.palette.custom.border.light}` }}
+        >
+          <Box
+            sx={{
+              bgcolor: theme.palette.custom.neutral[50],
+              borderTop: `1px solid ${theme.palette.custom.border.light}`,
+              px: 3,
+              py: 1.5,
+            }}
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  {['Color', 'Size', 'Dimensions (mm)', 'Price', 'Stock', 'Status', 'Image', 'Action'].map((h) => (
+                    <TableCell
+                      key={h}
+                      sx={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: theme.palette.custom.neutral[400],
+                        py: 0.75,
+                        px: 1.5,
+                        borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+                        bgcolor: 'transparent',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {h}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {variants.map((v) => {
+                  const status = getVariantStatus(v.stockQuantity);
+                  const sc = variantStatusConfig[status];
+                  const dims = `${v.frameWidthMm} / ${v.lensWidthMm}×${v.lensHeightMm} / ${v.bridgeWidthMm} / ${v.templeLengthMm}`;
+
+                  return (
+                    <TableRow
+                      key={v.id}
+                      sx={{
+                        '&:last-child td': { borderBottom: 0 },
+                        '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' },
+                      }}
+                    >
+                      {/* Color */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: '50%',
+                              bgcolor: v.colorHex,
+                              border: '1.5px solid rgba(0,0,0,0.12)',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[700] }}>
+                            {v.colorName}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+
+                      {/* Size */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Chip
+                          label={v.size}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            bgcolor: theme.palette.custom.neutral[100],
+                            color: theme.palette.custom.neutral[600],
+                            border: 'none',
+                            '& .MuiChip-label': { px: 1 },
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Dimensions */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Tooltip title="Frame / Lens W×H / Bridge / Temple">
+                          <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: theme.palette.custom.neutral[500] }}>
+                            {dims}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+
+                      {/* Price */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                          {v.basePrice.toLocaleString('vi-VN')}₫
+                        </Typography>
+                        {v.compareAtPrice > v.basePrice && (
+                          <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                            {v.compareAtPrice.toLocaleString('vi-VN')}₫
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      {/* Stock */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: sc.color }}>
+                          {v.stockQuantity}
+                        </Typography>
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <Chip
+                          label={sc.label}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            bgcolor: sc.bg,
+                            color: sc.color,
+                            border: 'none',
+                            '& .MuiChip-label': { px: 1 },
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Product images */}
+                      <TableCell sx={{ py: 1, px: 1.5 }}>
+                        <ProductImagesCell
+                          productId={v.productId ?? ''}
+                          size={v.size}
+                        />
+                      </TableCell>
+
+                      {/* Variant actions */}
+                      <TableCell sx={{ py: 1, px: 1.5 }} align="center">
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                          {/* View detail */}
+                          <Tooltip title="View detail">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); handleOpenDetail(v); }}
+                              sx={{
+                                width: 24, height: 24, borderRadius: 0.75,
+                                bgcolor: theme.palette.custom.neutral[100],
+                                '&:hover': { bgcolor: theme.palette.custom.status.info.light },
+                                '&:hover .v-view': { color: theme.palette.custom.status.info.main },
+                              }}
+                            >
+                              <InfoOutlined className="v-view" sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }} />
+                            </IconButton>
+                          </Tooltip>
+
+                          {/* Edit */}
+                          <Tooltip title="Edit variant">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{
+                                width: 24, height: 24, borderRadius: 0.75,
+                                bgcolor: theme.palette.custom.neutral[100],
+                                '&:hover': { bgcolor: theme.palette.custom.status.info.light },
+                                '&:hover .v-edit': { color: theme.palette.custom.status.info.main },
+                              }}
+                            >
+                              <Edit className="v-edit" sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} />
+                            </IconButton>
+                          </Tooltip>
+
+                          {/* Delete */}
+                          <Tooltip title="Delete variant">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{
+                                width: 24, height: 24, borderRadius: 0.75,
+                                bgcolor: theme.palette.custom.status.error.light,
+                                '&:hover': { bgcolor: '#fecaca' },
+                              }}
+                            >
+                              <DeleteOutline sx={{ fontSize: 12, color: theme.palette.custom.status.error.main }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Box>
+        </TableCell>
+      </TableRow>
+
+      {/* ── Variant Detail Dialog ── */}
+      {selectedVariant && (
+        <FrameVariantDetailDialog
+          open={detailOpen}
+          onClose={() => { setDetailOpen(false); setSelectedVariant(null); }}
+          variant={selectedVariant}
+          modelFile={null}        // truyền modelFile nếu có từ context/props
+          vrEnabled={vrEnabled}
+        />
+      )}
+    </>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 const FrameProductPage = () => {
   const theme = useTheme();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { setShowNavbar, setShowFooter } = useLayout();
+
+  const [shop, setShop] = useState<ShopDetailResponse | null>(null);
+  const [frameGroups, setFrameGroups] = useState<FrameGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(false);
-
     return () => {
       setShowNavbar(true);
       setShowFooter(true);
     };
   }, [setShowNavbar, setShowFooter]);
 
-  const totalShops = shopsData.length;
-  const activeCount = shopsData.filter((s) => s.status === 'ACTIVE').length;
-  const verifiedCount = shopsData.filter((s) => s.isVerified).length;
-  const totalProducts = shopsData.reduce((sum, s) => sum + s.totalProducts, 0);
+  useEffect(() => {
+    (async () => {
+      try {
+        const shopRes = await shopApi.getMyShops();
+        const myShop = shopRes.data?.[0] ?? null;
+        setShop(myShop);
+        if (myShop?.id) {
+          const data = await ProductAPI.getFrameGroupFromShopId(myShop.id);
+          setFrameGroups(data);
+        }
+      } catch (err) {
+        console.error('Failed to load frame groups:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  const handleRowClick = (shopId: number) => {
-    navigate(PAGE_ENDPOINTS.TRACKING.SHOP_DETAIL.replace(':id', shopId.toString()));
+  const toggleRow = (id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const filtered = useMemo(() => {
+    if (!search.trim()) return frameGroups;
+    const q = search.toLowerCase();
+    return frameGroups.filter(
+      (fg) =>
+        fg.frameName.toLowerCase().includes(q) ||
+        fg.frameMaterial.toLowerCase().includes(q) ||
+        fg.frameShape.toLowerCase().includes(q) ||
+        fg.frameVariantResponses.some((v) => v.colorName.toLowerCase().includes(q))
+    );
+  }, [frameGroups, search]);
+
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+  const startEntry = filtered.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
+  const endEntry = Math.min(page * rowsPerPage, filtered.length);
+  const paginated = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  const totalGroups = frameGroups.length;
+  const activeCount = frameGroups.filter((fg) =>
+    fg.frameVariantResponses.some((v) => (v.isActive ?? true))
+  ).length;
+  const inStockCount = frameGroups.filter((fg) =>
+    fg.frameVariantResponses.some((v) => v.stockQuantity > LOW_STOCK_THRESHOLD)
+  ).length;
+  const outOfStockCount = frameGroups.filter((fg) =>
+    fg.frameVariantResponses.length > 0 &&
+    fg.frameVariantResponses.every((v) => v.stockQuantity === 0)
+  ).length;
+  const noVariantCount = frameGroups.filter((fg) => fg.frameVariantResponses.length === 0).length;
 
   const stats = [
-    {
-      icon: <Inventory2 sx={{ color: theme.palette.custom.status.pink.main }} />,
-      label: 'Total Frame',
-      value: totalShops.toLocaleString(),
-      bgColor: theme.palette.custom.status.pink.light,
-    },
-    {
-      icon: <Verified sx={{ color: theme.palette.custom.status.success.main }} />,
-      label: 'Active Frame',
-      value: activeCount.toLocaleString(),
-      bgColor: theme.palette.custom.status.success.light,
-    },
-    {
-      icon: <Warehouse sx={{ color: theme.palette.custom.status.info.main }} />,
-      label: 'In-stock Frame',
-      value: totalShops.toLocaleString(),
-      bgColor: theme.palette.custom.status.info.light,
-    },
-    {
-      icon: <RemoveShoppingCart sx={{ color: theme.palette.custom.status.error.main }} />,
-      label: 'Out-of-stock Frame',
-      value: verifiedCount.toLocaleString(),
-      bgColor: theme.palette.custom.status.error.light,
-    },
-    {
-      icon: <EditNote sx={{ color: theme.palette.custom.status.warning }} />,
-      label: 'Draft Frame',
-      value: totalProducts.toLocaleString(),
-      bgColor: theme.palette.custom.status.info.light,
-    },
+    { icon: <Inventory2 sx={{ color: theme.palette.custom.status.pink.main }} />, label: 'Total Frames', value: totalGroups.toLocaleString(), bgColor: theme.palette.custom.status.pink.light },
+    { icon: <Verified sx={{ color: theme.palette.custom.status.success.main }} />, label: 'Active Frames', value: activeCount.toLocaleString(), bgColor: theme.palette.custom.status.success.light },
+    { icon: <Warehouse sx={{ color: theme.palette.custom.status.info.main }} />, label: 'In-stock', value: inStockCount.toLocaleString(), bgColor: theme.palette.custom.status.info.light },
+    { icon: <RemoveShoppingCart sx={{ color: theme.palette.custom.status.error.main }} />, label: 'Out-of-stock', value: outOfStockCount.toLocaleString(), bgColor: theme.palette.custom.status.error.light },
+    { icon: <EditNote sx={{ color: theme.palette.custom.status.warning.main }} />, label: 'No Variants', value: noVariantCount.toLocaleString(), bgColor: theme.palette.custom.status.info.light },
   ];
 
-  const getStatusColor = (status: ShopStatus) => {
-    switch (status) {
-      case 'ACTIVE':
-        return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
-      case 'INACTIVE':
-        return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
-      case 'PENDING':
-        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
-      default:
-        return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
-    }
+  const sidebarProps = {
+    activeMenu: PAGE_ENDPOINTS.SHOP.PRODUCTS,
+    shopName: shop?.shopName,
+    shopLogo: shop?.logoUrl,
+    ownerName: user?.fullName,
+    ownerEmail: user?.email,
+    ownerAvatar: user?.avatarUrl,
   };
+
+  const getVariantSummary = (fg: FrameGroup) => {
+    const variants = fg.frameVariantResponses;
+    const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    const hasOut = variants.some((v) => v.stockQuantity === 0);
+    const hasLow = variants.some((v) => v.stockQuantity > 0 && v.stockQuantity <= LOW_STOCK_THRESHOLD);
+    const colors = Array.from(
+      new Map(variants.map((v) => [v.colorHex, v.colorName])).entries()
+    ).slice(0, 4);
+    return { totalStock, hasOut, hasLow, count: variants.length, colors };
+  };
+
+  const getPrice = (fg: FrameGroup) => {
+    const p = fg.productResponses[0];
+    if (p) return { base: p.basePrice, compare: p.compareAtPrice };
+    const v = fg.frameVariantResponses[0];
+    if (v) return { base: v.basePrice, compare: v.compareAtPrice };
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <ShopOwnerSidebar {...sidebarProps} />
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
+  const TOTAL_COLS = 8;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-      {/* Sidebar */}
-      <Sidebar activeMenu={PAGE_ENDPOINTS.TRACKING.SHOPS} />
+      <ShopOwnerSidebar {...sidebarProps} />
 
-      {/* Main Content */}
       <Box sx={{ flex: 1, p: 4 }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
           <Box>
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 1 }}
-            >
+            <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 1 }}>
               Frame Management
             </Typography>
             <Typography sx={{ color: theme.palette.custom.neutral[500], fontSize: 14 }}>
@@ -311,12 +554,8 @@ const FrameProductPage = () => {
           <CustomButton
             variant="contained"
             startIcon={<Add />}
-            sx={{
-              backgroundColor: theme.palette.primary.main,
-              textTransform: 'none',
-              fontWeight: 600,
-            }}
-            onClick={() => {navigate(PAGE_ENDPOINTS.SHOP.CREATE_FRAME)}}
+            sx={{ backgroundColor: theme.palette.primary.main, textTransform: 'none', fontWeight: 600 }}
+            onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.CREATE_FRAME); }}
           >
             Add Frame
           </CustomButton>
@@ -328,38 +567,16 @@ const FrameProductPage = () => {
             <Paper
               key={index}
               elevation={0}
-              sx={{
-                flex: 1,
-                p: 2.5,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.custom.border.light}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-              }}
+              sx={{ flex: 1, p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 2 }}
             >
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 2,
-                  backgroundColor: stat.bgColor,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <Box sx={{ width: 48, height: 48, borderRadius: 2, backgroundColor: stat.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {stat.icon}
               </Box>
               <Box>
-                <Typography
-                  sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}
-                >
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
                   {stat.label}
                 </Typography>
-                <Typography
-                  sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.custom.neutral[800] }}
-                >
+                <Typography sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -367,24 +584,26 @@ const FrameProductPage = () => {
           ))}
         </Box>
 
-        {/* Shop List */}
+        {/* Frame List */}
         <Paper
           elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
-            overflow: 'hidden',
-          }}
+          sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}
         >
+          {/* Toolbar */}
           <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography
-              sx={{ fontSize: 18, fontWeight: 600, color: theme.palette.custom.neutral[800] }}
-            >
-              Shop List
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography sx={{ fontSize: 18, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                Frame List
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+                · Click a row to expand variants
+              </Typography>
+            </Box>
             <TextField
-              placeholder="Search shops..."
+              placeholder="Search frames..."
               size="small"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               sx={{ width: 300 }}
               InputProps={{
                 startAdornment: (
@@ -400,189 +619,290 @@ const FrameProductPage = () => {
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                  <TableCell padding="checkbox">
-                    <Checkbox size="small" onClick={(e) => e.stopPropagation()} />
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Shop
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Owner
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Location
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Products
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Rating
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <TableSortLabel>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                        Revenue
-                      </Typography>
-                    </TableSortLabel>
-                  </TableCell>
-                  <TableCell>
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
-                      Status
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right" />
+                  {['Frame Name', 'Material & Shape', 'Target', 'Price', 'Variants', 'Status', 'Action'].map((col) => (
+                    <TableCell key={col}>
+                      {col === 'Action' ? (
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
+                          {col}
+                        </Typography>
+                      ) : (
+                        <TableSortLabel>
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500] }}>
+                            {col}
+                          </Typography>
+                        </TableSortLabel>
+                      )}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
-              <TableBody>
-                {shopsData.map((shop) => {
-                  const statusColor = getStatusColor(shop.status);
 
-                  return (
-                    <TableRow
-                      key={shop.shopId}
-                      hover
-                      onClick={() => handleRowClick(shop.shopId)}
-                      sx={{
-                        cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: theme.palette.custom.neutral[50],
-                        },
-                      }}
-                    >
-                      <TableCell padding="checkbox">
-                        <Checkbox size="small" onClick={(e) => e.stopPropagation()} />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar
-                            variant="rounded"
-                            src={shop.shopLogo}
-                            sx={{ width: 44, height: 44, bgcolor: theme.palette.custom.neutral[100] }}
-                          >
-                            <Store />
-                          </Avatar>
-                          <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                                {shop.shopName}
-                              </Typography>
-                              {shop.isVerified && (
-                                <Verified sx={{ fontSize: 16, color: theme.palette.custom.status.info.main }} />
-                              )}
-                            </Box>
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                              {shop.shopCode}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar
-                            src={shop.ownerAvatar}
-                            sx={{ width: 32, height: 32, bgcolor: theme.palette.custom.neutral[200] }}
-                          >
-                            {shop.ownerName[0]}
-                          </Avatar>
-                          <Box>
-                            <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                              {shop.ownerName}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Phone sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }} />
-                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                                {shop.phone}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                          <LocationOn sx={{ fontSize: 16, color: theme.palette.custom.neutral[400], mt: 0.3 }} />
-                          <Box>
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[800] }}>
-                              {shop.district}
-                            </Typography>
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                              {shop.city}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Inventory sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                          <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                            {shop.totalProducts.toLocaleString()}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {shop.rating > 0 ? (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Star sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
-                            <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                              {shop.rating}
-                            </Typography>
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                              ({shop.totalReviews})
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
-                            No reviews
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                          {formatCurrency(shop.totalRevenue)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={shop.status}
-                          size="small"
+              <TableBody>
+                {paginated.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={TOTAL_COLS} sx={{ textAlign: 'center', py: 8 }}>
+                      <Inventory sx={{ fontSize: 48, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                      <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                        No frames found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginated.map((fg) => {
+                    const isExpanded = expandedRows.has(fg.id);
+                    const summary = getVariantSummary(fg);
+                    const price = getPrice(fg);
+                    const isActive = fg.productResponses.some((p) => p.isActive) ||
+                      fg.frameVariantResponses.some((v) => v.isActive === true);
+
+                    return (
+                      <>
+                        {/* Main frame group row */}
+                        <TableRow
+                          key={fg.id}
+                          hover
+                          onClick={() => toggleRow(fg.id)}
                           sx={{
-                            backgroundColor: statusColor.bg,
-                            color: statusColor.color,
-                            fontWeight: 600,
-                            fontSize: 11,
+                            cursor: 'pointer',
+                            bgcolor: isExpanded ? `${theme.palette.custom.status.info.light}60` : 'inherit',
+                            '&:hover': { backgroundColor: theme.palette.custom.neutral[50] },
+                            transition: 'background-color 0.15s',
                           }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" onClick={(e) => e.stopPropagation()}>
-                          <MoreVert sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                        >
+                          {/* Frame Name */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', pl: 0.5 }}>
+                                <IconButton size="small" tabIndex={-1} sx={{ p: 0.25 }}>
+                                  {isExpanded
+                                    ? <KeyboardArrowUp sx={{ fontSize: 18, color: theme.palette.custom.status.info.main }} />
+                                    : <KeyboardArrowDown sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
+                                  }
+                                </IconButton>
+                              </Box>
+
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                {summary.colors.length > 0 ? (
+                                  <Box sx={{ display: 'flex', gap: 0.4 }}>
+                                    {summary.colors.map(([hex, name]) => (
+                                      <Tooltip key={hex} title={name}>
+                                        <Box
+                                          sx={{
+                                            width: 16,
+                                            height: 16,
+                                            borderRadius: '50%',
+                                            bgcolor: hex,
+                                            border: '1.5px solid rgba(0,0,0,0.12)',
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    ))}
+                                    {summary.count > 4 && (
+                                      <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400], alignSelf: 'center' }}>
+                                        +{summary.count - 4}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                ) : (
+                                  <Avatar
+                                    variant="rounded"
+                                    sx={{ width: 40, height: 40, bgcolor: theme.palette.custom.neutral[100], borderRadius: 1.5 }}
+                                  >
+                                    <Inventory sx={{ fontSize: 20, color: theme.palette.custom.neutral[400] }} />
+                                  </Avatar>
+                                )}
+                              </Box>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                  sx={{
+                                    fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800],
+                                    maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {fg.frameName}
+                                </Typography>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mt: 0.25, fontFamily: 'monospace' }}>
+                                  {fg.id.slice(0, 8).toUpperCase()}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+
+                          {/* Material & Shape */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Chip
+                                label={fg.frameMaterial}
+                                size="small"
+                                sx={{
+                                  height: 20, fontSize: 10, fontWeight: 600,
+                                  bgcolor: theme.palette.custom.neutral[100],
+                                  color: theme.palette.custom.neutral[600],
+                                  border: 'none', width: 'fit-content',
+                                  '& .MuiChip-label': { px: 1 },
+                                }}
+                              />
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                                {fg.frameShape} · {fg.frameStructure}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+
+                          {/* Target */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                              <Typography sx={{ fontSize: 12, fontWeight: 500, color: theme.palette.custom.neutral[700] }}>
+                                {fg.genderTarget}
+                              </Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
+                                {fg.ageGroup}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+
+                          {/* Price */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            {price ? (
+                              <>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                  {price.base.toLocaleString('vi-VN')}₫
+                                </Typography>
+                                {price.compare > price.base && (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
+                                    {price.compare.toLocaleString('vi-VN')}₫
+                                  </Typography>
+                                )}
+                              </>
+                            ) : (
+                              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>—</Typography>
+                            )}
+                          </TableCell>
+
+                          {/* Variants summary */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                  {summary.totalStock}
+                                </Typography>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
+                                  units
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Chip
+                                  label={`${summary.count} variants`}
+                                  size="small"
+                                  sx={{
+                                    height: 18, fontSize: 10, fontWeight: 500,
+                                    bgcolor: isExpanded ? theme.palette.custom.status.info.light : theme.palette.custom.neutral[100],
+                                    color: isExpanded ? theme.palette.custom.status.info.main : theme.palette.custom.neutral[500],
+                                    border: 'none',
+                                    '& .MuiChip-label': { px: 1 },
+                                  }}
+                                />
+                                {summary.hasOut && (
+                                  <Chip label="OOS" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 600, bgcolor: '#fee2e2', color: '#dc2626', border: 'none', '& .MuiChip-label': { px: 0.75 } }} />
+                                )}
+                                {!summary.hasOut && summary.hasLow && (
+                                  <Chip label="Low" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 600, bgcolor: '#fef9c3', color: '#ca8a04', border: 'none', '& .MuiChip-label': { px: 0.75 } }} />
+                                )}
+                              </Box>
+                            </Box>
+                          </TableCell>
+
+                          {/* Status */}
+                          <TableCell sx={{ py: 1.5 }}>
+                            <Chip
+                              label={isActive ? 'Active' : 'Inactive'}
+                              size="small"
+                              sx={{
+                                fontSize: 11, fontWeight: 600,
+                                bgcolor: isActive ? theme.palette.custom.status.success.light : theme.palette.custom.status.warning.light,
+                                color: isActive ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main,
+                                border: 'none',
+                              }}
+                            />
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell sx={{ py: 1.5 }} align="right">
+                            <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'flex-end' }}>
+                              <Tooltip title="View">
+                                <IconButton size="small" onClick={(e) => e.stopPropagation()}
+                                  sx={{ width: 30, height: 30, borderRadius: 1, bgcolor: theme.palette.custom.neutral[100], '&:hover': { bgcolor: theme.palette.custom.neutral[200] } }}>
+                                  <Visibility sx={{ fontSize: 15, color: theme.palette.custom.neutral[500] }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Edit">
+                                <IconButton size="small" onClick={(e) => e.stopPropagation()}
+                                  sx={{ width: 30, height: 30, borderRadius: 1, bgcolor: theme.palette.custom.neutral[100], '&:hover': { bgcolor: theme.palette.custom.status.info.light }, '&:hover .edit-icon': { color: theme.palette.custom.status.info.main } }}>
+                                  <Edit className="edit-icon" sx={{ fontSize: 15, color: theme.palette.custom.neutral[500] }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton size="small" onClick={(e) => e.stopPropagation()}
+                                  sx={{ width: 30, height: 30, borderRadius: 1, bgcolor: theme.palette.custom.status.error.light, '&:hover': { bgcolor: '#fecaca' } }}>
+                                  <DeleteOutline sx={{ fontSize: 15, color: theme.palette.custom.status.error.main }} />
+                                </IconButton>
+                              </Tooltip>
+                              <IconButton size="small" onClick={(e) => e.stopPropagation()} sx={{ color: theme.palette.custom.neutral[500] }}>
+                                <MoreVert sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Expanded variant sub-table */}
+                        {isExpanded && (
+                          <VariantRows
+                            key={`${fg.id}-variants`}
+                            variants={fg.frameVariantResponses}
+                            colSpan={TOTAL_COLS}
+                            vrEnabled={fg.vrEnabled}
+                          />
+                        )}
+                      </>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Pagination */}
+          {filtered.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 1.5, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, newPage) => setPage(newPage)}
+                size="small"
+                shape="rounded"
+                sx={{
+                  '& .MuiPaginationItem-root': { fontSize: 13 },
+                  '& .Mui-selected': { bgcolor: `${theme.palette.custom.status.info.main} !important`, color: '#fff' },
+                }}
+              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                  Showing {startEntry} to {endEntry} of {filtered.length} entries
+                </Typography>
+                <FormControl size="small">
+                  <Select
+                    value={rowsPerPage}
+                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(1); }}
+                    sx={{ fontSize: 13, height: 32, borderRadius: 1.5, '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.border.light } }}
+                  >
+                    <MenuItem value={10}>Show 10</MenuItem>
+                    <MenuItem value={20}>Show 20</MenuItem>
+                    <MenuItem value={50}>Show 50</MenuItem>
+                    <MenuItem value={100}>Show 100</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+          )}
         </Paper>
       </Box>
     </Box>
