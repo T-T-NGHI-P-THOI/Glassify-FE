@@ -3,7 +3,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { ImageFaceLandmarkerService } from "@/services/FaceLandmarkerService";
 import { ThreeJsService } from "@/services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
+import { AgeDetectionService, type AgeGenderResult } from "@/services/AgeDetectionService";
 import { FaceShapeSuggestionPanel } from "./FaceShapeSuggestionPanel";
+import { AgeGenderBadge } from "./AgeGenderBadge";
+import GlassesTryOnPopup from "./GlassesTryOn/GlassesTryOnPopup";
 
 type Status = "idle" | "initializing" | "loading" | "done" | "no_face" | "error";
 
@@ -15,14 +18,25 @@ const ImageTryOnPage = () => {
     const [preview, setPreview] = useState<string | null>(null);
     const [dragging, setDragging] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
+    const [ageResult, setAgeResult] = useState<AgeGenderResult | null>(null);
+    const [isDetectingAge, setIsDetectingAge] = useState(false);
 
     const faceEngineRef = useRef<ImageFaceLandmarkerService | null>(null);
+    const ageServiceRef = useRef<AgeDetectionService | null>(null);
     const prevUrlRef = useRef<string | null>(null);
 
     useEffect(() => {
         const engine = new ImageFaceLandmarkerService();
         faceEngineRef.current = engine;
-        engine.initializeEngine()
+
+        const ageSvc = new AgeDetectionService();
+        ageServiceRef.current = ageSvc;
+
+        // Init both engines in parallel
+        Promise.all([
+            engine.initializeEngine(),
+            ageSvc.loadModels(),
+        ])
             .then(() => setStatus("idle"))
             .catch(() => setStatus("error"));
     }, []);
@@ -33,6 +47,7 @@ const ImageTryOnPage = () => {
 
         setStatus("loading");
         setAnalysisResult(null);
+        setAgeResult(null);
 
         if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
         const url = URL.createObjectURL(file);
@@ -49,20 +64,28 @@ const ImageTryOnPage = () => {
 
             const canvas = canvasRef.current!;
             const threeService = new ThreeJsService();
-            await threeService.initializeWithImage(img, canvas);
+            await threeService.initializeWithImage(img, canvas, frame);
 
             faceEngineRef.current!.setThreeObjects(
                 threeService.glassesObj!,
                 threeService.faceObj!
             );
 
-            // detectAndApply returns { found, landmarks }
             const { found, landmarks } = await faceEngineRef.current!.detectAndApply(img);
             threeService.renderOnce();
 
             if (found && landmarks) {
                 const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
                 setAnalysisResult(result);
+
+                // Age detection (run after face found)
+                setIsDetectingAge(true);
+                const ageSvc = ageServiceRef.current;
+                if (ageSvc) {
+                    const ageRes = await ageSvc.detectFromImage(img);
+                    if (ageRes) setAgeResult(ageRes);
+                }
+                setIsDetectingAge(false);
             }
 
             setStatus(found ? "done" : "no_face");
@@ -187,7 +210,42 @@ const ImageTryOnPage = () => {
                 )}
             </Box>
 
-            {/* Face shape suggestion panel */}
+            {/* Age / Gender result strip */}
+            {(ageResult || isDetectingAge) && (
+                <Box sx={{
+                    zIndex: 1, width: "100%", maxWidth: 640,
+                    mt: 2,
+                    px: 3, py: 2,
+                    border: "1px solid rgba(201,168,76,0.18)",
+                    borderRadius: "12px",
+                    bgcolor: "rgba(255,255,255,0.025)",
+                    backdropFilter: "blur(8px)",
+                    display: "flex", alignItems: "center", gap: 2,
+                }}>
+                    <Box sx={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        border: "1px solid rgba(201,168,76,0.35)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#c9a84c", flexShrink: 0,
+                    }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                        </svg>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                        <Typography sx={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: "0.68rem", textTransform: "uppercase",
+                            letterSpacing: "0.14em", color: "rgba(240,230,200,0.35)", mb: 0.5,
+                        }}>
+                            Age & Gender Detection
+                        </Typography>
+                        <AgeGenderBadge result={ageResult} isDetecting={isDetectingAge} />
+                    </Box>
+                </Box>
+            )}
+
             <Box sx={{ zIndex: 1, width: "100%", maxWidth: 640 }}>
                 <FaceShapeSuggestionPanel result={analysisResult} />
             </Box>

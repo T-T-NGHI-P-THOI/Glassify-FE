@@ -8,10 +8,11 @@ import {
     Step,
     StepLabel,
     StepConnector,
+    CircularProgress,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import { ArrowBack, CheckCircle } from '@mui/icons-material';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
@@ -31,6 +32,10 @@ import { type Upload3DModelPageRef } from './Upload3DModel';
 
 import ReviewFramePage from './ReviewFramePage';
 import ProductAPI from '@/api/product-api';
+import { useAuth } from '@/hooks/useAuth';
+import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
+import type { ShopDetailResponse } from '@/models/Shop';
+import { shopApi } from '@/api/shopApi';
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +61,7 @@ const registrationSteps = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFramePage = () => {
+    const { user } = useAuth();
     const theme = useTheme();
     const navigate = useNavigate();
 
@@ -68,6 +74,8 @@ const CreateFramePage = () => {
     const upload3DModelRef = useRef<Upload3DModelPageRef>(null);
 
     // ── Persisted data ────────────────────────────────────────────────────────
+    const [loading, setLoading] = useState(true);
+    const [shop, setShop] = useState<ShopDetailResponse | null>(null);
     const [frameGroupId, setFrameGroupId] = useState<string>('');
     const [productId, setProductId] = useState<string>('');
     const [savedGroupData, setSavedGroupData] = useState<Partial<CreateFrameFormData>>({});
@@ -107,11 +115,51 @@ const CreateFramePage = () => {
 
     useLayoutConfig({ showNavbar: false, showFooter: false });
 
+    useEffect(() => {
+        (async () => {
+            try {
+                const shopRes = await shopApi.getMyShops();
+                const myShop = shopRes.data?.[0] ?? null;
+                setShop(myShop);
+            } catch (err) {
+                console.error('Failed to load frame groups:', err);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
+
+    const sidebarProps = {
+        activeMenu: PAGE_ENDPOINTS.SHOP.PRODUCTS,
+        shopName: shop?.shopName,
+        shopLogo: shop?.logoUrl,
+        ownerName: user?.fullName,
+        ownerEmail: user?.email,
+        ownerAvatar: user?.avatarUrl,
+    };
+
     // ── Render ────────────────────────────────────────────────────────────────
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+                <ShopOwnerSidebar {...sidebarProps} />
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CircularProgress />
+                </Box>
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50], display: 'flex' }}>
-            <Sidebar activeMenu={PAGE_ENDPOINTS.TRACKING.SHOPS} />
+            <ShopOwnerSidebar
+                activeMenu={PAGE_ENDPOINTS.SHOP.PRODUCTS}
+                shopName={user?.shop?.shopName}
+                shopLogo={user?.shop?.logoUrl}
+                ownerName={user?.fullName}
+                ownerEmail={user?.email}
+                ownerAvatar={user?.avatarUrl}
+            />
 
             <Box sx={{ maxWidth: 1000, mx: 'auto', p: 4 }}>
                 {/* Header */}
@@ -200,6 +248,7 @@ const CreateFramePage = () => {
                         <CreateFrameGroupPage
                             ref={frameInfoRef}
                             initialData={savedGroupData}
+                            shopId={shop?.id}
                             // upload3DModelRef được gắn vào Upload3DModelPage bên trong
                             // để sau này CreateFrameVariantPage có thể gọi applyTexture()
                             upload3DModelRef={upload3DModelRef}
@@ -214,6 +263,7 @@ const CreateFramePage = () => {
                     {activeStep === 1 && (
                         <CreateFrameVariantPage
                             ref={variantRef}
+                            shopId={shop?.id}
                             frameGroupId={frameGroupId}
                             initialData={savedVariantData}
                             upload3DModelRef={upload3DModelRef}
