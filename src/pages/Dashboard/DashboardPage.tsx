@@ -19,12 +19,9 @@ import {
   ShoppingCart,
   AttachMoney,
   People,
-  TrendingUp,
-  TrendingDown,
   LocalShipping,
   Inventory,
   Star,
-  MoreVert,
   ArrowUpward,
   ArrowDownward,
   Visibility,
@@ -32,16 +29,16 @@ import {
   Schedule,
   Store,
 } from '@mui/icons-material';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
-import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { adminApi } from '@/api/adminApi';
+import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 
-// Mock data for dashboard
+// Mock data for stats not yet covered by API
 const dashboardStats = {
-  totalShops: 156,
-  activeShops: 142,
   totalOrders: 12580,
   pendingOrders: 234,
   totalRevenue: 2850000000,
@@ -52,14 +49,13 @@ const dashboardStats = {
   lowStockProducts: 28,
   pendingDeliveries: 89,
   completedDeliveries: 1250,
-  // Growth rates
   shopGrowth: 12.5,
   orderGrowth: 8.3,
   revenueGrowth: 15.2,
   customerGrowth: 6.8,
 };
 
-const recentOrders = [
+const recentOrders = [ // TODO: replace when admin orders API is available
   {
     orderId: 'ORD-2024-001',
     customer: 'Nguyễn Văn Minh',
@@ -107,93 +103,32 @@ const recentOrders = [
   },
 ];
 
-const topShops = [
-  {
-    shopId: 1,
-    shopName: 'Optical Vision Store',
-    shopLogo: '/shops/ovs.png',
-    revenue: 125000000,
-    orders: 156,
-    rating: 4.9,
-    growth: 18.5,
-  },
-  {
-    shopId: 2,
-    shopName: 'Premium Optics',
-    shopLogo: '/shops/po.png',
-    revenue: 98000000,
-    orders: 124,
-    rating: 4.8,
-    growth: 12.3,
-  },
-  {
-    shopId: 3,
-    shopName: 'EyeWear Plus',
-    shopLogo: '/shops/ewp.png',
-    revenue: 87000000,
-    orders: 112,
-    rating: 4.7,
-    growth: 8.9,
-  },
-  {
-    shopId: 4,
-    shopName: 'Lens World',
-    shopLogo: '/shops/lw.png',
-    revenue: 76000000,
-    orders: 98,
-    rating: 4.6,
-    growth: -2.1,
-  },
-  {
-    shopId: 5,
-    shopName: 'Sun Shades Co.',
-    shopLogo: '/shops/ssc.png',
-    revenue: 65000000,
-    orders: 87,
-    rating: 4.5,
-    growth: 5.4,
-  },
-];
-
-const pendingApprovals = [
-  {
-    id: 1,
-    shopName: 'New Vision Store',
-    ownerName: 'Võ Văn Tài',
-    submittedAt: '2024-01-20T08:00:00',
-    businessType: 'Company',
-  },
-  {
-    id: 2,
-    shopName: 'Clear Eyes Shop',
-    ownerName: 'Đặng Thị Hương',
-    submittedAt: '2024-01-19T15:30:00',
-    businessType: 'Individual',
-  },
-  {
-    id: 3,
-    shopName: 'Fashion Frames',
-    ownerName: 'Bùi Minh Tuấn',
-    submittedAt: '2024-01-19T10:00:00',
-    businessType: 'Partnership',
-  },
-];
 
 const DashboardPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { setShowNavbar, setShowFooter } = useLayout();
+
+  useLayoutConfig({ showNavbar: false, showFooter: false });
+
+  const [shops, setShops] = useState<AdminShopItem[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<ShopRequest[]>([]);
 
   useEffect(() => {
-    setShowNavbar(false);
-    setShowFooter(false);
+    adminApi.getShops().then((res) => {
+      if (res.data) setShops(res.data);
+    }).catch(() => {});
 
-    return () => {
-      setShowNavbar(true);
-      setShowFooter(true);
-    };
-  }, [setShowNavbar, setShowFooter]);
-  
+    adminApi.getShopRequests('PENDING').then((res) => {
+      if (res.data) setPendingRequests(res.data.requests);
+    }).catch(() => {});
+  }, []);
+
+  const totalShops = shops.length;
+  const activeShops = shops.filter((s) => s.status === 'ACTIVE').length;
+  const topShops = [...shops]
+    .sort((a, b) => (b.totalOrders ?? 0) - (a.totalOrders ?? 0))
+    .slice(0, 5);
+
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000000) {
@@ -241,8 +176,8 @@ const DashboardPage = () => {
     {
       icon: <Storefront sx={{ color: theme.palette.custom.status.info.main }} />,
       label: 'Total Shops',
-      value: dashboardStats.totalShops.toLocaleString(),
-      subValue: `${dashboardStats.activeShops} active`,
+      value: totalShops.toLocaleString(),
+      subValue: `${activeShops} active`,
       growth: dashboardStats.shopGrowth,
       bgColor: theme.palette.custom.status.info.light,
     },
@@ -549,22 +484,24 @@ const DashboardPage = () => {
                         SHOP
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>
-                        REVENUE
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>
                         ORDERS
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>
-                        RATING
+                        PRODUCTS
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>
-                        GROWTH
+                        RATING
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {topShops.map((shop, index) => (
-                      <TableRow key={shop.shopId} hover sx={{ cursor: 'pointer' }}>
+                      <TableRow
+                        key={shop.id}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`${PAGE_ENDPOINTS.TRACKING.SHOP_DETAIL}`.replace(':shopId', shop.id))}
+                      >
                         <TableCell>
                           <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[400] }}>
                             {index + 1}
@@ -572,7 +509,7 @@ const DashboardPage = () => {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Avatar variant="rounded" src={shop.shopLogo} sx={{ width: 36, height: 36, bgcolor: theme.palette.custom.neutral[100] }}>
+                            <Avatar variant="rounded" src={shop.logoUrl ?? undefined} sx={{ width: 36, height: 36, bgcolor: theme.palette.custom.neutral[100] }}>
                               <Store sx={{ fontSize: 18 }} />
                             </Avatar>
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
@@ -581,38 +518,20 @@ const DashboardPage = () => {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                            {formatFullCurrency(shop.revenue)}
+                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                            {shop.totalOrders ?? '—'}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
-                            {shop.orders}
+                            {shop.totalProducts ?? '—'}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Star sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
                             <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                              {shop.rating}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            {shop.growth >= 0 ? (
-                              <TrendingUp sx={{ fontSize: 16, color: theme.palette.custom.status.success.main }} />
-                            ) : (
-                              <TrendingDown sx={{ fontSize: 16, color: theme.palette.custom.status.error.main }} />
-                            )}
-                            <Typography
-                              sx={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: shop.growth >= 0 ? theme.palette.custom.status.success.main : theme.palette.custom.status.error.main,
-                              }}
-                            >
-                              {Math.abs(shop.growth)}%
+                              {shop.avgRating != null ? shop.avgRating.toFixed(1) : '—'}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -641,7 +560,7 @@ const DashboardPage = () => {
                     Pending Approvals
                   </Typography>
                   <Chip
-                    label={pendingApprovals.length}
+                    label={pendingRequests.length}
                     size="small"
                     sx={{
                       height: 20,
@@ -660,44 +579,51 @@ const DashboardPage = () => {
                 </Typography>
               </Box>
               <Box sx={{ p: 2 }}>
-                {pendingApprovals.map((approval, index) => (
-                  <Box
-                    key={approval.id}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      border: `1px solid ${theme.palette.custom.border.light}`,
-                      mb: index < pendingApprovals.length - 1 ? 1.5 : 0,
-                      '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                        {approval.shopName}
+                {pendingRequests.length === 0 ? (
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], textAlign: 'center', py: 2 }}>
+                    No pending approvals
+                  </Typography>
+                ) : (
+                  pendingRequests.slice(0, 3).map((req, index) => (
+                    <Box
+                      key={req.id}
+                      onClick={() => navigate(PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL)}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                        mb: index < Math.min(pendingRequests.length, 3) - 1 ? 1.5 : 0,
+                        '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                          {req.shopName}
+                        </Typography>
+                        <Chip
+                          label={req.businessLicense?.businessType ?? '—'}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: 10,
+                            backgroundColor: theme.palette.custom.neutral[100],
+                            color: theme.palette.custom.neutral[600],
+                          }}
+                        />
+                      </Box>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 1 }}>
+                        Owner: {req.userName}
                       </Typography>
-                      <Chip
-                        label={approval.businessType}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: 10,
-                          backgroundColor: theme.palette.custom.neutral[100],
-                          color: theme.palette.custom.neutral[600],
-                        }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Schedule sx={{ fontSize: 14, color: theme.palette.custom.neutral[400] }} />
+                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                          {formatDate(req.submittedAt)}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 1 }}>
-                      Owner: {approval.ownerName}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Schedule sx={{ fontSize: 14, color: theme.palette.custom.neutral[400] }} />
-                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                        {formatDate(approval.submittedAt)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
+                  ))
+                )}
               </Box>
             </Paper>
 

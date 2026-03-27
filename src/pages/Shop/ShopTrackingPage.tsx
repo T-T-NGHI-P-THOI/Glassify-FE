@@ -27,7 +27,6 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
-import { useLayout } from '../../layouts/LayoutContext';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
 import type { AdminShopItem } from '@/models/Shop';
@@ -37,6 +36,8 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 const ShopTrackingPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const [shops, setShops] = useState<AdminShopItem[]>([]);
   const [loading, setLoading] = useState(false);
