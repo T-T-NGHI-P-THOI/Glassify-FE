@@ -149,7 +149,7 @@ const AdminRefundManagementPage = () => {
       });
     } catch (error: any) {
       console.error('Failed to fetch requests:', error);
-      toast.error('Không thể tải danh sách yêu cầu hoàn trả');
+      toast.error('Failed to load refund requests');
     } finally {
       setListLoading(false);
     }
@@ -165,7 +165,7 @@ const AdminRefundManagementPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch request detail:', error);
-      toast.error('Không thể tải thông tin yêu cầu');
+      toast.error('Failed to load request details');
     } finally {
       setDetailLoading(false);
     }

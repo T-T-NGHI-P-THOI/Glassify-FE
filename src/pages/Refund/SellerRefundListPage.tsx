@@ -101,11 +101,11 @@ const SellerRefundListPage = () => {
   });
 
   const statusTabs = [
-    { label: 'Tất cả', value: null, count: counts.all },
-    { label: 'Chờ xử lý', value: ReturnStatus.REQUESTED, count: counts.pending },
-    { label: 'Đã chấp thuận', value: ReturnStatus.APPROVED, count: counts.approved },
-    { label: 'Đã nhận hàng', value: ReturnStatus.ITEM_RECEIVED, count: counts.itemReceived },
-    { label: 'Hoàn tất', value: ReturnStatus.COMPLETED, count: counts.completed },
+    { label: 'All', value: null, count: counts.all },
+    { label: 'Pending', value: ReturnStatus.REQUESTED, count: counts.pending },
+    { label: 'Approved', value: ReturnStatus.APPROVED, count: counts.approved },
+    { label: 'Item Received', value: ReturnStatus.ITEM_RECEIVED, count: counts.itemReceived },
+    { label: 'Completed', value: ReturnStatus.COMPLETED, count: counts.completed },
   ];
 
   const fetchRequests = async (status?: ReturnStatus | null) => {
@@ -129,7 +129,7 @@ const SellerRefundListPage = () => {
       });
     } catch (error: any) {
       console.error('Failed to fetch return requests:', error);
-      toast.error(error.response?.data?.message || 'Không thể tải danh sách yêu cầu hoàn trả');
+      toast.error(error.response?.data?.message || 'Failed to load refund requests');
     } finally {
       setLoading(false);
     }
@@ -174,16 +174,16 @@ const SellerRefundListPage = () => {
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               <Store sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
-              Quản lý Hoàn trả
+              Refund Management
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Xử lý các yêu cầu hoàn trả và đổi trả từ khách hàng
+              Process customer return and exchange requests
             </Typography>
           </Box>
           {counts.pending > 0 && (
             <Alert severity="warning" variant="outlined">
               <Typography variant="body2" fontWeight="medium">
-                <strong>{counts.pending}</strong> yêu cầu cần xử lý
+                <strong>{counts.pending}</strong> requests need attention
               </Typography>
             </Alert>
           )}
@@ -234,10 +234,10 @@ const SellerRefundListPage = () => {
         <Paper sx={{ p: 8, textAlign: 'center' }}>
           <AssignmentReturn sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            Chưa có yêu cầu hoàn trả nào
+            No return requests yet
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Các yêu cầu hoàn trả từ khách hàng sẽ hiển thị ở đây
+            Customer return requests will appear here
           </Typography>
         </Paper>
       )}
@@ -263,7 +263,7 @@ const SellerRefundListPage = () => {
                   {needsAction(request) && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                       <Typography variant="body2" fontWeight="medium">
-                        Cần xử lý ngay
+                        Action Required
                       </Typography>
                     </Alert>
                   )}
@@ -304,7 +304,7 @@ const SellerRefundListPage = () => {
                         {request.productName}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Mã đơn hàng: {request.orderNumber}
+                        Order Number: {request.orderNumber}
                       </Typography>
                       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                         <Chip
@@ -313,7 +313,7 @@ const SellerRefundListPage = () => {
                           variant="outlined"
                         />
                         <Chip
-                          label={request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
+                          label={request.returnType === 'REFUND' ? 'Refund' : 'Exchange'}
                           color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
                           size="small"
                         />
@@ -321,13 +321,13 @@ const SellerRefundListPage = () => {
                     </Grid>
                     <Grid item xs={12} sm={4} textAlign="right">
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Số tiền hoàn
+                        Refund Amount
                       </Typography>
                       <Typography variant="h6" color="primary" fontWeight="bold">
                         {formatCurrency(request.refundAmount)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Số lượng: {request.quantity}
+                        Quantity: {request.quantity}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -336,7 +336,7 @@ const SellerRefundListPage = () => {
                   {request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber && (
                     <Alert severity="info" sx={{ mt: 2 }}>
                       <Typography variant="body2">
-                        Khách hàng đã gửi hàng - Mã vận đơn:{' '}
+                        Customer shipped the item - Tracking Number:{' '}
                         <strong>{request.returnTrackingNumber}</strong>
                       </Typography>
                     </Alert>
@@ -345,7 +345,7 @@ const SellerRefundListPage = () => {
                   {request.status === ReturnStatus.ITEM_RECEIVED && (
                     <Alert severity="success" sx={{ mt: 2 }}>
                       <Typography variant="body2">
-                        ✓ Đã xác nhận nhận hàng trả - Chờ hoàn tiền
+                        Confirmed item received - Waiting for refund
                       </Typography>
                     </Alert>
                   )}
@@ -359,7 +359,7 @@ const SellerRefundListPage = () => {
                       startIcon={<Gavel />}
                       onClick={() => handleViewDetail(request.id)}
                     >
-                      Xử lý ngay
+                      Process Now
                     </Button>
                   )}
                   <Button
@@ -367,7 +367,7 @@ const SellerRefundListPage = () => {
                     startIcon={<Visibility />}
                     onClick={() => handleViewDetail(request.id)}
                   >
-                    Xem chi tiết
+                    View Details
                   </Button>
                 </CardActions>
               </Card>
