@@ -158,7 +158,6 @@ export class FaceLandmarkerService {
         this.scheduleNextPrediction(video);
     }
 
-    // Shared landmark → Three.js logic (used by both VIDEO and IMAGE services)
     applyLandmarks(
         landmarks: vision.NormalizedLandmark[],
         width: number,
@@ -228,21 +227,21 @@ export class FaceLandmarkerService {
 
         sm.prev.copy(tGPos);
 
-        this.glassesObj!.scale.set(
+        this.glassesObj.scale.set(
             sm.gScale.x * this.baseScale.x,
             sm.gScale.y * this.baseScale.y,
             sm.gScale.z * this.baseScale.z
         );
 
-        this.normalizePosition(this.glassesObj!);
-        this.glassesObj!.position.set(
-            sm.gPos.x + this.glassesObj!.position.x,
-            sm.gPos.y + this.glassesObj!.position.y,
-            sm.gPos.z + this.glassesObj!.position.z
+        this.normalizePosition(this.glassesObj);
+        this.glassesObj.position.set(
+            sm.gPos.x + this.glassesObj.position.x,
+            sm.gPos.y + this.glassesObj.position.y,
+            sm.gPos.z + this.glassesObj.position.z
         );
 
-        this.glassesObj!.quaternion.copy(sm.gQuat);
-        this.glassesObj!.updateWorldMatrix(true, true);
+        this.glassesObj.quaternion.copy(sm.gQuat);
+        this.glassesObj.updateWorldMatrix(true, true);
 
         if (this.faceObj) {
             let posAttr = this.faceObj.geometry.getAttribute('position');

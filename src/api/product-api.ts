@@ -1,6 +1,8 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
+import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
+import axiosInstance from './axios.config';
 
 // Category type from API
 export interface ApiCategory {
@@ -204,5 +206,73 @@ export default class ProductAPI {
       console.error('Error fetching categories:', error);
       return [];
     }
+  }
+
+  // ── Frame API ───────────────────────────────────────────────────
+ static async getFrameGroupFromShopId(shopId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
+    );
+    return response.data.data;
+  }
+
+  static async createFrameGroup(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.CREATE_FRAME_GROUP,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
+
+  static async createFrameVariant(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.CREATE_FRAME_VARIANT,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
+
+  static async getProductImages(productId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_PRODUCT_IMAGES(productId),
+    );
+    return response.data.data;
+  }
+
+  static async activateProduct(productId: string) {
+    const response = await axiosInstance.patch(
+      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId)
+    );
+    return response.data.data;
+  }
+
+  static async upload3DModelFile(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.UPLOAD_3D_MODEL,
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
+
+  static async getTextureFiles(frameGroupId: string) {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
+      params: { frameGroupId }
+    });
+    return response.data.data;
   }
 }

@@ -8,17 +8,24 @@ import ShopTrackingPage from "@/pages/Shop/ShopTrackingPage";
 import ShopTrackingDetailPage from "@/pages/Shop/ShopTrackingDetailPage";
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage";
 import ShopProfilePage from "@/pages/Shop/ShopProfilePage";
-
+import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage";
+import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
+import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import MyOrdersPage from "@/pages/Order/MyOrdersPage";
 import WarrantyPage from "@/pages/Warranty/WarrantyPage";
 import AuthPage from "@/pages/auth/Login";
 import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
 import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
 import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
+import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 
 const PublicRoutesComponent = () => {
     return (
         <>
+            <Route
+                path="/test-try-on"
+                element={<TestTryOnPage />}
+            />
             {/* Home Page */}
             <Route
                 path="/"
@@ -46,11 +53,30 @@ const PublicRoutesComponent = () => {
                 }
             />
 
-             <Route
+            <Route
                 path={'/image-try-on'}
                 element={
                     <GuestGuard>
                         <ImageTryOnPage />
+                    </GuestGuard>
+                }
+            />
+
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME}
+                element={
+                    <GuestGuard>
+                        <FrameProductPage />
+                    </GuestGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_FRAME}
+                element={
+                    <GuestGuard>
+                        <CreateFramePage />
                     </GuestGuard>
                 }
             />
