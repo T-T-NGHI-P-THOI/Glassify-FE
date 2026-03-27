@@ -23,6 +23,7 @@ import {
   MenuItem,
   Alert,
   IconButton,
+  Snackbar,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -46,13 +47,13 @@ import {
   Close,
   CloudUpload,
   Delete,
+  ErrorOutline,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
-import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import AccessTime from '@mui/icons-material/AccessTime';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
@@ -195,6 +196,9 @@ const groupItemsByShop = (items: OrderItem[]) => {
   });
   return Array.from(shopMap.values());
 };
+
+const isWarrantyExpired = (item: OrderItem): boolean =>
+  Boolean(item.warrantyExpiresAt) && new Date(item.warrantyExpiresAt!) < new Date();
 
 const getRefundStatusLabel = (status?: ReturnStatus) => {
   switch (status) {
@@ -353,6 +357,13 @@ const MyOrdersPage = () => {
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false, message: '', severity: 'success',
+  });
+  const showSnackbar = (message: string, severity: 'success' | 'error') =>
+    setSnackbar({ open: true, message, severity });
+
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedOrderItemForReturn, setSelectedOrderItemForReturn] = useState<OrderItem | null>(null);
@@ -399,7 +410,7 @@ const MyOrdersPage = () => {
     try {
       setCancellingOrderId(cancelTargetId);
       await orderApi.cancelOrder(cancelTargetId);
-      toast.success('Order cancelled successfully');
+      showSnackbar('Order cancelled successfully', 'success');
       setCancelDialogOpen(false);
       await fetchOrders();
       if (selectedOrder?.id === cancelTargetId) {
@@ -407,7 +418,7 @@ const MyOrdersPage = () => {
       }
     } catch (error) {
       console.error('Failed to cancel order:', error);
-      toast.error('Failed to cancel order');
+      showSnackbar('Failed to cancel order', 'error');
     } finally {
       setCancellingOrderId(null);
       setCancelTargetId(null);
@@ -417,11 +428,11 @@ const MyOrdersPage = () => {
   const handleReOrder = async (orderId: string) => {
     try {
       await orderApi.reOrder(orderId);
-      toast.success('Re-order created successfully');
+      showSnackbar('Re-order created successfully', 'success');
       await fetchOrders();
     } catch (error) {
       console.error('Failed to re-order:', error);
-      toast.error('Failed to re-order');
+      showSnackbar('Failed to re-order', 'error');
     }
   };
 
@@ -461,12 +472,12 @@ const MyOrdersPage = () => {
 
   const handleSubmitReturnRequest = async () => {
     if (!selectedOrderItemForReturn || !selectedOrder) {
-      toast.error('Không tìm thấy thông tin sản phẩm');
+      showSnackbar('Không tìm thấy thông tin sản phẩm', 'error');
       return;
     }
 
     if (!returnDescription.trim()) {
-      toast.error('Vui lòng nhập mô tả chi tiết lý do trả hàng');
+      showSnackbar('Vui lòng nhập mô tả chi tiết lý do trả hàng', 'error');
       return;
     }
 
@@ -483,7 +494,7 @@ const MyOrdersPage = () => {
       };
 
       const response = await createReturnRequest(requestData);
-      toast.success('Tạo yêu cầu trả hàng thành công');
+      showSnackbar('Tạo yêu cầu trả hàng thành công', 'success');
       handleCloseReturnDialog();
       setDetailDialogOpen(false);
       
@@ -493,7 +504,7 @@ const MyOrdersPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to create return request:', error);
-      toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu trả hàng');
+      showSnackbar(error.response?.data?.message || 'Không thể tạo yêu cầu trả hàng', 'error');
     } finally {
       setSubmittingReturn(false);
     }
@@ -1358,104 +1369,105 @@ const MyOrdersPage = () => {
                 </Grid>
               </DialogContent>
 
-              <DialogActions sx={{ px: 3, py: 2 }}>
+              <DialogActions sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Button
                   onClick={() => setDetailDialogOpen(false)}
-                  sx={{
-                    textTransform: 'none',
-                    color: theme.palette.custom.neutral[600],
-                  }}
+                  sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (() => {
-                  const hasRefundRequest = Boolean(selectedOrder.refundRequestId);
-                  const refundStatus = selectedOrder.refundStatus;
-                  const refundStatusChipColor =
-                    refundStatus === ReturnStatus.COMPLETED
-                      ? { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main }
-                      : refundStatus === ReturnStatus.REJECTED || refundStatus === ReturnStatus.CANCELLED
-                        ? { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main }
-                        : { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
-                  
-                  return (
-                  <>
-                    {hasRefundRequest && (
-                      <Chip
-                        label={getRefundStatusLabel(refundStatus)}
-                        size="small"
-                        sx={{
-                          bgcolor: refundStatusChipColor.bg,
-                          color: refundStatusChipColor.color,
-                          fontWeight: 600,
-                          fontSize: 11,
-                          height: 24,
-                        }}
-                      />
-                    )}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  {selectedOrder.status === 'DELIVERED' && (() => {
+                    const hasRefundRequest = Boolean(selectedOrder.refundRequestId);
+                    return (
+                      <>
+                        <Button
+                          variant="outlined"
+                          startIcon={checkingEligibility ? <CircularProgress size={14} /> : <AssignmentReturn />}
+                          disabled={checkingEligibility}
+                          onClick={async () => {
+                            console.log('[RefundBtn] clicked, hasRefundRequest=', hasRefundRequest, 'items=', selectedOrder.items.length);
+                            if (hasRefundRequest && selectedOrder.refundRequestId) {
+                              navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', selectedOrder.refundRequestId));
+                              return;
+                            }
+                            if (selectedOrder.items.length === 0) {
+                              console.log('[RefundBtn] no items, returning');
+                              return;
+                            }
+                            const item = selectedOrder.items[0];
+                            console.log('[RefundBtn] item=', item.id, 'warrantyExpiresAt=', item.warrantyExpiresAt, 'isExpired=', isWarrantyExpired(item));
+
+                            if (isWarrantyExpired(item)) {
+                              showSnackbar("This item's warranty has expired. Warranty claims are no longer accepted.", 'error');
+                              return;
+                            }
+
+                            setCheckingEligibility(true);
+                            try {
+                              console.log('[RefundBtn] calling checkReturnEligibility for', item.id);
+                              const res = await checkReturnEligibility(item.id);
+                              console.log('[RefundBtn] eligibility result=', res.data);
+                              if (res.data && !res.data.eligible) {
+                                showSnackbar(res.data.ineligibilityReason ?? 'The return period for this order has expired.', 'error');
+                              } else {
+                                handleOpenReturnDialog(item);
+                              }
+                            } catch (err) {
+                              console.error('[RefundBtn] API error:', err);
+                              handleOpenReturnDialog(item);
+                            } finally {
+                              setCheckingEligibility(false);
+                            }
+                          }}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderColor: hasRefundRequest
+                              ? theme.palette.custom.status.info.main
+                              : theme.palette.custom.status.warning.main,
+                            color: hasRefundRequest
+                              ? theme.palette.custom.status.info.main
+                              : theme.palette.custom.status.warning.main,
+                            '&:hover': {
+                              borderColor: hasRefundRequest
+                                ? theme.palette.custom.status.info.main
+                                : theme.palette.custom.status.warning.main,
+                              bgcolor: hasRefundRequest
+                                ? theme.palette.custom.status.info.light
+                                : theme.palette.custom.status.warning.light,
+                            },
+                          }}
+                        >
+                          {hasRefundRequest ? 'View Refund Request' : 'Request Refund'}
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleReOrder(selectedOrder.id)}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            bgcolor: '#111',
+                            '&:hover': { bgcolor: '#333' },
+                          }}
+                        >
+                          Buy Again
+                        </Button>
+                      </>
+                    );
+                  })()}
+                  {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                     <Button
                       variant="outlined"
-                      startIcon={<AssignmentReturn />}
-                      onClick={() => {
-                        if (hasRefundRequest && selectedOrder.refundRequestId) {
-                          // Navigate to return request detail page
-                          navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', selectedOrder.refundRequestId));
-                        } else if (selectedOrder.items.length > 0) {
-                          // Open return dialog for the first item
-                          handleOpenReturnDialog(selectedOrder.items[0]);
-                        }
-                      }}
-                      sx={{
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        borderColor: hasRefundRequest
-                          ? theme.palette.custom.status.info.main
-                          : theme.palette.custom.status.warning.main,
-                        color: hasRefundRequest
-                          ? theme.palette.custom.status.info.main
-                          : theme.palette.custom.status.warning.main,
-                        '&:hover': {
-                          borderColor: hasRefundRequest
-                            ? theme.palette.custom.status.info.main
-                            : theme.palette.custom.status.warning.main,
-                          bgcolor: hasRefundRequest
-                            ? theme.palette.custom.status.info.light
-                            : theme.palette.custom.status.warning.light,
-                        },
-                        '&.Mui-disabled': {
-                          borderColor: theme.palette.custom.neutral[300],
-                          color: theme.palette.custom.neutral[400],
-                        },
-                      }}
+                      color="error"
+                      disabled={cancellingOrderId === selectedOrder.id}
+                      onClick={() => openCancelDialog(selectedOrder.id)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
                     >
-                      {hasRefundRequest ? 'Xem yêu cầu' : 'Tạo yêu cầu hoàn tiền'}
+                      {cancellingOrderId === selectedOrder.id ? 'Cancelling...' : 'Cancel Order'}
                     </Button>
-                    <Button
-                      variant="contained"
-                      onClick={() => handleReOrder(selectedOrder.id)}
-                      sx={{
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        bgcolor: '#111',
-                        '&:hover': { bgcolor: '#333' },
-                      }}
-                    >
-                      Buy Again
-                    </Button>
-                  </>
-                  );
-                })()}
-                {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    disabled={cancellingOrderId === selectedOrder.id}
-                    onClick={() => openCancelDialog(selectedOrder.id)}
-                    sx={{ textTransform: 'none', fontWeight: 600 }}
-                  >
-                    {cancellingOrderId === selectedOrder.id ? 'Cancelling...' : 'Cancel Order'}
-                  </Button>
-                )}
+                  )}
+                </Box>
               </DialogActions>
             </>
           );
@@ -1713,6 +1725,26 @@ const MyOrdersPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ zIndex: 99999 }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          sx={{
+            bgcolor: snackbar.severity === 'success' ? '#222' : '#d32f2f',
+            color: '#fff',
+            '& .MuiAlert-icon': { color: '#fff' },
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
