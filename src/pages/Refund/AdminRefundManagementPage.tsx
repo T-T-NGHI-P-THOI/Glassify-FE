@@ -261,7 +261,7 @@ const AdminRefundManagementPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -454,11 +454,11 @@ const AdminRefundManagementPage = () => {
     try {
       const pathname = new URL(url).pathname;
       const parts = pathname.split('/').filter(Boolean);
-      return decodeURIComponent(parts[parts.length - 1] || 'tep-dinh-kem');
+      return decodeURIComponent(parts[parts.length - 1] || 'attachment-file');
     } catch {
       const sanitized = url.split('?')[0].split('#')[0];
       const parts = sanitized.split('/').filter(Boolean);
-      return parts[parts.length - 1] || 'tep-dinh-kem';
+      return parts[parts.length - 1] || 'attachment-file';
     }
   };
 
@@ -541,7 +541,7 @@ const AdminRefundManagementPage = () => {
                   <Stack spacing={1}>
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary">
-                        Đơn hàng:
+                        Order:
                       </Typography>
                       <Typography variant="body2" fontWeight="medium">
                         {request.orderNumber}
@@ -549,16 +549,16 @@ const AdminRefundManagementPage = () => {
                     </Box>
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary">
-                        Số lượng:
+                        Quantity:
                       </Typography>
                       <Typography variant="body2">{request.quantity}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" color="text.secondary">
-                        Loại:
+                        Type:
                       </Typography>
                       <Chip
-                        label={request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
+                        label={request.returnType === 'REFUND' ? 'Refund' : 'Exchange'}
                         size="small"
                       />
                     </Box>
@@ -721,7 +721,7 @@ const AdminRefundManagementPage = () => {
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   <AdminPanelSettings sx={{ verticalAlign: 'middle', mr: 1 }} />
-                  Ghi chú Admin
+                    Admin Notes
                 </Typography>
                 <Divider sx={{ my: 2 }} />
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.50' }}>
@@ -878,7 +878,7 @@ const AdminRefundManagementPage = () => {
               label="Final Refund Amount"
               value={finalRefundAmount}
               onChange={(e) => setFinalRefundAmount(Number(e.target.value))}
-              InputProps={{ endAdornment: 'VNĐ' }}
+              InputProps={{ endAdornment: 'VND' }}
               sx={{ mb: 2 }}
             />
           )}

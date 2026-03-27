@@ -135,7 +135,7 @@ const BuyerRefundListPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -210,7 +210,7 @@ const BuyerRefundListPage = () => {
       {!loading && requests.length > 0 && (
         <Grid container spacing={3}>
           {requests.map((request) => (
-            <Grid item xs={12} key={request.id}>
+            <Grid size={{ xs: 12 }} key={request.id}>
               <Card
                 elevation={2}
                 sx={{
@@ -244,7 +244,7 @@ const BuyerRefundListPage = () => {
 
                   {/* Product info */}
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                       <Avatar
                         src={request.productImageUrl}
                         variant="rounded"
@@ -253,7 +253,7 @@ const BuyerRefundListPage = () => {
                         <AssignmentReturn />
                       </Avatar>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
                         {request.productName}
                       </Typography>
@@ -270,7 +270,7 @@ const BuyerRefundListPage = () => {
                         sx={{ mt: 1 }}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={4} textAlign="right">
+                    <Grid size={{ xs: 12, sm: 4 }} textAlign="right">
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Request Type
                       </Typography>

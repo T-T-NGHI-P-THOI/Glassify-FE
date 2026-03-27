@@ -86,7 +86,7 @@ const BuyerCreateRefundPage = () => {
 
   useEffect(() => {
     if (!orderItem?.id) {
-      toast.error('Không tìm thấy thông tin sản phẩm');
+      toast.error('Product information not found');
       navigate('/my-orders');
       return;
     }
@@ -186,7 +186,7 @@ const BuyerCreateRefundPage = () => {
   if (!orderItem) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
-        <Alert severity="error">Không tìm thấy thông tin sản phẩm</Alert>
+        <Alert severity="error">Product information not found</Alert>
       </Container>
     );
   }
@@ -227,7 +227,7 @@ const BuyerCreateRefundPage = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Thông tin sản phẩm
+            Product Information
           </Typography>
           <Divider sx={{ my: 2 }} />
           <Grid container spacing={2} alignItems="center">
@@ -264,7 +264,7 @@ const BuyerCreateRefundPage = () => {
         {activeStep === 0 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              Kiểm tra điều kiện hoàn trả
+              Check Return Eligibility
             </Typography>
             {eligibility && (
               <Box sx={{ mt: 3 }}>
@@ -272,17 +272,17 @@ const BuyerCreateRefundPage = () => {
                   <>
                     <Alert severity="success" sx={{ mb: 3 }}>
                       <Typography variant="subtitle2" gutterBottom>
-                        Sản phẩm đủ điều kiện để hoàn trả
+                        This item is eligible for return
                       </Typography>
                       <Typography variant="body2">
-                        Thời gian còn lại: {eligibility.daysRemaining} ngày
+                        Time remaining: {eligibility.daysRemaining} days
                       </Typography>
                     </Alert>
                     <Grid container spacing={2}>
                       <Grid item xs={6} md={3}>
                         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Số tiền hoàn tối đa
+                            Max Refund Amount
                           </Typography>
                           <Typography variant="h6" color="primary" fontWeight="bold">
                             {formatCurrency(eligibility.maxRefundAmount)}
@@ -292,30 +292,30 @@ const BuyerCreateRefundPage = () => {
                       <Grid item xs={6} md={3}>
                         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Hoàn phí vận chuyển
+                            Shipping Refundable
                           </Typography>
                           <Typography variant="h6" fontWeight="bold">
-                            {eligibility.shippingRefundable ? 'Có' : 'Không'}
+                            {eligibility.shippingRefundable ? 'Yes' : 'No'}
                           </Typography>
                         </Paper>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Thời gian còn lại
+                            Remaining Time
                           </Typography>
                           <Typography variant="h6" fontWeight="bold">
-                            {eligibility.daysRemaining} ngày
+                            {eligibility.daysRemaining} days
                           </Typography>
                         </Paper>
                       </Grid>
                       <Grid item xs={6} md={3}>
                         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                           <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Hạn chót
+                            Deadline
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            {new Date(eligibility.returnDeadline!).toLocaleDateString('vi-VN')}
+                            {new Date(eligibility.returnDeadline!).toLocaleDateString('en-US')}
                           </Typography>
                         </Paper>
                       </Grid>
@@ -324,10 +324,10 @@ const BuyerCreateRefundPage = () => {
                 ) : (
                   <Alert severity="error">
                     <Typography variant="subtitle2" gutterBottom>
-                      Sản phẩm không đủ điều kiện hoàn trả
+                      This item is not eligible for return
                     </Typography>
                     <Typography variant="body2">
-                      Lý do: {eligibility.ineligibilityReason}
+                      Reason: {eligibility.ineligibilityReason}
                     </Typography>
                   </Alert>
                 )}
@@ -340,12 +340,12 @@ const BuyerCreateRefundPage = () => {
         {activeStep === 1 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              Chọn loại và lý do hoàn trả
+              Choose Request Type and Reason
             </Typography>
             
             {/* Return type */}
             <FormControl fullWidth sx={{ mt: 3 }}>
-              <FormLabel>Loại yêu cầu</FormLabel>
+              <FormLabel>Request Type</FormLabel>
               <RadioGroup
                 value={returnType}
                 onChange={(e) => setReturnType(e.target.value as ReturnType)}
@@ -354,22 +354,22 @@ const BuyerCreateRefundPage = () => {
                 <FormControlLabel
                   value={ReturnType.REFUND}
                   control={<Radio />}
-                  label="Hoàn tiền - Trả lại sản phẩm và nhận hoàn tiền"
+                  label="Refund - Return the item and receive a refund"
                 />
                 <FormControlLabel
                   value={ReturnType.EXCHANGE}
                   control={<Radio />}
-                  label="Đổi hàng - Đổi sang sản phẩm khác (cùng giá trị)"
+                  label="Exchange - Replace with another item (same value)"
                 />
               </RadioGroup>
             </FormControl>
 
             {/* Return reason */}
             <FormControl fullWidth sx={{ mt: 3 }}>
-              <InputLabel>Lý do hoàn trả *</InputLabel>
+              <InputLabel>Return Reason *</InputLabel>
               <Select
                 value={reason}
-                label="Lý do hoàn trả *"
+                label="Return Reason *"
                 onChange={(e) => setReason(e.target.value as ReturnReason)}
               >
                 {Object.values(ReturnReason).map((reasonValue) => (
@@ -385,18 +385,18 @@ const BuyerCreateRefundPage = () => {
               fullWidth
               multiline
               rows={4}
-              label="Mô tả chi tiết (Tùy chọn)"
+              label="Detailed Description (Optional)"
               value={reasonDetail}
               onChange={(e) => setReasonDetail(e.target.value)}
               sx={{ mt: 3 }}
-              placeholder="Mô tả chi tiết về lý do hoàn trả..."
+              placeholder="Describe your return reason in detail..."
             />
 
             {/* Quantity */}
             <TextField
               fullWidth
               type="number"
-              label="Số lượng"
+              label="Quantity"
               value={quantity}
               onChange={(e) => setQuantity(Math.min(Number(e.target.value), orderItem.quantity))}
               inputProps={{ min: 1, max: orderItem.quantity }}
@@ -406,7 +406,7 @@ const BuyerCreateRefundPage = () => {
             {/* Evidence images */}
             <Box sx={{ mt: 3 }}>
               <Typography variant="body1" gutterBottom>
-                Hình ảnh bằng chứng (Tối đa 5 ảnh)
+                Evidence Images (Maximum 5)
               </Typography>
               <Button
                 variant="outlined"
@@ -415,7 +415,7 @@ const BuyerCreateRefundPage = () => {
                 disabled={imageFiles.length >= 5}
                 sx={{ mt: 1 }}
               >
-                Tải lên hình ảnh
+                Upload Images
                 <input
                   type="file"
                   hidden
@@ -467,24 +467,24 @@ const BuyerCreateRefundPage = () => {
         {activeStep === 2 && (
           <Box>
             <Typography variant="h6" gutterBottom>
-              Xác nhận thông tin
+              Confirm Information
             </Typography>
             <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
-              Vui lòng kiểm tra kỹ thông tin trước khi gửi yêu cầu
+              Please review all details before submitting
             </Alert>
 
             <Stack spacing={2}>
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Loại yêu cầu
+                  Request Type
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
-                  {returnType === ReturnType.REFUND ? 'Hoàn tiền' : 'Đổi hàng'}
+                  {returnType === ReturnType.REFUND ? 'Refund' : 'Exchange'}
                 </Typography>
               </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Lý do
+                  Reason
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
                   {RETURN_REASON_LABELS[reason]}
@@ -493,14 +493,14 @@ const BuyerCreateRefundPage = () => {
               {reasonDetail && (
                 <Box>
                   <Typography variant="body2" color="text.secondary">
-                    Mô tả chi tiết
+                    Detailed Description
                   </Typography>
                   <Typography variant="body1">{reasonDetail}</Typography>
                 </Box>
               )}
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Số lượng
+                  Quantity
                 </Typography>
                 <Typography variant="body1" fontWeight="medium">
                   {quantity}
@@ -508,7 +508,7 @@ const BuyerCreateRefundPage = () => {
               </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
-                  Số tiền hoàn (dự kiến)
+                  Estimated Refund Amount
                 </Typography>
                 <Typography variant="h6" color="primary" fontWeight="bold">
                   {formatCurrency((eligibility?.maxRefundAmount || 0))}
@@ -517,7 +517,7 @@ const BuyerCreateRefundPage = () => {
               {evidenceImages.length > 0 && (
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Hình ảnh ({evidenceImages.length})
+                    Images ({evidenceImages.length})
                   </Typography>
                   <Grid container spacing={1}>
                     {evidenceImages.map((url, index) => (
@@ -544,7 +544,7 @@ const BuyerCreateRefundPage = () => {
         {/* Navigation buttons */}
         <Box display="flex" justifyContent="space-between" mt={4}>
           <Button disabled={activeStep === 0} onClick={handleBack}>
-            Quay lại
+            Back
           </Button>
           <Box>
             {activeStep < steps.length - 1 ? (
@@ -554,7 +554,7 @@ const BuyerCreateRefundPage = () => {
                 onClick={handleNext}
                 disabled={activeStep === 0 && !eligibility?.eligible}
               >
-                Tiếp tục
+                Continue
               </Button>
             ) : (
               <Button
@@ -564,7 +564,7 @@ const BuyerCreateRefundPage = () => {
                 onClick={handleSubmit}
                 disabled={loading}
               >
-                {loading ? 'Đang gửi...' : 'Gửi yêu cầu'}
+                {loading ? 'Submitting...' : 'Submit Request'}
               </Button>
             )}
           </Box>
