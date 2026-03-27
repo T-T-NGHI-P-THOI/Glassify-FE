@@ -29,6 +29,8 @@ export const API_ENDPOINTS = {
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
+    GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
+    GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
     ACTIVATE_PRODUCT: (id: string) => `/product/${id}/activate`,
