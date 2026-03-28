@@ -187,7 +187,7 @@ const AdminShopApprovalPage = () => {
   };
 
   const getRejectionReason = () =>
-    rejectionReasonPreset === 'OTHER' ? customReason : rejectionReasonPreset;
+    rejectionReasonPreset === 'OTHER' ? 'Khác' : rejectionReasonPreset;
 
   const handleReject = async () => {
     if (!selectedRegistration) return;
@@ -424,10 +424,10 @@ const AdminShopApprovalPage = () => {
                         </TableCell>
                         <TableCell>
                           <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[800] }}>
-                            {registration.city}
+                            {[registration.districtName, registration.provinceName || registration.city].filter(Boolean).join(', ') || registration.city}
                           </Typography>
                           <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                            {registration.address}
+                            {[registration.address, registration.wardName].filter(Boolean).join(', ') || registration.address}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -542,6 +542,26 @@ const AdminShopApprovalPage = () => {
                     Shop Information
                   </Typography>
 
+                  {selectedRegistration.logoUrl && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 1 }}>Shop Logo</Typography>
+                      <Box
+                        component="img"
+                        src={selectedRegistration.logoUrl}
+                        alt="Shop Logo"
+                        sx={{
+                          width: 120,
+                          height: 120,
+                          objectFit: 'contain',
+                          borderRadius: 2,
+                          border: `1px solid ${theme.palette.custom.border.light}`,
+                          bgcolor: theme.palette.custom.neutral[50],
+                          display: 'block',
+                        }}
+                      />
+                    </Box>
+                  )}
+
                   {[
                     { label: 'Shop Name', value: selectedRegistration.shopName },
                     { label: 'Shop Code', value: selectedRegistration.shopCode },
@@ -653,23 +673,60 @@ const AdminShopApprovalPage = () => {
                     ))}
                     {selectedRegistration.businessLicense?.licenseImageUrl && (
                       <Grid size={{ xs: 12 }}>
-                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Image URL</Typography>
-                        <Typography
-                          component="a"
-                          href={selectedRegistration.businessLicense.licenseImageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          sx={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: theme.palette.primary.main,
-                            wordBreak: 'break-all',
-                            textDecoration: 'none',
-                            '&:hover': { textDecoration: 'underline' },
-                          }}
-                        >
-                          {selectedRegistration.businessLicense.licenseImageUrl}
-                        </Typography>
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 1 }}>License Document</Typography>
+                        {/\.(png|jpg|jpeg|webp)(\?|$)/i.test(selectedRegistration.businessLicense.licenseImageUrl) ? (
+                          <Box
+                            component="a"
+                            href={selectedRegistration.businessLicense.licenseImageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{ display: 'inline-block' }}
+                          >
+                            <Box
+                              component="img"
+                              src={selectedRegistration.businessLicense.licenseImageUrl}
+                              alt="Business License"
+                              sx={{
+                                maxWidth: '100%',
+                                maxHeight: 360,
+                                objectFit: 'contain',
+                                borderRadius: 2,
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                                display: 'block',
+                              }}
+                            />
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mt: 0.5 }}>
+                              Click to open full size
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <Box
+                              component="a"
+                              href={selectedRegistration.businessLicense.licenseImageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 2,
+                                py: 1,
+                                borderRadius: 2,
+                                bgcolor: theme.palette.custom.neutral[100],
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                                textDecoration: 'none',
+                                color: theme.palette.primary.main,
+                                fontSize: 14,
+                                fontWeight: 500,
+                                '&:hover': { bgcolor: theme.palette.custom.neutral[200] },
+                              }}
+                            >
+                              <Description sx={{ fontSize: 18 }} />
+                              View License Document (PDF)
+                            </Box>
+                          </Box>
+                        )}
                       </Grid>
                     )}
                   </Grid>
@@ -705,7 +762,12 @@ const AdminShopApprovalPage = () => {
                     Shop Address
                   </Typography>
                   <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[800] }}>
-                    {[selectedRegistration.address, selectedRegistration.city].filter(Boolean).join(', ') || 'N/A'}
+                    {[
+                      selectedRegistration.address,
+                      selectedRegistration.wardName,
+                      selectedRegistration.districtName,
+                      selectedRegistration.provinceName || selectedRegistration.city,
+                    ].filter(Boolean).join(', ') || 'N/A'}
                   </Typography>
                 </Grid>
 
@@ -853,20 +915,6 @@ const AdminShopApprovalPage = () => {
               <MenuItem value="OTHER">Khác...</MenuItem>
             </Select>
           </FormControl>
-          {rejectionReasonPreset === 'OTHER' && (
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Nhập lý do từ chối"
-              value={customReason}
-              onChange={(e) => setCustomReason(e.target.value)}
-              placeholder="Mô tả chi tiết lý do từ chối..."
-              required
-              sx={{ mb: 2 }}
-              autoFocus
-            />
-          )}
           <TextField
             fullWidth
             multiline
@@ -888,7 +936,6 @@ const AdminShopApprovalPage = () => {
             onClick={handleReject}
             disabled={
               !rejectionReasonPreset ||
-              (rejectionReasonPreset === 'OTHER' && !customReason.trim()) ||
               !adminComment.trim() ||
               reviewLoading
             }
