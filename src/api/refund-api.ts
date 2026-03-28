@@ -119,6 +119,28 @@ export const processRefund = async (
   return response.data;
 };
 
+export const uploadRefundEvidenceImages = async (
+  requestId: string,
+  files: File[]
+): Promise<ApiResponse<RefundRequest>> => {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/evidence-images`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data;
+};
+
 export const getReturnStatistics = async (
   shopId?: string
 ): Promise<ApiResponse<any>> => {
