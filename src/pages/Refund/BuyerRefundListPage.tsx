@@ -97,11 +97,11 @@ const BuyerRefundListPage = () => {
   const [selectedTab, setSelectedTab] = useState<number>(0);
 
   const statusTabs = [
-    { label: 'Tất cả', value: null },
-    { label: 'Đang xử lý', value: ReturnStatus.REQUESTED },
-    { label: 'Đã chấp thuận', value: ReturnStatus.APPROVED },
-    { label: 'Hoàn tất', value: ReturnStatus.COMPLETED },
-    { label: 'Đã hủy', value: ReturnStatus.CANCELLED },
+    { label: 'All', value: null },
+    { label: 'In Progress', value: ReturnStatus.REQUESTED },
+    { label: 'Approved', value: ReturnStatus.APPROVED },
+    { label: 'Completed', value: ReturnStatus.COMPLETED },
+    { label: 'Cancelled', value: ReturnStatus.CANCELLED },
   ];
 
   const fetchRequests = async (status?: ReturnStatus | null) => {
@@ -115,7 +115,7 @@ const BuyerRefundListPage = () => {
       setRequests(response.data || []);
     } catch (error: any) {
       console.error('Failed to fetch return requests:', error);
-      toast.error(error.response?.data?.message || 'Không thể tải danh sách yêu cầu hoàn trả');
+      toast.error(error.response?.data?.message || 'Failed to load refund requests');
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ const BuyerRefundListPage = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -150,10 +150,10 @@ const BuyerRefundListPage = () => {
       <Box mb={4}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           <AssignmentReturn sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
-          Yêu cầu Hoàn trả & Đổi trả
+          Return & Exchange Requests
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Quản lý các yêu cầu hoàn trả và đổi trả hàng của bạn
+          Manage your return and exchange requests
         </Typography>
       </Box>
 
@@ -191,17 +191,17 @@ const BuyerRefundListPage = () => {
         <Paper sx={{ p: 8, textAlign: 'center' }}>
           <AssignmentReturn sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            Chưa có yêu cầu hoàn trả nào
+            No return requests yet
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Các yêu cầu hoàn trả của bạn sẽ hiển thị ở đây
+            Your return requests will appear here
           </Typography>
           <Button
             variant="contained"
             startIcon={<ArrowForward />}
             onClick={() => navigate('/my-orders')}
           >
-            Xem đơn hàng
+            View Orders
           </Button>
         </Paper>
       )}
@@ -210,7 +210,7 @@ const BuyerRefundListPage = () => {
       {!loading && requests.length > 0 && (
         <Grid container spacing={3}>
           {requests.map((request) => (
-            <Grid item xs={12} key={request.id}>
+            <Grid size={{ xs: 12 }} key={request.id}>
               <Card
                 elevation={2}
                 sx={{
@@ -244,7 +244,7 @@ const BuyerRefundListPage = () => {
 
                   {/* Product info */}
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                       <Avatar
                         src={request.productImageUrl}
                         variant="rounded"
@@ -253,12 +253,12 @@ const BuyerRefundListPage = () => {
                         <AssignmentReturn />
                       </Avatar>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
                         {request.productName}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Mã đơn hàng: {request.orderNumber}
+                        Order Number: {request.orderNumber}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Shop: {request.shopName}
@@ -270,12 +270,12 @@ const BuyerRefundListPage = () => {
                         sx={{ mt: 1 }}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={4} textAlign="right">
+                    <Grid size={{ xs: 12, sm: 4 }} textAlign="right">
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Loại yêu cầu
+                        Request Type
                       </Typography>
                       <Chip
-                        label={request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
+                        label={request.returnType === 'REFUND' ? 'Refund' : 'Exchange'}
                         color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
                         size="small"
                         sx={{ mb: 1 }}
@@ -290,7 +290,7 @@ const BuyerRefundListPage = () => {
                   {request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber && (
                     <Alert severity="info" sx={{ mt: 2 }}>
                       <Typography variant="body2">
-                        Mã vận đơn: <strong>{request.returnTrackingNumber}</strong>
+                        Tracking Number: <strong>{request.returnTrackingNumber}</strong>
                       </Typography>
                     </Alert>
                   )}
@@ -298,7 +298,7 @@ const BuyerRefundListPage = () => {
                   {request.status === ReturnStatus.REJECTED && request.rejectionReason && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                       <Typography variant="body2">
-                        Lý do từ chối: {request.rejectionReason}
+                        Rejection Reason: {request.rejectionReason}
                       </Typography>
                     </Alert>
                   )}
@@ -310,7 +310,7 @@ const BuyerRefundListPage = () => {
                     startIcon={<Visibility />}
                     onClick={() => handleViewDetail(request.id)}
                   >
-                    Xem chi tiết
+                    View Details
                   </Button>
                 </CardActions>
               </Card>

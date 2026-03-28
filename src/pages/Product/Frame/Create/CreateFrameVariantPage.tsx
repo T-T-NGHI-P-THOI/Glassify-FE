@@ -59,6 +59,7 @@ export interface CreateFrameVariantFormData {
     basePrice: string;
     compareAtPrice: string;
     isReturnable: boolean;
+    isFeatured: boolean;
     images: ProductImage[];
     textureFile: TextureFile | null;
 }
@@ -68,6 +69,7 @@ export interface CreateFrameVariantPageRef {
 }
 
 interface CreateFrameVariantPageProps {
+    shopId?: string;
     frameGroupId?: string;
     initialData?: Partial<CreateFrameVariantFormData>;
     onCreated?: (variantId: string, productId: string, data: CreateFrameVariantFormData) => void;
@@ -107,6 +109,7 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     costPrice: '',
     basePrice: '',
     compareAtPrice: '',
+    isFeatured: false,
     isReturnable: false,
     images: [],
     textureFile: null,
@@ -115,7 +118,7 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrameVariantPageProps>(
-    ({ frameGroupId, initialData, onCreated, upload3DModelRef, modelFile }, ref) => {
+    ({ shopId, frameGroupId, initialData, onCreated, upload3DModelRef, modelFile }, ref) => {
         const theme = useTheme();
 
         const [formData, setFormData] = useState<CreateFrameVariantFormData>({
@@ -239,7 +242,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 const payload = new FormData();
 
                 payload.append('frameGroupId', frameGroupId);
-                payload.append('shopId', '321a10bc-76f5-48e5-9032-19f0e51098fb');
+                payload.append('shopId', shopId ?? '');
                 payload.append('colorName', formData.colorName.trim());
                 payload.append('colorHex', formData.colorHex);
                 payload.append('size', formData.size);
@@ -259,6 +262,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 if (formData.compareAtPrice) payload.append('compareAtPrice', formData.compareAtPrice);
 
                 payload.append('isReturnable', String(formData.isReturnable));
+                payload.append('isFeatured', String(formData.isFeatured));
 
                 formData.images.forEach(img => {
                     if (img.file) payload.append('productImages', img.file);
@@ -376,7 +380,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                             fullWidth
                             label="Color Hex"
@@ -406,7 +410,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth required error={!!errors.size}>
                             <InputLabel>Frame Size</InputLabel>
                             <Select
@@ -424,6 +428,18 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 </Typography>
                             )}
                         </FormControl>
+                    </Grid>
+
+                     <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={formData.isFeatured}
+                                    onChange={e => setField('isFeatured', e.target.checked)}
+                                />
+                            }
+                            label="Is Featured"
+                        />
                     </Grid>
                 </Grid>
 

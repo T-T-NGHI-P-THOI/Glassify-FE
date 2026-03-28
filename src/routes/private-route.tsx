@@ -31,6 +31,7 @@ import {
     SellerRefundDetailPage,
     AdminRefundManagementPage,
 } from "@/pages/Refund"
+import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 
 const PrivateRoutesComponent = () => {
     return (
@@ -128,7 +129,7 @@ const PrivateRoutesComponent = () => {
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
-                            <ShopProductsPage />
+                            <FrameProductPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

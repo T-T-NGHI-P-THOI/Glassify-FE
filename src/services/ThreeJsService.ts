@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { FACE_OVAL } from './FaceLandmarkerService';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { API_CONFIG } from '@/api/axios.config';
 
-const CANVAS_WIDTH = 640;
+const CANVAS_WIDTH = 880;
 
 function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, vw: number, vh: number) {
     camera.left = -vw / 2;
@@ -39,7 +40,7 @@ export class ThreeJsService {
     };
 
     // ── VIDEO mode (webcam page) ──────────────────────────────────────────
-    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement, frameGroupId: string) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
@@ -66,7 +67,7 @@ export class ThreeJsService {
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
+        this.glassesObj = await this.loadGlassesModel(frameGroupId);
         this.normalizeModel(this.glassesObj);
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
@@ -77,7 +78,7 @@ export class ThreeJsService {
     }
 
     // ── IMAGE mode (photo upload page) ───────────────────────────────────
-    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement) {
+    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string) {
         const vw = img.naturalWidth;
         const vh = img.naturalHeight;
 
@@ -116,7 +117,7 @@ export class ThreeJsService {
         this.faceObj.visible = false;
         scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel("/models/Frame.glb");
+        this.glassesObj = await this.loadGlassesModel(frameGroupId);
         this.normalizeModel(this.glassesObj);
         this.glassesObj.visible = false;
         scene.add(this.glassesObj);
@@ -257,7 +258,36 @@ export class ThreeJsService {
         };
     }
 
-    // ThreeJsService.ts — thêm method này
+    // Trong ThreeJsService.ts
+    applyTextureFromUrl(object: THREE.Object3D, url: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const loader = new THREE.TextureLoader();
+            loader.setCrossOrigin('anonymous'); // Tránh lỗi CORS
+
+            loader.load(
+                url,
+                (texture) => {
+                    texture.colorSpace = "srgb"; // Đảm bảo màu sắc chuẩn
+                    object.traverse((child) => {
+                        if ((child as any).isMesh) {
+                            const mesh = child as THREE.Mesh;
+                            if (mesh.material) {
+                                (mesh.material as any).map = texture;
+                                (mesh.material as any).needsUpdate = true;
+                            }
+                        }
+                    });
+                    console.log("Texture loaded successfully");
+                    resolve(); // Báo hiệu đã xong
+                },
+                undefined,
+                (err) => {
+                    console.error("Texture load failed", err);
+                    reject(err);
+                }
+            );
+        });
+    }
 
     applyTextureToModel(model: THREE.Object3D, textureFile: File): void {
         const objectURL = URL.createObjectURL(textureFile);
@@ -395,9 +425,9 @@ export class ThreeJsService {
         return mesh;
     }
 
-    async loadGlassesModel(path: string) {
+    async loadGlassesModel(frameGroupId: string) {
         const loader = new GLTFLoader();
-        const gltf = await loader.loadAsync(path);
+        const gltf = await loader.loadAsync(`${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${frameGroupId}`);
         const mesh = gltf.scene;
 
         mesh.traverse((child: THREE.Object3D) => {

@@ -31,6 +31,8 @@ export interface ApiShopInfo {
   id: string;
   shopCode: string;
   shopName: string;
+  address?: string;
+  city?: string;
   logoUrl: string;
   status: string;
   tier: string;
@@ -39,11 +41,21 @@ export interface ApiShopInfo {
   isVerified: boolean;
 }
 
+export interface ApiShopBasicInfo {
+  id?: string;
+  shopCode?: string;
+  shopName?: string;
+  address?: string;
+  city?: string;
+}
+
 // Product type từ API
 export interface ApiProduct {
   id: string;
   shopId: string;
   shop?: ApiShopInfo;
+  shopBasicInfo?: ApiShopBasicInfo;
+  shopbasicinfo?: ApiShopBasicInfo;
   brandId: string | null;
   categoryId: string;
   categoryName: string;
@@ -70,7 +82,13 @@ export interface ApiProduct {
   productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
-  fileResponses?: { id: string; url: string; altText?: string }[];
+  fileResponses?: {
+    id: string;
+    url?: string;
+    publicUrl?: string;
+    altText?: string;
+    originalName?: string;
+  }[];
 }
 
 // Product filter parameters
@@ -122,6 +140,23 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
+  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
+    if (Array.isArray(payload)) {
+      return payload as ApiProduct[];
+    }
+    if (payload && typeof payload === 'object') {
+      const maybeWrapped = payload as { data?: unknown };
+      if (Array.isArray(maybeWrapped.data)) {
+        return maybeWrapped.data as ApiProduct[];
+      }
+      if (maybeWrapped.data && typeof maybeWrapped.data === 'object') {
+        return [maybeWrapped.data as ApiProduct];
+      }
+      return [payload as ApiProduct];
+    }
+    return [];
+  }
+
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
       const response = await api.get<ProductApiResponse>(API_ENDPOINTS.PRODUCTS.GET_ALL, {
@@ -131,6 +166,18 @@ export default class ProductAPI {
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
+    }
+  }
+
+  static async getAccessoriesByParentProductId(productId: string): Promise<ApiProduct[]> {
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.PRODUCTS.GET_ACCESSORIES_BY_PARENT_ID(productId)
+      );
+      return ProductAPI.normalizeProductsPayload(response.data);
+    } catch (error) {
+      console.error(`Error fetching accessories for product ${productId}:`, error);
+      return [];
     }
   }
 
@@ -209,6 +256,13 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
+ static async getFrameGroupFromShopId(shopId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
+    );
+    return response.data.data;
+  }
+
   static async createFrameGroup(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.CREATE_FRAME_GROUP,
@@ -235,9 +289,16 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async getProductImages(productId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_PRODUCT_IMAGES(productId),
+    );
+    return response.data.data;
+  }
+
   static async activateProduct(productId: string) {
     const response = await axiosInstance.patch(
-      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId), // ✅ endpoint đúng
+      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId)
     );
     return response.data.data;
   }
@@ -252,6 +313,13 @@ export default class ProductAPI {
         },
       }
     );
+    return response.data.data;
+  }
+
+  static async getTextureFiles(frameGroupId: string) {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
+      params: { frameGroupId }
+    });
     return response.data.data;
   }
 }
