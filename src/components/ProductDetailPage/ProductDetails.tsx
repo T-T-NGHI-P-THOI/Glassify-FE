@@ -37,6 +37,16 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
     setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
   };
 
+  const formatMeasurement = (mm: number, inches: number): string => {
+    if (!mm || mm <= 0) return 'N/A';
+    return `${mm} mm / ${inches} in`;
+  };
+
+  const safeValue = (value?: string): string => {
+    if (!value) return 'N/A';
+    return value;
+  };
+
   return (
     <div className="product-details-section">
       <div className="details-tabs">
@@ -67,36 +77,34 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
               <h3>Frame Measurements <Info className="info-icon" /></h3>
               <div className="measurement-item">
                 <Visibility className="icon" />
-                <span><strong>Frame Width:</strong> {product.frameMeasurements.frameWidth.mm} mm / {product.frameMeasurements.frameWidth.inches} in</span>
+                <span><strong>Frame Width:</strong> {formatMeasurement(product.frameMeasurements.frameWidth.mm, product.frameMeasurements.frameWidth.inches)}</span>
               </div>
               <div className="measurement-item">
                 <Visibility className="icon" />
-                <span><strong>Bridge:</strong> {product.frameMeasurements.bridge.mm} mm / {product.frameMeasurements.bridge.inches} in</span>
+                <span><strong>Bridge:</strong> {formatMeasurement(product.frameMeasurements.bridge.mm, product.frameMeasurements.bridge.inches)}</span>
               </div>
               <div className="measurement-item">
                 <Visibility className="icon" />
-                <span><strong>Lens Width:</strong> {product.frameMeasurements.lensWidth.mm} mm / {product.frameMeasurements.lensWidth.inches} in</span>
+                <span><strong>Lens Width:</strong> {formatMeasurement(product.frameMeasurements.lensWidth.mm, product.frameMeasurements.lensWidth.inches)}</span>
               </div>
               <div className="measurement-item">
                 <Visibility className="icon" />
-                <span><strong>Lens Height:</strong> {product.frameMeasurements.lensHeight.mm} mm / {product.frameMeasurements.lensHeight.inches} in</span>
+                <span><strong>Lens Height:</strong> {formatMeasurement(product.frameMeasurements.lensHeight.mm, product.frameMeasurements.lensHeight.inches)}</span>
               </div>
               <div className="measurement-item">
                 <Visibility className="icon" />
-                <span><strong>Temple Length:</strong> {product.frameMeasurements.templeLength.mm} mm / {product.frameMeasurements.templeLength.inches} in</span>
+                <span><strong>Temple Length:</strong> {formatMeasurement(product.frameMeasurements.templeLength.mm, product.frameMeasurements.templeLength.inches)}</span>
               </div>
             </div>
 
             <div className="details-column">
               <h3>Frame Details</h3>
-              <p><strong>Size:</strong> {product.frameDetails.size} ({product.frameDetails.sizeRange})</p>
-              <p><strong>Material:</strong> <a href="#">{product.frameDetails.material}</a></p>
-              <p><strong>Weight:</strong> <a href="#">{product.frameDetails.weight}</a> ({product.frameDetails.weightGrams} grams / 0.5 ounces)</p>
-              <p><strong>Rim:</strong> <a href="#">{product.frameDetails.rim}</a></p>
-              <p><strong>Shape:</strong> <a href="#">{product.frameDetails.shape}</a></p>
-              <p><strong>Feature:</strong> {product.features.map((feature, i) => (
-                <span key={i}><a href="#">{feature}</a>{i < product.features.length - 1 ? ', ' : ''}</span>
-              ))}</p>
+              <p><strong>Size:</strong> {safeValue(product.frameDetails.size)} ({safeValue(product.frameDetails.sizeRange)})</p>
+              <p><strong>Material:</strong> {safeValue(product.frameDetails.material)}</p>
+              <p><strong>Weight:</strong> {product.frameDetails.weightGrams > 0 ? `${product.frameDetails.weightGrams} grams` : safeValue(product.frameDetails.weight)}</p>
+              <p><strong>Rim:</strong> {safeValue(product.frameDetails.rim)}</p>
+              <p><strong>Shape:</strong> {safeValue(product.frameDetails.shape)}</p>
+              <p><strong>Feature:</strong> {product.features.length > 0 ? product.features.join(', ') : 'N/A'}</p>
             </div>
 
             <div className="details-column">
@@ -107,7 +115,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
               )}
               <p><strong>Prescription Range:</strong> {product.prescriptionDetails.prescriptionRange}</p>
               <p><strong>Available as <a href="#">Progressive</a> / <a href="#">Bifocal</a>:</strong> {product.prescriptionDetails.progressive && product.prescriptionDetails.bifocal ? 'Yes' : 'No'}</p>
-              <p><strong>Available as <a href="#">Readers</a>:</strong> {product.prescriptionDetails.readers ? 'No' : 'Yes'}</p>
+              <p><strong>Available as <a href="#">Readers</a>:</strong> {product.prescriptionDetails.readers ? 'Yes' : 'No'}</p>
             </div>
           </div>
         </div>
@@ -116,31 +124,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
       {activeTab === 'description' && (
         <div className="description-content">
           <div className="description-text">
-            {product.description || (
-              <>
-                <p>
-                  Experience sophistication with our {product.name}. These stylish {product.shape.toLowerCase()} frames 
-                  are crafted from premium {product.frameDetails.material}, offering both durability and comfort for all-day wear.
-                </p>
-                <p>
-                  The {product.frameDetails.rim.toLowerCase()} design provides a modern aesthetic while maintaining 
-                  a lightweight feel at just {product.frameDetails.weightGrams} grams. Perfect for both professional 
-                  and casual settings, these frames feature adjustable nose pads for a customized fit.
-                </p>
-                <h3>Key Features:</h3>
-                <ul>
-                  <li>Premium {product.frameDetails.material} construction</li>
-                  <li>{product.frameDetails.weight} design for all-day comfort</li>
-                  <li>{product.frameDetails.rim} frame for enhanced durability</li>
-                  <li>Adjustable nose pads for perfect fit</li>
-                  <li>Compatible with prescription lenses</li>
-                  <li>UV protection included</li>
-                </ul>
-                <p>
-                  Available in multiple colors to match your personal style. Each pair comes with a protective case 
-                  and cleaning cloth. Our frames meet international quality standards and come with a satisfaction guarantee.
-                </p>
-              </>
+            {product.description ? (
+              <p>{product.description}</p>
+            ) : (
+              <p>Description is currently unavailable for this product.</p>
             )}
           </div>
         </div>

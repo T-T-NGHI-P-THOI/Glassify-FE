@@ -10,10 +10,49 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
-import ProductAPI, { type ApiProduct, type ReviewResponse } from '../../api/product-api';
+import ProductAPI, { type ApiProduct, type ProductWithFrameInfoData, type ReviewResponse } from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
+
+const PLACEHOLDER_IMAGE = 'https://placehold.co/600x400/000000/FFFFFF?text=Product';
+
+const mmToInches = (mm: number): number => Number((mm / 25.4).toFixed(1));
+
+const formatEnumLabel = (value?: string | null): string => {
+  if (!value) return 'N/A';
+  return value
+    .toLowerCase()
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const getProductImages = (apiProduct: ApiProduct): string[] => {
+  const images = (apiProduct.fileResponses || [])
+    .map(file => file.publicUrl || file.url)
+    .filter((url): url is string => Boolean(url));
+
+  return images.length > 0
+    ? images
+    : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
+};
+
+const buildFeatures = (frameInfo?: ProductWithFrameInfoData | null): string[] => {
+  const features: string[] = [];
+  const frameGroup = frameInfo?.frameGroup;
+
+  if (!frameGroup) return features;
+
+  if (frameGroup.hasNosePads) features.push('Nose Pads');
+  if (frameGroup.hasSpringHinge) features.push('Spring Hinge');
+
+  if (Array.isArray(frameGroup.suitableFaceShapes) && frameGroup.suitableFaceShapes.length > 0) {
+    features.push(...frameGroup.suitableFaceShapes.map(shape => `${formatEnumLabel(shape)} Face`));
+  }
+
+  return features;
+};
 
 const ProductDetailPage: React.FC = () => {
   const { slug, sku } = useParams<{ slug: string; sku: string }>();
@@ -59,69 +98,90 @@ const ProductDetailPage: React.FC = () => {
       try {
         setIsLoading(true);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
+        let productWithFrameInfo: ProductWithFrameInfoData | null = null;
+
+        try {
+          productWithFrameInfo = await ProductAPI.getProductWithFrameInfo(apiProduct.id);
+        } catch (error) {
+          console.warn('Unable to fetch frame info details, falling back to base product data:', error);
+        }
+
+        const productResponse = productWithFrameInfo?.productResponse ?? apiProduct;
+        const frameGroup = productWithFrameInfo?.frameGroup;
+        const frameVariant = productWithFrameInfo?.frameVariant;
+
+        const frameWidthMm = frameVariant?.frameWidthMm ?? 0;
+        const bridgeMm = frameVariant?.bridgeWidthMm ?? 0;
+        const lensWidthMm = frameVariant?.lensWidthMm ?? 0;
+        const lensHeightMm = frameVariant?.lensHeightMm ?? 0;
+        const templeLengthMm = frameVariant?.templeLengthMm ?? 0;
+
+        const productImages = getProductImages(productResponse);
+        const primaryImage = productImages[0] || PLACEHOLDER_IMAGE;
+
+        const shapeLabel = formatEnumLabel(frameGroup?.frameShape);
+        const materialLabel = formatEnumLabel(frameGroup?.frameMaterial);
+        const rimLabel = formatEnumLabel(frameGroup?.frameStructure);
+        const sizeLabel = formatEnumLabel(frameVariant?.size);
+
+        const sizeRange = frameWidthMm > 0
+          ? `${Math.max(frameWidthMm - 3, 0)} - ${frameWidthMm + 3} mm / ${mmToInches(Math.max(frameWidthMm - 3, 0))} - ${mmToInches(frameWidthMm + 3)} in`
+          : 'N/A';
+
+        const productFeatures = buildFeatures(productWithFrameInfo);
         
         // Transform API product to Product format
         const transformedProduct: Product = {
-          id: apiProduct.id,
-          shopId: apiProduct.shopId,
-          shop: apiProduct.shop,
-          slug: apiProduct.slug,
-          name: apiProduct.name,
-          sku: apiProduct.sku,
-          price: apiProduct.basePrice,
-          rating: apiProduct.avgRating || 0,
-          reviewCount: apiProduct.reviewCount || 0,
-          shape: 'Rectangle', // Default - update if you have this data
-          category: apiProduct.categoryName,
-          productType: apiProduct.productType,
-          variantId: apiProduct.variantId ?? undefined,
-          stockQuantity: apiProduct.stockQuantity,
+          id: productResponse.id,
+          shopId: productResponse.shopId,
+          shop: productResponse.shop,
+          slug: productResponse.slug,
+          name: productResponse.name,
+          sku: productResponse.sku,
+          price: productResponse.basePrice,
+          rating: productResponse.avgRating || 0,
+          reviewCount: productResponse.reviewCount || 0,
+          shape: shapeLabel,
+          category: productResponse.categoryName,
+          productType: productResponse.productType,
+          variantId: productResponse.variantId ?? frameVariant?.id ?? undefined,
+          stockQuantity: productResponse.stockQuantity,
           colors: [
             {
-              name: 'Default',
-              code: '#000000',
-              image: 'https://placehold.co/600x400/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name),
-              images: [
-                'https://placehold.co/600x400/000000/FFFFFF?text=Front',
-                'https://placehold.co/600x400/333333/FFFFFF?text=Side',
-                'https://placehold.co/600x400/666666/FFFFFF?text=Top',
-                'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
-              ],
-              productId: apiProduct.id,
-              variantId: apiProduct.variantId || apiProduct.id
+              name: frameVariant?.colorName || 'Default',
+              code: frameVariant?.colorHex || '#000000',
+              image: primaryImage,
+              images: productImages,
+              productId: productResponse.id,
+              variantId: productResponse.variantId || frameVariant?.id || productResponse.id
             }
           ],
-          images: [
-            'https://placehold.co/600x400/000000/FFFFFF?text=Front',
-            'https://placehold.co/600x400/333333/FFFFFF?text=Side',
-            'https://placehold.co/600x400/666666/FFFFFF?text=Top',
-            'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
-          ],
+          images: productImages,
           frameMeasurements: {
-            frameWidth: { mm: 130, inches: 5.1 },
-            bridge: { mm: 19, inches: 0.7 },
-            lensWidth: { mm: 54, inches: 2.1 },
-            lensHeight: { mm: 33, inches: 1.3 },
-            templeLength: { mm: 145, inches: 5.7 }
+            frameWidth: { mm: frameWidthMm, inches: mmToInches(frameWidthMm) },
+            bridge: { mm: bridgeMm, inches: mmToInches(bridgeMm) },
+            lensWidth: { mm: lensWidthMm, inches: mmToInches(lensWidthMm) },
+            lensHeight: { mm: lensHeightMm, inches: mmToInches(lensHeightMm) },
+            templeLength: { mm: templeLengthMm, inches: mmToInches(templeLengthMm) }
           },
           frameDetails: {
-            size: 'Medium',
-            sizeRange: '126 - 132 mm / 5.0 - 5.2 in',
-            material: 'Acetate',
-            weight: 'Lightweight',
-            weightGrams: 15,
-            rim: 'Full Rim',
-            shape: 'Rectangle'
+            size: sizeLabel,
+            sizeRange,
+            material: materialLabel,
+            weight: 'N/A',
+            weightGrams: 0,
+            rim: rimLabel,
+            shape: shapeLabel
           },
           prescriptionDetails: {
-            pdRange: '62 - 79 mm',
-            prescriptionRange: '-16.00 - +9.00',
-            progressive: true,
-            bifocal: true,
+            pdRange: 'N/A',
+            prescriptionRange: 'N/A',
+            progressive: false,
+            bifocal: false,
             readers: false
           },
-          description: apiProduct.description,
-          features: ['Nose Pads', 'Lightweight'],
+          description: productResponse.description ?? frameGroup?.description ?? undefined,
+          features: productFeatures,
           deliveryDate: 'Fri, Jan 23'
         };
 

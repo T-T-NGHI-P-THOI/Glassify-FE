@@ -91,6 +91,39 @@ export interface ApiProduct {
   }[];
 }
 
+export interface ApiFrameGroup {
+  id: string;
+  frameName?: string;
+  frameShape?: string;
+  frameStructure?: string;
+  frameMaterial?: string;
+  hasNosePads?: boolean;
+  hasSpringHinge?: boolean;
+  genderTarget?: string;
+  ageGroup?: string;
+  description?: string;
+  suitableFaceShapes?: string[] | null;
+}
+
+export interface ApiFrameVariant {
+  id: string;
+  frameGroupId?: string;
+  colorName?: string;
+  colorHex?: string;
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE' | string;
+  frameWidthMm?: number;
+  lensWidthMm?: number;
+  lensHeightMm?: number;
+  bridgeWidthMm?: number;
+  templeLengthMm?: number;
+}
+
+export interface ProductWithFrameInfoData {
+  productResponse: ApiProduct;
+  frameGroup: ApiFrameGroup | null;
+  frameVariant: ApiFrameVariant | null;
+}
+
 // Product filter parameters
 export interface ProductFilterParams {
   page?: number;
@@ -202,6 +235,18 @@ export default class ProductAPI {
       return response.data.data;
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
+      throw error;
+    }
+  }
+
+  static async getProductWithFrameInfo(id: string): Promise<ProductWithFrameInfoData> {
+    try {
+      const response = await api.get<{ status: number; message: string; data: ProductWithFrameInfoData }>(
+        API_ENDPOINTS.PRODUCTS.GET_WITH_FRAME_INFO(id)
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching product with frame info ${id}:`, error);
       throw error;
     }
   }
