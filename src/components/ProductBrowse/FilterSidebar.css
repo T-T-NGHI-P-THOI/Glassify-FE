@@ -176,6 +176,178 @@
   color: #00838f;
 }
 
+.location-action-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.location-text-btn {
+  border: none;
+  background: transparent;
+  color: #00838f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.location-text-btn:hover {
+  color: #006470;
+  text-decoration: underline;
+}
+
+.location-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.location-dialog {
+  width: min(760px, 100%);
+  max-height: min(78vh, 720px);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  z-index: 20001;
+  display: flex;
+  flex-direction: column;
+}
+
+.location-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ededed;
+  padding: 14px 16px;
+}
+
+.location-dialog-header h4 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.location-dialog-close-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-dialog-subtitle {
+  margin: 0;
+  padding: 12px 16px;
+  color: #666;
+  font-size: 13px;
+}
+
+.location-dialog-toolbar {
+  padding: 12px 16px;
+  border-bottom: 1px solid #ededed;
+}
+
+.location-search-box {
+  position: relative;
+}
+
+.location-search-input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #dcdcdc;
+  border-radius: 4px;
+  padding: 0 38px 0 12px;
+  font-size: 14px;
+}
+
+.location-search-input:focus {
+  outline: none;
+  border-color: #00838f;
+}
+
+.location-search-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8b8b8b;
+}
+
+.location-dialog-content {
+  display: grid;
+  grid-template-columns: 1fr 36px;
+  align-items: stretch;
+  min-height: 0;
+  flex: 1;
+}
+
+.location-dialog-list {
+  padding: 12px 16px 16px 16px;
+  overflow-y: auto;
+}
+
+.location-letter-section {
+  margin-bottom: 12px;
+}
+
+.location-letter-title {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 500;
+  color: #555;
+}
+
+.location-letter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px 14px;
+}
+
+.location-empty-state {
+  margin: 8px 0 0 0;
+  color: #777;
+  font-size: 14px;
+}
+
+.location-alphabet-index {
+  border-left: 1px solid #ededed;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.location-alphabet-btn {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  min-height: 14px;
+}
+
+.location-alphabet-btn:hover {
+  color: #00838f;
+}
+
+.location-dialog-footer {
+  border-top: 1px solid #ededed;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .color-option {
   display: flex;
   align-items: center;
@@ -190,16 +362,19 @@
   display: inline-block;
 }
 
-.price-slider-container {
-  padding: 0 8px;
-  margin-bottom: 16px;
+.price-reference-hint {
+  font-size: 12px;
+  color: #666;
+  background: #f9f9f9;
+  border: 1px solid #ececec;
+  border-radius: 6px;
+  padding: 8px 10px;
 }
 
 .price-inputs {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .price-input-group {
@@ -219,10 +394,17 @@
 .price-input-group input,
 .price-inputs input {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
+}
+
+.price-input-group input:focus,
+.price-inputs input:focus {
+  outline: none;
+  border-color: #00838f;
+  box-shadow: 0 0 0 2px rgba(0, 131, 143, 0.1);
 }
 
 .price-separator {
@@ -235,24 +417,51 @@
   color: #666;
 }
 
-.price-quick-filters {
+.price-validation-error {
+  font-size: 12px;
+  color: #c62828;
+}
+
+.price-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
 }
 
-.price-quick-btn {
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+.price-apply-btn,
+.price-reset-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 6px;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
-.price-quick-btn:hover {
-  background: #e6f7f8;
+.price-apply-btn {
+  border: 1px solid #00838f;
+  background: #00838f;
+  color: #fff;
+}
+
+.price-apply-btn:hover:not(:disabled) {
+  background: #006a74;
+  border-color: #006a74;
+}
+
+.price-apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.price-reset-btn {
+  background: #fff;
+  border: 1px solid #d6d6d6;
+  color: #666;
+}
+
+.price-reset-btn:hover {
+  background: #f7f7f7;
   border-color: #00838f;
   color: #00838f;
 }
@@ -277,5 +486,13 @@
 
   .close-mobile-btn {
     display: block;
+  }
+
+  .location-dialog-content {
+    grid-template-columns: 1fr 28px;
+  }
+
+  .location-letter-title {
+    font-size: 18px;
   }
 }
