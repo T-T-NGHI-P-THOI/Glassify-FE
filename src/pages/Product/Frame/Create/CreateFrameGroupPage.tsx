@@ -15,8 +15,7 @@ import {
     FormControlLabel,
     Switch,
 } from "@mui/material";
-import { useState, forwardRef, useImperativeHandle, useRef } from "react";
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import { useState, forwardRef, useImperativeHandle } from "react";
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from "@/api/product-api";
 import Upload3DModelPage, {
@@ -62,6 +61,7 @@ interface CreateFrameGroupPageProps {
     onCreated?: (frameGroupId: string, data: CreateFrameFormData) => void;
     initialData?: Partial<CreateFrameFormData>;
     createdBy?: string;
+    shopId?: string;
     /** Expose ref của Upload3DModelPage lên CreateFramePage để truyền cho VariantPage */
     upload3DModelRef?: React.RefObject<Upload3DModelPageRef | null>;
 }
@@ -85,7 +85,7 @@ const DEFAULT_FORM: CreateFrameFormData = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGroupPageProps>(
-    ({ onCreated, initialData, createdBy, upload3DModelRef }, ref) => {
+    ({ onCreated, shopId, initialData, createdBy, upload3DModelRef }, ref) => {
         const theme = useTheme();
 
         const [formData, setFormData] = useState<CreateFrameFormData>({
@@ -147,6 +147,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
             setLoading(true);
             try {
                 const payload = new FormData();
+                payload.append('shopId', shopId ?? '');
                 payload.append('productName', formData.frameName.trim());
                 payload.append('frameShape', formData.frameShape);
                 payload.append('frameStructure', formData.frameStructure);
@@ -307,7 +308,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                         </Typography>
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <FormControlLabel
                             control={
                                 <Switch
@@ -321,7 +322,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                         />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <FormControlLabel
                             control={
                                 <Switch
@@ -332,20 +333,6 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                                 />
                             }
                             label="Spring Hinge"
-                        />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={formData.vrEnabled}
-                                    onChange={e =>
-                                        setFormData(prev => ({ ...prev, vrEnabled: e.target.checked }))
-                                    }
-                                />
-                            }
-                            label="VR Enabled"
                         />
                     </Grid>
 
@@ -410,46 +397,99 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
 
                 <Divider sx={{ my: 3 }} />
 
-                {/* ── 3D Model (optional) ── */}
-                <Typography
+                {/* ── VR Enabled + 3D Model ── */}
+                <Box
                     sx={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                        color: theme.palette.custom.neutral[800],
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
+                        border: `1px solid`,
+                        borderColor: formData.vrEnabled
+                            ? theme.palette.primary.main
+                            : theme.palette.custom.neutral[200],
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        transition: 'border-color 0.2s ease',
                     }}
                 >
-                    <ViewInArIcon sx={{ color: theme.palette.primary.main }} />
-                    3D Model
-                    <Typography
-                        component="span"
+                    {/* Header row: toggle */}
+                    <Box
                         sx={{
-                            fontSize: 13,
-                            fontWeight: 400,
-                            color: theme.palette.custom.neutral[500],
-                            ml: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 3,
+                            py: 2,
+                            bgcolor: formData.vrEnabled
+                                ? `${theme.palette.primary.main}08`
+                                : theme.palette.custom.neutral[50],
+                            transition: 'background-color 0.2s ease',
                         }}
                     >
-                        (optional)
-                    </Typography>
-                </Typography>
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-                    Upload a 3D model. Texture can be applied in the next step.
-                </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <ViewInArIcon
+                                sx={{
+                                    color: formData.vrEnabled
+                                        ? theme.palette.primary.main
+                                        : theme.palette.custom.neutral[400],
+                                    transition: 'color 0.2s ease',
+                                }}
+                            />
+                            <Box>
+                                <Typography
+                                    sx={{
+                                        fontSize: 16,
+                                        fontWeight: 600,
+                                        color: formData.vrEnabled
+                                            ? theme.palette.primary.main
+                                            : theme.palette.custom.neutral[700],
+                                        transition: 'color 0.2s ease',
+                                    }}
+                                >
+                                    VR Enabled
+                                </Typography>
+                                <Typography
+                                    sx={{
+                                        fontSize: 12,
+                                        color: theme.palette.custom.neutral[500],
+                                        mt: 0.25,
+                                    }}
+                                >
+                                    {formData.vrEnabled
+                                        ? 'Upload a 3D model below. Texture can be applied in the next step.'
+                                        : 'Enable to upload a 3D model for virtual try-on.'}
+                                </Typography>
+                            </Box>
+                        </Box>
 
-                {/* upload3DModelRef được truyền từ CreateFramePage */}
-                <Upload3DModelPage
-                    ref={upload3DModelRef}
-                    variantId={undefined}
-                    initialFile={formData.model3dFile}
-                    onUploaded={(url, file) => {
-                        console.log('onUploaded called:', file); // ← thêm log này
-                        setFormData(prev => ({ ...prev, model3dFile: file }));
-                    }}
-                />
+                        <Switch
+                            checked={formData.vrEnabled}
+                            onChange={e =>
+                                setFormData(prev => ({ ...prev, vrEnabled: e.target.checked }))
+                            }
+                            color="primary"
+                        />
+                    </Box>
+
+                    {/* Collapsible 3D upload area */}
+                    {formData.vrEnabled && (
+                        <Box
+                            sx={{
+                                px: 3,
+                                pb: 3,
+                                pt: 2,
+                                borderTop: `1px dashed ${theme.palette.custom.neutral[200]}`,
+                            }}
+                        >
+                            <Upload3DModelPage
+                                ref={upload3DModelRef}
+                                variantId={undefined}
+                                initialFile={formData.model3dFile}
+                                onUploaded={(url, file) => {
+                                    console.log('onUploaded called:', file);
+                                    setFormData(prev => ({ ...prev, model3dFile: file }));
+                                }}
+                            />
+                        </Box>
+                    )}
+                </Box>
 
                 {loading && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>

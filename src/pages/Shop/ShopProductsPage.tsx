@@ -301,11 +301,11 @@ const ShopProductsPage = () => {
                       {/* Price */}
                       <TableCell sx={{ py: 1.5 }}>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                          {product.basePrice.toLocaleString('vi-VN')}₫
+                          {(product.basePrice ?? 0).toLocaleString('vi-VN')}₫
                         </Typography>
                         {product.compareAtPrice > product.basePrice && (
                           <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
-                            {product.compareAtPrice.toLocaleString('vi-VN')}₫
+                            {(product.compareAtPrice ?? 0).toLocaleString('vi-VN')}₫
                           </Typography>
                         )}
                       </TableCell>

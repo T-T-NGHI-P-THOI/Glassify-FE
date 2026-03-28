@@ -209,6 +209,13 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
+ static async getFrameGroupFromShopId(shopId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
+    );
+    return response.data.data;
+  }
+
   static async createFrameGroup(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.CREATE_FRAME_GROUP,
@@ -235,9 +242,16 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async getProductImages(productId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_PRODUCT_IMAGES(productId),
+    );
+    return response.data.data;
+  }
+
   static async activateProduct(productId: string) {
     const response = await axiosInstance.patch(
-      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId), // ✅ endpoint đúng
+      API_ENDPOINTS.PRODUCTS.ACTIVATE_PRODUCT(productId)
     );
     return response.data.data;
   }
@@ -252,6 +266,13 @@ export default class ProductAPI {
         },
       }
     );
+    return response.data.data;
+  }
+
+  static async getTextureFiles(frameGroupId: string) {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
+      params: { frameGroupId }
+    });
     return response.data.data;
   }
 }
