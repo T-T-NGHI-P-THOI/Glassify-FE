@@ -135,6 +135,28 @@ export const shopApi = {
     return response.data;
   },
 
+  uploadLicenseImage: async (file: File): Promise<ApiResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post<ApiResponse<{ url: string }>>(
+      `${SHOP_BASE_URL}/upload-license-image`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  },
+
+  uploadLogoImage: async (file: File): Promise<ApiResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post<ApiResponse<{ url: string }>>(
+      `${SHOP_BASE_URL}/upload-logo`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  },
+
   uploadLogo: async (file: File): Promise<ApiResponse<{ logoUrl: string }>> => {
     const formData = new FormData();
     formData.append('logo', file);

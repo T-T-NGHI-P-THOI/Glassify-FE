@@ -5,6 +5,7 @@ import { PAGE_ENDPOINTS } from "../api/endpoints"
 import DashboardPage from "@/pages/Dashboard/DashboardPage.tsx";
 import UserProfilePage from "@/pages/User/UserProfilePage"
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
+import ShopResubmitPage from "@/pages/Shop/ShopResubmitPage"
 import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
@@ -108,6 +109,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopRegistrationPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.RESUBMIT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopResubmitPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

@@ -166,6 +166,9 @@ export interface ShopRequest {
   phone: string;
   address: string;
   city: string;
+  provinceName: string;
+  districtName: string;
+  wardName: string;
   logoUrl: string;
   businessLicense: BusinessLicense;
   userId: string;

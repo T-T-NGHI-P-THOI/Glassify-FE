@@ -16,13 +16,10 @@ import {
   Select,
   MenuItem,
   Divider,
-  Checkbox,
-  FormControlLabel,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Link,
   Alert,
   CircularProgress,
   FormHelperText,
@@ -37,24 +34,20 @@ import {
   LocationOn,
   Phone,
   Email,
-  LocalShipping,
   Badge,
   CalendarToday,
   AccountBalance,
   Link as LinkIcon,
+  WarningAmber,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
+import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard, ShopDetailResponse, ShopRequest } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
-import { useAuth } from '@/hooks/useAuth';
-import { initialize } from '@/auth/Reducer';
-import userApi from '@/api/service/userApi';
 
-// Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
   '& .MuiStepConnector-line': {
     borderColor: theme.palette.custom.border.light,
@@ -68,27 +61,21 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-
-const registrationSteps = [
+const resubmitSteps = [
   { label: 'Shop Information', key: 'SHOP_INFO' },
   { label: 'Business License', key: 'LICENSE' },
-  { label: 'Shipping', key: 'SHIPPING' },
   { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
-// ==================== FORM INTERFACES ====================
 interface ShopFormData {
-  // Shop Info
   shopName: string;
   email: string;
   phone: string;
   address: string;
   logoUrl: string;
-  // GHN location (stored as string IDs in selects)
   city: string;
   district: string;
   ward: string;
-  // Business license fields
   licenseNumber: string;
   businessName: string;
   legalRepresentative: string;
@@ -101,11 +88,18 @@ interface ShopFormData {
   licenseImageUrl: string;
 }
 
-const ShopRegistrationPage = () => {
+const toDateInput = (iso: string | undefined | null): string => {
+  if (!iso) return '';
+  return iso.slice(0, 10);
+};
+
+const ShopResubmitPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { dispatch } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
+  const [shop, setShop] = useState<ShopDetailResponse | null>(null);
+  const [registrationRequest, setRegistrationRequest] = useState<ShopRequest | null>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
     email: '',
@@ -126,9 +120,6 @@ const ShopRegistrationPage = () => {
     expiryDate: '',
     licenseImageUrl: '',
   });
-  const [selectedShippingPartners, setSelectedShippingPartners] = useState<string[]>([]);
-  const [policyAgreed, setPolicyAgreed] = useState(false);
-  const [policyDialogOpen, setPolicyDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -138,42 +129,72 @@ const ShopRegistrationPage = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // GHN location state
   const [provinces, setProvinces] = useState<GhnProvince[]>([]);
   const [districts, setDistricts] = useState<GhnDistrict[]>([]);
   const [wards, setWards] = useState<GhnWard[]>([]);
-  const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
 
   useLayoutConfig({ showNavbar: false, showFooter: true });
 
-  // Redirect if user already has a shop
+  // Load shop + latest registration request + provinces on mount
   useEffect(() => {
-    shopApi.getMyShops().then((res) => {
-      if (res.data && res.data.length > 0) {
-        navigate(PAGE_ENDPOINTS.SHOP.PROFILE, { replace: true });
-      }
-    }).catch(() => {});
-  }, []);
-
-  // Fetch provinces on mount
-  useEffect(() => {
-    const fetchProvinces = async () => {
-      setLoadingProvinces(true);
+    const init = async () => {
+      setLoading(true);
       try {
-        const res = await ghnApi.getProvinces();
-        setProvinces(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch provinces:', err);
+        const [shopsRes, provincesRes] = await Promise.all([
+          shopApi.getMyShops(),
+          ghnApi.getProvinces(),
+        ]);
+        const shops = shopsRes.data;
+        if (!shops || shops.length === 0) {
+          navigate(PAGE_ENDPOINTS.SHOP.REGISTER, { replace: true });
+          return;
+        }
+        const shopData = shops[0];
+        if (shopData.latestRequestStatus !== 'REJECTED') {
+          navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD, { replace: true });
+          return;
+        }
+        setShop(shopData);
+        setProvinces(provincesRes.data || []);
+
+        // Fetch latest registration request for pre-filling form fields
+        const regRes = await shopApi.getMyShopRegistration(shopData.id);
+        const reg = regRes.data as ShopRequest | null;
+        setRegistrationRequest(reg);
+
+        // Use registration request for form fields; use shop GHN IDs for location dropdowns
+        setFormData({
+          shopName: reg?.shopName || shopData.shopName || '',
+          email: reg?.email || shopData.email || '',
+          phone: reg?.phone || shopData.phone || '',
+          address: reg?.address || shopData.address || '',
+          logoUrl: reg?.logoUrl || shopData.logoUrl || '',
+          city: shopData.ghnProvinceId ? String(shopData.ghnProvinceId) : '',
+          district: shopData.ghnDistrictId ? String(shopData.ghnDistrictId) : '',
+          ward: shopData.ghnWardCode || '',
+          licenseNumber: reg?.businessLicense?.licenseNumber || '',
+          businessName: reg?.businessLicense?.businessName || '',
+          legalRepresentative: reg?.businessLicense?.legalRepresentative || '',
+          registeredAddress: reg?.businessLicense?.registeredAddress || '',
+          taxId: reg?.businessLicense?.taxId || '',
+          businessType: reg?.businessLicense?.businessType || '',
+          issuedDate: toDateInput(reg?.businessLicense?.issuedDate),
+          issuedBy: reg?.businessLicense?.issuedBy || '',
+          expiryDate: toDateInput(reg?.businessLicense?.expiryDate),
+          licenseImageUrl: reg?.businessLicense?.licenseImageUrl || '',
+        });
+      } catch {
+        navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD, { replace: true });
       } finally {
-        setLoadingProvinces(false);
+        setLoading(false);
       }
     };
-    fetchProvinces();
+    init();
   }, []);
 
-  // Fetch districts when province changes
+  // Fetch districts when city is set
   useEffect(() => {
     if (!formData.city) {
       setDistricts([]);
@@ -182,11 +203,10 @@ const ShopRegistrationPage = () => {
     const fetchDistricts = async () => {
       setLoadingDistricts(true);
       try {
-        const provinceId = Number(formData.city);
-        const res = await ghnApi.getDistricts(provinceId);
+        const res = await ghnApi.getDistricts(Number(formData.city));
         setDistricts(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch districts:', err);
+      } catch {
+        // ignore
       } finally {
         setLoadingDistricts(false);
       }
@@ -194,7 +214,7 @@ const ShopRegistrationPage = () => {
     fetchDistricts();
   }, [formData.city]);
 
-  // Fetch wards when district changes
+  // Fetch wards when district is set
   useEffect(() => {
     if (!formData.district) {
       setWards([]);
@@ -203,11 +223,10 @@ const ShopRegistrationPage = () => {
     const fetchWards = async () => {
       setLoadingWards(true);
       try {
-        const districtId = Number(formData.district);
-        const res = await ghnApi.getWards(districtId);
+        const res = await ghnApi.getWards(Number(formData.district));
         setWards(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch wards:', err);
+      } catch {
+        // ignore
       } finally {
         setLoadingWards(false);
       }
@@ -222,7 +241,6 @@ const ShopRegistrationPage = () => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  // Text fields: max 21 chars, no special characters (allow letters incl. Vietnamese, digits, spaces, . - /)
   const handleTextChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -233,7 +251,6 @@ const ShopRegistrationPage = () => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  // Number-only fields: digits only, configurable max chars
   const handleNumberFieldChange = (field: keyof ShopFormData, maxLen = 21) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -344,33 +361,14 @@ const ShopRegistrationPage = () => {
       }
     }
 
-    if (step === 2) {
-      if (selectedShippingPartners.length === 0) newErrors.shippingPartners = 'Please select at least one shipping partner to continue';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (!validateStep(activeStep)) return;
-
-    if (activeStep === 0) {
-      try {
-        const res = await shopApi.checkEmail(formData.email);
-        if (!res.data?.available) {
-          setErrors((prev) => ({ ...prev, email: res.data?.message || 'This email is already used by another shop' }));
-          return;
-        }
-      } catch (err: any) {
-        const msg = err?.originalError?.response?.data?.data?.message || err?.message || 'This email is already used by another shop';
-        setErrors((prev) => ({ ...prev, email: msg }));
-        return;
-      }
-    }
-
     setErrors({});
-    setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
+    setActiveStep((prev) => Math.min(prev + 1, resubmitSteps.length - 1));
   };
 
   const handleBack = () => {
@@ -378,6 +376,7 @@ const ShopRegistrationPage = () => {
   };
 
   const handleSubmit = async () => {
+    if (!shop) return;
     setSubmitting(true);
     setSubmitError(null);
 
@@ -413,27 +412,13 @@ const ShopRegistrationPage = () => {
         },
       };
 
-      await shopApi.register(requestData);
-      // Refresh user profile so the SHOP_OWNER role is reflected in FE context
-      try {
-        const profileRes = await userApi.getMyProfile();
-        if (profileRes.data) {
-          dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: profileRes.data as any }));
-        }
-      } catch {
-        // profile refresh failure is non-critical
-      }
+      await shopApi.resubmit(shop.id, requestData);
       setSuccessDialogOpen(true);
     } catch (err: any) {
       const rawErrors = err?.originalError?.response?.data?.errors;
       const beError = Array.isArray(rawErrors) ? rawErrors[0] : rawErrors?.[Object.keys(rawErrors ?? {})[0]]?.[0];
-      const message = beError || err?.message || 'Registration failed. Please try again.';
-      if (message.toLowerCase().includes('email')) {
-        setActiveStep(0);
-        setErrors({ email: message });
-      } else {
-        setSubmitError(message);
-      }
+      const message = beError || err?.message || 'Resubmission failed. Please try again.';
+      setSubmitError(message);
     } finally {
       setSubmitting(false);
     }
@@ -442,6 +427,45 @@ const ShopRegistrationPage = () => {
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
     navigate(PAGE_ENDPOINTS.HOME);
+  };
+
+  const renderRejectionBanner = () => {
+    const rejectionReason = registrationRequest?.rejectionReason || shop?.rejectionReason;
+    const adminComment = registrationRequest?.adminComment || shop?.adminComment;
+    if (!rejectionReason && !adminComment) return null;
+    return (
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 2,
+          border: `1px solid #fca5a5`,
+          bgcolor: '#fff5f5',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+          <WarningAmber sx={{ color: '#dc2626', mt: 0.25, flexShrink: 0 }} />
+          <Box>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#dc2626', mb: 1 }}>
+              Registration Rejected
+            </Typography>
+            {rejectionReason && (
+              <Box sx={{ mb: 1 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#7f1d1d' }}>Rejection reason:</Typography>
+                <Typography sx={{ fontSize: 14, color: '#991b1b' }}>{rejectionReason}</Typography>
+              </Box>
+            )}
+            {adminComment && (
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#7f1d1d' }}>Admin comment:</Typography>
+                <Typography sx={{ fontSize: 14, color: '#991b1b' }}>{adminComment}</Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+      </Paper>
+    );
   };
 
   const renderShopInfoForm = () => (
@@ -597,7 +621,7 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.city}
               label="City/Province *"
-              disabled={loadingProvinces}
+              disabled={provinces.length === 0}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, city: e.target.value, district: '', ward: '' }));
                 if (errors.city) setErrors((prev) => ({ ...prev, city: '' }));
@@ -617,7 +641,6 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.district}
               label="District"
-              error={!!errors.district}
               disabled={!formData.city || loadingDistricts}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, district: e.target.value, ward: '' }));
@@ -638,7 +661,6 @@ const ShopRegistrationPage = () => {
             <Select
               value={formData.ward}
               label="Ward"
-              error={!!errors.ward}
               disabled={!formData.district || loadingWards}
               onChange={(e) => {
                 handleSelectChange('ward')(e);
@@ -677,7 +699,6 @@ const ShopRegistrationPage = () => {
         Please provide your business license information for verification.
       </Typography>
 
-      {/* License Identity */}
       <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
         License Information
       </Typography>
@@ -853,7 +874,6 @@ const ShopRegistrationPage = () => {
 
       <Divider sx={{ my: 3 }} />
 
-      {/* Owner / Representative */}
       <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 2 }}>
         Owner / Legal Representative
       </Typography>
@@ -884,164 +904,6 @@ const ShopRegistrationPage = () => {
           />
         </Grid>
       </Grid>
-
-      <Box
-        sx={{
-          mt: 3,
-          p: 2,
-          borderRadius: 2,
-          bgcolor: theme.palette.custom.status.info.light,
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 1 }}>
-          Required Information:
-        </Typography>
-        <Typography
-          component="ul"
-          sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], m: 0, pl: 2 }}
-        >
-          <li>License number, business name, and business type</li>
-          <li>Legal representative name and registered address</li>
-          <li>Tax ID, issue date, expiry date, and issuing authority</li>
-          <li>Public URL link to scanned license document</li>
-        </Typography>
-      </Box>
-    </Box>
-  );
-
-  const shippingPartners = [
-    {
-      id: 'ghn',
-      name: 'Giao Hàng Nhanh',
-      logo: '/shipping/ghn-logo.png',
-      description: 'Dịch vụ giao hàng nhanh chóng, uy tín hàng đầu Việt Nam. Hỗ trợ giao hàng toàn quốc với thời gian 1-3 ngày.',
-      services: ['Giao hàng tiêu chuẩn', 'Giao hàng nhanh', 'Giao hàng thu tiền hộ (COD)'],
-    },
-  ];
-
-  const handleToggleShippingPartner = (partnerId: string) => {
-    setSelectedShippingPartners((prev) =>
-      prev.includes(partnerId) ? prev.filter((id) => id !== partnerId) : [...prev, partnerId]
-    );
-    if (errors.shippingPartners) setErrors((prev) => ({ ...prev, shippingPartners: '' }));
-  };
-
-  const renderShipping = () => (
-    <Box>
-      <Typography
-        sx={{
-          fontSize: 18,
-          fontWeight: 600,
-          color: theme.palette.custom.neutral[800],
-          mb: 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-        }}
-      >
-        <LocalShipping sx={{ color: theme.palette.primary.main }} />
-        Shipping Partners
-      </Typography>
-
-      <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-        Select the shipping partners you want to use for delivering orders from your shop.
-      </Typography>
-
-      {shippingPartners.map((partner) => {
-        const isSelected = selectedShippingPartners.includes(partner.id);
-        return (
-          <Paper
-            key={partner.id}
-            elevation={0}
-            onClick={() => handleToggleShippingPartner(partner.id)}
-            sx={{
-              p: 3,
-              mb: 2,
-              borderRadius: 2,
-              border: `2px solid ${isSelected ? theme.palette.primary.main : theme.palette.custom.border.light}`,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              bgcolor: isSelected ? theme.palette.primary.main + '08' : 'transparent',
-              '&:hover': {
-                borderColor: isSelected ? theme.palette.primary.main : theme.palette.custom.neutral[300],
-              },
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-              <Checkbox
-                checked={isSelected}
-                sx={{
-                  mt: -0.5,
-                  color: theme.palette.custom.neutral[400],
-                  '&.Mui-checked': {
-                    color: theme.palette.primary.main,
-                  },
-                }}
-              />
-              <Avatar
-                variant="rounded"
-                src={partner.logo}
-                sx={{
-                  width: 56,
-                  height: 56,
-                  bgcolor: theme.palette.custom.status.warning.light,
-                }}
-              >
-                <LocalShipping sx={{ color: theme.palette.custom.status.warning.main }} />
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>
-                  {partner.name}
-                </Typography>
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2 }}>
-                  {partner.description}
-                </Typography>
-
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
-                  Available Services:
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {partner.services.map((service) => (
-                    <Box
-                      key={service}
-                      sx={{
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: 1,
-                        bgcolor: theme.palette.custom.neutral[100],
-                        fontSize: 12,
-                        color: theme.palette.custom.neutral[700],
-                      }}
-                    >
-                      {service}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
-          </Paper>
-        );
-      })}
-
-      {errors.shippingPartners && (
-        <Alert severity="error" sx={{ mt: 2 }}>{errors.shippingPartners}</Alert>
-      )}
-
-      <Box
-        sx={{
-          mt: 3,
-          p: 2,
-          borderRadius: 2,
-          bgcolor: theme.palette.custom.status.info.light,
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.5 }}>
-          Note:
-        </Typography>
-        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
-          You must select at least one shipping partner. Shipping fees will be calculated based on the partner's rates and the delivery distance. You can change your shipping partners later in shop settings.
-        </Typography>
-      </Box>
     </Box>
   );
 
@@ -1063,97 +925,47 @@ const ShopRegistrationPage = () => {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Shop Info Summary */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.custom.border.light}`,
-              height: '100%',
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.palette.custom.neutral[500],
-                textTransform: 'uppercase',
-                mb: 2,
-              }}
-            >
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, height: '100%' }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 2 }}>
               Shop Details
             </Typography>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Shop Name</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.shopName || '-'}
-              </Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.shopName || '-'}</Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Email</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.email || '-'}
-              </Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.email || '-'}</Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Phone</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.phone || '-'}
-              </Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.phone || '-'}</Typography>
             </Box>
-
           </Paper>
         </Grid>
 
-        {/* Address Summary */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.custom.border.light}`,
-              height: '100%',
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.palette.custom.neutral[500],
-                textTransform: 'uppercase',
-                mb: 2,
-              }}
-            >
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, height: '100%' }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 2 }}>
               Address Details
             </Typography>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Address</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formData.address || '-'}
-              </Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.address || '-'}</Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>City/Province</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
                 {provinces.find((p) => p.ProvinceID === Number(formData.city))?.ProvinceName || '-'}
               </Typography>
             </Box>
-
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>District</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
                 {districts.find((d) => d.DistrictID === Number(formData.district))?.DistrictName || '-'}
               </Typography>
             </Box>
-
             <Box>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Ward</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
@@ -1163,177 +975,78 @@ const ShopRegistrationPage = () => {
           </Paper>
         </Grid>
 
-        {/* Business License Summary */}
         <Grid size={{ xs: 12 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.custom.border.light}`,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.palette.custom.neutral[500],
-                textTransform: 'uppercase',
-                mb: 2,
-              }}
-            >
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 2 }}>
               Business License
             </Typography>
-
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Number</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.licenseNumber || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.licenseNumber || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Business Name</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.businessName || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.businessName || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Business Type</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.businessType
-                    ? { individual: 'Individual Business', household: 'Household Business', company: 'Limited Company', joint_stock: 'Joint Stock Company', partnership: 'Partnership' }[formData.businessType] ?? formData.businessType
-                    : '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.businessType || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Tax ID</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.taxId || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.taxId || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Legal Representative</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.legalRepresentative || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.legalRepresentative || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Registered Address</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.registeredAddress || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.registeredAddress || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Issued Date</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.issuedDate || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.issuedDate || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Expiry Date</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.expiryDate || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.expiryDate || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Issued By</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                  {formData.issuedBy || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formData.issuedBy || '-'}</Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Image URL</Typography>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: formData.licenseImageUrl ? theme.palette.primary.main : theme.palette.custom.neutral[800],
-                    wordBreak: 'break-all',
-                  }}
-                >
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: formData.licenseImageUrl ? theme.palette.primary.main : theme.palette.custom.neutral[800], wordBreak: 'break-all' }}>
                   {formData.licenseImageUrl || '-'}
                 </Typography>
               </Grid>
             </Grid>
           </Paper>
         </Grid>
-
-        {/* Shipping Partners Summary */}
-        <Grid size={{ xs: 12 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.custom.border.light}`,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.palette.custom.neutral[500],
-                textTransform: 'uppercase',
-                mb: 2,
-              }}
-            >
-              Shipping Partners ({selectedShippingPartners.length})
-            </Typography>
-
-            {selectedShippingPartners.length === 0 ? (
-              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-                No shipping partner selected
-              </Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {selectedShippingPartners.map((partnerId) => {
-                  const partner = shippingPartners.find((p) => p.id === partnerId);
-                  return partner ? (
-                    <Box
-                      key={partnerId}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        px: 2,
-                        py: 1,
-                        borderRadius: 1,
-                        bgcolor: theme.palette.custom.status.warning.light,
-                      }}
-                    >
-                      <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
-                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], fontWeight: 500 }}>
-                        {partner.name}
-                      </Typography>
-                    </Box>
-                  ) : null;
-                })}
-              </Box>
-            )}
-          </Paper>
-        </Grid>
       </Grid>
 
-      <Box
-        sx={{
-          mt: 3,
-          p: 2,
-          borderRadius: 2,
-          bgcolor: theme.palette.custom.status.warning.light,
-        }}
-      >
+      <Box sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: theme.palette.custom.status.warning.light }}>
         <Typography sx={{ fontSize: 14, color: theme.palette.custom.status.warning.main }}>
-          By submitting this registration, you confirm that all information provided is accurate and you agree
-          to our Terms of Service and Seller Agreement.
+          By resubmitting, you confirm that all information provided is accurate and you agree to our Terms of Service and Seller Agreement.
         </Typography>
       </Box>
     </Box>
   );
 
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-      {/* Shop Owner Registration Navbar */}
+      {/* Navbar */}
       <Box
         sx={{
           height: 56,
@@ -1348,66 +1061,49 @@ const ShopRegistrationPage = () => {
           zIndex: 1100,
         }}
       >
-        <IconButton onClick={() => navigate(-1)} size="small">
+        <IconButton onClick={() => navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD)} size="small">
           <ArrowBack />
         </IconButton>
         <Box
           sx={{
             width: 32,
             height: 32,
-            backgroundColor: theme.palette.primary.main,
+            backgroundColor: '#dc2626',
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Store sx={{ color: theme.palette.primary.contrastText, fontSize: 20 }} />
+          <Store sx={{ color: '#fff', fontSize: 20 }} />
         </Box>
         <Typography sx={{ fontWeight: 700, fontSize: 16, color: theme.palette.text.primary }}>
-          Glassify Shop Owner Registration
+          Resubmit Shop Registration
         </Typography>
       </Box>
 
       {/* Main Content */}
       <Box sx={{ maxWidth: 900, mx: 'auto', p: 4 }}>
-        {/* Welcome Banner */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 4,
-            mb: 4,
-            borderRadius: 3,
-            border: `1px solid ${theme.palette.primary.main}30`,
-          }}
-        >
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, color: theme.palette.custom.neutral[900], mb: 1 }}
-          >
-            Welcome to Glassify ✨
+        {/* Header */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+            Update & Resubmit Registration
           </Typography>
-          <Typography sx={{ fontSize: 15, color: theme.palette.custom.neutral[700], mb: 2, lineHeight: 1.7 }}>
-            Glassify is Vietnam's leading eyewear marketplace — built for sellers who want to reach more customers with less effort.
-            Our platform combines a modern storefront with <strong>AI-powered try-on technology</strong>, letting shoppers virtually try on your frames in real time, boosting confidence and conversion like never before.
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+            Review the rejection reason, update your information, and resubmit for approval.
           </Typography>
-          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], lineHeight: 1.7 }}>
-            Ready to grow your eyewear business? Fill in the form below and our team will review your application. Once approved, your shop goes live and you can start selling right away.
-          </Typography>
-        </Paper>
+        </Box>
+
+        {/* Rejection Banner */}
+        {renderRejectionBanner()}
 
         {/* Progress Stepper */}
         <Paper
           elevation={0}
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
-          }}
+          sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
         >
           <Stepper activeStep={activeStep} connector={<CustomConnector />} alternativeLabel>
-            {registrationSteps.map((step, index) => (
+            {resubmitSteps.map((step, index) => (
               <Step key={step.key} completed={index < activeStep}>
                 <StepLabel
                   slots={{ stepIcon: () => (
@@ -1439,10 +1135,7 @@ const ShopRegistrationPage = () => {
                     sx={{
                       fontSize: 13,
                       fontWeight: index <= activeStep ? 600 : 400,
-                      color:
-                        index <= activeStep
-                          ? theme.palette.custom.neutral[800]
-                          : theme.palette.custom.neutral[400],
+                      color: index <= activeStep ? theme.palette.custom.neutral[800] : theme.palette.custom.neutral[400],
                     }}
                   >
                     {step.label}
@@ -1456,96 +1149,31 @@ const ShopRegistrationPage = () => {
         {/* Form Content */}
         <Paper
           elevation={0}
-          sx={{
-            p: 4,
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
-          }}
+          sx={{ p: 4, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
         >
           {activeStep === 0 && renderShopInfoForm()}
           {activeStep === 1 && renderLicenseUpload()}
-          {activeStep === 2 && renderShipping()}
-          {activeStep === 3 && renderReview()}
+          {activeStep === 2 && renderReview()}
 
-          {/* Policy Agreement */}
-          <Box
-            sx={{
-              mt: 4,
-              p: 2.5,
-              borderRadius: 2,
-              bgcolor: theme.palette.custom.neutral[50],
-              border: `1px solid ${theme.palette.custom.border.light}`,
-            }}
-          >
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={policyAgreed}
-                  onChange={(e) => setPolicyAgreed(e.target.checked)}
-                  sx={{
-                    color: theme.palette.custom.neutral[400],
-                    '&.Mui-checked': {
-                      color: theme.palette.primary.main,
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
-                  I have read and agree to the{' '}
-                  <Link
-                    component="button"
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setPolicyDialogOpen(true);
-                    }}
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: theme.palette.primary.main,
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      '&:hover': {
-                        color: theme.palette.primary.dark,
-                      },
-                    }}
-                  >
-                    Platform Seller Policy & Terms of Service
-                  </Link>
-                </Typography>
-              }
-            />
-          </Box>
-
-          {/* Submit Error */}
           {submitError && (
-            <Alert
-              severity="error"
-              onClose={() => setSubmitError(null)}
-              sx={{ mt: 3 }}
-            >
-              {submitError}
-            </Alert>
+            <Alert severity="error" sx={{ mt: 3 }}>{submitError}</Alert>
           )}
 
           {/* Navigation Buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pt: 3, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
             <Button
               variant="outlined"
-              onClick={handleBack}
-              disabled={activeStep === 0 || submitting}
-              sx={{ px: 4 }}
+              onClick={activeStep === 0 ? () => navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD) : handleBack}
+              sx={{ borderRadius: 2, px: 3 }}
             >
-              Back
+              {activeStep === 0 ? 'Cancel' : 'Back'}
             </Button>
 
-            {activeStep < registrationSteps.length - 1 ? (
+            {activeStep < resubmitSteps.length - 1 ? (
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={!policyAgreed}
-                sx={{ px: 4 }}
+                sx={{ borderRadius: 2, px: 4 }}
               >
                 Continue
               </Button>
@@ -1553,208 +1181,38 @@ const ShopRegistrationPage = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={!policyAgreed || submitting}
-                startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : undefined}
-                sx={{
-                  px: 4,
-                  bgcolor: theme.palette.custom.status.success.main,
-                  '&:hover': { bgcolor: '#15803d' },
-                }}
+                disabled={submitting}
+                sx={{ borderRadius: 2, px: 4, bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' } }}
+                startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : undefined}
               >
-                {submitting ? 'Submitting...' : 'Submit Registration'}
+                {submitting ? 'Submitting...' : 'Resubmit Registration'}
               </Button>
             )}
           </Box>
         </Paper>
-
-        {/* Policy Dialog */}
-        <Dialog
-          open={policyDialogOpen}
-          onClose={() => setPolicyDialogOpen(false)}
-          maxWidth="md"
-          fullWidth
-          slotProps={{
-            paper: { sx: { borderRadius: 2 } },
-          }}
-        >
-          <DialogTitle
-            sx={{
-              fontWeight: 700,
-              fontSize: 20,
-              borderBottom: `1px solid ${theme.palette.custom.border.light}`,
-            }}
-          >
-            Platform Seller Policy & Terms of Service
-          </DialogTitle>
-          <DialogContent sx={{ py: 3 }}>
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              1. General Terms
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              By registering as a seller on Glassify platform, you agree to comply with all applicable laws and regulations. You must provide accurate and complete information during the registration process. Any false or misleading information may result in the rejection or termination of your seller account.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              2. Product Listing Requirements
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              All products listed on the platform must be authentic and comply with quality standards. Sellers are responsible for ensuring accurate product descriptions, images, and pricing. Counterfeit or prohibited items are strictly forbidden and will result in immediate account suspension.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              3. Order Fulfillment
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              Sellers must process and ship orders within the specified timeframe (typically 2-3 business days). Orders must be properly packaged to prevent damage during transit. Tracking information must be provided for all shipments.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              4. Customer Service
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              Sellers must respond to customer inquiries within 24 hours. Professional and courteous communication is required at all times. Disputes should be resolved amicably, and refunds/returns must be processed according to platform policies.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              5. Fees and Payments
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              Platform commission fees will be deducted from each sale. Payment settlements are processed on a bi-weekly basis. Sellers are responsible for their own tax obligations and reporting.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              6. Account Termination
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              The platform reserves the right to suspend or terminate seller accounts for violations of these terms, poor performance metrics, or fraudulent activities. Sellers may close their accounts with 30 days written notice.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              7. Data Privacy
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>
-              Seller information will be handled in accordance with our Privacy Policy. Customer data must be protected and used only for order fulfillment purposes. Sharing or selling customer data is strictly prohibited.
-            </Typography>
-
-            <Typography
-              sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}
-            >
-              8. Intellectual Property
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
-              Sellers must have the right to sell all listed products and use associated trademarks. Any infringement claims will be taken seriously and may result in product removal and account suspension.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
-            <Button onClick={() => setPolicyDialogOpen(false)} sx={{ px: 3 }}>
-              Close
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => {
-                setPolicyAgreed(true);
-                setPolicyDialogOpen(false);
-              }}
-              sx={{ px: 3 }}
-            >
-              I Agree
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Success Dialog */}
-        <Dialog
-          open={successDialogOpen}
-          onClose={handleSuccessDialogClose}
-          maxWidth="sm"
-          fullWidth
-          slotProps={{
-            paper: { sx: { borderRadius: 2, textAlign: 'center' } },
-          }}
-        >
-          <DialogContent sx={{ py: 5, px: 4 }}>
-            <Box
-              sx={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                bgcolor: theme.palette.custom.status.success.light,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mx: 'auto',
-                mb: 3,
-              }}
-            >
-              <CheckCircle sx={{ fontSize: 48, color: theme.palette.custom.status.success.main }} />
-            </Box>
-            <Typography
-              sx={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: theme.palette.custom.neutral[800],
-                mb: 2,
-              }}
-            >
-              Registration Submitted Successfully!
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: 15,
-                color: theme.palette.custom.neutral[600],
-                mb: 1,
-              }}
-            >
-              Thank you for registering your shop on Glassify.
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: 15,
-                color: theme.palette.custom.neutral[600],
-                mb: 3,
-              }}
-            >
-              Our team will review your registration and you will receive a notification within the next few days regarding the status of your application.
-            </Typography>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                bgcolor: theme.palette.custom.status.info.light,
-              }}
-            >
-              <Typography sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }}>
-                Please check your email <strong>{formData.email || 'inbox'}</strong> for updates on your registration status.
-              </Typography>
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, pt: 0, justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              onClick={handleSuccessDialogClose}
-              sx={{ px: 5, py: 1.2 }}
-            >
-              Back to Homepage
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
+
+      {/* Success Dialog */}
+      <Dialog open={successDialogOpen} onClose={handleSuccessDialogClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
+          <Avatar sx={{ width: 60, height: 60, bgcolor: theme.palette.custom.status.success.light, mx: 'auto', mb: 2 }}>
+            <CheckCircle sx={{ fontSize: 36, color: theme.palette.custom.status.success.main }} />
+          </Avatar>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Registration Resubmitted!</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ textAlign: 'center', color: theme.palette.custom.neutral[600] }}>
+            Your registration has been resubmitted successfully. Our team will review your information and get back to you.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+          <Button variant="contained" onClick={handleSuccessDialogClose} sx={{ px: 4, borderRadius: 2 }}>
+            Go to Homepage
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
-export default ShopRegistrationPage;
+export default ShopResubmitPage;

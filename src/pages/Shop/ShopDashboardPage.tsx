@@ -407,7 +407,7 @@ const ShopDashboardPage = () => {
                 variant="outlined"
                 size="small"
                 startIcon={<Edit />}
-                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.EDIT_PROFILE)}
+                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT)}
                 sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
                 Edit & Resubmit

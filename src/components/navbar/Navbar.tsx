@@ -248,15 +248,22 @@ export const Navbar = () => {
                       <Typography variant="body2">View my wallet</Typography>
                     </MenuItem>
 
-                    {myShop ? (
+                    {user?.roles?.includes('SHOP_OWNER') ? (
                       <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
                         <Store fontSize="small" sx={{ color: "#6b7280" }} />
                         <Typography variant="body2">View my shop</Typography>
                       </MenuItem>
-                    ) : (
+                    ) : !myShop ? (
                       <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
                         <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
                         <Typography variant="body2">Become a shop owner</Typography>
+                      </MenuItem>
+                    ) : null}
+
+                    {myShop?.latestRequestStatus === 'REJECTED' && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
+                        <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
                       </MenuItem>
                     )}
 
