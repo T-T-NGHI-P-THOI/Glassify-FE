@@ -109,3 +109,14 @@ export interface ChangePasswordRequest {
 export interface UploadAvatarResponse {
     avatarUrl: string;
 }
+
+/**
+ * Interface cho Admin User List Response (paginated)
+ */
+export interface AdminUserListResponse {
+    users: UserResponse[];
+    totalElements: number;
+    totalPages: number;
+    page: number;
+    size: number;
+}

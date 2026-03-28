@@ -150,6 +150,12 @@ export const API_ENDPOINTS = {
       CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close`,
       CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close/cancel`,
     },
+    USERS: {
+      LIST: `${API_ENDPOINT}/admin/users`,
+      GET_BY_ID: (id: string) => `${API_ENDPOINT}/admin/users/${id}`,
+      SET_ROLES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/roles`,
+      SET_STATUS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/status`,
+    },
   },
 } as const;
 
@@ -190,6 +196,7 @@ export const PAGE_ENDPOINTS = {
 
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
+    USER_MANAGEMENT: `/admin/users`,
   },
 
   ORDER: {

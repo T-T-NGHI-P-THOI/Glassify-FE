@@ -181,6 +181,17 @@ const createAxiosInstance = (): AxiosInstance => {
                 _retry?: boolean;
             };
 
+            // Handle 403 Account Disabled
+            const responseData = error.response?.data as { errors?: string[] } | undefined;
+            if (
+                error.response?.status === 403 &&
+                responseData?.errors?.includes('ACCOUNT_DISABLED')
+            ) {
+                TokenManager.clearTokens();
+                window.location.href = '/account-disabled';
+                return Promise.reject(error);
+            }
+
             // Handle 401 Unauthorized - Token expired
             if (error.response?.status === 401 && !originalRequest._retry) {
                 originalRequest._retry = true;
