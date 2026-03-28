@@ -1,10 +1,11 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { 
   ExpandMore, 
   ExpandLess, 
+  Search,
   Close
 } from '@mui/icons-material';
-import MuiSlider from '@mui/material/Slider';
 import type { FilterOptions, ActiveFilters } from '../../types/filter';
 import './FilterSidebar.css';
 
@@ -25,26 +26,218 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   isMobileOpen,
   onMobileClose
 }) => {
+  const vietnamProvinceCities = React.useMemo(
+    () => [
+      'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu', 'Bắc Ninh',
+      'Bến Tre', 'Bình Định', 'Bình Dương', 'Bình Phước', 'Bình Thuận', 'Cà Mau',
+      'Cần Thơ', 'Cao Bằng', 'Đà Nẵng', 'Đắk Lắk', 'Đắk Nông', 'Điện Biên',
+      'Đồng Nai', 'Đồng Tháp', 'Gia Lai', 'Hà Giang', 'Hà Nam', 'Hà Nội',
+      'Hà Tĩnh', 'Hải Dương', 'Hải Phòng', 'Hậu Giang', 'Hòa Bình', 'Hưng Yên',
+      'Khánh Hòa', 'Kiên Giang', 'Kon Tum', 'Lai Châu', 'Lâm Đồng', 'Lạng Sơn',
+      'Lào Cai', 'Long An', 'Nam Định', 'Nghệ An', 'Ninh Bình', 'Ninh Thuận',
+      'Phú Thọ', 'Phú Yên', 'Quảng Bình', 'Quảng Nam', 'Quảng Ngãi', 'Quảng Ninh',
+      'Quảng Trị', 'Sóc Trăng', 'Sơn La', 'Tây Ninh', 'Thái Bình', 'Thái Nguyên',
+      'Thanh Hóa', 'Thừa Thiên Huế', 'Tiền Giang', 'TP.HCM', 'Trà Vinh', 'Tuyên Quang',
+      'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái'
+    ],
+    []
+  );
+  const locationOptions = React.useMemo(
+    () => Array.from(new Set([...vietnamProvinceCities, ...filterOptions.shopCities])).sort((a, b) => a.localeCompare(b, 'vi')),
+    [filterOptions.shopCities, vietnamProvinceCities]
+  );
+  const initialLocationCount = 8;
+  const moreLocationCount = 16;
+  const [showMoreLocations, setShowMoreLocations] = React.useState(false);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = React.useState(false);
+  const [locationSearchKeyword, setLocationSearchKeyword] = React.useState('');
+  const locationLetterRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+
+  const normalizeText = React.useCallback((value: string) => {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd');
+  }, []);
+
+  const getAlphabetKey = React.useCallback((city: string) => {
+    const trimmed = city.trim();
+    if (!trimmed) {
+      return '#';
+    }
+
+    const firstChar = trimmed[0].toUpperCase();
+    if (firstChar === 'Đ') {
+      return 'Đ';
+    }
+
+    const normalized = trimmed.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normalizedFirst = normalized[0]?.toUpperCase() ?? '#';
+
+    if (normalizedFirst >= 'A' && normalizedFirst <= 'Z') {
+      return normalizedFirst;
+    }
+
+    return '#';
+  }, []);
+
+  const alphabetOrder = React.useMemo(
+    () => [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''), 'Đ', '#'],
+    []
+  );
+  const visibleLocationOptions = React.useMemo(() => {
+    if (showMoreLocations) {
+      return locationOptions.slice(0, moreLocationCount);
+    }
+    return locationOptions.slice(0, initialLocationCount);
+  }, [locationOptions, showMoreLocations]);
+  const canShowMoreLocations =
+    !showMoreLocations && locationOptions.length > initialLocationCount;
+  const canShowAllLocations =
+    showMoreLocations && locationOptions.length > moreLocationCount;
+
+  const filteredLocationOptions = React.useMemo(() => {
+    const keyword = normalizeText(locationSearchKeyword.trim());
+    if (!keyword) {
+      return locationOptions;
+    }
+
+    return locationOptions.filter(city => normalizeText(city).includes(keyword));
+  }, [locationOptions, locationSearchKeyword, normalizeText]);
+
+  const groupedLocationOptions = React.useMemo(() => {
+    const groups = new Map<string, string[]>();
+
+    filteredLocationOptions.forEach(city => {
+      const key = getAlphabetKey(city);
+      const current = groups.get(key) ?? [];
+      groups.set(key, [...current, city]);
+    });
+
+    return Array.from(groups.entries()).sort(
+      ([left], [right]) => alphabetOrder.indexOf(left) - alphabetOrder.indexOf(right)
+    );
+  }, [alphabetOrder, filteredLocationOptions, getAlphabetKey]);
+
+  const visibleAlphabetKeys = React.useMemo(
+    () => groupedLocationOptions.map(([key]) => key),
+    [groupedLocationOptions]
+  );
+
+  const handleAlphabetJump = (key: string) => {
+    const section = locationLetterRefs.current[key];
+    if (!section) {
+      return;
+    }
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const locationDialog = isLocationDialogOpen ? (
+    <div className="location-dialog-backdrop" onClick={() => setIsLocationDialogOpen(false)}>
+      <div className="location-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="location-dialog-header">
+          <h4>Tinh / Thanh pho</h4>
+          <button
+            type="button"
+            className="location-dialog-close-btn"
+            onClick={() => setIsLocationDialogOpen(false)}
+          >
+            <Close fontSize="small" />
+          </button>
+        </div>
+        <div className="location-dialog-toolbar">
+          <div className="location-search-box">
+            <Search className="location-search-icon" fontSize="small" />
+            <input
+              type="text"
+              className="location-search-input"
+              placeholder="Ban muon mua hang tu Tinh / Thanh pho nao?"
+              value={locationSearchKeyword}
+              onChange={(e) => setLocationSearchKeyword(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="location-dialog-content">
+          <div className="location-dialog-list">
+            {groupedLocationOptions.length > 0 ? (
+              groupedLocationOptions.map(([key, cities]) => (
+                <div
+                  key={key}
+                  className="location-letter-section"
+                  ref={(element) => {
+                    locationLetterRefs.current[key] = element;
+                  }}
+                >
+                  <h5 className="location-letter-title">{key}</h5>
+                  <div className="location-letter-grid">
+                    {cities.map(city => (
+                      <label key={city} className="filter-option">
+                        <input
+                          type="checkbox"
+                          checked={activeFilters.shopCities?.includes(city)}
+                          onChange={() => handleLocationChange(city)}
+                        />
+                        <span>{city}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="location-empty-state">Khong tim thay tinh / thanh pho phu hop.</p>
+            )}
+          </div>
+          <div className="location-alphabet-index">
+            {visibleAlphabetKeys.map(key => (
+              <button
+                key={key}
+                type="button"
+                className="location-alphabet-btn"
+                onClick={() => handleAlphabetJump(key)}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="location-dialog-footer">
+          <button
+            type="button"
+            className="location-text-btn"
+            onClick={() => {
+              setLocationSearchKeyword('');
+              setIsLocationDialogOpen(false);
+            }}
+          >
+            Dong
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const [expandedSections, setExpandedSections] = React.useState<{[key: string]: boolean}>({
     brand: true,
+    location: true,
     category: true,
     price: true,
     rating: true,
     features: true
   });
 
-  const [priceRange, setPriceRange] = React.useState<number[]>([
-    activeFilters.priceMin ?? filterOptions.priceRange.min,
-    activeFilters.priceMax ?? filterOptions.priceRange.max
-  ]);
+  const [priceMinInput, setPriceMinInput] = React.useState<string>(
+    activeFilters.priceMin !== undefined ? String(activeFilters.priceMin) : ''
+  );
+  const [priceMaxInput, setPriceMaxInput] = React.useState<string>(
+    activeFilters.priceMax !== undefined ? String(activeFilters.priceMax) : ''
+  );
 
-  // Update local state when activeFilters change
+  // Keep local input values in sync when filters are changed externally.
   React.useEffect(() => {
-    setPriceRange([
-      activeFilters.priceMin ?? filterOptions.priceRange.min,
-      activeFilters.priceMax ?? filterOptions.priceRange.max
-    ]);
-  }, [activeFilters.priceMin, activeFilters.priceMax, filterOptions.priceRange]);
+    setPriceMinInput(activeFilters.priceMin !== undefined ? String(activeFilters.priceMin) : '');
+    setPriceMaxInput(activeFilters.priceMax !== undefined ? String(activeFilters.priceMax) : '');
+  }, [activeFilters.priceMin, activeFilters.priceMax]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -77,24 +270,43 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     });
   };
 
-  const handlePriceChange = (type: 'min' | 'max', value: string) => {
-    const numValue = value ? parseFloat(value) : undefined;
+  const handleLocationChange = (city: string) => {
+    const currentCities = activeFilters.shopCities || [];
+    const newCities = currentCities.includes(city)
+      ? currentCities.filter(name => name !== city)
+      : [...currentCities, city];
+
     onFilterChange({
       ...activeFilters,
-      [type === 'min' ? 'priceMin' : 'priceMax']: numValue
+      shopCities: newCities
     });
   };
 
-  const handleSliderChange = (event: Event, newValue: number | number[]) => {
-    setPriceRange(newValue as number[]);
+  const handlePriceInputChange = (type: 'min' | 'max', value: string) => {
+    const onlyDigits = value.replace(/[^\d]/g, '');
+    if (type === 'min') {
+      setPriceMinInput(onlyDigits);
+      return;
+    }
+    setPriceMaxInput(onlyDigits);
   };
 
-  const handleSliderCommitted = (event: Event | React.SyntheticEvent, newValue: number | number[]) => {
-    const [min, max] = newValue as number[];
+  const parsedPriceMin = priceMinInput ? Number(priceMinInput) : undefined;
+  const parsedPriceMax = priceMaxInput ? Number(priceMaxInput) : undefined;
+  const hasInvalidPriceRange =
+    parsedPriceMin !== undefined &&
+    parsedPriceMax !== undefined &&
+    parsedPriceMin > parsedPriceMax;
+
+  const handleApplyPriceRange = () => {
+    if (hasInvalidPriceRange) {
+      return;
+    }
+
     onFilterChange({
       ...activeFilters,
-      priceMin: min === filterOptions.priceRange.min ? undefined : min,
-      priceMax: max === filterOptions.priceRange.max ? undefined : max
+      priceMin: parsedPriceMin,
+      priceMax: parsedPriceMax
     });
   };
 
@@ -123,7 +335,14 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     onFilterChange({ ...activeFilters, categoryNames: newCategories });
   };
 
+  const handleRemoveLocation = (city: string) => {
+    const newCities = activeFilters.shopCities?.filter(name => name !== city) || [];
+    onFilterChange({ ...activeFilters, shopCities: newCities });
+  };
+
   const handleClearPrice = () => {
+    setPriceMinInput('');
+    setPriceMaxInput('');
     onFilterChange({ ...activeFilters, priceMin: undefined, priceMax: undefined });
   };
 
@@ -135,7 +354,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     let count = 0;
     if (activeFilters.brandIds?.length) count += activeFilters.brandIds.length;
     if (activeFilters.categoryNames?.length) count += activeFilters.categoryNames.length;
-    if (activeFilters.priceMin || activeFilters.priceMax) count++;
+    if (activeFilters.shopCities?.length) count += activeFilters.shopCities.length;
+    if (activeFilters.priceMin !== undefined || activeFilters.priceMax !== undefined) count++;
     if (activeFilters.minRating) count++;
     if (activeFilters.isFeatured) count++;
     if (activeFilters.isReturnable) count++;
@@ -144,6 +364,21 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
   };
 
   const activeCount = getActiveFiltersCount();
+  const getPriceTagLabel = () => {
+    const hasMin = activeFilters.priceMin !== undefined;
+    const hasMax = activeFilters.priceMax !== undefined;
+
+    if (hasMin && hasMax) {
+      return `₫${activeFilters.priceMin} - ₫${activeFilters.priceMax}`;
+    }
+    if (hasMin) {
+      return `From ₫${activeFilters.priceMin}`;
+    }
+    if (hasMax) {
+      return `Up to ₫${activeFilters.priceMax}`;
+    }
+    return '';
+  };
 
   return (
     <div className={`filter-sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
@@ -188,13 +423,20 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               ) : null;
             })}
 
+            {/* Location tags */}
+            {activeFilters.shopCities?.map(city => (
+              <div key={city} className="filter-tag">
+                <span>{city}</span>
+                <button onClick={() => handleRemoveLocation(city)} className="filter-tag-remove">
+                  <Close fontSize="small" />
+                </button>
+              </div>
+            ))}
+
             {/* Price tag */}
-            {(activeFilters.priceMin || activeFilters.priceMax) && (
+            {(activeFilters.priceMin !== undefined || activeFilters.priceMax !== undefined) && (
               <div className="filter-tag">
-                <span>
-                  ${activeFilters.priceMin ?? filterOptions.priceRange.min} - 
-                  ${activeFilters.priceMax ?? filterOptions.priceRange.max}
-                </span>
+                <span>{getPriceTagLabel()}</span>
                 <button onClick={handleClearPrice} className="filter-tag-remove">
                   <Close fontSize="small" />
                 </button>
@@ -265,6 +507,55 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                     <span>{brand.name}</span>
                   </label>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Shop Location Filter */}
+        {locationOptions.length > 0 && (
+          <div className="filter-section">
+            <button
+              className="filter-section-header"
+              onClick={() => toggleSection('location')}
+            >
+              <span>Shop Location</span>
+              {expandedSections.location ? <ExpandLess /> : <ExpandMore />}
+            </button>
+            {expandedSections.location && (
+              <div className="filter-options">
+                {visibleLocationOptions.map(city => (
+                  <label key={city} className="filter-option">
+                    <input
+                      type="checkbox"
+                      checked={activeFilters.shopCities?.includes(city)}
+                      onChange={() => handleLocationChange(city)}
+                    />
+                    <span>{city}</span>
+                  </label>
+                ))}
+                {(canShowMoreLocations || canShowAllLocations) && (
+                  <div className="location-action-row">
+                    {canShowMoreLocations && (
+                      <button
+                        type="button"
+                        className="location-text-btn"
+                        onClick={() => setShowMoreLocations(true)}
+                      >
+                        Them &gt;
+                      </button>
+                    )}
+                    {canShowAllLocations && (
+                      <button
+                        type="button"
+                        className="location-text-btn"
+                        onClick={() => setIsLocationDialogOpen(true)}
+                      >
+                        Khac &gt;
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -347,97 +638,54 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
           </button>
           {expandedSections.price && (
             <div className="filter-options">
-              <div className="price-slider-container">
-                <MuiSlider
-                  value={priceRange}
-                  onChange={handleSliderChange}
-                  onChangeCommitted={handleSliderCommitted}
-                  valueLabelDisplay="auto"
-                  min={filterOptions.priceRange.min}
-                  max={filterOptions.priceRange.max}
-                  valueLabelFormat={(value) => `$${value}`}
-                  sx={{
-                    color: '#1976d2',
-                    '& .MuiSlider-thumb': {
-                      width: 20,
-                      height: 20,
-                    },
-                    '& .MuiSlider-valueLabel': {
-                      fontSize: 12,
-                      fontWeight: 'normal',
-                      top: -6,
-                      backgroundColor: 'unset',
-                      color: '#1976d2',
-                      '&:before': {
-                        display: 'none',
-                      },
-                      '& *': {
-                        background: 'transparent',
-                        color: '#000',
-                      },
-                    },
-                  }}
-                />
-              </div>
               <div className="price-inputs">
                 <div className="price-input-group">
-                  <label className="price-input-label">MIN</label>
                   <input
                     type="number"
-                    value={activeFilters.priceMin ?? priceRange[0]}
-                    onChange={(e) => handlePriceChange('min', e.target.value)}
-                    min={filterOptions.priceRange.min}
-                    max={filterOptions.priceRange.max}
+                    value={priceMinInput}
+                    onChange={(e) => handlePriceInputChange('min', e.target.value)}
+                    placeholder="₫ FROM"
+                    min={0}
                   />
                 </div>
                 <span className="price-separator">-</span>
                 <div className="price-input-group">
-                  <label className="price-input-label">MAX</label>
                   <input
                     type="number"
-                    value={activeFilters.priceMax ?? priceRange[1]}
-                    onChange={(e) => handlePriceChange('max', e.target.value)}
-                    min={filterOptions.priceRange.min}
-                    max={filterOptions.priceRange.max}
+                    value={priceMaxInput}
+                    onChange={(e) => handlePriceInputChange('max', e.target.value)}
+                    placeholder="₫ TO"
+                    min={0}
                   />
                 </div>
               </div>
-              <div className="price-quick-filters">
-                <button 
-                  className="price-quick-btn"
-                  onClick={() => onFilterChange({ 
-                    ...activeFilters, 
-                    priceMin: undefined, 
-                    priceMax: 100
-                  })}
+              {hasInvalidPriceRange && (
+                <span className="price-validation-error">Max price must be greater than or equal to min price.</span>
+              )}
+              <div className="price-actions">
+                <button
+                  className="price-apply-btn"
+                  onClick={handleApplyPriceRange}
+                  disabled={hasInvalidPriceRange}
                 >
-                  Under $100
+                  Apply
                 </button>
-                <button 
-                  className="price-quick-btn"
-                  onClick={() => onFilterChange({ 
-                    ...activeFilters, 
-                    priceMin: 100, 
-                    priceMax: 300
-                  })}
+                <button
+                  className="price-reset-btn"
+                  onClick={handleClearPrice}
+                  type="button"
                 >
-                  $100 - $300
-                </button>
-                <button 
-                  className="price-quick-btn"
-                  onClick={() => onFilterChange({ 
-                    ...activeFilters, 
-                    priceMin: 300, 
-                    priceMax: undefined 
-                  })}
-                >
-                  Over $300
+                  Reset
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {typeof document !== 'undefined' && locationDialog
+        ? ReactDOM.createPortal(locationDialog, document.body)
+        : null}
     </div>
   );
 };

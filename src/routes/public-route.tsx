@@ -19,6 +19,7 @@ import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
 import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
 import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 import HelpPage from "@/pages/Help/HelpPage";
+import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 
 const PublicRoutesComponent = () => {
     return (
