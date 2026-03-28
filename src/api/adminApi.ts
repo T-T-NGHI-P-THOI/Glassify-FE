@@ -4,9 +4,10 @@ import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 
 export const adminApi = {
-  getShopRequests: async (): Promise<ApiResponse<ShopRequestsResponse>> => {
+  getShopRequests: async (status?: string): Promise<ApiResponse<ShopRequestsResponse>> => {
     const response = await axiosInstance.get<ApiResponse<ShopRequestsResponse>>(
       API_ENDPOINTS.ADMIN.SHOPS.REQUESTS,
+      { params: status ? { status } : undefined },
     );
     return response.data;
   },

@@ -213,6 +213,7 @@ export const PAGE_ENDPOINTS = {
   USER: {
     PROFILE: `/users/me`,
     WALLET: `/wallet`,
+    HELP: `/help`,
   },
 
   CART: {

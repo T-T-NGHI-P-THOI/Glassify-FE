@@ -105,6 +105,11 @@ export const shopApi = {
     return response.data;
   },
 
+  checkEmail: async (email: string): Promise<ApiResponse<{ available: boolean; message: string }>> => {
+    const response = await axiosInstance.get(`${SHOP_BASE_URL}/check-email`, { params: { email } });
+    return response.data;
+  },
+
   getMyShops: async (): Promise<ApiResponse<ShopDetailResponse[]>> => {
     const response = await axiosInstance.get<ApiResponse<ShopDetailResponse[]>>(
       `${SHOP_BASE_URL}/my-shops`,

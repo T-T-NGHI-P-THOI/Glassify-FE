@@ -612,7 +612,7 @@ const ShopEditProfilePage = () => {
               {shop.adminComment && <Typography sx={{ fontSize: 14, mt: 0.5 }}><strong>Admin comment:</strong> {shop.adminComment}</Typography>}
             </Alert>
           )}
-          {(shop.status === 'PENDING' || pendingDeactivation) && (
+          {pendingDeactivation && (
             <Alert severity="warning" sx={{ mb: 3 }}>Your shop has a pending deactivation request. You can cancel it before it takes effect.</Alert>
           )}
 

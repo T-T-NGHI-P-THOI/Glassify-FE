@@ -12,7 +12,14 @@
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)",
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name application*.properties -o -name application*.yml)",
       "Bash(grep -rn \"countBy\\\\|sumBy\\\\|groupBy\\\\|aggregat\\\\|statistic\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository --include=*.java)",
-      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})"
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name ShopService*.java -o -name IShopService.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -path *Admin*Dashboard* -o -path *admin*dashboard*)",
+      "Bash(xargs ls:*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src -name *OrderDetail* -o -name *order-detail* -o -name *MyOrder*)",
+      "Bash(grep -rn ToastContainer /Users/lamiee/Study/CapstoneProject/Glassify-FE --include=*.tsx --include=*.ts --include=*.jsx --include=*.js)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",

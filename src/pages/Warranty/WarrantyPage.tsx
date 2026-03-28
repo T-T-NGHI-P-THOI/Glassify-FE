@@ -1529,16 +1529,28 @@ const WarrantyPage = () => {
                     onChange={(e) => setFormData({ ...formData, orderItemId: e.target.value })}
                     label="Select Item"
                   >
-                    {selectedOrder.items.map((item) => (
-                      <MenuItem key={item.id} value={item.id}>
-                        <Box>
-                          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{item.productName}</Typography>
-                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                            {item.shopName}{item.warrantyExpiresAt && ` · Warranty until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')}`}
-                          </Typography>
-                        </Box>
-                      </MenuItem>
-                    ))}
+                    {selectedOrder.items.map((item) => {
+                      const expired = Boolean(item.warrantyExpiresAt) && new Date(item.warrantyExpiresAt!) < new Date();
+                      return (
+                        <MenuItem key={item.id} value={item.id} disabled={expired}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 2 }}>
+                            <Box>
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: expired ? theme.palette.custom.neutral[400] : 'inherit' }}>
+                                {item.productName}
+                              </Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                                {item.shopName}{item.warrantyExpiresAt && ` · Warranty until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')}`}
+                              </Typography>
+                            </Box>
+                            {expired && (
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                Warranty expired
+                              </Typography>
+                            )}
+                          </Box>
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                 </FormControl>
               )}

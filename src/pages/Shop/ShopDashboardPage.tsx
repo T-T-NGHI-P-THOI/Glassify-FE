@@ -364,7 +364,7 @@ const ShopDashboardPage = () => {
           >
             <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
             <Typography sx={{ fontSize: 14 }}>
-              Your shop registration is currently being reviewed by our admin team. You will receive a notification once your shop is approved.
+              Your shop registration is currently being reviewed. All fields are disabled until the review is complete.
             </Typography>
           </Alert>
         )}
@@ -389,9 +389,9 @@ const ShopDashboardPage = () => {
               </Button>
             }
           >
-            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation Request Pending</Typography>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Pending Deactivation Request</Typography>
             <Typography sx={{ fontSize: 14 }}>
-              Your shop deactivation request is being reviewed. You can cancel this request if you change your mind.
+              Your shop has a pending deactivation request. You can cancel it before it takes effect.
             </Typography>
           </Alert>
         )}

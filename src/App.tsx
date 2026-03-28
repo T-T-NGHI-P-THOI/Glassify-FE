@@ -5,6 +5,8 @@ import AuthProvider from './auth/AuthProvider'
 import { Layout } from './layouts/Layout'
 import { LayoutProvider } from './layouts/LayoutContext'
 import CartProvider from './contexts/CartProvider'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
   return (
@@ -16,8 +18,17 @@ function App() {
               <RouteComponent />
             </Layout>
           </LayoutProvider>
-          </CartProvider>
+        </CartProvider>
       </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        style={{ zIndex: 99999 }}
+      />
     </BrowserRouter>
   )
 }

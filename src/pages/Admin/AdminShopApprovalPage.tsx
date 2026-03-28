@@ -547,6 +547,7 @@ const AdminShopApprovalPage = () => {
                     { label: 'Shop Code', value: selectedRegistration.shopCode },
                     { label: 'Shop Email', value: selectedRegistration.email },
                     { label: 'Phone', value: selectedRegistration.phone },
+                    { label: 'Version', value: `v${selectedRegistration.version}` },
                   ].map(({ label, value }) => (
                     <Box key={label} sx={{ mb: 2 }}>
                       <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{label}</Typography>

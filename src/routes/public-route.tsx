@@ -17,6 +17,7 @@ import AuthPage from "@/pages/auth/Login";
 import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
 import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
 import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
+import HelpPage from "@/pages/Help/HelpPage";
 import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 
 const PublicRoutesComponent = () => {
@@ -84,6 +85,11 @@ const PublicRoutesComponent = () => {
             <Route
                 path={PAGE_ENDPOINTS.PAYMENT.RESULT}
                 element={<PaymentResultPage />}
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.USER.HELP}
+                element={<HelpPage />}
             />
         </>
     );
