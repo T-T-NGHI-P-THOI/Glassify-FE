@@ -50,6 +50,9 @@ import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/m
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { useAuth } from '@/hooks/useAuth';
+import { initialize } from '@/auth/Reducer';
+import userApi from '@/api/service/userApi';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -101,6 +104,7 @@ interface ShopFormData {
 const ShopRegistrationPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { dispatch } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
@@ -252,6 +256,7 @@ const ShopRegistrationPage = () => {
       if (!formData.businessType) newErrors.businessType = 'Business type is required';
       if (!formData.taxId.trim()) newErrors.taxId = 'Tax ID is required';
       if (!formData.legalRepresentative.trim()) newErrors.legalRepresentative = 'Legal representative name is required';
+      if (!formData.licenseImageUrl.trim()) newErrors.licenseImageUrl = 'License image URL is required';
       if (formData.expiryDate) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -331,6 +336,15 @@ const ShopRegistrationPage = () => {
       };
 
       await shopApi.register(requestData);
+      // Refresh user profile so the SHOP_OWNER role is reflected in FE context
+      try {
+        const profileRes = await userApi.getMyProfile();
+        if (profileRes.data) {
+          dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: profileRes.data as any }));
+        }
+      } catch {
+        // profile refresh failure is non-critical
+      }
       setSuccessDialogOpen(true);
     } catch (err: any) {
       const rawErrors = err?.originalError?.response?.data?.errors;
@@ -651,11 +665,13 @@ const ShopRegistrationPage = () => {
           <TextField
             fullWidth
             label="License Image URL"
+            required
             value={formData.licenseImageUrl}
             onChange={handleInputChange('licenseImageUrl')}
             placeholder="Paste the URL of your scanned license document"
+            error={!!errors.licenseImageUrl}
+            helperText={errors.licenseImageUrl || 'Upload your document to a cloud storage and paste the public link here.'}
             slotProps={{ input: { startAdornment: <LinkIcon sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
-            helperText="Upload your document to a cloud storage and paste the public link here."
           />
         </Grid>
       </Grid>

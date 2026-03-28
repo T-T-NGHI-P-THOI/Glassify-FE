@@ -871,11 +871,13 @@ const AdminShopApprovalPage = () => {
             fullWidth
             multiline
             rows={2}
+            required
             label="Admin Comment (Internal Note)"
             value={adminComment}
             onChange={(e) => setAdminComment(e.target.value)}
-            placeholder="Optional internal note for admin reference..."
-            helperText="This comment is for admin reference only"
+            placeholder="Enter a comment for admin reference..."
+            error={rejectDialogOpen && !adminComment.trim()}
+            helperText={rejectDialogOpen && !adminComment.trim() ? 'Admin comment is required' : 'This comment is for admin reference only'}
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -887,6 +889,7 @@ const AdminShopApprovalPage = () => {
             disabled={
               !rejectionReasonPreset ||
               (rejectionReasonPreset === 'OTHER' && !customReason.trim()) ||
+              !adminComment.trim() ||
               reviewLoading
             }
             startIcon={reviewLoading ? <CircularProgress size={18} color="inherit" /> : undefined}

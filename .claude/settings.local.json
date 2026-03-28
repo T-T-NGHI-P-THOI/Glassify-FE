@@ -19,12 +19,16 @@
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -path *Admin*Dashboard* -o -path *admin*dashboard*)",
       "Bash(xargs ls:*)",
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src -name *OrderDetail* -o -name *order-detail* -o -name *MyOrder*)",
-      "Bash(grep -rn ToastContainer /Users/lamiee/Study/CapstoneProject/Glassify-FE --include=*.tsx --include=*.ts --include=*.jsx --include=*.js)"
+      "Bash(grep -rn ToastContainer /Users/lamiee/Study/CapstoneProject/Glassify-FE --include=*.tsx --include=*.ts --include=*.jsx --include=*.js)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name *email* -o -name *template* -o -name *mail*)",
+      "Bash(grep -l \"Hello\\\\|Best regards\\\\|Order Details\\\\|Shop Name\\\\|Claim Number\\\\|Request Number\" *.html)",
+      "Bash(grep -l \"Xin chào\\\\|Trân trọng\\\\|Đội ngũ\\\\|tiếng việt\\\\|bạn\\\\|hàng\\\\|ngưng\\\\|chấp thuận\\\\|từ chối\\\\|hoàn tiền\\\\|bảo hành\" *.html)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository",
-      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller"
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email"
     ]
   }
 }
