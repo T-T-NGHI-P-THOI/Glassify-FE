@@ -46,6 +46,9 @@ export const API_ENDPOINTS = {
   LENS: {
     BASE: `${API_ENDPOINT}/lens-catalog`,
     CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+    CREATE: `${API_ENDPOINT}/lenses`,
+    CREATE_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lenses/for-frame/${frameVariantId}`,
+    CREATE_FOR_FRAME_GROUP: (frameGroupId: string) => `${API_ENDPOINT}/lenses/for-frame-group/${frameGroupId}`,
   },
   PRESCRIPTIONS: {
     BASE: `${API_ENDPOINT}/prescriptions`,
@@ -188,6 +191,7 @@ export const PAGE_ENDPOINTS = {
     PROFILE: `/shop/profile`,
     PRODUCT_FRAME: `/shop/product/frame`,
     CREATE_FRAME: `/shop/product/frame/create`,
+    CREATE_LENS: `/shop/product/lens/create`,
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,

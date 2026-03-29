@@ -573,14 +573,24 @@ const FrameProductPage = () => {
               Quản lý và theo dõi thông tin gọng kính có trong cửa hàng
             </Typography>
           </Box>
-          <CustomButton
-            variant="contained"
-            startIcon={<Add />}
-            sx={{ backgroundColor: theme.palette.primary.main, textTransform: 'none', fontWeight: 600 }}
-            onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.CREATE_FRAME); }}
-          >
-            Add Frame
-          </CustomButton>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <CustomButton
+              variant="outlined"
+              startIcon={<Add />}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+              onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.CREATE_LENS); }}
+            >
+              Add Lens
+            </CustomButton>
+            <CustomButton
+              variant="contained"
+              startIcon={<Add />}
+              sx={{ backgroundColor: theme.palette.primary.main, textTransform: 'none', fontWeight: 600 }}
+              onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.CREATE_FRAME); }}
+            >
+              Add Frame
+            </CustomButton>
+          </Box>
         </Box>
 
         {/* Stats Cards */}
