@@ -401,9 +401,9 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                             setActiveTexture(tv);
                                         }}
                                         sx={{
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: "8px",
+                                            width: 25,
+                                            height: 25,
+                                            borderRadius: "50%",
                                             cursor: "pointer",
                                             border: isActive ? "2px solid white" : "1px solid #ccc",
                                             overflow: "hidden"
@@ -415,6 +415,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                                 sx={{
                                                     width: "100%",
                                                     height: "100%",
+                                                    borderRadius: "50%",
                                                     backgroundColor: tv.colorHex
                                                 }}
                                             />
@@ -425,6 +426,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                                 style={{
                                                     width: "100%",
                                                     height: "100%",
+                                                    borderRadius: "50%",
                                                     objectFit: "cover"
                                                 }}
                                             />
