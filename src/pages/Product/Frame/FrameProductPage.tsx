@@ -34,6 +34,7 @@ import ProductAPI from '@/api/product-api';
 import EditFrameGroupDialog, { type EditFrameGroupFormData } from './Edit/EditFrameGroupDialog';
 import DeleteConfirmDialog from './Delete/DeleteConfirmDialog';
 import FrameGroupCard, { type FrameGroup } from './View/FrameGroupCard';
+import ViewFrameGroupDialog from './View/ViewFrameGroupDialog';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -54,6 +55,8 @@ const FrameProductPage = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(12);
 
+  const [viewTarget, setViewTarget] = useState<FrameGroup | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
   const [editTarget, setEditTarget] = useState<FrameGroup | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FrameGroup | null>(null);
@@ -109,8 +112,8 @@ const FrameProductPage = () => {
 
   const totalGroups = frameGroups.length;
   const activeCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.isActive ?? true)).length;
-  const inStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.stockQuantity > LOW_STOCK_THRESHOLD)).length;
-  const outOfStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.length > 0 && fg.frameVariantResponses.every((v) => v.stockQuantity === 0)).length;
+  const inStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.stock > LOW_STOCK_THRESHOLD)).length;
+  const outOfStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.length > 0 && fg.frameVariantResponses.every((v) => v.stock === 0)).length;
   const noVariantCount = frameGroups.filter((fg) => fg.frameVariantResponses.length === 0).length;
 
   const stats = [
@@ -271,11 +274,12 @@ const FrameProductPage = () => {
                 <Box key={fg.id} >
                   <FrameGroupCard
                     fg={fg}
+                    shopId={shop?.id || ''}
                     isExpanded={isExpanded}
                     onToggle={() => toggleRow(fg.id)}
                     onEdit={() => setEditTarget(fg)}
                     onDelete={() => setDeleteTarget(fg)}
-                    onPreview={() => { }}
+                    onPreview={() => {setViewTarget(fg) }}
                     onViewAnalytics={() => { }}
                   />
                 </Box>
@@ -316,7 +320,14 @@ const FrameProductPage = () => {
         )}
       </Box>
 
+      
+
       {/* Dialogs */}
+      <ViewFrameGroupDialog
+        open={!!viewTarget}
+        onClose={() => setViewTarget(null)}
+        frameGroup={viewTarget}
+      />
       <EditFrameGroupDialog
         open={!!editTarget}
         onClose={() => setEditTarget(null)}

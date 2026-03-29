@@ -1,7 +1,6 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
-import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
 import axiosInstance from './axios.config';
 
 // Category type from API

@@ -91,6 +91,7 @@ export const AGE_GROUPS = [
     { value: 'ADULTS', label: 'Adults' },
     { value: 'SENIORS', label: 'Seniors' }
 ] as const;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const EditFrameGroupDialog = ({

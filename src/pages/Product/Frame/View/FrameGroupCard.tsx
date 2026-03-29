@@ -22,6 +22,7 @@ import {
 import { useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
+import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -43,7 +44,13 @@ export interface FrameVariantResponse {
     basePrice: number;
     costPrice: number;
     compareAtPrice: number;
-    stockQuantity: number;
+    stock: number;
+    stockThreshold: string;
+    warrantyMonths: string;
+    isReturnable: boolean;
+    isFeatured: boolean;
+    productResponse: ProductResponse;
+    textureFile: string;
 }
 
 export interface ProductResponse {
@@ -51,8 +58,18 @@ export interface ProductResponse {
     basePrice: number;
     costPrice: number;
     compareAtPrice: number;
-    stockQuantity: number;
+    stock: number;
     isActive: boolean;
+    isFeatured: boolean;
+    isReturnable: boolean;
+    warrantyMonths: number;
+    viewCount: number;
+    soldCount: number;
+    avgRating: number;
+    reviewCount: number;
+    metaTitle: string;
+    metaDescription: string;
+    productType: string;
     productImages: string[];
     fileResponses: { url: string }[] | null;
 }
@@ -71,7 +88,6 @@ export interface FrameGroup {
     vrEnabled?: boolean;
     suitableFaceShapes: string[] | null;
     createdAt: string;
-    productResponses: ProductResponse[];
     frameVariantResponses: FrameVariantResponse[];
 }
 
@@ -101,7 +117,7 @@ function mapToFormData(v: FrameVariantResponse): CreateFrameVariantFormData {
         lensHeightMm: String(v.lensHeightMm ?? ''),
         bridgeWidthMm: String(v.bridgeWidthMm ?? ''),
         templeLengthMm: String(v.templeLengthMm ?? ''),
-        stock: String(v.stockQuantity ?? ''),
+        stock: String(v.stock ?? ''),
         stockThreshold: '',
         warrantyMonths: '',
         costPrice: String(v.costPrice ?? ''),
@@ -117,16 +133,20 @@ function mapToFormData(v: FrameVariantResponse): CreateFrameVariantFormData {
 // ─── Variant Panel (expanded) ─────────────────────────────────────────────────
 
 interface VariantPanelProps {
+    frameGroupId: string;
+    shopId: string;
     variants: FrameVariantResponse[];
     vrEnabled?: boolean;
+    productImages: string[];
 }
 
-const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
+const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages }: VariantPanelProps) => {
     const theme = useTheme();
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedVariant, setSelectedVariant] = useState<
-        (CreateFrameVariantFormData & { id?: string }) | null
+        FrameVariantResponse | null
     >(null);
+    const [addVariantOpen, setAddVariantOpen] = useState(false);
 
     if (variants.length === 0) {
         return (
@@ -179,14 +199,14 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
                 {/* Variant card grid */}
                 <Box
                     sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                        display: 'flex',
                         gap: 1,
                         p: 1,
+                        overflowX: 'auto', // nếu quá nhiều variant thì cuộn ngang
                     }}
                 >
                     {variants.map((v) => {
-                        const st = getVariantStatus(v.stockQuantity);
+                        const st = getVariantStatus(v.stock);
                         const sc = statusConfig[st];
 
                         return (
@@ -273,7 +293,7 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
                                 {/* Stock */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>{v.stockQuantity}</Box>
+                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>{v.stock}</Box>
                                     </Typography>
                                     <Chip
                                         label={sc.label}
@@ -318,7 +338,7 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
                                         <IconButton
                                             size="small"
                                             onClick={() => {
-                                                setSelectedVariant({ ...mapToFormData(v), id: v.id });
+                                                setSelectedVariant(v);
                                                 setDetailOpen(true);
                                             }}
                                             sx={{
@@ -360,6 +380,32 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
                             </Box>
                         );
                     })}
+
+                    {/* ── Add Variant card ── */}
+                    <Box
+                        onClick={() => setAddVariantOpen(true)}
+                        sx={{
+                            bgcolor: theme.palette.custom.neutral[100],
+                            border: `0.5px dashed ${theme.palette.custom.border.light}`,
+                            borderRadius: 1.5,
+                            p: 1.25,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                                borderColor: theme.palette.primary.main,
+                                bgcolor: theme.palette.custom.neutral[50],
+                            },
+                            minHeight: 120,
+                            minWidth: 50
+                        }}
+                    >
+                        <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.primary.main }}>
+                            +
+                        </Typography>
+                    </Box>
                 </Box>
             </Box>
 
@@ -367,9 +413,19 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
                 <FrameVariantDetailDialog
                     open={detailOpen}
                     onClose={() => { setDetailOpen(false); setSelectedVariant(null); }}
+                    productImages={productImages}
                     variant={selectedVariant}
                     modelFile={null}
                     vrEnabled={vrEnabled}
+                />
+            )}
+            {addVariantOpen && (
+                <CreateFrameVariantPopup
+                    open={addVariantOpen}
+                    frameGroupId={frameGroupId}
+                    shopId={shopId}
+                    onClose={() => setAddVariantOpen(false)}
+                // có thể truyền thêm props cần thiết như productImages, frameGroupId...
                 />
             )}
         </>
@@ -380,6 +436,7 @@ const VariantPanel = ({ variants, vrEnabled }: VariantPanelProps) => {
 
 export interface FrameGroupCardProps {
     fg: FrameGroup;
+    shopId: string;
     isExpanded: boolean;
     onToggle: () => void;
     onEdit: () => void;
@@ -390,6 +447,7 @@ export interface FrameGroupCardProps {
 
 const FrameGroupCard = ({
     fg,
+    shopId,
     isExpanded,
     onToggle,
     onEdit,
@@ -400,16 +458,25 @@ const FrameGroupCard = ({
     const theme = useTheme();
 
     const variants = fg.frameVariantResponses;
-    const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
-    const hasOut = variants.some((v) => v.stockQuantity === 0);
-    const hasLow = variants.some((v) => v.stockQuantity > 0 && v.stockQuantity <= LOW_STOCK_THRESHOLD);
+    const totalStock = variants.reduce((sum, v) => sum + v.stock, 0);
+    const hasOut = variants.some((v) => v.stock === 0);
+    const hasLow = variants.some((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD);
+    const featuredFrameVariant = fg.frameVariantResponses.find(
+        fv => fv.productResponse?.isFeatured
+    ) ?? null;
+    const images =
+        featuredFrameVariant?.productResponse.productImages ||
+        featuredFrameVariant?.productResponse.fileResponses?.map(f => f.url) ||
+        [];
+
+    const [imgIndex, setImgIndex] = useState(0);
 
     const isActive =
-        fg.productResponses.some((p) => p.isActive) ||
+        featuredFrameVariant?.productResponse.isActive ||
         variants.some((v) => v.isActive === true);
 
     const price = (() => {
-        const p = fg.productResponses[0];
+        const p = featuredFrameVariant?.productResponse;
         if (p) return { base: p.basePrice, compare: p.compareAtPrice, cost: p.costPrice };
         const v = variants[0];
         if (v) return { base: v.basePrice, compare: v.compareAtPrice, cost: v.costPrice };
@@ -421,19 +488,16 @@ const FrameGroupCard = ({
         new Map(variants.map((v) => [v.colorHex, v.colorName])).entries()
     );
 
-    // Thumbnail: first product image or 3D model
-    const thumbnail =
-        fg.productResponses[0]?.productImages?.[0] ||
-        fg.productResponses[0]?.fileResponses?.[0]?.url ||
-        null;
 
     // Overall stock status for the group
-    const groupStatus = (() => {
-        if (variants.length === 0) return null;
-        if (variants.every((v) => v.stockQuantity === 0)) return 'out_of_stock' as const;
-        if (variants.some((v) => v.stockQuantity > 0 && v.stockQuantity <= LOW_STOCK_THRESHOLD)) return 'low_stock' as const;
-        return 'in_stock' as const;
-    })();
+    const findFrameVariantFeatured = () => {
+        for (const fv of fg.frameVariantResponses) {
+            if (fv.productResponse?.isFeatured) {
+                return fv;
+            }
+        }
+        return null;
+    };
 
     return (
         <Paper
@@ -454,38 +518,39 @@ const FrameGroupCard = ({
                     position: 'relative',
                     height: 140,
                     bgcolor: theme.palette.custom.neutral[100],
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     overflow: 'hidden',
                     cursor: 'pointer',
                 }}
                 onClick={onToggle}
             >
-                {thumbnail ? (
+                {/* Main image */}
+                {images.length > 0 ? (
                     <Box
                         component="img"
-                        src={thumbnail}
+                        src={images[imgIndex]}
                         alt={fg.frameName}
-                        sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transition: 'transform 0.25s',
+                            '&:hover': {
+                                transform: 'scale(1.05)',
+                            },
+                        }}
                     />
                 ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                        {fg.vrEnabled ? (
-                            <>
-                                <ViewInAr sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
-                                    3D Model
-                                </Typography>
-                            </>
-                        ) : (
-                            <>
-                                <Inventory2 sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
-                                    No image
-                                </Typography>
-                            </>
-                        )}
+                    <Box
+                        sx={{
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Typography fontSize={12} color="text.secondary">
+                            No image
+                        </Typography>
                     </Box>
                 )}
 
@@ -502,12 +567,10 @@ const FrameGroupCard = ({
                         fontWeight: 600,
                         bgcolor: '#E6F1FB',
                         color: '#0C447C',
-                        border: 'none',
-                        '& .MuiChip-label': { px: 1 },
                     }}
                 />
 
-                {/* Active/inactive badge */}
+                {/* Active badge */}
                 <Chip
                     label={isActive ? 'Active' : 'Inactive'}
                     size="small"
@@ -518,18 +581,97 @@ const FrameGroupCard = ({
                         height: 20,
                         fontSize: 10,
                         fontWeight: 600,
-                        bgcolor: isActive
-                            ? theme.palette.custom.status.success.light
-                            : theme.palette.custom.status.warning.light,
-                        color: isActive
-                            ? theme.palette.custom.status.success.main
-                            : theme.palette.custom.status.warning.main,
-                        border: 'none',
-                        '& .MuiChip-label': { px: 1 },
                     }}
                 />
 
-                {/* Color swatches strip at bottom of image */}
+                {/* Dots */}
+                {images.length > 1 && (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: 6,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            display: 'flex',
+                            gap: 0.5,
+                        }}
+                    >
+                        {images.map((_, i) => (
+                            <Box
+                                key={i}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setImgIndex(i);
+                                }}
+                                sx={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: '50%',
+                                    bgcolor: i === imgIndex ? '#fff' : 'rgba(255,255,255,0.5)',
+                                    cursor: 'pointer',
+                                }}
+                            />
+                        ))}
+                    </Box>
+                )}
+
+                {/* Prev button */}
+                {images.length > 1 && (
+                    <Box
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setImgIndex(prev => (prev - 1 + images.length) % images.length);
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            left: 4,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            bgcolor: 'rgba(0,0,0,0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 12,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        ‹
+                    </Box>
+                )}
+
+                {/* Next button */}
+                {images.length > 1 && (
+                    <Box
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setImgIndex(prev => (prev + 1) % images.length);
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            right: 4,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            bgcolor: 'rgba(0,0,0,0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: 12,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        ›
+                    </Box>
+                )}
+
+                {/* Color swatches */}
                 {colorSwatches.length > 0 && (
                     <Box
                         sx={{
@@ -553,11 +695,6 @@ const FrameGroupCard = ({
                                 />
                             </Tooltip>
                         ))}
-                        {colorSwatches.length > 6 && (
-                            <Typography sx={{ fontSize: 10, color: '#fff', alignSelf: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                +{colorSwatches.length - 6}
-                            </Typography>
-                        )}
                     </Box>
                 )}
             </Box>
@@ -671,7 +808,7 @@ const FrameGroupCard = ({
                     }}
                 >
                     {[
-                        { label: 'Views', value: fg.productResponses[0] ? '—' : '—' },
+                        { label: 'Views', value: featuredFrameVariant?.productResponse ? '—' : '—' },
                         { label: 'Sales', value: '—' },
                         { label: 'Variants', value: String(variants.length) },
                     ].map(({ label, value }) => (
@@ -718,7 +855,10 @@ const FrameGroupCard = ({
 
             {/* Expand variants panel */}
             {isExpanded && (
-                <VariantPanel variants={variants} vrEnabled={fg.vrEnabled} />
+                <VariantPanel
+                    frameGroupId={fg.id}
+                    shopId={shopId}
+                    variants={variants} vrEnabled={fg.vrEnabled} productImages={featuredFrameVariant?.productResponse.productImages || []} />
             )}
         </Paper>
     );

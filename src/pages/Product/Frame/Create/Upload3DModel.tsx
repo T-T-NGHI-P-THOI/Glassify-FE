@@ -30,14 +30,14 @@ export interface Model3DFile {
 
 export interface Upload3DModelPageRef {
     submit: () => Promise<void>;
-    /** Apply texture file vào model đang chạy trong viewer */
     applyTexture: (file: File) => void;
 }
 
 interface Upload3DModelPageProps {
     variantId?: string;
     initialFile?: Model3DFile | null;
-    onUploaded?: (modelUrl: string, file: Model3DFile) => void;
+    onUploaded?: (modelUrl: string, file: Model3DFile | null) => void;
+    readOnly?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ const isValidExtension = (filename: string) =>
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProps>(
-    ({ variantId, initialFile, onUploaded }, ref) => {
+    ({ variantId, initialFile, onUploaded, readOnly = false }, ref) => {
         const theme = useTheme();
 
         const [modelFile, setModelFile] = useState<Model3DFile | null>(initialFile ?? null);
@@ -69,7 +69,7 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
 
-        // ── Khởi Three.js viewer ──────────────────────────────────────────────
+        // ── Three.js viewer ──────────────────────────────────────────────
         useEffect(() => {
             if (!modelFile) return;
 
@@ -96,7 +96,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                 startViewer(offsetWidth, offsetHeight);
                 return () => {
                     cleanupRef.current?.();
-                    cleanupRef.current = null;
                     threeServiceRef.current = null;
                 };
             }
@@ -116,14 +115,15 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
             return () => {
                 observer.disconnect();
                 cleanupRef.current?.();
-                cleanupRef.current = null;
                 threeServiceRef.current = null;
             };
         }, [modelFile]);
 
-        // ── File handlers ─────────────────────────────────────────────────────
+        // ── File handlers ─────────────────────────────────────────────────
 
         const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+            if (readOnly) return;
+
             const files = e.target.files;
             if (!files || files.length === 0) return;
 
@@ -143,27 +143,35 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
 
             setError(null);
             cleanupRef.current?.();
-            cleanupRef.current = null;
             threeServiceRef.current = null;
 
-            const model3dFile: Model3DFile = { name: file.name, size: file.size, type: file.type, file };
+            const model3dFile: Model3DFile = {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                file,
+            };
+
             setModelFile(model3dFile);
             onUploaded?.('', model3dFile);
             e.target.value = '';
         };
 
         const handleRemoveFile = () => {
+            if (readOnly) return;
+
             cleanupRef.current?.();
-            cleanupRef.current = null;
             threeServiceRef.current = null;
             setModelFile(null);
             setError(null);
-            onUploaded?.('', null as any); 
+            onUploaded?.('', null);
         };
 
-        // ── Submit ────────────────────────────────────────────────────────────
+        // ── Submit ───────────────────────────────────────────────────────
 
         const handleSubmit = async () => {
+            if (readOnly) return;
+
             if (!modelFile) {
                 setError('Please upload a 3D model file');
                 throw new Error('Validation failed');
@@ -184,7 +192,6 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
 
         useImperativeHandle(ref, () => ({
             submit: handleSubmit,
-            // ✅ Expose applyTexture — CreateFrameVariantPage gọi khi user upload texture
             applyTexture: (file: File) => {
                 const service = threeServiceRef.current;
                 if (service?.viewerModel) {
@@ -193,7 +200,7 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
             },
         }));
 
-        // ── Render ────────────────────────────────────────────────────────────
+        // ── Render ───────────────────────────────────────────────────────
 
         return (
             <Box>
@@ -203,149 +210,69 @@ const Upload3DModelPage = forwardRef<Upload3DModelPageRef, Upload3DModelPageProp
                     accept={ACCEPTED_EXTENSIONS.join(',')}
                     style={{ display: 'none' }}
                     onChange={handleFileUpload}
+                    disabled={readOnly} // ✅
                 />
 
-                {!modelFile && (
+                {/* Upload area */}
+                {!modelFile && !readOnly && (
                     <label htmlFor="model-3d-upload">
-                        <UploadArea sx={error ? { borderColor: theme.palette.error.main } : {}}>
-                            <CloudUpload
-                                sx={{ fontSize: 48, color: theme.palette.custom.neutral[400], mb: 2 }}
-                            />
-                            <Typography
-                                sx={{
-                                    fontSize: 16,
-                                    fontWeight: 500,
-                                    color: theme.palette.custom.neutral[700],
-                                    mb: 1,
-                                }}
-                            >
-                                Drag and drop file here or click to browse
-                            </Typography>
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                                {ACCEPTED_EXTENSIONS.join(', ')} up to {MAX_SIZE_MB} MB
-                            </Typography>
+                        <UploadArea>
+                            <CloudUpload sx={{ fontSize: 48, mb: 2 }} />
+                            <Typography>Upload 3D model</Typography>
                         </UploadArea>
                     </label>
                 )}
 
                 {error && (
-                    <Typography color="error" fontSize={12} sx={{ mt: 1 }}>
+                    <Typography color="error" fontSize={12} mt={1}>
                         {error}
                     </Typography>
                 )}
 
                 {modelFile && (
                     <Box>
-                        <Paper
-                            elevation={0}
-                            sx={{
-                                p: 2,
-                                mb: 2,
-                                borderRadius: 2,
-                                border: `1px solid ${theme.palette.custom.border.light}`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 2,
-                            }}
-                        >
-                            <Box
-                                sx={{
-                                    width: 44,
-                                    height: 44,
-                                    borderRadius: 1,
-                                    bgcolor: theme.palette.custom.neutral[100],
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <InsertDriveFile sx={{ color: theme.palette.primary.main, fontSize: 24 }} />
-                            </Box>
+                        {!readOnly ? (
+                            <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <InsertDriveFile />
 
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography
-                                    sx={{
-                                        fontSize: 14,
-                                        fontWeight: 500,
-                                        color: theme.palette.custom.neutral[800],
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    {modelFile.name}
-                                </Typography>
-                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                                    {formatFileSize(modelFile.size)}
-                                </Typography>
-                            </Box>
+                                <Box flex={1}>
+                                    <Typography noWrap>{modelFile.name}</Typography>
+                                    <Typography fontSize={12}>
+                                        {formatFileSize(modelFile.size)}
+                                    </Typography>
+                                </Box>
 
-                            <label htmlFor="model-3d-upload" style={{ cursor: 'pointer' }}>
-                                <Button
-                                    component="span"
-                                    size="small"
-                                    variant="outlined"
-                                    startIcon={<Refresh sx={{ fontSize: 16 }} />}
-                                    sx={{ fontSize: 13, textTransform: 'none', mr: 1 }}
-                                >
-                                    Replace
-                                </Button>
-                            </label>
+                                <label htmlFor="model-3d-upload">
+                                    <Button component="span" size="small" startIcon={<Refresh />}>
+                                        Replace
+                                    </Button>
+                                </label>
 
-                            <IconButton
-                                size="small"
-                                onClick={handleRemoveFile}
-                                sx={{ color: theme.palette.custom.status.error.main }}
-                            >
-                                <Delete />
-                            </IconButton>
-                        </Paper>
+                                <IconButton onClick={handleRemoveFile}>
+                                    <Delete />
+                                </IconButton>
+                            </Paper>
+                        ) : (<></>)
+                        }
 
+                        {/* Viewer */}
                         <Box
                             ref={containerRef}
-                            sx={{
-                                borderRadius: 2,
-                                overflow: 'hidden',
-                                border: `1px solid ${theme.palette.custom.border.light}`,
-                                position: 'relative',
-                                width: '100%',
-                                height: 420,
-                            }}
+                            sx={{ height: 420, border: '1px solid #ccc', borderRadius: 2 }}
                         >
-                            <canvas
-                                ref={canvasRef}
-                                style={{ width: '100%', height: '100%', display: 'block' }}
-                            />
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    bottom: 12,
-                                    right: 14,
-                                    bgcolor: 'rgba(0,0,0,0.45)',
-                                    borderRadius: 1,
-                                    px: 1.5,
-                                    py: 0.5,
-                                    pointerEvents: 'none',
-                                }}
-                            >
-                                <Typography sx={{ fontSize: 11, color: '#fff' }}>
-                                    Drag to rotate · Scroll to zoom
-                                </Typography>
-                            </Box>
+                            <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
                         </Box>
                     </Box>
-                )}
+                )
+                }
 
                 {loading && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>
+                    <Box mt={2} display="flex" gap={1}>
                         <CircularProgress size={20} />
-                        <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-                            Uploading 3D model…
-                        </Typography>
+                        <Typography>Uploading...</Typography>
                     </Box>
                 )}
-            </Box>
+            </Box >
         );
     }
 );
