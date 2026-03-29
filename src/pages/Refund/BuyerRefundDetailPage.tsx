@@ -55,36 +55,38 @@ import {
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 
+type RefundStep = {
+  label: string;
+  statuses: ReturnStatus[];
+};
+
 // Status steps for progress indicator
 const getStatusSteps = (request: RefundRequest) => {
-  const baseSteps = [
-    { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
-    { label: 'Under Review', status: ReturnStatus.SELLER_REVIEWING },
-    { label: 'Shop Approved', status: ReturnStatus.SHOP_APPROVED },
-    { label: 'Approved', status: ReturnStatus.APPROVED },
-    { label: 'Return Shipping', status: ReturnStatus.RETURN_SHIPPING },
-    { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
-    { label: 'Refund Processing', status: ReturnStatus.REFUNDING },
-    { label: 'Completed', status: ReturnStatus.COMPLETED },
+  const baseSteps: RefundStep[] = [
+    { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
+    { label: 'Approved', statuses: [ReturnStatus.APPROVED] },
+    { label: 'Return Shipping', statuses: [ReturnStatus.RETURN_SHIPPING] },
+    { label: 'Item Received', statuses: [ReturnStatus.ITEM_RECEIVED] },
+    { label: 'Completed', statuses: [ReturnStatus.COMPLETED] },
   ];
 
   // Handle rejected/cancelled cases
   if (request.status === ReturnStatus.REJECTED || request.status === ReturnStatus.CANCELLED) {
+    const endStatus = request.status;
     return [
-      { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
-      { label: 'Under Review', status: ReturnStatus.SELLER_REVIEWING },
+      { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
       {
-        label: request.status === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
-        status: request.status,
+        label: endStatus === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
+        statuses: [endStatus],
       },
-    ];
+    ] satisfies RefundStep[];
   }
 
   return baseSteps;
 };
 
-const getActiveStep = (currentStatus: ReturnStatus, steps: any[]) => {
-  const index = steps.findIndex((step) => step.status === currentStatus);
+const getActiveStep = (currentStatus: ReturnStatus, steps: RefundStep[]) => {
+  const index = steps.findIndex((step) => step.statuses.includes(currentStatus));
   return index >= 0 ? index : 0;
 };
 
@@ -192,11 +194,10 @@ const BuyerRefundDetailPage = () => {
   const steps = getStatusSteps(request);
   const activeStep = getActiveStep(request.status, steps);
   const canCancel = request.status === ReturnStatus.REQUESTED;
-  const isAdminApproved = request.status === ReturnStatus.APPROVED;
-  const waitingForAdminApproval =
-    request.status === ReturnStatus.SHOP_APPROVED ||
-    request.status === ReturnStatus.PLATFORM_REVIEWING;
-  const canUpdateTracking = isAdminApproved && !request.returnTrackingNumber;
+  const isApproved = request.status === ReturnStatus.APPROVED;
+  const waitingForShopReview =
+    request.status === ReturnStatus.REQUESTED;
+  const canUpdateTracking = isApproved && !request.returnTrackingNumber;
   const evidenceFiles = request.evidenceImages || [];
 
   const isVideoFile = (url: string) => {
@@ -275,21 +276,21 @@ const BuyerRefundDetailPage = () => {
       </Paper>
 
       {/* Alert messages based on status */}
-      {waitingForAdminApproval && (
+      {waitingForShopReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Waiting for admin approval
+            Waiting for shop review
           </Typography>
           <Typography variant="body2">
-            Once approved, you will receive return instructions and can update tracking details.
+            Once approved by the shop, you can ship the item back and update tracking details.
           </Typography>
         </Alert>
       )}
 
-      {isAdminApproved && !request.returnTrackingNumber && (
+      {isApproved && !request.returnTrackingNumber && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Admin approved your request!
+            Shop approved your request!
           </Typography>
           <Typography variant="body2">
             Please ship the item back and update tracking number
@@ -387,6 +388,16 @@ const BuyerRefundDetailPage = () => {
                       Reason Details
                     </Typography>
                     <Typography variant="body1">{request.reasonDetail}</Typography>
+                  </Grid>
+                )}
+                {(request.returnInstruction || request.returnInstructions) && (
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Return Instruction
+                    </Typography>
+                    <Typography variant="body1">
+                      {request.returnInstruction || request.returnInstructions}
+                    </Typography>
                   </Grid>
                 )}
                 {request.returnTrackingNumber && (

@@ -23,14 +23,10 @@ export enum ReturnReason {
 
 export enum ReturnStatus {
   REQUESTED = 'REQUESTED',
-  SELLER_REVIEWING = 'SELLER_REVIEWING',
-  PLATFORM_REVIEWING = 'PLATFORM_REVIEWING',
-  SHOP_APPROVED = 'SHOP_APPROVED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   RETURN_SHIPPING = 'RETURN_SHIPPING',
   ITEM_RECEIVED = 'ITEM_RECEIVED',
-  REFUNDING = 'REFUNDING',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
@@ -42,12 +38,6 @@ export enum ItemCondition {
   DAMAGED = 'DAMAGED',
   NOT_AS_RETURNED = 'NOT_AS_RETURNED',
   NOT_MATCH = 'NOT_MATCH',
-}
-
-export enum DisputeDecision {
-  APPROVE_BUYER = 'APPROVE_BUYER',
-  APPROVE_SELLER = 'APPROVE_SELLER',
-  PARTIAL_REFUND = 'PARTIAL_REFUND',
 }
 
 export interface RefundRequest {
@@ -72,9 +62,13 @@ export interface RefundRequest {
   exchangePriceDiff?: number;
   returnTrackingNumber?: string;
   returnCarrier?: string;
+  returnInstruction?: string;
+  shopCoverShipping?: boolean;
+  itemCondition?: ItemCondition;
+  itemConditionNote?: string;
+  // Backward compatibility for older responses
   returnInstructions?: string;
   sellerPaysShipping?: boolean;
-  itemCondition?: ItemCondition;
   conditionNotes?: string;
   status: ReturnStatus;
   statusDisplay: string;
@@ -126,21 +120,20 @@ export interface UpdateReturnTrackingDto {
 export interface ReviewRefundRequestDto {
   approved: boolean;
   rejectionReason?: string;
+  returnInstruction?: string;
+  shopCoverShipping?: boolean;
+  // Backward compatibility for older APIs
   returnInstructions?: string;
   sellerPaysShipping?: boolean;
 }
 
 export interface ConfirmItemReceivedDto {
   itemCondition: ItemCondition;
+  itemConditionNote?: string;
+  // Backward compatibility for older APIs
   conditionNotes?: string;
   meetsReturnCriteria: boolean;
   rejectionReason?: string;
-}
-
-export interface PlatformReviewDto {
-  decision: DisputeDecision;
-  adminNotes: string;
-  finalRefundAmount?: number;
 }
 
 export interface ProcessRefundDto {
@@ -184,28 +177,20 @@ export const RETURN_REASON_LABELS: Record<ReturnReason, string> = {
 
 export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
   [ReturnStatus.REQUESTED]: 'Requested',
-  [ReturnStatus.SELLER_REVIEWING]: 'Seller Reviewing',
-  [ReturnStatus.PLATFORM_REVIEWING]: 'Platform Reviewing',
-  [ReturnStatus.SHOP_APPROVED]: 'Shop Approved',
   [ReturnStatus.APPROVED]: 'Approved',
   [ReturnStatus.REJECTED]: 'Rejected',
   [ReturnStatus.RETURN_SHIPPING]: 'Return Shipping',
   [ReturnStatus.ITEM_RECEIVED]: 'Item Received',
-  [ReturnStatus.REFUNDING]: 'Processing Refund',
   [ReturnStatus.COMPLETED]: 'Completed',
   [ReturnStatus.CANCELLED]: 'Cancelled',
 };
 
 export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
   ReturnStatus.REQUESTED,
-  ReturnStatus.SELLER_REVIEWING,
-  ReturnStatus.PLATFORM_REVIEWING,
-  ReturnStatus.SHOP_APPROVED,
   ReturnStatus.APPROVED,
   ReturnStatus.REJECTED,
   ReturnStatus.RETURN_SHIPPING,
   ReturnStatus.ITEM_RECEIVED,
-  ReturnStatus.REFUNDING,
   ReturnStatus.COMPLETED,
   ReturnStatus.CANCELLED,
 ];

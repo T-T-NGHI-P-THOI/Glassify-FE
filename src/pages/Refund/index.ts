@@ -6,6 +6,3 @@ export { default as BuyerCreateRefundPage } from './BuyerCreateRefundPage';
 // Seller Refund Pages
 export { default as SellerRefundListPage } from './SellerRefundListPage';
 export { default as SellerRefundDetailPage } from './SellerRefundDetailPage';
-
-// Admin Refund Pages
-export { default as AdminRefundManagementPage } from './AdminRefundManagementPage';

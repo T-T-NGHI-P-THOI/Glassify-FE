@@ -45,7 +45,6 @@ const ReturnRequestListPage = () => {
   const getStatusColor = (status: ReturnStatus) => {
     switch (status) {
       case ReturnStatus.REQUESTED:
-      case ReturnStatus.SELLER_REVIEWING:
         return 'warning';
       case ReturnStatus.APPROVED:
       case ReturnStatus.RETURN_SHIPPING:
