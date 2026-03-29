@@ -67,6 +67,7 @@ export interface ShopOrderResponse {
   shippingName: string;
   shippingPhone: string;
   shippingAddress: string;
+  shippingCity?: string;
   customerNote?: string;
   customerId: string;
   customerName: string;
