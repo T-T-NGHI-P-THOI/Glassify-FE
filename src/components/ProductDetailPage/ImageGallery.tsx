@@ -5,9 +5,16 @@ import './ImageGallery.css';
 interface ImageGalleryProps {
   images: string[];
   productName: string;
+  showTryOn?: boolean;
+  onTryOn?: () => void;
 }
 
-const ImageGallery: React.FC<ImageGalleryProps> = ({ images, productName }) => {
+const ImageGallery: React.FC<ImageGalleryProps> = ({
+  images,
+  productName,
+  showTryOn = false,
+  onTryOn,
+}) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -141,9 +148,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, productName }) => {
             />
           ))}
         </div>
-        <button className="try-on-btn">
-          <Videocam /> Try On
-        </button>
+        {showTryOn && (
+          <button
+            type="button"
+            className="image-gallery-try-on-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTryOn?.();
+            }}
+          >
+            <Videocam /> Try On
+          </button>
+        )}
       </div>
     </div>
   );

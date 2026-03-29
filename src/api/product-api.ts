@@ -22,8 +22,8 @@ export interface ApiCategory {
 export interface ProductApiResponse {
   status: number;
   message: string;
-  data: ApiProduct[];
-  errors: null | string;
+  data: ApiProduct[] | ApiProduct;
+  errors: null | string | string[];
 }
 
 // Shop info from API
@@ -84,11 +84,22 @@ export interface ApiProduct {
   updatedAt: string;
   fileResponses?: {
     id: string;
+    storedName?: string;
+    mimeType?: string;
+    fileSize?: number;
+    storageProvider?: string;
+    filePath?: string | null;
     url?: string;
     publicUrl?: string;
+    isPrimary?: boolean | null;
+    productId?: string;
+    createdBy?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     altText?: string;
     originalName?: string;
   }[];
+  productImages?: string[];
 }
 
 export interface ApiFrameGroup {
@@ -97,6 +108,7 @@ export interface ApiFrameGroup {
   frameShape?: string;
   frameStructure?: string;
   frameMaterial?: string;
+  vrEnabled?: boolean;
   hasNosePads?: boolean;
   hasSpringHinge?: boolean;
   genderTarget?: string;
@@ -173,29 +185,40 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
-  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
-    if (Array.isArray(payload)) {
-      return payload as ApiProduct[];
-    }
-    if (payload && typeof payload === 'object') {
+  private static unwrapApiData<T>(payload: unknown): T | null {
+    if (!payload) return null;
+
+    if (typeof payload === 'object') {
       const maybeWrapped = payload as { data?: unknown };
-      if (Array.isArray(maybeWrapped.data)) {
-        return maybeWrapped.data as ApiProduct[];
+      if (maybeWrapped.data !== undefined) {
+        return maybeWrapped.data as T;
       }
-      if (maybeWrapped.data && typeof maybeWrapped.data === 'object') {
-        return [maybeWrapped.data as ApiProduct];
-      }
-      return [payload as ApiProduct];
     }
+
+    return payload as T;
+  }
+
+  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
+    const unwrapped = ProductAPI.unwrapApiData<unknown>(payload);
+    if (Array.isArray(unwrapped)) return unwrapped as ApiProduct[];
+    if (unwrapped && typeof unwrapped === 'object') return [unwrapped as ApiProduct];
     return [];
+  }
+
+  private static normalizeSingleProductPayload(payload: unknown): ApiProduct {
+    const products = ProductAPI.normalizeProductsPayload(payload);
+    if (products.length === 0) {
+      throw new Error('Invalid product payload');
+    }
+    return products[0];
   }
 
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
-      const response = await api.get<ProductApiResponse>(API_ENDPOINTS.PRODUCTS.GET_ALL, {
+      const response = await api.get(API_ENDPOINTS.PRODUCTS.GET_ALL, {
         params: filters
       });
-      return response.data.data;
+      return ProductAPI.normalizeProductsPayload(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
@@ -217,10 +240,10 @@ export default class ProductAPI {
 
   static async getProductById(id: string): Promise<ApiProduct> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiProduct }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_ID(id)
       );
-      return response.data.data;
+      return ProductAPI.normalizeSingleProductPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product ${id}:`, error);
       throw error;
@@ -229,10 +252,10 @@ export default class ProductAPI {
 
   static async getProductBySlug(slug: string): Promise<ApiProduct> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiProduct }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_SLUG(slug)
       );
-      return response.data.data;
+      return ProductAPI.normalizeSingleProductPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
       throw error;
@@ -241,10 +264,14 @@ export default class ProductAPI {
 
   static async getProductWithFrameInfo(id: string): Promise<ProductWithFrameInfoData> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ProductWithFrameInfoData }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_WITH_FRAME_INFO(id)
       );
-      return response.data.data;
+      const data = ProductAPI.unwrapApiData<ProductWithFrameInfoData>(response.data);
+      if (!data) {
+        throw new Error('Invalid product with frame info payload');
+      }
+      return data;
     } catch (error) {
       console.error(`Error fetching product with frame info ${id}:`, error);
       throw error;
@@ -253,13 +280,13 @@ export default class ProductAPI {
 
   static async getProductsByShopId(shopId: string, filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
-      const response = await api.get<ProductApiResponse>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_SHOP_ID(shopId),
         {
           params: filters
         }
       );
-      return response.data.data;
+      return ProductAPI.normalizeProductsPayload(response.data);
     } catch (error) {
       console.error(`Error fetching products for shop ${shopId}:`, error);
       throw error;
@@ -268,13 +295,17 @@ export default class ProductAPI {
 
   static async getProductReviews(productId: string, filters?: ReviewFilterParams): Promise<ReviewResponse> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ReviewResponse }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_REVIEWS(productId),
         {
           params: filters
         }
       );
-      return response.data.data;
+      const data = ProductAPI.unwrapApiData<ReviewResponse>(response.data);
+      if (!data) {
+        throw new Error('Invalid product reviews payload');
+      }
+      return data;
     } catch (error) {
       console.error(`Error fetching reviews for product ${productId}:`, error);
       // Return empty response structure on error
@@ -290,10 +321,11 @@ export default class ProductAPI {
 
   static async getCategories(): Promise<ApiCategory[]> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiCategory[] }>(
+      const response = await api.get(
         API_ENDPOINTS.CATEGORIES.GET_ALL
       );
-      return response.data.data;
+      const data = ProductAPI.unwrapApiData<ApiCategory[]>(response.data);
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Error fetching categories:', error);
       return [];

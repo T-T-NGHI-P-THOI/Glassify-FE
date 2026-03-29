@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Portal, Typography } from "@mui/material";
 import { useState, useCallback, useEffect } from "react";
 import { type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
 import { FaceShapeSuggestionPanel } from "../FaceShapeSuggestionPanel";
@@ -243,16 +243,17 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
     if (!open) return null;
 
     return (
-        <Box
-            onClick={handleClose}
-            sx={{
-                position: "fixed", inset: 0, zIndex: 1200,
-                bgcolor: "transparent",
-                backdropFilter: "blur(4px)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                p: 2,
-            }}
-        >
+        <Portal>
+            <Box
+                onClick={handleClose}
+                sx={{
+                    position: "fixed", inset: 0, zIndex: 20000,
+                    bgcolor: "transparent",
+                    backdropFilter: "blur(4px)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    p: 2,
+                }}
+            >
             {/* ══ Modal ══ */}
             <Box
                 onClick={(e) => e.stopPropagation()}
@@ -558,7 +559,8 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                     </Box>
                 </Box>
             </Box>
-        </Box>
+            </Box>
+        </Portal>
     );
 };
 

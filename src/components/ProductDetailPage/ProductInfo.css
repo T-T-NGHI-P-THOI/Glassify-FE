@@ -257,6 +257,25 @@
   background: #006470;
 }
 
+.try-on-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #0f766e, #0e7490);
+  color: #fff;
+  border: none;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.try-on-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(14, 116, 144, 0.28);
+}
+
 .add-to-cart-btn-frame {
   width: 100%;
   padding: 14px;

@@ -8,6 +8,7 @@ import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
 import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
+import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
 import ProductAPI, { type ApiProduct, type ProductWithFrameInfoData, type ReviewResponse } from '../../api/product-api';
@@ -29,6 +30,11 @@ const formatEnumLabel = (value?: string | null): string => {
 };
 
 const getProductImages = (apiProduct: ApiProduct): string[] => {
+  const productImages = (apiProduct.productImages || []).filter((url): url is string => Boolean(url));
+  if (productImages.length > 0) {
+    return productImages;
+  }
+
   const images = (apiProduct.fileResponses || [])
     .map(file => file.publicUrl || file.url)
     .filter((url): url is string => Boolean(url));
@@ -69,6 +75,7 @@ const ProductDetailPage: React.FC = () => {
   const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const editCartItemId = searchParams.get('editCartItemId');
@@ -145,6 +152,8 @@ const ProductDetailPage: React.FC = () => {
           category: productResponse.categoryName,
           productType: productResponse.productType,
           variantId: productResponse.variantId ?? frameVariant?.id ?? undefined,
+          frameGroupId: frameGroup?.id ?? frameVariant?.frameGroupId ?? undefined,
+          vrEnabled: Boolean(frameGroup?.vrEnabled),
           stockQuantity: productResponse.stockQuantity,
           colors: [
             {
@@ -235,6 +244,11 @@ const ProductDetailPage: React.FC = () => {
   }, [slug, sku]);
 
   const getProductImage = (apiProduct: ApiProduct) => {
+    const productImage = apiProduct.productImages?.find(Boolean);
+    if (productImage) {
+      return productImage;
+    }
+
     const imageFile = apiProduct.fileResponses?.find(file => file.publicUrl || file.url);
     return imageFile?.publicUrl || imageFile?.url ||
       'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name);
@@ -316,6 +330,11 @@ const ProductDetailPage: React.FC = () => {
   const handleAddToFavorites = () => {
     // TODO: Implement add to favorites
     console.log('Added to favorites');
+  };
+
+  const handleOpenTryOn = () => {
+    if (!product?.vrEnabled || !product.frameGroupId) return;
+    setTryOnOpen(true);
   };
 
   const handleColorClick = (color: { productId: string; variantId: string }) => {
@@ -440,6 +459,8 @@ const ProductDetailPage: React.FC = () => {
             <ImageGallery 
               images={product.images} 
               productName={product.name}
+              onTryOn={handleOpenTryOn}
+              showTryOn={Boolean(product.vrEnabled && product.frameGroupId)}
             />
             {product.shop && (
               <div className="product-shop-extended">
@@ -539,6 +560,21 @@ const ProductDetailPage: React.FC = () => {
         framePrice={product.price}
         initialSelection={editLensSelection}
       />
+
+      {product.vrEnabled && product.frameGroupId && (
+        <GlassesTryOnPopup
+          frameGroupId={product.frameGroupId}
+          open={tryOnOpen}
+          onClose={() => setTryOnOpen(false)}
+          onAddToCart={(lensId, textureId) => {
+            setSnackbar({
+              open: true,
+              message: `Try-on selected lens ${lensId ?? 'N/A'} with texture ${textureId ?? 'N/A'}`,
+              severity: 'success',
+            });
+          }}
+        />
+      )}
 
       <RecommendedProducts products={recommendedProducts} />
 

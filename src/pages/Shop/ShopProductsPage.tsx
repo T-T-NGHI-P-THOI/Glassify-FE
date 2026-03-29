@@ -256,7 +256,7 @@ const ShopProductsPage = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar
                             variant="rounded"
-                            src={product.fileResponses?.[0]?.url}
+                            src={product.fileResponses?.[0]?.publicUrl || product.fileResponses?.[0]?.url}
                             sx={{ width: 44, height: 44, bgcolor: theme.palette.custom.neutral[100], borderRadius: 1.5 }}
                           >
                             <Inventory sx={{ fontSize: 22, color: theme.palette.custom.neutral[400] }} />
@@ -594,9 +594,9 @@ const ProductDetailDialog = ({ product, onClose }: ProductDetailDialogProps) => 
                 mb: 2.5,
               }}
             >
-              {product.fileResponses?.[0]?.url ? (
+              {product.fileResponses?.[0]?.publicUrl || product.fileResponses?.[0]?.url ? (
                 <img
-                  src={product.fileResponses[0].url}
+                  src={product.fileResponses[0].publicUrl || product.fileResponses[0].url}
                   alt={product.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
