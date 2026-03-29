@@ -43,7 +43,6 @@ interface QuantitySelectorProps {
     quantity: number;
     onIncrease: () => void;
     onDecrease: () => void;
-    onAtMax?: () => void;
     size?: 'small' | 'medium';
     disabled?: boolean;
     maxQuantity?: number;
@@ -53,7 +52,6 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     quantity,
     onIncrease,
     onDecrease,
-    onAtMax,
     size = 'medium',
     disabled = false,
     maxQuantity,
@@ -62,60 +60,65 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     const atMax = maxQuantity !== undefined && quantity >= maxQuantity;
 
     return (
-        <Box
-            sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                border: '1.5px solid',
-                borderColor: disabled ? '#eee' : isSmall ? '#e0e0e0' : '#d0d0d0',
-                borderRadius: isSmall ? '6px' : '8px',
-                bgcolor: disabled ? '#fafafa' : '#fff',
-                opacity: disabled ? 0.6 : 1,
-            }}
-        >
-            <IconButton
-                size="small"
-                onClick={onDecrease}
-                disabled={quantity <= 1 || disabled}
+        <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+            <Box
                 sx={{
-                    borderRadius: 0,
-                    p: isSmall ? '2px 6px' : '6px 10px',
-                    color: '#666',
-                    '&:hover': { bgcolor: '#f5f5f5' },
-                    '&.Mui-disabled': { color: '#ccc' },
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    border: '1.5px solid',
+                    borderColor: disabled ? '#eee' : isSmall ? '#e0e0e0' : '#d0d0d0',
+                    borderRadius: isSmall ? '6px' : '8px',
+                    bgcolor: disabled ? '#fafafa' : '#fff',
+                    opacity: disabled ? 0.6 : 1,
                 }}
             >
-                <RemoveIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
-            </IconButton>
-            <Typography
-                sx={{
-                    px: isSmall ? 1.5 : 2,
-                    minWidth: isSmall ? 20 : 28,
-                    textAlign: 'center',
-                    fontWeight: 600,
-                    fontSize: isSmall ? '0.75rem' : '0.9rem',
-                    color: '#222',
-                    userSelect: 'none',
-                }}
-            >
-                {quantity}
-            </Typography>
-            <IconButton
-                size="small"
-                onClick={atMax ? onAtMax : onIncrease}
-                disabled={disabled}
-                sx={{
-                    borderRadius: 0,
-                    p: isSmall ? '2px 6px' : '6px 10px',
-                    color: '#666',
-                    opacity: atMax ? 0.4 : 1,
-                    filter: atMax ? 'blur(0.5px)' : 'none',
-                    '&:hover': { bgcolor: '#f5f5f5' },
-                    '&.Mui-disabled': { color: '#ccc' },
-                }}
-            >
-                <AddIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
-            </IconButton>
+                <IconButton
+                    size="small"
+                    onClick={onDecrease}
+                    disabled={quantity <= 1 || disabled}
+                    sx={{
+                        borderRadius: 0,
+                        p: isSmall ? '2px 6px' : '6px 10px',
+                        color: '#666',
+                        '&:hover': { bgcolor: '#f5f5f5' },
+                        '&.Mui-disabled': { color: '#ccc' },
+                    }}
+                >
+                    <RemoveIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
+                </IconButton>
+                <Typography
+                    sx={{
+                        px: isSmall ? 1.5 : 2,
+                        minWidth: isSmall ? 20 : 28,
+                        textAlign: 'center',
+                        fontWeight: 600,
+                        fontSize: isSmall ? '0.75rem' : '0.9rem',
+                        color: '#222',
+                        userSelect: 'none',
+                    }}
+                >
+                    {quantity}
+                </Typography>
+                <IconButton
+                    size="small"
+                    onClick={onIncrease}
+                    disabled={atMax || disabled}
+                    sx={{
+                        borderRadius: 0,
+                        p: isSmall ? '2px 6px' : '6px 10px',
+                        color: '#666',
+                        '&:hover': { bgcolor: '#f5f5f5' },
+                        '&.Mui-disabled': { color: '#ccc' },
+                    }}
+                >
+                    <AddIcon sx={{ fontSize: isSmall ? 14 : 18 }} />
+                </IconButton>
+            </Box>
+            {atMax && (
+                <Typography sx={{ fontSize: '0.65rem', color: '#e57373', fontWeight: 500, letterSpacing: '0.2px' }}>
+                    Hết hàng tồn kho
+                </Typography>
+            )}
         </Box>
     );
 };
@@ -335,7 +338,6 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             quantity={item.quantity}
                             onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                             onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
-                            onAtMax={onAtMax}
                             size="small"
                             disabled={loading}
                             maxQuantity={item.stock_quantity}
@@ -392,7 +394,6 @@ interface CartItemRowProps {
     onFavorite: (itemId: string) => void;
     onEdit: (item: CartItemWithDetails) => void;
     onViewLensDetails: (lensItem: CartItemWithDetails, parentItem: CartItemWithDetails) => void;
-    onAtMax?: () => void;
     loading?: boolean;
 }
 
@@ -403,7 +404,6 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
     onFavorite,
     onEdit,
     onViewLensDetails,
-    onAtMax,
     loading = false,
 }) => {
     const calculateItemTotal = (cartItem: CartItemWithDetails): number => {
@@ -579,20 +579,9 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         quantity={item.quantity}
                         onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                         onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
-                        onAtMax={onAtMax}
                         disabled={loading}
                         maxQuantity={item.stock_quantity}
                     />
-                    {item.stock_quantity !== undefined && item.stock_quantity <= 5 && item.stock_quantity > 0 && (
-                        <Typography sx={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 600 }}>
-                            Only {item.stock_quantity} left
-                        </Typography>
-                    )}
-                    {item.stock_quantity === 0 && (
-                        <Typography sx={{ fontSize: '0.65rem', color: '#d32f2f', fontWeight: 600 }}>
-                            Out of stock
-                        </Typography>
-                    )}
                 </Box>
 
                 {/* Total Price */}
@@ -1318,7 +1307,6 @@ const ShoppingCart: React.FC = () => {
                                             onFavorite={handleFavorite}
                                             onEdit={handleEditItem}
                                             onViewLensDetails={handleViewLensDetails}
-                                            onAtMax={() => showSnackbar('Đã đạt số lượng tối đa trong kho', 'error')}
                                             loading={updating}
                                         />
                                     </React.Fragment>
