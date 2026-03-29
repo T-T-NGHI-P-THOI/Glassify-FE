@@ -31,6 +31,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile } from '../Create/Upload3DModel';
+import ProductAPI from '@/api/product-api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,7 @@ export default function FrameVariantDetailDialog({
     const theme = useTheme();
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [images, setImages] = useState<string[]>([])
 
     // 3D viewer
     const canvasRef = useRef<HTMLCanvasElement>(null);

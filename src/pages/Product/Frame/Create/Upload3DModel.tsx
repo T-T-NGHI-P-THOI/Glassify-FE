@@ -43,7 +43,7 @@ interface Upload3DModelPageProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ACCEPTED_EXTENSIONS = ['.gltf', '.glb', '.obj', '.fbx', '.stl'];
-const MAX_SIZE_MB = 70;
+const MAX_SIZE_MB = 20;
 
 const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
