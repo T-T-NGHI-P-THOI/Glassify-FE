@@ -179,7 +179,8 @@ function transformSingleItem(
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
         lens_selection: meta?.lensSelection,
-        stock_quantity: meta?.stockQuantity,
+        // Prefer live qtyAvailable from BE (real-time inventory); fall back to cached value
+        stock_quantity: beItem.qtyAvailable ?? meta?.stockQuantity,
     };
 }
 

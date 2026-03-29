@@ -125,6 +125,10 @@ export const API_ENDPOINTS = {
     REQUEST_BY_ID: (id: string) => `${API_ENDPOINT}/return-requests/${id}`,
     CANCEL: (id: string) => `${API_ENDPOINT}/return-requests/${id}/cancel`,
   },
+  SHOP_INVENTORY: {
+    GET: (shopId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}`,
+    SET_STOCK: (shopId: string, variantId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}/variant/${variantId}`,
+  },
   SHOP_WALLET: {
     BASE: `${API_ENDPOINT}/shop/wallet`,
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,

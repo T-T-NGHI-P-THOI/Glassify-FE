@@ -73,7 +73,11 @@ interface FrameVariantResponse {
   basePrice: number;
   costPrice: number;
   compareAtPrice: number;
-  stockQuantity: number;
+  // Inventory from ShopInventory (source of truth)
+  qtyOnHand: number | null;
+  qtyAvailable: number | null;
+  qtyReserved: number | null;
+  lowStockThreshold: number | null;
 }
 
 interface ProductResponse {
@@ -116,11 +120,11 @@ interface FrameGroup {
 
 // ─── Variant status helper ────────────────────────────────────────────────────
 
-const LOW_STOCK_THRESHOLD = 10;
-
-function getVariantStatus(stock: number): 'in_stock' | 'low_stock' | 'out_of_stock' {
-  if (stock === 0) return 'out_of_stock';
-  if (stock <= LOW_STOCK_THRESHOLD) return 'low_stock';
+function getVariantStatus(v: FrameVariantResponse): 'in_stock' | 'low_stock' | 'out_of_stock' {
+  const available = v.qtyAvailable ?? 0;
+  const threshold = v.lowStockThreshold ?? 10;
+  if (available === 0) return 'out_of_stock';
+  if (available <= threshold) return 'low_stock';
   return 'in_stock';
 }
 
@@ -132,7 +136,12 @@ const variantStatusConfig = {
 
 // ─── Helper: map FrameVariantResponse → CreateFrameVariantFormData ────────────
 
-function mapVariantResponseToFormData(v: FrameVariantResponse): CreateFrameVariantFormData {
+function mapVariantResponseToFormData(v: FrameVariantResponse): CreateFrameVariantFormData & {
+  qtyOnHand?: number | null;
+  qtyAvailable?: number | null;
+  qtyReserved?: number | null;
+  lowStockThreshold?: number | null;
+} {
   return {
     colorName: v.colorName,
     colorHex: v.colorHex,
@@ -142,8 +151,8 @@ function mapVariantResponseToFormData(v: FrameVariantResponse): CreateFrameVaria
     lensHeightMm: String(v.lensHeightMm ?? ''),
     bridgeWidthMm: String(v.bridgeWidthMm ?? ''),
     templeLengthMm: String(v.templeLengthMm ?? ''),
-    stock: String(v.stockQuantity ?? ''),
-    stockThreshold: '',
+    stock: String(v.qtyOnHand ?? ''),
+    stockThreshold: String(v.lowStockThreshold ?? ''),
     warrantyMonths: '',
     costPrice: String(v.costPrice ?? ''),
     basePrice: String(v.basePrice ?? ''),
@@ -152,6 +161,11 @@ function mapVariantResponseToFormData(v: FrameVariantResponse): CreateFrameVaria
     isFeatured: false,
     images: [],
     textureFile: null,
+    // Pass raw inventory numbers for detail dialog display
+    qtyOnHand: v.qtyOnHand,
+    qtyAvailable: v.qtyAvailable,
+    qtyReserved: v.qtyReserved,
+    lowStockThreshold: v.lowStockThreshold,
   };
 }
 
@@ -230,7 +244,7 @@ const VariantRows = ({ variants, colSpan, vrEnabled }: VariantRowsProps) => {
               </TableHead>
               <TableBody>
                 {variants.map((v) => {
-                  const status = getVariantStatus(v.stockQuantity);
+                  const status = getVariantStatus(v);
                   const sc = variantStatusConfig[status];
                   const dims = `${v.frameWidthMm} / ${v.lensWidthMm}×${v.lensHeightMm} / ${v.bridgeWidthMm} / ${v.templeLengthMm}`;
 
@@ -302,8 +316,13 @@ const VariantRows = ({ variants, colSpan, vrEnabled }: VariantRowsProps) => {
                       {/* Stock */}
                       <TableCell sx={{ py: 1, px: 1.5 }}>
                         <Typography sx={{ fontSize: 12, fontWeight: 600, color: sc.color }}>
-                          {v.stockQuantity}
+                          {v.qtyAvailable ?? '—'}
                         </Typography>
+                        {v.qtyReserved != null && v.qtyReserved > 0 && (
+                          <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>
+                            {v.qtyReserved} reserved
+                          </Typography>
+                        )}
                       </TableCell>
 
                       {/* Status */}
@@ -479,11 +498,11 @@ const FrameProductPage = () => {
     fg.frameVariantResponses.some((v) => (v.isActive ?? true))
   ).length;
   const inStockCount = frameGroups.filter((fg) =>
-    fg.frameVariantResponses.some((v) => v.stockQuantity > LOW_STOCK_THRESHOLD)
+    fg.frameVariantResponses.some((v) => (v.qtyAvailable ?? 0) > (v.lowStockThreshold ?? 10))
   ).length;
   const outOfStockCount = frameGroups.filter((fg) =>
     fg.frameVariantResponses.length > 0 &&
-    fg.frameVariantResponses.every((v) => v.stockQuantity === 0)
+    fg.frameVariantResponses.every((v) => (v.qtyAvailable ?? 0) === 0)
   ).length;
   const noVariantCount = frameGroups.filter((fg) => fg.frameVariantResponses.length === 0).length;
 
@@ -506,9 +525,12 @@ const FrameProductPage = () => {
 
   const getVariantSummary = (fg: FrameGroup) => {
     const variants = fg.frameVariantResponses;
-    const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
-    const hasOut = variants.some((v) => v.stockQuantity === 0);
-    const hasLow = variants.some((v) => v.stockQuantity > 0 && v.stockQuantity <= LOW_STOCK_THRESHOLD);
+    const totalStock = variants.reduce((sum, v) => sum + (v.qtyAvailable ?? 0), 0);
+    const hasOut = variants.some((v) => (v.qtyAvailable ?? 0) === 0);
+    const hasLow = variants.some((v) => {
+      const avail = v.qtyAvailable ?? 0;
+      return avail > 0 && avail <= (v.lowStockThreshold ?? 10);
+    });
     const colors = Array.from(
       new Map(variants.map((v) => [v.colorHex, v.colorName])).entries()
     ).slice(0, 4);
