@@ -1,7 +1,6 @@
 import api from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
-import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
 import axiosInstance from './axios.config';
 
 // Category type from API
@@ -301,7 +300,7 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
- static async getFrameGroupFromShopId(shopId: string) {
+  static async getFrameGroupFromShopId(shopId: string) {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
     );
@@ -361,10 +360,35 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async getModel3D(frameGroupId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_MODEL_3D,
+      {
+        params: { frameGroupId },
+        responseType: 'blob',
+      }
+    );
+
+    return response;
+  }
+
   static async getTextureFiles(frameGroupId: string) {
     const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
       params: { frameGroupId }
     });
+    return response.data.data;
+  }
+
+  static async updateFrameGroup(id: string, body: FormData) {
+    const response = await axiosInstance.put(
+      API_ENDPOINTS.PRODUCTS.UPDATE_FRAME_GROUP(id),
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data.data;
   }
 }
