@@ -30,6 +30,8 @@ export interface ApiShopInfo {
   id: string;
   shopCode: string;
   shopName: string;
+  address?: string;
+  city?: string;
   logoUrl: string;
   status: string;
   tier: string;
@@ -38,11 +40,21 @@ export interface ApiShopInfo {
   isVerified: boolean;
 }
 
+export interface ApiShopBasicInfo {
+  id?: string;
+  shopCode?: string;
+  shopName?: string;
+  address?: string;
+  city?: string;
+}
+
 // Product type từ API
 export interface ApiProduct {
   id: string;
   shopId: string;
   shop?: ApiShopInfo;
+  shopBasicInfo?: ApiShopBasicInfo;
+  shopbasicinfo?: ApiShopBasicInfo;
   brandId: string | null;
   categoryId: string;
   categoryName: string;
@@ -69,7 +81,46 @@ export interface ApiProduct {
   productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
-  fileResponses?: { id: string; url: string; altText?: string }[];
+  fileResponses?: {
+    id: string;
+    url?: string;
+    publicUrl?: string;
+    altText?: string;
+    originalName?: string;
+  }[];
+}
+
+export interface ApiFrameGroup {
+  id: string;
+  frameName?: string;
+  frameShape?: string;
+  frameStructure?: string;
+  frameMaterial?: string;
+  hasNosePads?: boolean;
+  hasSpringHinge?: boolean;
+  genderTarget?: string;
+  ageGroup?: string;
+  description?: string;
+  suitableFaceShapes?: string[] | null;
+}
+
+export interface ApiFrameVariant {
+  id: string;
+  frameGroupId?: string;
+  colorName?: string;
+  colorHex?: string;
+  size?: 'SMALL' | 'MEDIUM' | 'LARGE' | string;
+  frameWidthMm?: number;
+  lensWidthMm?: number;
+  lensHeightMm?: number;
+  bridgeWidthMm?: number;
+  templeLengthMm?: number;
+}
+
+export interface ProductWithFrameInfoData {
+  productResponse: ApiProduct;
+  frameGroup: ApiFrameGroup | null;
+  frameVariant: ApiFrameVariant | null;
 }
 
 // Product filter parameters
@@ -121,6 +172,23 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
+  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
+    if (Array.isArray(payload)) {
+      return payload as ApiProduct[];
+    }
+    if (payload && typeof payload === 'object') {
+      const maybeWrapped = payload as { data?: unknown };
+      if (Array.isArray(maybeWrapped.data)) {
+        return maybeWrapped.data as ApiProduct[];
+      }
+      if (maybeWrapped.data && typeof maybeWrapped.data === 'object') {
+        return [maybeWrapped.data as ApiProduct];
+      }
+      return [payload as ApiProduct];
+    }
+    return [];
+  }
+
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
       const response = await api.get<ProductApiResponse>(API_ENDPOINTS.PRODUCTS.GET_ALL, {
@@ -130,6 +198,18 @@ export default class ProductAPI {
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
+    }
+  }
+
+  static async getAccessoriesByParentProductId(productId: string): Promise<ApiProduct[]> {
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.PRODUCTS.GET_ACCESSORIES_BY_PARENT_ID(productId)
+      );
+      return ProductAPI.normalizeProductsPayload(response.data);
+    } catch (error) {
+      console.error(`Error fetching accessories for product ${productId}:`, error);
+      return [];
     }
   }
 
@@ -154,6 +234,18 @@ export default class ProductAPI {
       return response.data.data;
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
+      throw error;
+    }
+  }
+
+  static async getProductWithFrameInfo(id: string): Promise<ProductWithFrameInfoData> {
+    try {
+      const response = await api.get<{ status: number; message: string; data: ProductWithFrameInfoData }>(
+        API_ENDPOINTS.PRODUCTS.GET_WITH_FRAME_INFO(id)
+      );
+      return response.data.data;
+    } catch (error) {
+      console.error(`Error fetching product with frame info ${id}:`, error);
       throw error;
     }
   }

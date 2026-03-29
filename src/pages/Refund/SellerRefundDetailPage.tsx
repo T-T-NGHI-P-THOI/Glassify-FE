@@ -261,7 +261,7 @@ const SellerRefundDetailPage = () => {
     if (!requestId) return;
     
     if (!conditionNotes.trim()) {
-      toast.error('Vui lòng mô tả tình trạng sản phẩm nhận được');
+      toast.error('Please describe the condition of the returned item');
       return;
     }
     
@@ -273,19 +273,19 @@ const SellerRefundDetailPage = () => {
         meetsReturnCriteria: true, // Seller confirms item meets return criteria
       });
       
-      toast.success('Đã xác nhận nhận hàng trả, chờ hệ thống xử lý hoàn tiền');
+      toast.success('Return item confirmed. Waiting for refund processing');
       handleCloseConfirmDialog();
       await fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to confirm received:', error);
-      toast.error(error.response?.data?.message || 'Không thể xác nhận nhận hàng');
+      toast.error(error.response?.data?.message || 'Unable to confirm item receipt');
     } finally {
       setSubmitting(false);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -324,7 +324,7 @@ const SellerRefundDetailPage = () => {
           ownerAvatar={user?.avatarUrl}
         />
         <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Typography color="text.secondary">Không tìm thấy yêu cầu hoàn trả.</Typography>
+          <Typography color="text.secondary">Refund request not found.</Typography>
         </Box>
       </Box>
     );
@@ -369,13 +369,13 @@ const SellerRefundDetailPage = () => {
           onClick={() => navigate('/shop/refunds/review')}
           sx={{ mb: 2 }}
         >
-          Quay lại danh sách
+          Back to list
         </Button>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Chi tiết yêu cầu hoàn trả
+          Refund Request Details
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Mã yêu cầu: <strong>#{request.requestNumber}</strong>
+          Request ID: <strong>#{request.requestNumber}</strong>
         </Typography>
       </Box>
 
@@ -394,7 +394,7 @@ const SellerRefundDetailPage = () => {
       {canReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Yêu cầu này cần bạn xem xét và phê duyệt
+            This request requires your review and decision
           </Typography>
         </Alert>
       )}
@@ -402,7 +402,7 @@ const SellerRefundDetailPage = () => {
       {canConfirmReceived && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Khách hàng đã gửi hàng trả. Vui lòng kiểm tra và xác nhận khi nhận được hàng.
+            Customer has shipped the return. Please verify and confirm when received.
           </Typography>
         </Alert>
       )}
@@ -410,11 +410,11 @@ const SellerRefundDetailPage = () => {
       {request.status === ReturnStatus.REJECTED && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
-            Yêu cầu đã bị từ chối
+            This request was rejected
           </Typography>
           {request.rejectionReason && (
             <Typography variant="body2" sx={{ mt: 1 }}>
-              Lý do: {request.rejectionReason}
+              Reason: {request.rejectionReason}
             </Typography>
           )}
         </Alert>
@@ -434,7 +434,7 @@ const SellerRefundDetailPage = () => {
           >
             <Typography variant="h6" fontWeight="bold">
               <Inventory sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Thông tin yêu cầu
+              Request Information
             </Typography>
 
             {(canReview || canConfirmReceived) && (
@@ -447,7 +447,7 @@ const SellerRefundDetailPage = () => {
                       startIcon={<ThumbUp />}
                       onClick={() => handleOpenReviewDialog('approve')}
                     >
-                      Chấp thuận
+                      Approve
                     </Button>
                     <Button
                       variant="outlined"
@@ -455,7 +455,7 @@ const SellerRefundDetailPage = () => {
                       startIcon={<ThumbDown />}
                       onClick={() => handleOpenReviewDialog('reject')}
                     >
-                      Từ chối
+                      Reject
                     </Button>
                   </>
                 )}
@@ -467,7 +467,7 @@ const SellerRefundDetailPage = () => {
                     startIcon={<VerifiedUser />}
                     onClick={handleOpenConfirmDialog}
                   >
-                    Đã nhận hàng trả
+                    Confirm Received
                   </Button>
                 )}
               </Stack>
@@ -494,17 +494,17 @@ const SellerRefundDetailPage = () => {
                   </Typography>
                   <Stack spacing={1}>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Mã đơn hàng:</Typography>
+                      <Typography variant="body2" color="text.secondary">Order Number:</Typography>
                       <Typography variant="body2" fontWeight="medium">{request.orderNumber}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Số lượng:</Typography>
+                      <Typography variant="body2" color="text.secondary">Quantity:</Typography>
                       <Typography variant="body2" fontWeight="medium">{request.quantity}</Typography>
                     </Box>
                     <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Loại yêu cầu:</Typography>
+                      <Typography variant="body2" color="text.secondary">Request Type:</Typography>
                       <Chip
-                        label={request.returnType === 'REFUND' ? 'Hoàn tiền' : 'Đổi hàng'}
+                        label={request.returnType === 'REFUND' ? 'Refund' : 'Exchange'}
                         color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
                         size="small"
                       />
@@ -517,7 +517,7 @@ const SellerRefundDetailPage = () => {
             <Grid item xs={12} md={5}>
               <Stack spacing={1.5}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Trạng thái:</Typography>
+                  <Typography variant="body2" color="text.secondary">Status:</Typography>
                   <Chip
                     label={RETURN_STATUS_LABELS[request.status]}
                     color={
@@ -532,7 +532,7 @@ const SellerRefundDetailPage = () => {
                 </Box>
 
                 <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Số tiền hoàn:</Typography>
+                  <Typography variant="body2" color="text.secondary">Refund Amount:</Typography>
                   <Typography variant="body2" fontWeight="bold" color="primary.main">
                     {formatCurrency(request.refundAmount)}
                   </Typography>
@@ -540,14 +540,14 @@ const SellerRefundDetailPage = () => {
 
                 {request.sellerPaysShipping && (
                   <Alert severity="info">
-                    <Typography variant="caption">Bạn chịu phí vận chuyển trả hàng</Typography>
+                    <Typography variant="caption">You cover the return shipping fee</Typography>
                   </Alert>
                 )}
 
                 <Divider sx={{ my: 1 }} />
 
                 <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Tên:</Typography>
+                  <Typography variant="body2" color="text.secondary">Name:</Typography>
                   {buyerLoading ? <Skeleton width={120} /> : (
                     <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.name}</Typography>
                   )}
@@ -559,7 +559,7 @@ const SellerRefundDetailPage = () => {
                   )}
                 </Box>
                 <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">SĐT:</Typography>
+                  <Typography variant="body2" color="text.secondary">Phone:</Typography>
                   {buyerLoading ? <Skeleton width={100} /> : (
                     <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.phone}</Typography>
                   )}
@@ -570,12 +570,12 @@ const SellerRefundDetailPage = () => {
             <Grid item xs={12} md={5}>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 <Info sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Chi tiết yêu cầu
+                Request Details
               </Typography>
               <Stack spacing={2}>
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Lý do trả hàng:
+                    Return Reason:
                   </Typography>
                   <Chip label={RETURN_REASON_LABELS[request.reason]} variant="outlined" color="primary" />
                 </Box>
@@ -583,7 +583,7 @@ const SellerRefundDetailPage = () => {
                 {request.reasonDetail && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Mô tả chi tiết:
+                      Details:
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
                       <Typography variant="body2">{request.reasonDetail}</Typography>
@@ -592,13 +592,13 @@ const SellerRefundDetailPage = () => {
                 )}
 
                 <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">Ngày gửi yêu cầu:</Typography>
+                  <Typography variant="body2" color="text.secondary">Submitted At:</Typography>
                   <Typography variant="body2" fontWeight="medium">{formatDate(request.requestedAt)}</Typography>
                 </Box>
 
                 {request.returnTrackingNumber && (
                   <Box display="flex" justifyContent="space-between" alignItems="center" gap={1}>
-                    <Typography variant="body2" color="text.secondary">Mã vận đơn trả hàng:</Typography>
+                    <Typography variant="body2" color="text.secondary">Return Tracking Number:</Typography>
                     <Chip label={request.returnTrackingNumber} size="small" icon={<LocalShipping />} color="info" />
                   </Box>
                 )}
@@ -606,7 +606,7 @@ const SellerRefundDetailPage = () => {
                 {request.returnInstructions && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Hướng dẫn trả hàng:
+                      Return Instructions:
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
                       <Typography variant="body2">{request.returnInstructions}</Typography>
@@ -623,16 +623,16 @@ const SellerRefundDetailPage = () => {
         <CardContent>
           <Typography variant="h6" fontWeight="bold" gutterBottom>
             <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-            Ảnh/Video đính kèm ({evidenceFiles.length})
+            Attached Images/Videos ({evidenceFiles.length})
           </Typography>
           <Divider sx={{ my: 2 }} />
 
-          {evidenceFiles.length === 0 && <Alert severity="info">Không có ảnh/video đính kèm</Alert>}
+          {evidenceFiles.length === 0 && <Alert severity="info">No images/videos attached</Alert>}
 
           {imageFiles.length > 0 && (
             <Box sx={{ mb: videoFiles.length > 0 ? 2 : 0 }}>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                Ảnh minh chứng ({imageFiles.length})
+                Evidence Images ({imageFiles.length})
               </Typography>
               <ImageList cols={3} gap={8}>
                 {imageFiles.map((image, index) => (
@@ -654,7 +654,7 @@ const SellerRefundDetailPage = () => {
             <Box>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                 <Videocam sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
-                Video minh chứng ({videoFiles.length})
+                Evidence Videos ({videoFiles.length})
               </Typography>
               <Grid container spacing={2}>
                 {videoFiles.map((video, index) => (
@@ -683,12 +683,12 @@ const SellerRefundDetailPage = () => {
           {reviewAction === 'approve' ? (
             <>
               <ThumbUp color="success" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Chấp thuận yêu cầu hoàn trả
+              Approve Refund Request
             </>
           ) : (
             <>
               <ThumbDown color="error" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Từ chối yêu cầu hoàn trả
+              Reject Refund Request
             </>
           )}
         </DialogTitle>
@@ -696,15 +696,15 @@ const SellerRefundDetailPage = () => {
           {reviewAction === 'approve' ? (
             <>
               <Alert severity="info" sx={{ mb: 3 }}>
-                Vui lòng cung cấp hướng dẫn chi tiết để khách hàng biết cách trả hàng
+                Please provide clear return instructions for the customer
               </Alert>
               
               <TextField
                 fullWidth
                 multiline
                 rows={4}
-                label="Hướng dẫn trả hàng *"
-                placeholder="Ví dụ: Vui lòng gửi hàng về địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM. Đóng gói cẩn thận và ghi mã đơn hàng #12345 bên ngoài..."
+                label="Return Instructions *"
+                placeholder="Example: Please ship the item to 123 ABC Street, XYZ District, Ho Chi Minh City. Pack carefully and write order number #12345 on the package..."
                 value={returnInstructions}
                 onChange={(e) => setReturnInstructions(e.target.value)}
                 sx={{ mb: 2 }}
@@ -718,22 +718,22 @@ const SellerRefundDetailPage = () => {
                       onChange={(e) => setSellerPaysShipping(e.target.checked)}
                     />
                   }
-                  label="Tôi chịu phí vận chuyển trả hàng"
+                  label="I will cover return shipping"
                 />
               </FormGroup>
             </>
           ) : (
             <>
               <Alert severity="warning" sx={{ mb: 3 }}>
-                Vui lòng cho khách hàng biết lý do từ chối yêu cầu hoàn trả
+                Please provide the customer with a clear rejection reason
               </Alert>
               
               <TextField
                 fullWidth
                 multiline
                 rows={4}
-                label="Lý do từ chối *"
-                placeholder="Ví dụ: Sản phẩm đã quá thời hạn trả hàng, hoặc không đủ điều kiện hoàn trả..."
+                label="Rejection Reason *"
+                placeholder="Example: The item is outside the return window, or does not meet return eligibility conditions..."
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
               />
@@ -742,7 +742,7 @@ const SellerRefundDetailPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseReviewDialog} disabled={submitting}>
-            Hủy
+            Cancel
           </Button>
           <Button
             onClick={handleSubmitReview}
@@ -753,9 +753,9 @@ const SellerRefundDetailPage = () => {
             {submitting ? (
               <CircularProgress size={24} />
             ) : reviewAction === 'approve' ? (
-              'Xác nhận chấp thuận'
+              'Confirm Approval'
             ) : (
-              'Xác nhận từ chối'
+              'Confirm Rejection'
             )}
           </Button>
         </DialogActions>
@@ -770,15 +770,15 @@ const SellerRefundDetailPage = () => {
       >
         <DialogTitle>
           <VerifiedUser color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
-          Xác nhận nhận hàng trả
+          Confirm Returned Item
         </DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Vui lòng kiểm tra kỹ tình trạng sản phẩm trước khi xác nhận
+            Please check the item condition carefully before confirming
           </Alert>
           
           <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
-            <FormLabel component="legend">Tình trạng sản phẩm nhận được:</FormLabel>
+            <FormLabel component="legend">Received Item Condition:</FormLabel>
             <RadioGroup
               value={itemCondition}
               onChange={(e) => setItemCondition(e.target.value as ItemCondition)}
@@ -810,8 +810,8 @@ const SellerRefundDetailPage = () => {
             fullWidth
             multiline
             rows={3}
-            label="Mô tả tình trạng sản phẩm *"
-            placeholder="Ví dụ: Sản phẩm còn nguyên vẹn, đầy đủ phụ kiện..."
+            label="Condition Notes *"
+            placeholder="Example: Item is intact and includes all accessories..."
             value={conditionNotes}
             onChange={(e) => setConditionNotes(e.target.value)}
             sx={{ mb: 2 }}
@@ -820,7 +820,7 @@ const SellerRefundDetailPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseConfirmDialog} disabled={submitting}>
-            Hủy
+            Cancel
           </Button>
           <Button
             onClick={handleConfirmReceived}
@@ -828,7 +828,7 @@ const SellerRefundDetailPage = () => {
             color="primary"
             disabled={submitting}
           >
-            {submitting ? <CircularProgress size={24} /> : 'Xác nhận nhận hàng'}
+            {submitting ? <CircularProgress size={24} /> : 'Confirm Receipt'}
           </Button>
         </DialogActions>
       </Dialog>

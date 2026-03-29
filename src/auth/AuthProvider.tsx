@@ -21,10 +21,19 @@ const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
       try {
         const userProfile = await userApi.getMyProfile();
 
-        console.log('Fetched user profile:', userProfile.data);
+        // @ts-ignore
+        const user = userProfile.data ?? null;
+
+        // If account is disabled, redirect immediately
+        // @ts-ignore
+        if (user && user.enabled === false) {
+          TokenManager.clearTokens();
+          window.location.href = '/account-disabled';
+          return;
+        }
 
         // @ts-ignore
-          dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: userProfile.data ?? null }));
+        dispatch(initialize({ isInitialized: true, isAuthenticated: true, user }));
       } catch (err) {
         TokenManager.clearTokens();
         dispatch(initialize({

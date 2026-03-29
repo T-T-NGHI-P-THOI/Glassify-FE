@@ -29,6 +29,15 @@ function App() {
           </LayoutProvider>
         </CartProvider>
       </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        style={{ zIndex: 99999 }}
+      />
     </BrowserRouter>
   )
 }

@@ -7,6 +7,9 @@ import {
   Collapse,
   Avatar,
   Typography,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -24,11 +27,13 @@ import {
   ExpandMore,
   AdminPanelSettings,
   CardTravel,
+  Logout,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
+import { logOut } from '@/auth/Reducer';
 
 interface SidebarProps {
   activeMenu?: string;
@@ -37,10 +42,17 @@ interface SidebarProps {
 export const Sidebar = ({ activeMenu }: SidebarProps) => {
   const [trackingOpen, setTrackingOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(true);
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, dispatch } = useAuth();
+
+  const handleLogout = () => {
+    setProfileAnchorEl(null);
+    dispatch(logOut());
+    navigate('/');
+  };
 
   const menuItems = [
     { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.DASHBOARD },
@@ -61,6 +73,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       subItems: [
         { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
         { label: 'Refund Management', path: PAGE_ENDPOINTS.REFUND.ADMIN_LIST },
+        { label: 'User Management', path: PAGE_ENDPOINTS.ADMIN.USER_MANAGEMENT },
       ],
     },
     { icon: <Inventory />, label: 'Order', path: PAGE_ENDPOINTS.ORDER.MY_ORDERS },
@@ -114,7 +127,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       </Box>
 
       {/* Main Menu */}
-      <List sx={{ flex: 1, px: 1 }}>
+      <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {menuItems.map((item) => {
           const isMenuOpen =
             item.key === 'tracking' ? trackingOpen : item.key === 'admin' ? adminOpen : false;
@@ -232,12 +245,15 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
 
       {/* User Profile */}
       <Box
+        onClick={(e) => setProfileAnchorEl(e.currentTarget)}
         sx={{
           p: 2,
           borderTop: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
+          cursor: 'pointer',
+          '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
         }}
       >
         <Avatar
@@ -252,8 +268,29 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
             {user?.email || ''}
           </Typography>
         </Box>
-        <ExpandMore sx={{ color: theme.palette.text.secondary }} />
+        <ExpandMore
+          sx={{
+            color: theme.palette.text.secondary,
+            transition: 'transform 0.2s',
+            transform: Boolean(profileAnchorEl) ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        />
       </Box>
+
+      <Menu
+        anchorEl={profileAnchorEl}
+        open={Boolean(profileAnchorEl)}
+        onClose={() => setProfileAnchorEl(null)}
+        anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+        transformOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        slotProps={{ paper: { sx: { minWidth: 180, borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.12)', mb: 1 } } }}
+      >
+        <Divider />
+        <MenuItem onClick={handleLogout} sx={{ gap: 1.5, py: 1.25, color: '#dc2626' }}>
+          <Logout fontSize="small" />
+          <Typography variant="body2">Logout</Typography>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

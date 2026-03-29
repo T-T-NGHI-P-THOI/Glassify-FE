@@ -715,8 +715,8 @@ const UserProfilePage = () => {
                                 </Typography>
                                 {user?.roles.map((role) => (
                                     <Chip
-                                        key={role.id}
-                                        label={role.name}
+                                        key={role}
+                                        label={role}
                                         size="small"
                                         sx={{
                                             bgcolor: theme.palette.custom.status.info.light,

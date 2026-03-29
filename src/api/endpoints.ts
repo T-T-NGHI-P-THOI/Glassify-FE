@@ -26,6 +26,8 @@ export const API_ENDPOINTS = {
     BASE: `${API_ENDPOINT}/product`,
     GET_ALL: `${API_ENDPOINT}/product`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
+    GET_WITH_FRAME_INFO: (id: string) => `${API_ENDPOINT}/product/${id}/with-frame-info`,
+    GET_ACCESSORIES_BY_PARENT_ID: (id: string) => `${API_ENDPOINT}/product/${id}/accessories`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
@@ -125,6 +127,10 @@ export const API_ENDPOINTS = {
     REQUEST_BY_ID: (id: string) => `${API_ENDPOINT}/return-requests/${id}`,
     CANCEL: (id: string) => `${API_ENDPOINT}/return-requests/${id}/cancel`,
   },
+  SHOP_INVENTORY: {
+    GET: (shopId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}`,
+    SET_STOCK: (shopId: string, variantId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}/variant/${variantId}`,
+  },
   SHOP_WALLET: {
     BASE: `${API_ENDPOINT}/shop/wallet`,
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
@@ -151,6 +157,12 @@ export const API_ENDPOINTS = {
       CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close`,
       CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close/cancel`,
     },
+    USERS: {
+      LIST: `${API_ENDPOINT}/admin/users`,
+      GET_BY_ID: (id: string) => `${API_ENDPOINT}/admin/users/${id}`,
+      SET_ROLES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/roles`,
+      SET_STATUS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/status`,
+    },
   },
 } as const;
 
@@ -174,6 +186,7 @@ export const PAGE_ENDPOINTS = {
 
   SHOP: {
     REGISTER: `/shop/register`,
+    RESUBMIT: `/shop/resubmit`,
     PROFILE: `/shop/profile`,
     PRODUCT_FRAME: `/shop/product/frame`,
     CREATE_FRAME: `/shop/product/frame/create`,
@@ -191,6 +204,7 @@ export const PAGE_ENDPOINTS = {
 
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
+    USER_MANAGEMENT: `/admin/users`,
   },
 
   ORDER: {
@@ -214,6 +228,7 @@ export const PAGE_ENDPOINTS = {
   USER: {
     PROFILE: `/users/me`,
     WALLET: `/wallet`,
+    HELP: `/help`,
   },
 
   CART: {

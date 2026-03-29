@@ -10,10 +10,49 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
-import ProductAPI, { type ReviewResponse } from '../../api/product-api';
+import ProductAPI, { type ApiProduct, type ProductWithFrameInfoData, type ReviewResponse } from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
+
+const PLACEHOLDER_IMAGE = 'https://placehold.co/600x400/000000/FFFFFF?text=Product';
+
+const mmToInches = (mm: number): number => Number((mm / 25.4).toFixed(1));
+
+const formatEnumLabel = (value?: string | null): string => {
+  if (!value) return 'N/A';
+  return value
+    .toLowerCase()
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const getProductImages = (apiProduct: ApiProduct): string[] => {
+  const images = (apiProduct.fileResponses || [])
+    .map(file => file.publicUrl || file.url)
+    .filter((url): url is string => Boolean(url));
+
+  return images.length > 0
+    ? images
+    : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
+};
+
+const buildFeatures = (frameInfo?: ProductWithFrameInfoData | null): string[] => {
+  const features: string[] = [];
+  const frameGroup = frameInfo?.frameGroup;
+
+  if (!frameGroup) return features;
+
+  if (frameGroup.hasNosePads) features.push('Nose Pads');
+  if (frameGroup.hasSpringHinge) features.push('Spring Hinge');
+
+  if (Array.isArray(frameGroup.suitableFaceShapes) && frameGroup.suitableFaceShapes.length > 0) {
+    features.push(...frameGroup.suitableFaceShapes.map(shape => `${formatEnumLabel(shape)} Face`));
+  }
+
+  return features;
+};
 
 const ProductDetailPage: React.FC = () => {
   const { slug, sku } = useParams<{ slug: string; sku: string }>();
@@ -21,11 +60,13 @@ const ProductDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { addItem, addFrameWithLens, removeItem, cartData } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
+  const [accessories, setAccessories] = useState<ApiProduct[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -57,69 +98,90 @@ const ProductDetailPage: React.FC = () => {
       try {
         setIsLoading(true);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
+        let productWithFrameInfo: ProductWithFrameInfoData | null = null;
+
+        try {
+          productWithFrameInfo = await ProductAPI.getProductWithFrameInfo(apiProduct.id);
+        } catch (error) {
+          console.warn('Unable to fetch frame info details, falling back to base product data:', error);
+        }
+
+        const productResponse = productWithFrameInfo?.productResponse ?? apiProduct;
+        const frameGroup = productWithFrameInfo?.frameGroup;
+        const frameVariant = productWithFrameInfo?.frameVariant;
+
+        const frameWidthMm = frameVariant?.frameWidthMm ?? 0;
+        const bridgeMm = frameVariant?.bridgeWidthMm ?? 0;
+        const lensWidthMm = frameVariant?.lensWidthMm ?? 0;
+        const lensHeightMm = frameVariant?.lensHeightMm ?? 0;
+        const templeLengthMm = frameVariant?.templeLengthMm ?? 0;
+
+        const productImages = getProductImages(productResponse);
+        const primaryImage = productImages[0] || PLACEHOLDER_IMAGE;
+
+        const shapeLabel = formatEnumLabel(frameGroup?.frameShape);
+        const materialLabel = formatEnumLabel(frameGroup?.frameMaterial);
+        const rimLabel = formatEnumLabel(frameGroup?.frameStructure);
+        const sizeLabel = formatEnumLabel(frameVariant?.size);
+
+        const sizeRange = frameWidthMm > 0
+          ? `${Math.max(frameWidthMm - 3, 0)} - ${frameWidthMm + 3} mm / ${mmToInches(Math.max(frameWidthMm - 3, 0))} - ${mmToInches(frameWidthMm + 3)} in`
+          : 'N/A';
+
+        const productFeatures = buildFeatures(productWithFrameInfo);
         
         // Transform API product to Product format
         const transformedProduct: Product = {
-          id: apiProduct.id,
-          shopId: apiProduct.shopId,
-          shop: apiProduct.shop,
-          slug: apiProduct.slug,
-          name: apiProduct.name,
-          sku: apiProduct.sku,
-          price: apiProduct.basePrice,
-          rating: apiProduct.avgRating || 0,
-          reviewCount: apiProduct.reviewCount || 0,
-          shape: 'Rectangle', // Default - update if you have this data
-          category: apiProduct.categoryName,
-          productType: apiProduct.productType,
-          variantId: apiProduct.variantId ?? undefined,
-          stockQuantity: apiProduct.stockQuantity,
+          id: productResponse.id,
+          shopId: productResponse.shopId,
+          shop: productResponse.shop,
+          slug: productResponse.slug,
+          name: productResponse.name,
+          sku: productResponse.sku,
+          price: productResponse.basePrice,
+          rating: productResponse.avgRating || 0,
+          reviewCount: productResponse.reviewCount || 0,
+          shape: shapeLabel,
+          category: productResponse.categoryName,
+          productType: productResponse.productType,
+          variantId: productResponse.variantId ?? frameVariant?.id ?? undefined,
+          stockQuantity: productResponse.stockQuantity,
           colors: [
             {
-              name: 'Default',
-              code: '#000000',
-              image: 'https://placehold.co/600x400/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name),
-              images: [
-                'https://placehold.co/600x400/000000/FFFFFF?text=Front',
-                'https://placehold.co/600x400/333333/FFFFFF?text=Side',
-                'https://placehold.co/600x400/666666/FFFFFF?text=Top',
-                'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
-              ],
-              productId: apiProduct.id,
-              variantId: apiProduct.variantId || apiProduct.id
+              name: frameVariant?.colorName || 'Default',
+              code: frameVariant?.colorHex || '#000000',
+              image: primaryImage,
+              images: productImages,
+              productId: productResponse.id,
+              variantId: productResponse.variantId || frameVariant?.id || productResponse.id
             }
           ],
-          images: [
-            'https://placehold.co/600x400/000000/FFFFFF?text=Front',
-            'https://placehold.co/600x400/333333/FFFFFF?text=Side',
-            'https://placehold.co/600x400/666666/FFFFFF?text=Top',
-            'https://placehold.co/600x400/999999/FFFFFF?text=Detail'
-          ],
+          images: productImages,
           frameMeasurements: {
-            frameWidth: { mm: 130, inches: 5.1 },
-            bridge: { mm: 19, inches: 0.7 },
-            lensWidth: { mm: 54, inches: 2.1 },
-            lensHeight: { mm: 33, inches: 1.3 },
-            templeLength: { mm: 145, inches: 5.7 }
+            frameWidth: { mm: frameWidthMm, inches: mmToInches(frameWidthMm) },
+            bridge: { mm: bridgeMm, inches: mmToInches(bridgeMm) },
+            lensWidth: { mm: lensWidthMm, inches: mmToInches(lensWidthMm) },
+            lensHeight: { mm: lensHeightMm, inches: mmToInches(lensHeightMm) },
+            templeLength: { mm: templeLengthMm, inches: mmToInches(templeLengthMm) }
           },
           frameDetails: {
-            size: 'Medium',
-            sizeRange: '126 - 132 mm / 5.0 - 5.2 in',
-            material: 'Acetate',
-            weight: 'Lightweight',
-            weightGrams: 15,
-            rim: 'Full Rim',
-            shape: 'Rectangle'
+            size: sizeLabel,
+            sizeRange,
+            material: materialLabel,
+            weight: 'N/A',
+            weightGrams: 0,
+            rim: rimLabel,
+            shape: shapeLabel
           },
           prescriptionDetails: {
-            pdRange: '62 - 79 mm',
-            prescriptionRange: '-16.00 - +9.00',
-            progressive: true,
-            bifocal: true,
+            pdRange: 'N/A',
+            prescriptionRange: 'N/A',
+            progressive: false,
+            bifocal: false,
             readers: false
           },
-          description: apiProduct.description,
-          features: ['Nose Pads', 'Lightweight'],
+          description: productResponse.description ?? frameGroup?.description ?? undefined,
+          features: productFeatures,
           deliveryDate: 'Fri, Jan 23'
         };
 
@@ -136,6 +198,10 @@ const ProductDetailPage: React.FC = () => {
         } finally {
           setIsLoadingReviews(false);
         }
+
+        // Fetch accessories linked to current product
+        const accessoryProducts = await ProductAPI.getAccessoriesByParentProductId(apiProduct.id);
+        setAccessories(accessoryProducts.filter(item => item.isActive));
 
         // Fetch recommended products
         const allProducts = await ProductAPI.getAllProducts();
@@ -167,6 +233,56 @@ const ProductDetailPage: React.FC = () => {
 
     fetchProduct();
   }, [slug, sku]);
+
+  const getProductImage = (apiProduct: ApiProduct) => {
+    const imageFile = apiProduct.fileResponses?.find(file => file.publicUrl || file.url);
+    return imageFile?.publicUrl || imageFile?.url ||
+      'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name);
+  };
+
+  const handleAddAccessoryToCart = async (accessory: ApiProduct) => {
+    try {
+      await addItem({
+        productName: accessory.name,
+        productSlug: accessory.slug,
+        productId: accessory.id,
+        productType: accessory.productType,
+        sku: accessory.sku,
+        imageUrl: getProductImage(accessory),
+        unitPrice: accessory.basePrice,
+        itemType: 'ACCESSORY',
+        shopId: accessory.shopId,
+        shopName: accessory.shop?.shopName,
+        variantId: accessory.variantId || accessory.id,
+        stockQuantity: accessory.stockQuantity,
+      });
+
+      setSnackbar({ open: true, message: `Da them ${accessory.name} vao gio hang!`, severity: 'success' });
+    } catch (error) {
+      console.error('Error adding accessory to cart:', error);
+      setSnackbar({ open: true, message: 'Co loi xay ra khi them phu kien vao gio hang.', severity: 'error' });
+    }
+  };
+
+  const ACCESSORIES_PER_VIEW = 3;
+  const maxAccessoryIndex = Math.max(0, accessories.length - ACCESSORIES_PER_VIEW);
+  const visibleAccessories = accessories.slice(
+    currentAccessoryIndex,
+    currentAccessoryIndex + ACCESSORIES_PER_VIEW
+  );
+  const hasAccessories = accessories.length > 0;
+
+  const handlePrevAccessory = () => {
+    setCurrentAccessoryIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextAccessory = () => {
+    setCurrentAccessoryIndex(prev => Math.min(maxAccessoryIndex, prev + 1));
+  };
+
+  useEffect(() => {
+    setCurrentAccessoryIndex(0);
+  }, [product?.id]);
 
   // Cleanup lens dialog state when leaving the product page
   useEffect(() => {
@@ -318,40 +434,95 @@ const ProductDetailPage: React.FC = () => {
         <span>{product.name} - SKU: {sku}</span>
       </nav>
 
-      <div className="product-main">
-        <div className="product-preview-column">
-          <ImageGallery 
-            images={product.images} 
-            productName={product.name}
-          />
-          {product.colors && product.colors.length > 0 && (
-            <div className="color-variants-section">
-              <div className="color-variants">
-                {product.colors.map((color, index) => (
-                  <button
-                    key={index}
-                    className={`color-variant-btn ${color.variantId === product.id ? 'active' : ''}`}
-                    onClick={() => handleColorClick(color)}
-                    title={color.name}
-                  >
-                    <img src={color.image || product.images[0]} alt={color.name} />
-                    <span className="variant-label">{color.name}</span>
-                  </button>
-                ))}
+      <div className="product-content">
+        <div className="product-left-column">
+          <div className="product-preview-column">
+            <ImageGallery 
+              images={product.images} 
+              productName={product.name}
+            />
+            {product.shop && (
+              <div className="product-shop-extended">
+                <ShopInfo shop={product.shop} />
               </div>
+            )}
+          </div>
+
+          {hasAccessories && (
+            <div className="product-details-column">
+              <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
             </div>
           )}
-          {product.shop && <ShopInfo shop={product.shop} />}
         </div>
-        <div className="product-info-column">
-          <ProductInfo
-            product={product}
-            onAddToFavorites={handleAddToFavorites}
-            onAddToCart={handleAddToCart}
-            isEditMode={isEditMode}
-          />
+
+        <div className="product-right-column">
+          <div className="product-info-column">
+            <ProductInfo
+              product={product}
+              onColorSelect={handleColorClick}
+              activeVariantId={product.variantId}
+              onAddToFavorites={handleAddToFavorites}
+              onAddToCart={handleAddToCart}
+              isEditMode={isEditMode}
+            />
+          </div>
+
+          {hasAccessories && (
+            <aside className="product-accessories-column">
+              <div className="accessories-sidebar">
+                <div className="accessories-sidebar-header">
+                  <h3>Accessories</h3>
+                  {accessories.length > ACCESSORIES_PER_VIEW && (
+                    <div className="accessories-nav">
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handlePrevAccessory}
+                        disabled={currentAccessoryIndex === 0}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handleNextAccessory}
+                        disabled={currentAccessoryIndex >= maxAccessoryIndex}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="accessories-sidebar-list">
+                  {visibleAccessories.map((accessory) => (
+                    <div key={accessory.id} className="accessories-sidebar-item">
+                      <img src={getProductImage(accessory)} alt={accessory.name} />
+                      <div className="accessories-sidebar-item-info">
+                        <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
+                        <h4>{accessory.name}</h4>
+                        <p className="accessory-sku">SKU: {accessory.sku}</p>
+                        <button
+                          className="add-to-cart-btn"
+                          onClick={() => handleAddAccessoryToCart(accessory)}
+                        >
+                          Add to cart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
+
+      {!hasAccessories && (
+        <div className="product-details-fullwidth">
+          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+        </div>
+      )}
 
       <LensSelectionDialog
         open={lensDialogOpen}
@@ -368,26 +539,6 @@ const ProductDetailPage: React.FC = () => {
         framePrice={product.price}
         initialSelection={editLensSelection}
       />
-
-      <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
-
-      <div className="accessories-section">
-        <h2>Accessories</h2>
-        <div className="accessory-card">
-          <img src="https://placehold.co/200x200/E8E8E8/666666?text=Eyewear+Case" alt="Deluxe Eyewear Case" />
-          <div className="accessory-info">
-            <p className="accessory-price">$3.95</p>
-            <h4>Deluxe Eyewear Case</h4>
-            <p className="accessory-sku">SKU: A60105621</p>
-            <p className="accessory-description">
-              Protect your eyewear wherever life takes you with this reliable case. Features premium materials, 
-              soft interior lining, and compact design perfect for travel.
-              <a href="#"> Read more</a>
-            </p>
-            <button className="add-to-cart-btn">Add to cart</button>
-          </div>
-        </div>
-      </div>
 
       <RecommendedProducts products={recommendedProducts} />
 

@@ -5,6 +5,7 @@ import { PAGE_ENDPOINTS } from "../api/endpoints"
 import DashboardPage from "@/pages/Dashboard/DashboardPage.tsx";
 import UserProfilePage from "@/pages/User/UserProfilePage"
 import ShopRegistrationPage from "@/pages/Shop/ShopRegistrationPage"
+import ShopResubmitPage from "@/pages/Shop/ShopResubmitPage"
 import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
@@ -31,6 +32,7 @@ import {
     SellerRefundDetailPage,
     AdminRefundManagementPage,
 } from "@/pages/Refund"
+import AdminUserManagementPage from "@/pages/Admin/AdminUserManagementPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 
 const PrivateRoutesComponent = () => {
@@ -108,6 +110,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <ShopRegistrationPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.RESUBMIT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <ShopResubmitPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
@@ -227,7 +240,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.STAFF}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopStaffPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -238,7 +251,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.SHOP.WARRANTY}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <ShopWarrantyPage />
                         </RoleBasedGuard>
                     </AuthGuard>
@@ -342,6 +355,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminRefundManagementPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.USER_MANAGEMENT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminUserManagementPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

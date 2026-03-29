@@ -27,7 +27,7 @@
 }
 
 .thumbnail-nav-btn {
-  width: 80px;
+  width: 128px;
   height: 36px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -170,8 +170,8 @@
 }
 
 .thumbnail {
-  width: 80px;
-  height: 80px;
+  width: 128px;
+  height: 128px;
   border: 2px solid transparent;
   border-radius: 4px;
   overflow: hidden;
@@ -197,8 +197,8 @@
 }
 
 .thumbnail-360 {
-  width: 80px;
-  height: 80px;
+  width: 128px;
+  height: 128px;
   border: 2px solid #e0e0e0;
   border-radius: 4px;
   background: #fff;

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Search, 
   FilterList, 
   ViewModule, 
   ViewList,
@@ -14,6 +13,10 @@ import ProductAPI, { type ProductFilterParams } from '../../api/product-api';
 import './ProductBrowsePage.css';
 
 const ProductBrowsePage: React.FC = () => {
+  const defaultShopCities = [
+    'Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Bình Dương',
+    'Đồng Nai', 'Quảng Ninh', 'Khánh Hòa', 'Nghệ An', 'Thanh Hóa', 'Thừa Thiên Huế'
+  ];
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
@@ -21,6 +24,7 @@ const ProductBrowsePage: React.FC = () => {
     productTypes: ['FRAME', 'LENS', 'ACCESSORIES'],
     brands: [],
     categories: [],
+    shopCities: defaultShopCities,
     priceRange: { min: 0, max: 500 },
     ratings: [0, 1, 2, 3, 4]
   });
@@ -29,6 +33,7 @@ const ProductBrowsePage: React.FC = () => {
     productType: searchParams.get('productType') as ActiveFilters['productType'] || undefined,
     brandIds: searchParams.get('brandId') ? [searchParams.get('brandId')!] : [],
     categoryNames: searchParams.get('categoryName') ? [searchParams.get('categoryName')!] : [],
+    shopCities: searchParams.get('shopCity') ? [searchParams.get('shopCity')!] : [],
     searchQuery: searchParams.get('q') || '',
     sortBy: (searchParams.get('sortBy') as ActiveFilters['sortBy']) || 'popular',
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
@@ -40,9 +45,10 @@ const ProductBrowsePage: React.FC = () => {
     const category = searchParams.get('category');
     const productType = searchParams.get('productType');
     const query = searchParams.get('q');
+    const shopCity = searchParams.get('shopCity');
     
     // Only update if there are actual params in URL
-    if (category || productType || query) {
+    if (category || productType || query || shopCity) {
       setActiveFilters(prev => {
         const updates: Partial<ActiveFilters> = {
           searchQuery: query || '',
@@ -57,6 +63,10 @@ const ProductBrowsePage: React.FC = () => {
         if (category) {
           updates.categoryNames = [category];
         }
+
+        if (shopCity) {
+          updates.shopCities = [shopCity];
+        }
         
         return { ...prev, ...updates };
       });
@@ -69,6 +79,38 @@ const ProductBrowsePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const PAGE_SIZE = 10;
+
+  const normalizeLocationText = (value: string) =>
+    value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/\./g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const extractProductLocation = (product: {
+    shop?: { city?: string; address?: string };
+    shopBasicInfo?: { city?: string; address?: string };
+    shopbasicinfo?: { city?: string; address?: string };
+  }) => {
+    const city =
+      product.shopBasicInfo?.city ||
+      product.shopbasicinfo?.city ||
+      product.shop?.city ||
+      '';
+    const address =
+      product.shopBasicInfo?.address ||
+      product.shopbasicinfo?.address ||
+      product.shop?.address ||
+      '';
+
+    return {
+      city: city || undefined,
+      address: address || undefined
+    };
+  };
 
   // Fetch categories on mount
   useEffect(() => {
@@ -100,8 +142,8 @@ const ProductBrowsePage: React.FC = () => {
         // Build filter params from activeFilters
         const filterParams: ProductFilterParams = {
           search: activeFilters.searchQuery || undefined,
-          minPrice: activeFilters.priceMin || undefined,
-          maxPrice: activeFilters.priceMax || undefined,
+          minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
+          maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
           isActive: true,
           minRating: activeFilters.minRating || undefined,
           productType: activeFilters.productType,
@@ -143,29 +185,47 @@ const ProductBrowsePage: React.FC = () => {
         const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
 
         // Transform API products to BrowseProduct format
-        const transformedProducts: BrowseProduct[] = apiProducts.map((product) => ({
-          id: product.id,
-          slug: product.slug,
-          productId: product.id,
-          variantId: product.variantId || product.id,
-          name: product.name,
-          sku: product.sku,
-          price: product.basePrice,
-          rating: product.avgRating || 0,
-          reviewCount: product.reviewCount || 0,
-          productType: product.productType,
-          image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(product.name),
-          colorVariants: [],
-          isFeatured: product.isFeatured,
-          isNew: false,
-          stockQuantity: product.stockQuantity,
-          brandId: product.brandId,
-          categoryId: product.categoryId,
-          categoryName: product.categoryName
+        const transformedProducts: BrowseProduct[] = apiProducts.map((product) => {
+          const productLocation = extractProductLocation(product);
+
+          return {
+            id: product.id,
+            slug: product.slug,
+            productId: product.id,
+            variantId: product.variantId || product.id,
+            name: product.name,
+            sku: product.sku,
+            price: product.basePrice,
+            rating: product.avgRating || 0,
+            reviewCount: product.reviewCount || 0,
+            productType: product.productType,
+            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(product.name),
+            colorVariants: [],
+            isFeatured: product.isFeatured,
+            isNew: false,
+            stockQuantity: product.stockQuantity,
+            brandId: product.brandId,
+            categoryId: product.categoryId,
+            categoryName: product.categoryName,
+            shopCity: productLocation.city,
+            shopAddress: productLocation.address
+          };
+        });
+
+        const detectedCities = Array.from(
+          new Set(
+            transformedProducts
+              .map(product => product.shopCity)
+              .filter((city): city is string => Boolean(city))
+          )
+        );
+
+        setFilterOptions(prev => ({
+          ...prev,
+          shopCities: Array.from(new Set([...defaultShopCities, ...detectedCities]))
         }));
 
         setProducts(transformedProducts);
-        setFilteredProducts(transformedProducts);
         setHasNextPage(transformedProducts.length === PAGE_SIZE);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -177,10 +237,31 @@ const ProductBrowsePage: React.FC = () => {
     fetchProducts();
   }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, currentPage]);
 
-  // No client-side filtering needed - all filtering done by API
+  // Apply location filtering client-side because product listing API does not currently expose city param.
   useEffect(() => {
-    setFilteredProducts(products);
-  }, [products]);
+    let nextProducts = products;
+
+    if (activeFilters.shopCities.length > 0) {
+      nextProducts = nextProducts.filter(
+        product => {
+          const cityValue = normalizeLocationText(product.shopCity || '');
+          const addressValue = normalizeLocationText(product.shopAddress || '');
+
+          return activeFilters.shopCities.some((selectedCity) => {
+            const selectedValue = normalizeLocationText(selectedCity);
+            return (
+              cityValue === selectedValue ||
+              cityValue.includes(selectedValue) ||
+              selectedValue.includes(cityValue) ||
+              addressValue.includes(selectedValue)
+            );
+          });
+        }
+      );
+    }
+
+    setFilteredProducts(nextProducts);
+  }, [products, activeFilters.shopCities]);
 
   const handleFilterChange = (newFilters: ActiveFilters) => {
     setCurrentPage(1);
@@ -201,14 +282,17 @@ const ProductBrowsePage: React.FC = () => {
     }
     if (newFilters.searchQuery) params.set('q', newFilters.searchQuery);
     if (newFilters.sortBy && newFilters.sortBy !== 'popular') params.set('sortBy', newFilters.sortBy);
-    if (newFilters.priceMin) params.set('minPrice', newFilters.priceMin.toString());
-    if (newFilters.priceMax) params.set('maxPrice', newFilters.priceMax.toString());
+    if (newFilters.priceMin !== undefined) params.set('minPrice', newFilters.priceMin.toString());
+    if (newFilters.priceMax !== undefined) params.set('maxPrice', newFilters.priceMax.toString());
     if (newFilters.minRating) params.set('minRating', newFilters.minRating.toString());
     if (newFilters.brandIds && newFilters.brandIds.length > 0) {
       params.set('brandId', newFilters.brandIds[0]);
     }
     if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
       params.set('category', newFilters.categoryNames[0]);
+    }
+    if (newFilters.shopCities && newFilters.shopCities.length > 0) {
+      params.set('shopCity', newFilters.shopCities[0]);
     }
     setSearchParams(params);
   };
@@ -219,20 +303,11 @@ const ProductBrowsePage: React.FC = () => {
       productType: undefined,
       brandIds: [],
       categoryNames: [],
+      shopCities: [],
       searchQuery: '',
       sortBy: 'popular'
     });
     setSearchParams({});
-  };
-
-  const handleSearch = (query: string) => {
-    setCurrentPage(1);
-    setActiveFilters(prev => ({ ...prev, searchQuery: query }));
-    if (query) {
-      setSearchParams({ q: query });
-    } else {
-      setSearchParams({});
-    }
   };
 
   const handleSort = (sortBy: ActiveFilters['sortBy']) => {
@@ -278,17 +353,6 @@ const ProductBrowsePage: React.FC = () => {
 
         <main className="browse-main">
           <div className="browse-header">
-            <div className="browse-search">
-              <Search className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search glasses..."
-                value={activeFilters.searchQuery || ''}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="search-input"
-              />
-            </div>
-
             <div className="browse-controls">
               <button 
                 className="filter-toggle-btn"

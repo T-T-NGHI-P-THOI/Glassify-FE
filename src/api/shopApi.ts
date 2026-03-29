@@ -105,6 +105,11 @@ export const shopApi = {
     return response.data;
   },
 
+  checkEmail: async (email: string): Promise<ApiResponse<{ available: boolean; message: string }>> => {
+    const response = await axiosInstance.get(`${SHOP_BASE_URL}/check-email`, { params: { email } });
+    return response.data;
+  },
+
   getMyShops: async (): Promise<ApiResponse<ShopDetailResponse[]>> => {
     const response = await axiosInstance.get<ApiResponse<ShopDetailResponse[]>>(
       `${SHOP_BASE_URL}/my-shops`,
@@ -126,6 +131,28 @@ export const shopApi = {
     const response = await axiosInstance.put<ApiResponse<ShopDetailResponse>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}`,
       data,
+    );
+    return response.data;
+  },
+
+  uploadLicenseImage: async (file: File): Promise<ApiResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post<ApiResponse<{ url: string }>>(
+      `${SHOP_BASE_URL}/upload-license-image`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  },
+
+  uploadLogoImage: async (file: File): Promise<ApiResponse<{ url: string }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post<ApiResponse<{ url: string }>>(
+      `${SHOP_BASE_URL}/upload-logo`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   },
