@@ -115,10 +115,6 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </div>
       )}
 
-      <div className="payment-options">
-        <p>Pay over time with PayPal, Affirm or Afterpay. <a href="#">Learn More</a></p>
-      </div>
-
       <div className="action-buttons">
         {product.productType === 'FRAME' ? (
           <>
@@ -139,10 +135,6 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
         <Favorite /> Add to favorites
       </button>
-
-      <div className="insurance-info">
-        <p>Use your insurance or FSA/HSA benefits. <a href="#">Learn more</a></p>
-      </div>
 
       <div className="share-section">
         <p className="share-label">Share</p>

@@ -1,7 +1,7 @@
 .product-info {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .product-title {
@@ -215,13 +215,13 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .payment-options {
   font-size: 13px;
   color: #666;
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .payment-options a {
@@ -232,7 +232,7 @@
 .insurance-info {
   font-size: 13px;
   color: #666;
-  margin: 10px 0;
+  margin: 2px 0 4px;
 }
 
 .insurance-info a {
@@ -301,12 +301,12 @@
 }
 
 .share-section {
-  padding-top: 20px;
+  padding-top: 8px;
 }
 
 .share-label {
   font-weight: bold;
-  margin-bottom: 10px;
+  margin: 0 0 10px;
 }
 
 .share-buttons {

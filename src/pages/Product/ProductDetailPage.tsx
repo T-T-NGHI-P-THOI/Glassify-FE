@@ -270,6 +270,7 @@ const ProductDetailPage: React.FC = () => {
     currentAccessoryIndex,
     currentAccessoryIndex + ACCESSORIES_PER_VIEW
   );
+  const hasAccessories = accessories.length > 0;
 
   const handlePrevAccessory = () => {
     setCurrentAccessoryIndex(prev => Math.max(0, prev - 1));
@@ -433,25 +434,95 @@ const ProductDetailPage: React.FC = () => {
         <span>{product.name} - SKU: {sku}</span>
       </nav>
 
-      <div className="product-main">
-        <div className="product-preview-column">
-          <ImageGallery 
-            images={product.images} 
-            productName={product.name}
-          />
-          {product.shop && <ShopInfo shop={product.shop} />}
+      <div className="product-content">
+        <div className="product-left-column">
+          <div className="product-preview-column">
+            <ImageGallery 
+              images={product.images} 
+              productName={product.name}
+            />
+            {product.shop && (
+              <div className="product-shop-extended">
+                <ShopInfo shop={product.shop} />
+              </div>
+            )}
+          </div>
+
+          {hasAccessories && (
+            <div className="product-details-column">
+              <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+            </div>
+          )}
         </div>
-        <div className="product-info-column">
-          <ProductInfo
-            product={product}
-            onColorSelect={handleColorClick}
-            activeVariantId={product.variantId}
-            onAddToFavorites={handleAddToFavorites}
-            onAddToCart={handleAddToCart}
-            isEditMode={isEditMode}
-          />
+
+        <div className="product-right-column">
+          <div className="product-info-column">
+            <ProductInfo
+              product={product}
+              onColorSelect={handleColorClick}
+              activeVariantId={product.variantId}
+              onAddToFavorites={handleAddToFavorites}
+              onAddToCart={handleAddToCart}
+              isEditMode={isEditMode}
+            />
+          </div>
+
+          {hasAccessories && (
+            <aside className="product-accessories-column">
+              <div className="accessories-sidebar">
+                <div className="accessories-sidebar-header">
+                  <h3>Accessories</h3>
+                  {accessories.length > ACCESSORIES_PER_VIEW && (
+                    <div className="accessories-nav">
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handlePrevAccessory}
+                        disabled={currentAccessoryIndex === 0}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handleNextAccessory}
+                        disabled={currentAccessoryIndex >= maxAccessoryIndex}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="accessories-sidebar-list">
+                  {visibleAccessories.map((accessory) => (
+                    <div key={accessory.id} className="accessories-sidebar-item">
+                      <img src={getProductImage(accessory)} alt={accessory.name} />
+                      <div className="accessories-sidebar-item-info">
+                        <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
+                        <h4>{accessory.name}</h4>
+                        <p className="accessory-sku">SKU: {accessory.sku}</p>
+                        <button
+                          className="add-to-cart-btn"
+                          onClick={() => handleAddAccessoryToCart(accessory)}
+                        >
+                          Add to cart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
+
+      {!hasAccessories && (
+        <div className="product-details-fullwidth">
+          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+        </div>
+      )}
 
       <LensSelectionDialog
         open={lensDialogOpen}
@@ -468,61 +539,6 @@ const ProductDetailPage: React.FC = () => {
         framePrice={product.price}
         initialSelection={editLensSelection}
       />
-
-      <div className="product-secondary">
-        <div className="product-details-column">
-          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
-        </div>
-
-        {accessories.length > 0 && (
-          <aside className="product-accessories-column">
-            <div className="accessories-sidebar">
-              <div className="accessories-sidebar-header">
-                <h3>Accessories</h3>
-                {accessories.length > ACCESSORIES_PER_VIEW && (
-                  <div className="accessories-nav">
-                    <button
-                      type="button"
-                      className="accessories-nav-btn"
-                      onClick={handlePrevAccessory}
-                      disabled={currentAccessoryIndex === 0}
-                    >
-                      ‹
-                    </button>
-                    <button
-                      type="button"
-                      className="accessories-nav-btn"
-                      onClick={handleNextAccessory}
-                      disabled={currentAccessoryIndex >= maxAccessoryIndex}
-                    >
-                      ›
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="accessories-sidebar-list">
-                {visibleAccessories.map((accessory) => (
-                  <div key={accessory.id} className="accessories-sidebar-item">
-                    <img src={getProductImage(accessory)} alt={accessory.name} />
-                    <div className="accessories-sidebar-item-info">
-                      <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
-                      <h4>{accessory.name}</h4>
-                      <p className="accessory-sku">SKU: {accessory.sku}</p>
-                      <button
-                        className="add-to-cart-btn"
-                        onClick={() => handleAddAccessoryToCart(accessory)}
-                      >
-                        Add to cart
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        )}
-      </div>
 
       <RecommendedProducts products={recommendedProducts} />
 
