@@ -1454,9 +1454,13 @@ const MyOrdersPage = () => {
                                                 textTransform: 'none',
                                                 fontWeight: 600,
                                                 fontSize: 10,
-                                                minHeight: 24,
-                                                px: 1,
-                                                py: 0.25,
+                                                lineHeight: 1,
+                                                minHeight: 22,
+                                                height: 22,
+                                                minWidth: 'unset',
+                                                px: 1.25,
+                                                py: 0,
+                                                borderRadius: '8px',
                                                 borderColor: itemRefundLookup[item.id]?.id
                                                   ? theme.palette.custom.status.info.main
                                                   : theme.palette.custom.status.warning.main,
