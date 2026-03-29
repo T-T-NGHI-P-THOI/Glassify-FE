@@ -1,7 +1,6 @@
 import api, { API_CONFIG } from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
-import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
 import axiosInstance from './axios.config';
 
 // Category type from API
@@ -353,7 +352,7 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
- static async getFrameGroupFromShopId(shopId: string): Promise<ApiShopFrameGroup[]> {
+  static async getFrameGroupFromShopId(shopId: string): Promise<ApiShopFrameGroup[]> {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
     );
@@ -413,6 +412,18 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async getModel3D(frameGroupId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_MODEL_3D,
+      {
+        params: { frameGroupId },
+        responseType: 'blob',
+      }
+    );
+
+    return response;
+  }
+
   static async getFrameGroupModel3D(frameGroupId: string): Promise<Blob> {
     const modelUrl = `${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${encodeURIComponent(frameGroupId)}`;
     const response = await axiosInstance.get(modelUrl, {
@@ -426,5 +437,18 @@ export default class ProductAPI {
       params: { frameGroupId }
     });
     return response.data.data as ApiTextureFile[];
+  }
+
+  static async updateFrameGroup(id: string, body: FormData) {
+    const response = await axiosInstance.put(
+      API_ENDPOINTS.PRODUCTS.UPDATE_FRAME_GROUP(id),
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
   }
 }

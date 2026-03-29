@@ -6,7 +6,6 @@ import { Layout } from './layouts/Layout'
 import { LayoutProvider } from './layouts/LayoutContext'
 import CartProvider from './contexts/CartProvider'
 import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
   return (
@@ -14,6 +13,16 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <LayoutProvider>
+            <ToastContainer
+              position="bottom-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              pauseOnHover
+              draggable
+              theme="light"
+            />
             <Layout>
               <RouteComponent />
             </Layout>

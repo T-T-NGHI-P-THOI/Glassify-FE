@@ -28,26 +28,19 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useState, useRef, useEffect } from 'react';
-import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile } from '../Create/Upload3DModel';
+import type { FrameVariantResponse } from './FrameGroupCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FrameVariantDetailDialogProps {
     open: boolean;
     onClose: () => void;
-    variant: CreateFrameVariantFormData & {
-        id?: string;
-        productId?: string;
-        createdAt?: string;
-        qtyOnHand?: number | null;
-        qtyAvailable?: number | null;
-        qtyReserved?: number | null;
-        lowStockThreshold?: number | null;
-    };
+    variant: FrameVariantResponse;
     modelFile?: Model3DFile | null;
     vrEnabled?: boolean;
+    productImages: string[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -115,7 +108,7 @@ function BoolBadge({ value }: { value: boolean }) {
 // ─── Image lightbox ───────────────────────────────────────────────────────────
 
 function ImageLightbox({ images, open, initialIndex = 0, onClose }: {
-    images: { preview?: string; name: string }[];
+    images: string[];
     open: boolean;
     initialIndex?: number;
     onClose: () => void;
@@ -152,7 +145,7 @@ function ImageLightbox({ images, open, initialIndex = 0, onClose }: {
                             ‹
                         </IconButton>
                     )}
-                    <Box component="img" src={images[current]?.preview} alt={images[current]?.name}
+                    <Box component="img" src={images[current]} alt={`Image ${current}`}
                         sx={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 2, objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }} />
                     {images.length > 1 && (
                         <IconButton onClick={() => setCurrent(i => (i + 1) % images.length)}
@@ -177,11 +170,12 @@ function ImageLightbox({ images, open, initialIndex = 0, onClose }: {
 // ─── Main Dialog ──────────────────────────────────────────────────────────────
 
 export default function FrameVariantDetailDialog({
-    open, onClose, variant, modelFile, vrEnabled,
+    open, onClose, variant, productImages, modelFile, vrEnabled,
 }: FrameVariantDetailDialogProps) {
     const theme = useTheme();
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [textureLightboxOpen, setTextureLightboxOpen] = useState(false);
 
     // 3D viewer
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -203,11 +197,6 @@ export default function FrameVariantDetailDialog({
             canvas.height = h;
             const service = new ThreeJsService();
             cleanupRef.current = service.initializeThreeDViewer(canvas, modelFile.file);
-            if (variant.textureFile?.file) {
-                setTimeout(() => {
-                    if (service.viewerModel) service.applyTextureToModel(service.viewerModel, variant.textureFile!.file);
-                }, 1500);
-            }
         };
 
         const { offsetWidth, offsetHeight } = container;
@@ -346,12 +335,12 @@ export default function FrameVariantDetailDialog({
                             {/* Inventory */}
                             <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
                             <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
-                                <InfoRow
+                                {/* <InfoRow
                                     label="Available"
                                     value={
                                         <Typography sx={{
                                             fontSize: 13, fontWeight: 700,
-                                            color: (variant.qtyAvailable ?? 0) === 0
+                                            color: (variant. ?? 0) === 0
                                                 ? theme.palette.error.main
                                                 : (variant.qtyAvailable ?? 0) <= (variant.lowStockThreshold ?? 10)
                                                     ? '#ca8a04'
@@ -368,7 +357,7 @@ export default function FrameVariantDetailDialog({
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Low Stock Threshold" value={variant.lowStockThreshold != null ? `${variant.lowStockThreshold} units` : '—'} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Warranty" value={variant.warrantyMonths ? `${variant.warrantyMonths} months` : '—'} />
+                                <InfoRow label="Warranty" value={variant.warrantyMonths ? `${variant.warrantyMonths} months` : '—'} /> */}
                             </Paper>
 
                             {/* Pricing */}
@@ -403,7 +392,7 @@ export default function FrameVariantDetailDialog({
 
                             {/* Product Images */}
                             <SectionTitle icon={<CollectionsIcon fontSize="small" />} label="Product Images" />
-                            {variant.images.length === 0 ? (
+                            {productImages.length === 0 ? (
                                 <Box sx={{ py: 4, textAlign: 'center', color: theme.palette.custom.neutral[400], border: `1px dashed ${theme.palette.custom.border.light}`, borderRadius: 2, mb: 3 }}>
                                     <CollectionsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.4 }} />
                                     <Typography sx={{ fontSize: 13 }}>No images uploaded</Typography>
@@ -424,7 +413,7 @@ export default function FrameVariantDetailDialog({
                                             '&:hover .overlay': { opacity: 1 },
                                         }}
                                     >
-                                        <Box component="img" src={variant.images[0].preview}
+                                        <Box component="img" src={productImages[0]}
                                             sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         <Box className="overlay" sx={{
                                             position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)',
@@ -436,9 +425,9 @@ export default function FrameVariantDetailDialog({
                                     </Box>
 
                                     {/* Thumbnails */}
-                                    {variant.images.length > 1 && (
+                                    {productImages.length > 1 && (
                                         <Box sx={{ display: 'flex', gap: 1 }}>
-                                            {variant.images.slice(1).map((img, i) => (
+                                            {productImages.slice(1).map((img, i) => (
                                                 <Box
                                                     key={i}
                                                     onClick={() => openLightbox(i + 1)}
@@ -449,7 +438,7 @@ export default function FrameVariantDetailDialog({
                                                         '&:hover .overlay': { opacity: 1 },
                                                     }}
                                                 >
-                                                    <Box component="img" src={img.preview}
+                                                    <Box component="img" src={img}
                                                         sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                     <Box className="overlay" sx={{
                                                         position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)',
@@ -463,28 +452,70 @@ export default function FrameVariantDetailDialog({
                             )}
 
                             {/* Texture */}
-                            <SectionTitle icon={<ViewInArIcon fontSize="small" />} label="Texture Map" />
+                            <SectionTitle icon={<ViewInArIcon fontSize="small" />} label="Texture Preview" />
+
                             {!variant.textureFile ? (
-                                <Box sx={{ py: 3, textAlign: 'center', color: theme.palette.custom.neutral[400], border: `1px dashed ${theme.palette.custom.border.light}`, borderRadius: 2, mb: 3 }}>
+                                <Box
+                                    sx={{
+                                        py: 4,
+                                        textAlign: 'center',
+                                        color: theme.palette.custom.neutral[400],
+                                        border: `1px dashed ${theme.palette.custom.border.light}`,
+                                        borderRadius: 2,
+                                        mb: 3,
+                                    }}
+                                >
                                     <Typography sx={{ fontSize: 13 }}>No texture uploaded</Typography>
                                 </Box>
                             ) : (
-                                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                                    <Box component="img" src={variant.textureFile.preview}
-                                        sx={{ width: 52, height: 52, borderRadius: 1, objectFit: 'cover', border: `1px solid ${theme.palette.custom.border.light}`, flexShrink: 0 }} />
-                                    <Box sx={{ minWidth: 0 }}>
-                                        <Typography sx={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.palette.custom.neutral[800] }}>
-                                            {variant.textureFile.name}
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                                            {formatFileSize(variant.textureFile.size)}
-                                        </Typography>
+                                <Box sx={{ mb: 3 }}>
+                                    <Box
+                                        onClick={() => setTextureLightboxOpen(true)}
+                                        sx={{
+                                            borderRadius: 2,
+                                            overflow: 'hidden',
+                                            border: `1px solid ${theme.palette.custom.border.light}`,
+                                            height: 200,
+                                            position: 'relative',
+                                            cursor: 'pointer',
+                                            '&:hover .overlay': { opacity: 1 },
+                                        }}
+                                    >
+                                        <Box
+                                            component="img"
+                                            src={variant.textureFile}
+                                            alt={'Texture file'}
+                                            sx={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                            }}
+                                        />
+
+                                        {/* overlay giống product image */}
+                                        <Box
+                                            className="overlay"
+                                            sx={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                bgcolor: 'rgba(0,0,0,0.3)',
+                                                opacity: 0,
+                                                transition: 'opacity 0.2s',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                                                View Texture
+                                            </Typography>
+                                        </Box>
                                     </Box>
-                                </Paper>
+                                </Box>
                             )}
 
                             {/* 3D Viewer */}
-                            {vrEnabled && modelFile?.file && (
+                            {/* {vrEnabled && modelFile?.file && (
                                 <>
                                     <SectionTitle icon={<ViewInArIcon fontSize="small" />} label="3D Preview" />
                                     <Box
@@ -507,7 +538,7 @@ export default function FrameVariantDetailDialog({
                                         </Box>
                                     </Box>
                                 </>
-                            )}
+                            )} */}
                         </Grid>
                     </Grid>
                 </DialogContent>
@@ -515,10 +546,16 @@ export default function FrameVariantDetailDialog({
 
             {/* Image lightbox */}
             <ImageLightbox
-                images={variant.images}
+                images={productImages}
                 open={lightboxOpen}
                 initialIndex={lightboxIndex}
                 onClose={() => setLightboxOpen(false)}
+            />
+
+            <ImageLightbox
+                images={[variant.textureFile]}
+                open={textureLightboxOpen}
+                onClose={() => setTextureLightboxOpen(false)}
             />
         </>
     );
