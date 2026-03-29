@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
     BASE: `${API_ENDPOINT}/product`,
     GET_ALL: `${API_ENDPOINT}/product`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
+    GET_WITH_FRAME_INFO: (id: string) => `${API_ENDPOINT}/product/${id}/with-frame-info`,
     GET_ACCESSORIES_BY_PARENT_ID: (id: string) => `${API_ENDPOINT}/product/${id}/accessories`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
