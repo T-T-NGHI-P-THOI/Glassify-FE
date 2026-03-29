@@ -23,6 +23,7 @@ import { useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
+import ProductAPI from '@/api/product-api';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -71,7 +72,7 @@ export interface ProductResponse {
     metaDescription: string;
     productType: string;
     productImages: string[];
-    fileResponses: { url: string }[] | null;
+    fileResponses: { publicUrl?: string; url?: string; isPrimary?: boolean | null }[] | null;
 }
 
 export interface FrameGroup {
@@ -464,10 +465,7 @@ const FrameGroupCard = ({
     const featuredFrameVariant = fg.frameVariantResponses.find(
         fv => fv.productResponse?.isFeatured
     ) ?? null;
-    const images =
-        featuredFrameVariant?.productResponse.productImages ||
-        featuredFrameVariant?.productResponse.fileResponses?.map(f => f.url) ||
-        [];
+    const images = ProductAPI.getImageUrls(featuredFrameVariant?.productResponse);
 
     const [imgIndex, setImgIndex] = useState(0);
 

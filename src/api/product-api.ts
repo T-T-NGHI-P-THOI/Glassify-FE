@@ -127,12 +127,16 @@ export interface ApiFrameVariant {
   lensHeightMm?: number;
   bridgeWidthMm?: number;
   templeLengthMm?: number;
+  textureFile?: string;
+  productId?: string;
+  productResponse?: ApiProduct;
 }
 
 export interface ProductWithFrameInfoData {
   productResponse: ApiProduct;
   frameGroup: ApiFrameGroup | null;
-  frameVariant: ApiFrameVariant | null;
+  frameVariants: ApiFrameVariant[];
+  frameVariant?: ApiFrameVariant | null;
 }
 
 export interface ApiTextureFile {
@@ -204,6 +208,48 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
+  static getImageUrls(product?: {
+    productImages?: string[];
+    fileResponses?: Array<{ publicUrl?: string; url?: string; isPrimary?: boolean | null }> | null;
+  } | null): string[] {
+    if (!product) return [];
+
+    const productImages = (product.productImages || [])
+      .map((url) => (typeof url === 'string' ? url.trim() : ''))
+      .filter((url): url is string => Boolean(url));
+
+    if (productImages.length > 0) {
+      return productImages;
+    }
+
+    const fileResponses = [...(product.fileResponses || [])].sort((a, b) => {
+      if (a?.isPrimary === true && b?.isPrimary !== true) return -1;
+      if (b?.isPrimary === true && a?.isPrimary !== true) return 1;
+      return 0;
+    });
+
+    return fileResponses
+      .map((file) => (file?.publicUrl || file?.url || '').trim())
+      .filter((url): url is string => Boolean(url));
+  }
+
+  static getPrimaryImageUrl(
+    product?: {
+      name?: string;
+      productImages?: string[];
+      fileResponses?: Array<{ publicUrl?: string; url?: string; isPrimary?: boolean | null }> | null;
+    } | null,
+    fallback?: string
+  ): string {
+    const first = ProductAPI.getImageUrls(product)[0];
+    if (first) return first;
+
+    if (fallback) return fallback;
+
+    const name = product?.name || 'Product';
+    return `https://placehold.co/300x200/000000/FFFFFF?text=${encodeURIComponent(name)}`;
+  }
+
   private static unwrapApiData<T>(payload: unknown): T | null {
     if (!payload) return null;
 
@@ -230,6 +276,24 @@ export default class ProductAPI {
       throw new Error('Invalid product payload');
     }
     return products[0];
+  }
+
+  private static normalizeProductWithFrameInfoPayload(payload: unknown): ProductWithFrameInfoData {
+    const data = ProductAPI.unwrapApiData<Partial<ProductWithFrameInfoData> & { frameVariant?: ApiFrameVariant | null }>(payload);
+    if (!data?.productResponse) {
+      throw new Error('Invalid product with frame info payload');
+    }
+
+    const frameVariants = Array.isArray(data.frameVariants)
+      ? data.frameVariants
+      : (data.frameVariant ? [data.frameVariant] : []);
+
+    return {
+      productResponse: data.productResponse,
+      frameGroup: data.frameGroup ?? null,
+      frameVariants,
+      frameVariant: data.frameVariant ?? null,
+    };
   }
 
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
@@ -286,11 +350,7 @@ export default class ProductAPI {
       const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_WITH_FRAME_INFO(id)
       );
-      const data = ProductAPI.unwrapApiData<ProductWithFrameInfoData>(response.data);
-      if (!data) {
-        throw new Error('Invalid product with frame info payload');
-      }
-      return data;
+      return ProductAPI.normalizeProductWithFrameInfoPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product with frame info ${id}:`, error);
       throw error;

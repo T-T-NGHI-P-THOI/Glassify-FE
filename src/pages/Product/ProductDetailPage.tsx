@@ -14,7 +14,7 @@ import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
 import ProductAPI, {
   type ApiProduct,
-  type ApiShopFrameGroup,
+  type ApiFrameVariant,
   type ApiTextureFile,
   type ProductWithFrameInfoData,
   type ReviewResponse,
@@ -37,18 +37,8 @@ const formatEnumLabel = (value?: string | null): string => {
 };
 
 const getProductImages = (apiProduct: ApiProduct): string[] => {
-  const productImages = (apiProduct.productImages || []).filter((url): url is string => Boolean(url));
-  if (productImages.length > 0) {
-    return productImages;
-  }
-
-  const images = (apiProduct.fileResponses || [])
-    .map(file => file.publicUrl || file.url)
-    .filter((url): url is string => Boolean(url));
-
-  return images.length > 0
-    ? images
-    : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
+  const images = ProductAPI.getImageUrls(apiProduct);
+  return images.length > 0 ? images : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
 };
 
 const buildFeatures = (frameInfo?: ProductWithFrameInfoData | null): string[] => {
@@ -125,13 +115,20 @@ const ProductDetailPage: React.FC = () => {
 
         const productResponse = productWithFrameInfo?.productResponse ?? apiProduct;
         const frameGroup = productWithFrameInfo?.frameGroup;
-        const frameVariant = productWithFrameInfo?.frameVariant;
+        const frameVariants = productWithFrameInfo?.frameVariants ?? [];
 
-        const frameWidthMm = frameVariant?.frameWidthMm ?? 0;
-        const bridgeMm = frameVariant?.bridgeWidthMm ?? 0;
-        const lensWidthMm = frameVariant?.lensWidthMm ?? 0;
-        const lensHeightMm = frameVariant?.lensHeightMm ?? 0;
-        const templeLengthMm = frameVariant?.templeLengthMm ?? 0;
+        const selectedFrameVariant =
+          frameVariants.find((variant) => variant.id === productResponse.variantId) ||
+          frameVariants.find((variant) => variant.productId === productResponse.id) ||
+          frameVariants.find((variant) => variant.productResponse?.id === productResponse.id) ||
+          frameVariants[0] ||
+          null;
+
+        const frameWidthMm = selectedFrameVariant?.frameWidthMm ?? 0;
+        const bridgeMm = selectedFrameVariant?.bridgeWidthMm ?? 0;
+        const lensWidthMm = selectedFrameVariant?.lensWidthMm ?? 0;
+        const lensHeightMm = selectedFrameVariant?.lensHeightMm ?? 0;
+        const templeLengthMm = selectedFrameVariant?.templeLengthMm ?? 0;
 
         const productImages = getProductImages(productResponse);
         const primaryImage = productImages[0] || PLACEHOLDER_IMAGE;
@@ -139,13 +136,39 @@ const ProductDetailPage: React.FC = () => {
         const shapeLabel = formatEnumLabel(frameGroup?.frameShape);
         const materialLabel = formatEnumLabel(frameGroup?.frameMaterial);
         const rimLabel = formatEnumLabel(frameGroup?.frameStructure);
-        const sizeLabel = formatEnumLabel(frameVariant?.size);
+        const sizeLabel = formatEnumLabel(selectedFrameVariant?.size);
 
         const sizeRange = frameWidthMm > 0
           ? `${Math.max(frameWidthMm - 3, 0)} - ${frameWidthMm + 3} mm / ${mmToInches(Math.max(frameWidthMm - 3, 0))} - ${mmToInches(frameWidthMm + 3)} in`
           : 'N/A';
 
         const productFeatures = buildFeatures(productWithFrameInfo);
+
+        const variantColorOptions = frameVariants.length > 0
+          ? frameVariants.map((variant) => {
+            const variantProduct = variant.productResponse ?? (variant.id === selectedFrameVariant?.id ? productResponse : undefined);
+            const variantImages = getProductImages(variantProduct ?? productResponse);
+            const variantProductId = variantProduct?.id ?? variant.productId ?? productResponse.id;
+
+            return {
+              name: variant.colorName || 'Default',
+              code: variant.colorHex || '#000000',
+              image: variantImages[0] || primaryImage,
+              images: variantImages,
+              productId: variantProductId,
+              variantId: variant.id || variantProduct?.variantId || variantProductId
+            };
+          })
+          : [
+            {
+              name: selectedFrameVariant?.colorName || 'Default',
+              code: selectedFrameVariant?.colorHex || '#000000',
+              image: primaryImage,
+              images: productImages,
+              productId: productResponse.id,
+              variantId: productResponse.variantId || selectedFrameVariant?.id || productResponse.id
+            }
+          ];
         
         // Transform API product to Product format
         const transformedProduct: Product = {
@@ -161,20 +184,11 @@ const ProductDetailPage: React.FC = () => {
           shape: shapeLabel,
           category: productResponse.categoryName,
           productType: productResponse.productType,
-          variantId: productResponse.variantId ?? frameVariant?.id ?? undefined,
-          frameGroupId: frameGroup?.id ?? frameVariant?.frameGroupId ?? undefined,
+          variantId: productResponse.variantId ?? selectedFrameVariant?.id ?? undefined,
+          frameGroupId: frameGroup?.id ?? selectedFrameVariant?.frameGroupId ?? undefined,
           vrEnabled: Boolean(frameGroup?.vrEnabled),
           stockQuantity: productResponse.stockQuantity,
-          colors: [
-            {
-              name: frameVariant?.colorName || 'Default',
-              code: frameVariant?.colorHex || '#000000',
-              image: primaryImage,
-              images: productImages,
-              productId: productResponse.id,
-              variantId: productResponse.variantId || frameVariant?.id || productResponse.id
-            }
-          ],
+          colors: variantColorOptions,
           images: productImages,
           frameMeasurements: {
             frameWidth: { mm: frameWidthMm, inches: mmToInches(frameWidthMm) },
@@ -236,7 +250,7 @@ const ProductDetailPage: React.FC = () => {
             rating: p.avgRating || 0,
             reviewCount: p.reviewCount || 0,
             shape: 'Rectangle',
-            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
+            image: ProductAPI.getPrimaryImageUrl(p),
             colors: ['#000000']
           }));
 
@@ -254,7 +268,7 @@ const ProductDetailPage: React.FC = () => {
   useEffect(() => {
     const build3DVariants = (
       textures: ApiTextureFile[],
-      frameGroups: ApiShopFrameGroup[],
+      frameVariants: ApiFrameVariant[],
       currentProduct: Product
     ): Product3DVariantOption[] => {
       const normalizeHex = (hex?: string) => (hex ?? '').trim().toLowerCase();
@@ -267,10 +281,16 @@ const ProductDetailPage: React.FC = () => {
         }
       });
 
-      const currentGroup = frameGroups.find((group) => group.id === currentProduct.frameGroupId);
-      const frameVariants = currentGroup?.frameVariantResponses ?? [];
+      const variantsFromProduct = frameVariants.length > 0
+        ? frameVariants
+        : (currentProduct.colors || []).map((color) => ({
+          id: color.variantId,
+          colorName: color.name,
+          colorHex: color.code,
+          size: undefined,
+        }));
 
-      const mappedFromFrameVariants: Product3DVariantOption[] = frameVariants.reduce<Product3DVariantOption[]>((acc, variant) => {
+      const mappedFromFrameVariants: Product3DVariantOption[] = variantsFromProduct.reduce<Product3DVariantOption[]>((acc, variant) => {
         const texture = textureByHex.get(normalizeHex(variant.colorHex));
         if (!texture?.url) return acc;
 
@@ -306,12 +326,11 @@ const ProductDetailPage: React.FC = () => {
 
       try {
         const texturePromise = ProductAPI.getTextureFiles(product.frameGroupId);
-        const frameGroupsPromise = product.shopId
-          ? ProductAPI.getFrameGroupFromShopId(product.shopId)
-          : Promise.resolve([] as ApiShopFrameGroup[]);
+        const productWithFrameInfoPromise = ProductAPI.getProductWithFrameInfo(product.id)
+          .catch(() => null);
 
-        const [textures, frameGroups] = await Promise.all([texturePromise, frameGroupsPromise]);
-        const variants = build3DVariants(textures, frameGroups, product);
+        const [textures, productWithFrameInfo] = await Promise.all([texturePromise, productWithFrameInfoPromise]);
+        const variants = build3DVariants(textures, productWithFrameInfo?.frameVariants ?? [], product);
 
         setPreview3DVariants(variants);
 
@@ -334,14 +353,7 @@ const ProductDetailPage: React.FC = () => {
   }, [product]);
 
   const getProductImage = (apiProduct: ApiProduct) => {
-    const productImage = apiProduct.productImages?.find(Boolean);
-    if (productImage) {
-      return productImage;
-    }
-
-    const imageFile = apiProduct.fileResponses?.find(file => file.publicUrl || file.url);
-    return imageFile?.publicUrl || imageFile?.url ||
-      'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name);
+    return ProductAPI.getPrimaryImageUrl(apiProduct);
   };
 
   const handleAddAccessoryToCart = async (accessory: ApiProduct) => {
@@ -433,9 +445,24 @@ const ProductDetailPage: React.FC = () => {
     setPreview3DOpen(true);
   };
 
-  const handleColorClick = (color: { productId: string; variantId: string }) => {
-    // Navigate with slug and sku
-    navigate(`/product/${product?.slug}/${product?.sku || 'default'}`);
+  const handleColorClick = async (color: { productId: string; variantId: string }) => {
+    if (!color.productId) return;
+
+    if (color.productId === product?.id) {
+      return;
+    }
+
+    try {
+      const targetProduct = await ProductAPI.getProductById(color.productId);
+      navigate(`/product/${targetProduct.slug}/${targetProduct.sku || 'default'}`);
+    } catch (error) {
+      console.error('Error loading selected variant product:', error);
+      setSnackbar({
+        open: true,
+        message: 'Unable to load selected variant. Please try again.',
+        severity: 'error',
+      });
+    }
   };
 
   const handleAddToCart = async (frameOnly: boolean) => {

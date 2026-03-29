@@ -88,9 +88,7 @@ const ShopDetailPage: React.FC = () => {
           rating: p.avgRating || 0,
           reviewCount: p.reviewCount || 0,
           productType: p.productType,
-          image:
-            p.fileResponses?.[0]?.url ||
-            'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
+          image: ProductAPI.getPrimaryImageUrl(p),
           stockQuantity: p.stockQuantity,
           isNew: false,
           isFeatured: p.isFeatured,
