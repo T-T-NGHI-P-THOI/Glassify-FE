@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
-import type { Product } from '../../types/product';
+import type { Product, ProductColor } from '../../types/product';
 import { formatCurrency } from '@/utils/formatCurrency';
 import './ProductInfo.css';
 
 interface ProductInfoProps {
   product: Product;
+  onColorSelect?: (color: ProductColor) => void;
+  activeVariantId?: string;
   onAddToFavorites: () => void;
   onAddToCart?: (frameOnly: boolean) => void;
   isEditMode?: boolean;
 }
 
-const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, onAddToCart, isEditMode }) => {
+const ProductInfo: React.FC<ProductInfoProps> = ({
+  product,
+  onColorSelect,
+  activeVariantId,
+  onAddToFavorites,
+  onAddToCart,
+  isEditMode,
+}) => {
   const [showSizeChart, setShowSizeChart] = useState(false);
-  const [showRestrictions, setShowRestrictions] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>(
     product.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Medium'
   );
@@ -83,13 +91,27 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
         </div>
       </div>
 
-      {product.deliveryDate && (
-        <div className="delivery-info">
-          <p className="delivery-date">Get it as early as {product.deliveryDate}</p>
-          <p className="delivery-details">Rush Delivery starts at $19</p>
-          <button className="restrictions-link" onClick={() => setShowRestrictions(true)}>
-            See restrictions
-          </button>
+      {product.colors && product.colors.length > 0 && (
+        <div className="color-selector">
+          <p className="color-label">Color</p>
+          <div className="color-options">
+            {product.colors.map((color, index) => {
+              const isActive = Boolean(activeVariantId) && color.variantId === activeVariantId;
+
+              return (
+                <button
+                  key={`${color.variantId}-${index}`}
+                  type="button"
+                  className={`color-option ${isActive ? 'active' : ''}`}
+                  onClick={() => onColorSelect?.(color)}
+                  title={color.name}
+                >
+                  <img src={color.image || product.images[0]} alt={color.name} />
+                  <span className="color-name">{color.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -190,89 +212,6 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, onAddToFavorites, on
                 <p className="help-text">
                   Not sure about your size? Measure a pair of glasses you already own that fit well, or visit our virtual try-on to find your perfect fit.
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Restrictions Modal */}
-      {showRestrictions && (
-        <div className="modal-overlay" onClick={() => setShowRestrictions(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Rush Delivery Restrictions</h2>
-              <button className="close-btn" onClick={() => setShowRestrictions(false)}>
-                <Close />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="restrictions-content">
-                <h3>Rush Delivery</h3>
-                <p>
-                  Rush Delivery is available for Single Vision, Progressive, and Non-Prescription lenses 
-                  in the US and Canada.
-                </p>
-                
-                <div className="restrictions-note">
-                  <h4>Important Notes:</h4>
-                  <ul>
-                    <li>
-                      Delivery estimates are based on <strong>Single Vision lenses</strong>
-                    </li>
-                    <li>
-                      Please add <strong>two days</strong> for Progressive lenses
-                    </li>
-                    <li>
-                      Higher prescriptions may require additional processing time
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="restrictions-disclaimer">
-                  <p>
-                    While we aim for accurate delivery times, final dates depend on our shipping partners. 
-                    For any issues or questions, please contact our customer service team.
-                  </p>
-                </div>
-
-                <div className="restrictions-pricing">
-                  <h4>Rush Delivery Options:</h4>
-                  <table className="delivery-table">
-                    <thead>
-                      <tr>
-                        <th>Service</th>
-                        <th>Estimated Delivery</th>
-                        <th>Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Standard Rush</td>
-                        <td>5-7 business days</td>
-                        <td>$19.00</td>
-                      </tr>
-                      <tr>
-                        <td>Express Rush</td>
-                        <td>3-5 business days</td>
-                        <td>$29.00</td>
-                      </tr>
-                      <tr>
-                        <td>Premium Rush</td>
-                        <td>1-2 business days</td>
-                        <td>$49.00</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="contact-info">
-                  <p>
-                    <strong>Need help?</strong> Contact our customer service team at{' '}
-                    <a href="mailto:support@glassify.com">support@glassify.com</a> or call{' '}
-                    <a href="tel:1-800-GLASSIFY">1-800-GLASSIFY</a>
-                  </p>
-                </div>
               </div>
             </div>
           </div>

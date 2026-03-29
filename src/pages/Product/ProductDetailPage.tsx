@@ -439,28 +439,13 @@ const ProductDetailPage: React.FC = () => {
             images={product.images} 
             productName={product.name}
           />
-          {product.colors && product.colors.length > 0 && (
-            <div className="color-variants-section">
-              <div className="color-variants">
-                {product.colors.map((color, index) => (
-                  <button
-                    key={index}
-                    className={`color-variant-btn ${color.variantId === product.id ? 'active' : ''}`}
-                    onClick={() => handleColorClick(color)}
-                    title={color.name}
-                  >
-                    <img src={color.image || product.images[0]} alt={color.name} />
-                    <span className="variant-label">{color.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           {product.shop && <ShopInfo shop={product.shop} />}
         </div>
         <div className="product-info-column">
           <ProductInfo
             product={product}
+            onColorSelect={handleColorClick}
+            activeVariantId={product.variantId}
             onAddToFavorites={handleAddToFavorites}
             onAddToCart={handleAddToCart}
             isEditMode={isEditMode}

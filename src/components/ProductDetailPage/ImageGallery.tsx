@@ -15,6 +15,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, productName }) => {
   const [currentX, setCurrentX] = useState(0);
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
   const maxVisibleThumbnails = 5;
+  const thumbnailStep = 106;
   const showArrows = images.length > maxVisibleThumbnails;
 
   const handleScrollUp = () => {
@@ -81,7 +82,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, productName }) => {
           <div 
             className="thumbnail-list" 
             style={{ 
-              transform: `translateY(-${scrollPosition * 90}px)`,
+              transform: `translateY(-${scrollPosition * thumbnailStep}px)`,
               transition: 'transform 0.3s ease'
             }}
           >
