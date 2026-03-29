@@ -106,11 +106,11 @@ const CreateFramePage = () => {
             if (productId) {
                 await ProductAPI.activateProduct(productId); // ví dụ
             }
-            navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
+            navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME);
         } catch {
             // handle error
         }
-        navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
+        navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME);
     };
 
     useLayoutConfig({ showNavbar: false, showFooter: false });

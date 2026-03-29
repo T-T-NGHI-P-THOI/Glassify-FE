@@ -15,7 +15,7 @@ const TestTryOnPage = () => {
             </Box>
 
             <GlassesTryOnPopup
-                frameGroupId='214051f1-12d0-419a-ae4f-dc9be61a65dc'
+                frameGroupId='0250409c-b0e7-4cb3-89ba-aa5f2cff282d'
                 open={isOpen}
                 onClose={() => setIsOpen(false)}
             />
