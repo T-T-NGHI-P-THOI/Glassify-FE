@@ -1,6 +1,8 @@
-import { type FC, type PropsWithChildren, useCallback, useEffect, useState, useRef } from 'react';
+import { type FC, type PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CartContext, type AddToCartParams } from './CartContext';
 import { CartService } from '@/api/service/CartService';
+import { useAuth } from '@/hooks/useAuth';
 import type { CartResponse, CartSummary } from '@/api/service/Type';
 
 const defaultSummary: CartSummary = {
@@ -15,19 +17,23 @@ const defaultSummary: CartSummary = {
 };
 
 const CartProvider: FC<PropsWithChildren> = ({ children }) => {
+    const { isAuthenticated, isInitialized } = useAuth();
+    const navigate = useNavigate();
     const [cartData, setCartData] = useState<CartResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const animationTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    // Track previous auth state to detect transitions (null = not yet initialized)
+    const prevIsAuthenticatedRef = useRef<boolean | null>(null);
 
     const itemCount = cartData?.summary?.items_count ?? 0;
     const summary = cartData?.summary ?? defaultSummary;
 
-    useEffect(() => {
-        loadCart();
-    }, []);
-
     const loadCart = useCallback(async () => {
+        if (!isAuthenticated) {
+            setCartData(null);
+            return;
+        }
         try {
             setIsLoading(true);
             const data = await CartService.getCart();
@@ -37,7 +43,31 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [isAuthenticated]);
+
+    // React to auth state changes:
+    // - On initial init: load cart (guest uses sessionId, user uses token)
+    // - On logout: wipe cart from UI immediately, reset CartService state
+    // - On login: reload cart (loads user's server-side cart)
+    useEffect(() => {
+        if (!isInitialized) return;
+
+        const prev = prevIsAuthenticatedRef.current;
+        prevIsAuthenticatedRef.current = isAuthenticated ?? false;
+
+        if (prev === null) {
+            // First initialization — load cart for whoever is here (guest or user)
+            loadCart();
+        } else if (prev === true && !isAuthenticated) {
+            // User logged out — clear cart from UI, reset service state
+            CartService.resetCartId();
+            setCartData(null);
+        } else if (prev === false && isAuthenticated) {
+            // User logged in — load their server-side cart
+            CartService.resetCartId();
+            loadCart();
+        }
+    }, [isAuthenticated, isInitialized, loadCart]);
 
     const triggerAnimation = useCallback(() => {
         setIsAnimating(true);
@@ -50,6 +80,10 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
     }, []);
 
     const addItem = useCallback(async (params: AddToCartParams): Promise<string> => {
+        if (!isAuthenticated) {
+            navigate('/login');
+            return '';
+        }
         const result = await CartService.addItem({
             productName: params.productName,
             productSlug: params.productSlug,
@@ -78,9 +112,13 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
         setCartData(result.cartResponse);
         triggerAnimation();
         return result.createdItemId;
-    }, [triggerAnimation]);
+    }, [isAuthenticated, navigate, triggerAnimation]);
 
     const addFrameWithLens = useCallback(async (frameParams: AddToCartParams, lensParams: AddToCartParams) => {
+        if (!isAuthenticated) {
+            navigate('/login');
+            return;
+        }
         // Step 1: Add frame
         const frameItemId = await addItem(frameParams);
         // Step 2: Add lens as child of frame
@@ -92,7 +130,7 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
         const data = await CartService.getCart();
         setCartData(data);
         triggerAnimation();
-    }, [addItem, triggerAnimation]);
+    }, [isAuthenticated, navigate, addItem, triggerAnimation]);
 
     const updateItemQuantity = useCallback(async (itemId: string, quantity: number) => {
         if (quantity < 1) return;

@@ -184,6 +184,7 @@ export interface BeCartItemResponse {
     itemType: ItemType;
     createdAt: string;
     updatedAt: string;
+    qtyAvailable: number | null;
 }
 
 export interface BeCartResponse {
