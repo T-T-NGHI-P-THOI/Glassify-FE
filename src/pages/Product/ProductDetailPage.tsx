@@ -200,8 +200,7 @@ const ProductDetailPage: React.FC = () => {
             readers: false
           },
           description: productResponse.description ?? frameGroup?.description ?? undefined,
-          features: productFeatures,
-          deliveryDate: 'Fri, Jan 23'
+          features: productFeatures
         };
 
         setProduct(transformedProduct);
@@ -238,8 +237,7 @@ const ProductDetailPage: React.FC = () => {
             reviewCount: p.reviewCount || 0,
             shape: 'Rectangle',
             image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
-            colors: ['#000000'],
-            deliveryDate: 'Fri, Jan 23'
+            colors: ['#000000']
           }));
 
         setRecommendedProducts(recommended);

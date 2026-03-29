@@ -27,8 +27,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
   const maxVisibleThumbnails = 5;
   // Keep scroll step aligned with CSS thumbnail height + gap.
-  const thumbnailStep = 96;
-  const totalThumbnails = images.length + (showPreview3D ? 1 : 0);
+  const thumbnailStep = 100;
+  const totalThumbnails = images.length;
   const maxScrollPosition = Math.max(0, totalThumbnails - maxVisibleThumbnails);
   const showArrows = totalThumbnails > maxVisibleThumbnails;
 
@@ -115,16 +115,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                 <img src={image} alt={`${productName} view ${index + 1}`} />
               </button>
             ))}
-            {showPreview3D && (
-              <button
-                type="button"
-                className="thumbnail-360"
-                onClick={onPreview3D}
-                aria-label="Open 3D preview"
-              >
-                <ThreeSixty className="icon-360" />
-              </button>
-            )}
           </div>
         </div>
         {showArrows && scrollPosition < maxScrollPosition && (
@@ -168,17 +158,34 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             />
           ))}
         </div>
-        {showTryOn && (
-          <button
-            type="button"
-            className="image-gallery-try-on-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTryOn?.();
-            }}
-          >
-            <Videocam /> Try On
-          </button>
+        {(showTryOn || showPreview3D) && (
+          <div className="image-gallery-action-buttons">
+            {showTryOn && (
+              <button
+                type="button"
+                className="image-gallery-try-on-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTryOn?.();
+                }}
+              >
+                <Videocam /> Try On
+              </button>
+            )}
+            {showPreview3D && (
+              <button
+                type="button"
+                className="image-gallery-preview-3d-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview3D?.();
+                }}
+                aria-label="Open 3D preview"
+              >
+                <ThreeSixty /> View 3D
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
