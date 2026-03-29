@@ -137,7 +137,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     <div className="location-dialog-backdrop" onClick={() => setIsLocationDialogOpen(false)}>
       <div className="location-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="location-dialog-header">
-          <h4>Tinh / Thanh pho</h4>
+          <h4>Province / City</h4>
           <button
             type="button"
             className="location-dialog-close-btn"
@@ -152,7 +152,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
             <input
               type="text"
               className="location-search-input"
-              placeholder="Ban muon mua hang tu Tinh / Thanh pho nao?"
+              placeholder="Which province or city do you want to buy from?"
               value={locationSearchKeyword}
               onChange={(e) => setLocationSearchKeyword(e.target.value)}
             />
@@ -185,7 +185,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 </div>
               ))
             ) : (
-              <p className="location-empty-state">Khong tim thay tinh / thanh pho phu hop.</p>
+              <p className="location-empty-state">No matching province or city found.</p>
             )}
           </div>
           <div className="location-alphabet-index">
@@ -210,7 +210,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
               setIsLocationDialogOpen(false);
             }}
           >
-            Dong
+            Close
           </button>
         </div>
       </div>
@@ -542,7 +542,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                         className="location-text-btn"
                         onClick={() => setShowMoreLocations(true)}
                       >
-                        Them &gt;
+                        More &gt;
                       </button>
                     )}
                     {canShowAllLocations && (
@@ -551,7 +551,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                         className="location-text-btn"
                         onClick={() => setIsLocationDialogOpen(true)}
                       >
-                        Khac &gt;
+                        All locations &gt;
                       </button>
                     )}
                   </div>
