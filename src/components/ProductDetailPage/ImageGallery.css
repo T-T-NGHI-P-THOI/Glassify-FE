@@ -1,4 +1,8 @@
 .image-gallery {
+  --gallery-main-height: 470px;
+  --thumb-gap: 10px;
+  --thumb-count: 5;
+  --thumb-height: calc((var(--gallery-main-height) - (var(--thumb-gap) * (var(--thumb-count) - 1))) / var(--thumb-count));
   display: flex;
   flex-direction: row;
   gap: 12px;
@@ -14,7 +18,7 @@
 }
 
 .thumbnail-container {
-  height: 460px;
+  height: var(--gallery-main-height);
   overflow: hidden;
   position: relative;
 }
@@ -22,7 +26,7 @@
 .thumbnail-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--thumb-gap);
   flex-shrink: 0;
 }
 
@@ -59,8 +63,9 @@
   border-radius: 8px;
   overflow: hidden;
   flex: 1;
-  min-height: 450px;
-  max-height: 550px;
+  height: var(--gallery-main-height);
+  min-height: var(--gallery-main-height);
+  max-height: var(--gallery-main-height);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,7 +183,7 @@
 
 .thumbnail {
   width: 128px;
-  height: 128px;
+  height: var(--thumb-height);
   border: 2px solid transparent;
   border-radius: 4px;
   overflow: hidden;
@@ -205,7 +210,7 @@
 
 .thumbnail-360 {
   width: 128px;
-  height: 128px;
+  height: var(--thumb-height);
   border: 2px solid #e0e0e0;
   border-radius: 4px;
   background: #fff;

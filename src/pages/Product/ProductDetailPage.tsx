@@ -7,11 +7,18 @@ import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
 import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
+import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
-import ProductAPI, { type ApiProduct, type ProductWithFrameInfoData, type ReviewResponse } from '../../api/product-api';
+import ProductAPI, {
+  type ApiProduct,
+  type ApiShopFrameGroup,
+  type ApiTextureFile,
+  type ProductWithFrameInfoData,
+  type ReviewResponse,
+} from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
@@ -76,6 +83,9 @@ const ProductDetailPage: React.FC = () => {
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
   const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [preview3DOpen, setPreview3DOpen] = useState(false);
+  const [preview3DVariants, setPreview3DVariants] = useState<Product3DVariantOption[]>([]);
+  const [activePreviewVariantId, setActivePreviewVariantId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const editCartItemId = searchParams.get('editCartItemId');
@@ -243,6 +253,88 @@ const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [slug, sku]);
 
+  useEffect(() => {
+    const build3DVariants = (
+      textures: ApiTextureFile[],
+      frameGroups: ApiShopFrameGroup[],
+      currentProduct: Product
+    ): Product3DVariantOption[] => {
+      const normalizeHex = (hex?: string) => (hex ?? '').trim().toLowerCase();
+
+      const textureByHex = new Map<string, ApiTextureFile>();
+      textures.forEach((texture) => {
+        const key = normalizeHex(texture.colorHex);
+        if (key && texture.url) {
+          textureByHex.set(key, texture);
+        }
+      });
+
+      const currentGroup = frameGroups.find((group) => group.id === currentProduct.frameGroupId);
+      const frameVariants = currentGroup?.frameVariantResponses ?? [];
+
+      const mappedFromFrameVariants: Product3DVariantOption[] = frameVariants.reduce<Product3DVariantOption[]>((acc, variant) => {
+        const texture = textureByHex.get(normalizeHex(variant.colorHex));
+        if (!texture?.url) return acc;
+
+        acc.push({
+          id: variant.id,
+          variantId: variant.id,
+          label: `${variant.colorName || 'Variant'}${variant.size ? ` (${variant.size})` : ''}`,
+          colorHex: variant.colorHex || '#666666',
+          textureUrl: texture.url,
+        });
+
+        return acc;
+      }, []);
+
+      if (mappedFromFrameVariants.length > 0) {
+        return mappedFromFrameVariants;
+      }
+
+      return textures.map((texture, index) => ({
+        id: `texture-${index}-${texture.colorHex}`,
+        label: `Variant ${index + 1}`,
+        colorHex: texture.colorHex || '#666666',
+        textureUrl: texture.url,
+      }));
+    };
+
+    const loadPreview3DVariants = async () => {
+      if (!product?.vrEnabled || !product.frameGroupId) {
+        setPreview3DVariants([]);
+        setActivePreviewVariantId(null);
+        return;
+      }
+
+      try {
+        const texturePromise = ProductAPI.getTextureFiles(product.frameGroupId);
+        const frameGroupsPromise = product.shopId
+          ? ProductAPI.getFrameGroupFromShopId(product.shopId)
+          : Promise.resolve([] as ApiShopFrameGroup[]);
+
+        const [textures, frameGroups] = await Promise.all([texturePromise, frameGroupsPromise]);
+        const variants = build3DVariants(textures, frameGroups, product);
+
+        setPreview3DVariants(variants);
+
+        const normalizeHex = (hex?: string) => (hex ?? '').trim().toLowerCase();
+        const selected =
+          variants.find((variant) => variant.variantId === product.variantId) ||
+          variants.find((variant) => normalizeHex(variant.colorHex) === normalizeHex(product.colors?.[0]?.code)) ||
+          variants[0] ||
+          null;
+
+        setActivePreviewVariantId(selected?.id ?? null);
+      } catch (error) {
+        console.error('Error loading 3D preview variants:', error);
+        setPreview3DVariants([]);
+        setActivePreviewVariantId(null);
+      }
+    };
+
+    loadPreview3DVariants();
+  }, [product]);
+
   const getProductImage = (apiProduct: ApiProduct) => {
     const productImage = apiProduct.productImages?.find(Boolean);
     if (productImage) {
@@ -335,6 +427,12 @@ const ProductDetailPage: React.FC = () => {
   const handleOpenTryOn = () => {
     if (!product?.vrEnabled || !product.frameGroupId) return;
     setTryOnOpen(true);
+  };
+
+  const handleOpen3DPreview = () => {
+    if (!product?.vrEnabled || !product.frameGroupId) return;
+    console.log('[3D Preview] Open clicked with frameGroupId:', product.frameGroupId);
+    setPreview3DOpen(true);
   };
 
   const handleColorClick = (color: { productId: string; variantId: string }) => {
@@ -461,6 +559,8 @@ const ProductDetailPage: React.FC = () => {
               productName={product.name}
               onTryOn={handleOpenTryOn}
               showTryOn={Boolean(product.vrEnabled && product.frameGroupId)}
+              showPreview3D={Boolean(product.vrEnabled && product.frameGroupId)}
+              onPreview3D={handleOpen3DPreview}
             />
             {product.shop && (
               <div className="product-shop-extended">
@@ -573,6 +673,17 @@ const ProductDetailPage: React.FC = () => {
               severity: 'success',
             });
           }}
+        />
+      )}
+
+      {product.vrEnabled && product.frameGroupId && (
+        <Product3DPreviewDialog
+          open={preview3DOpen}
+          onClose={() => setPreview3DOpen(false)}
+          frameGroupId={product.frameGroupId}
+          variants={preview3DVariants}
+          activeVariantId={activePreviewVariantId}
+          onChangeVariant={setActivePreviewVariantId}
         />
       )}
 

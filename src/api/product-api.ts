@@ -1,4 +1,4 @@
-import api from './axios.config';
+import api, { API_CONFIG } from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
 import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
@@ -134,6 +134,26 @@ export interface ProductWithFrameInfoData {
   productResponse: ApiProduct;
   frameGroup: ApiFrameGroup | null;
   frameVariant: ApiFrameVariant | null;
+}
+
+export interface ApiTextureFile {
+  colorHex: string;
+  url: string;
+}
+
+export interface ApiShopFrameVariant {
+  id: string;
+  frameGroupId: string;
+  colorName: string;
+  colorHex: string;
+  size: string;
+  productId: string | null;
+}
+
+export interface ApiShopFrameGroup {
+  id: string;
+  frameName: string;
+  frameVariantResponses: ApiShopFrameVariant[];
 }
 
 // Product filter parameters
@@ -333,11 +353,11 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
- static async getFrameGroupFromShopId(shopId: string) {
+ static async getFrameGroupFromShopId(shopId: string): Promise<ApiShopFrameGroup[]> {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
     );
-    return response.data.data;
+    return response.data.data as ApiShopFrameGroup[];
   }
 
   static async createFrameGroup(body: FormData) {
@@ -393,10 +413,18 @@ export default class ProductAPI {
     return response.data.data;
   }
 
-  static async getTextureFiles(frameGroupId: string) {
+  static async getFrameGroupModel3D(frameGroupId: string): Promise<Blob> {
+    const modelUrl = `${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${encodeURIComponent(frameGroupId)}`;
+    const response = await axiosInstance.get(modelUrl, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
+
+  static async getTextureFiles(frameGroupId: string): Promise<ApiTextureFile[]> {
     const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
       params: { frameGroupId }
     });
-    return response.data.data;
+    return response.data.data as ApiTextureFile[];
   }
 }

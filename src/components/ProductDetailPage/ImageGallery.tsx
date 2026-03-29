@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Videocam, ThreeSixty, KeyboardArrowUp, KeyboardArrowDown, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import './ImageGallery.css';
 
@@ -7,6 +7,8 @@ interface ImageGalleryProps {
   productName: string;
   showTryOn?: boolean;
   onTryOn?: () => void;
+  showPreview3D?: boolean;
+  onPreview3D?: () => void;
 }
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
@@ -14,6 +16,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   productName,
   showTryOn = false,
   onTryOn,
+  showPreview3D = false,
+  onPreview3D,
 }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -22,8 +26,17 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const [currentX, setCurrentX] = useState(0);
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
   const maxVisibleThumbnails = 5;
-  const thumbnailStep = 106;
-  const showArrows = images.length > maxVisibleThumbnails;
+  // Keep scroll step aligned with CSS thumbnail height + gap.
+  const thumbnailStep = 96;
+  const totalThumbnails = images.length + (showPreview3D ? 1 : 0);
+  const maxScrollPosition = Math.max(0, totalThumbnails - maxVisibleThumbnails);
+  const showArrows = totalThumbnails > maxVisibleThumbnails;
+
+  useEffect(() => {
+    if (scrollPosition > maxScrollPosition) {
+      setScrollPosition(maxScrollPosition);
+    }
+  }, [scrollPosition, maxScrollPosition]);
 
   const handleScrollUp = () => {
     if (scrollPosition > 0) {
@@ -32,7 +45,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   };
 
   const handleScrollDown = () => {
-    if (scrollPosition < images.length - maxVisibleThumbnails) {
+    if (scrollPosition < maxScrollPosition) {
       setScrollPosition(scrollPosition + 1);
     }
   };
@@ -102,12 +115,19 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                 <img src={image} alt={`${productName} view ${index + 1}`} />
               </button>
             ))}
-            <button className="thumbnail-360">
-              <ThreeSixty className="icon-360" />
-            </button>
+            {showPreview3D && (
+              <button
+                type="button"
+                className="thumbnail-360"
+                onClick={onPreview3D}
+                aria-label="Open 3D preview"
+              >
+                <ThreeSixty className="icon-360" />
+              </button>
+            )}
           </div>
         </div>
-        {showArrows && scrollPosition < images.length - maxVisibleThumbnails && (
+        {showArrows && scrollPosition < maxScrollPosition && (
           <button className="thumbnail-nav-btn down" onClick={handleScrollDown}>
             <KeyboardArrowDown />
           </button>
