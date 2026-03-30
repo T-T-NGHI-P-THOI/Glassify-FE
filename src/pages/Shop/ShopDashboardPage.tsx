@@ -275,7 +275,7 @@ const ShopDashboardPage = () => {
   }
 
   const formatRevenue = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000000) return `${(value / 1000000).toFixed(3).replace(/\.?0+$/, '')}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
     return value.toString();
   };
@@ -316,12 +316,12 @@ const ShopDashboardPage = () => {
   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const revenueChartData = revenueData.map(d => ({
     month: MONTH_NAMES[(d.month ?? 1) - 1] ?? String(d.month),
-    revenue: d.revenue,
-    orders: d.orders,
+    revenue: Number(d.revenue),
+    orders: Number(d.orders),
   }));
   const categoryChartData = categoryData.map(d => ({
     name: d.categoryName,
-    value: d.percentage,
+    value: Number(d.percentage),
   }));
 
   const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899'];
