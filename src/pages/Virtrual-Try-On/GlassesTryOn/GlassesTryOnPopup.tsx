@@ -434,10 +434,10 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                             <img
                                                 src={tv.url}
                                                 style={{
-                                                    width: "100%",
-                                                    height: "100%",
+                                                    margin: "auto",   // 🔥 center ngang
+
                                                     borderRadius: "50%",
-                                                    objectFit: "cover"
+                                                    objectFit: "contain"
                                                 }}
                                             />
                                         )}

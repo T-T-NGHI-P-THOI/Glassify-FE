@@ -1,7 +1,7 @@
 import { Box, Typography, CircularProgress } from "@mui/material";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ImageFaceLandmarkerService } from "../../../services/FaceLandmarkerService";
-import { ThreeJsService } from "../../../services/ThreeJsService";
+import { CANVAS_WIDTH, ThreeJsService } from "../../../services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
 import { T, type TextureVariant } from "./TryOnTypes";
@@ -43,6 +43,7 @@ const ImageTryOn = ({
     const [status, setStatus] = useState<Status>("idle");
     const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
     const [dragging, setDragging] = useState(false);
+    const [marginLeftCanvas, setMarginLeftCanvas] = useState(0)
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +96,7 @@ const ImageTryOn = ({
         setStatus("loading");
         setLoadingStep("init_engine");
 
+
         if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
         const url = URL.createObjectURL(file);
         prevUrlRef.current = url;
@@ -109,6 +111,7 @@ const ImageTryOn = ({
 
             const canvas = canvasRef.current;
             if (!canvas) return;
+            if (img.width < img.height) setMarginLeftCanvas(canvas.width / 2);
 
             // ── 1. Init AI engine ──
             if (!faceEngineRef.current) {
@@ -179,6 +182,7 @@ const ImageTryOn = ({
         const file = e.target.files?.[0];
         if (file) processImage(file);
         e.target.value = "";
+        setMarginLeftCanvas(0)
     };
 
     const onDrop = (e: React.DragEvent) => {
@@ -240,6 +244,7 @@ const ImageTryOn = ({
             <canvas
                 ref={canvasRef}
                 style={{
+                    marginLeft: marginLeftCanvas,
                     display: showDropZone ? "none" : "block",
                     width: "100%", height: "100%", objectFit: "cover",
                 }}

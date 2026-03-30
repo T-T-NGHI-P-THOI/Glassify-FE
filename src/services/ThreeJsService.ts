@@ -4,7 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { API_CONFIG } from '@/api/axios.config';
 
-const CANVAS_WIDTH = 880;
+export const CANVAS_WIDTH = 880;
+export const CANVAS_HEIGHT = 540;
 
 function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, vw: number, vh: number) {
     camera.left = -vw / 2;
@@ -48,7 +49,7 @@ export class ThreeJsService {
         this.camera = camera;
 
         const bgResult = await this.createVideoBackground(video, camera);
-        const renderer = await this.createRenderer(vw, vh, canvas);
+        const renderer = await this.createRenderer(vw, vh, canvas, false);
         this.renderer = renderer;
 
         const scene = new THREE.Scene();
@@ -85,7 +86,7 @@ export class ThreeJsService {
         const camera = await this.createCamera(vw, vh);
         this.camera = camera;
 
-        const renderer = await this.createRenderer(vw, vh, canvas);
+        const renderer = await this.createRenderer(vw, vh, canvas, img.naturalHeight > img.naturalWidth);
         this.renderer = renderer;
 
         const scene = new THREE.Scene();
@@ -384,7 +385,7 @@ export class ThreeJsService {
         return [key, fill, rim, topAccent, amb];
     }
 
-    async createRenderer(vw: number, vh: number, canvas: HTMLCanvasElement) {
+    async createRenderer(vw: number, vh: number, canvas: HTMLCanvasElement, isPortrait: boolean) {
         const r = new THREE.WebGLRenderer({
             canvas,
             antialias: true,
@@ -392,7 +393,8 @@ export class ThreeJsService {
             preserveDrawingBuffer: true,
         });
         r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        r.setSize(CANVAS_WIDTH, CANVAS_WIDTH * vh / vw);
+        if (isPortrait) r.setSize(CANVAS_HEIGHT * vw / vh, CANVAS_HEIGHT);
+        else r.setSize(CANVAS_WIDTH, CANVAS_WIDTH * vh / vw);
         r.toneMapping = THREE.ACESFilmicToneMapping;
         r.toneMappingExposure = 1.1;
         r.outputColorSpace = THREE.SRGBColorSpace;
