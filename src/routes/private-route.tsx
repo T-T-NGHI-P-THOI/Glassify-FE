@@ -32,6 +32,13 @@ import {
     SellerRefundDetailPage,
 } from "@/pages/Refund"
 import AdminUserManagementPage from "@/pages/Admin/AdminUserManagementPage"
+import AdminUserDetailPage from "@/pages/Admin/AdminUserDetailPage"
+import AdminOrdersPage from "@/pages/Admin/AdminOrdersPage"
+import AdminOrderDetailPage from "@/pages/Admin/AdminOrderDetailPage"
+import AdminRefundsPage from "@/pages/Admin/AdminRefundsPage"
+import AdminRefundDetailPage from "@/pages/Admin/AdminRefundDetailPage"
+import AdminWarrantiesPage from "@/pages/Admin/AdminWarrantiesPage"
+import AdminWarrantyDetailPage from "@/pages/Admin/AdminWarrantyDetailPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
 
@@ -354,6 +361,83 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminUserManagementPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.USER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminUserDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ORDERS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminOrdersPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.ORDER_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminOrderDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.REFUNDS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminRefundsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.REFUND_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminRefundDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.WARRANTIES}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminWarrantiesPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.WARRANTY_DETAIL}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminWarrantyDetailPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

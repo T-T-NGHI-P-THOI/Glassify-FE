@@ -28,6 +28,9 @@ import {
   AdminPanelSettings,
   CardTravel,
   Logout,
+  ShoppingCart,
+  AssignmentReturn,
+  VerifiedUser,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -42,6 +45,7 @@ interface SidebarProps {
 export const Sidebar = ({ activeMenu }: SidebarProps) => {
   const [trackingOpen, setTrackingOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(true);
+  const [transactionsOpen, setTransactionsOpen] = useState(true);
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,7 +79,17 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
         { label: 'User Management', path: PAGE_ENDPOINTS.ADMIN.USER_MANAGEMENT },
       ],
     },
-    { icon: <Inventory />, label: 'Order', path: PAGE_ENDPOINTS.ORDER.MY_ORDERS },
+    {
+      icon: <ShoppingCart />,
+      label: 'Transactions',
+      path: '/transactions',
+      key: 'transactions',
+      subItems: [
+        { label: 'Orders', path: PAGE_ENDPOINTS.ADMIN.ORDERS },
+        { label: 'Refunds', path: PAGE_ENDPOINTS.ADMIN.REFUNDS },
+        { label: 'Warranties', path: PAGE_ENDPOINTS.ADMIN.WARRANTIES },
+      ],
+    },
     { icon: <AccountBalance />, label: 'Cashflow', path: '/cashflow' },
     { icon: <Widgets />, label: 'Unit', path: '/unit' },
     { icon: <People />, label: 'Customers', path: '/customers' },
@@ -129,10 +143,14 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {menuItems.map((item) => {
           const isMenuOpen =
-            item.key === 'tracking' ? trackingOpen : item.key === 'admin' ? adminOpen : false;
+            item.key === 'tracking' ? trackingOpen
+            : item.key === 'admin' ? adminOpen
+            : item.key === 'transactions' ? transactionsOpen
+            : false;
           const toggleMenu = () => {
             if (item.key === 'tracking') setTrackingOpen(!trackingOpen);
             else if (item.key === 'admin') setAdminOpen(!adminOpen);
+            else if (item.key === 'transactions') setTransactionsOpen(!transactionsOpen);
           };
 
           return (
