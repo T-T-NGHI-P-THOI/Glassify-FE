@@ -221,8 +221,6 @@ export const PAGE_ENDPOINTS = {
     BUYER_CREATE: `/user/refunds/create`,
     SELLER_LIST: `/shop/refunds`,
     SELLER_DETAIL: `/shop/refunds/:requestId`,
-    ADMIN_LIST: `/admin/refunds`,
-    ADMIN_DETAIL: `/admin/refunds/:requestId`,
   },
 
   USER: {
