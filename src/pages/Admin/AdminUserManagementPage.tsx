@@ -14,14 +14,10 @@ import {
   Tabs,
   Tab,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
   CircularProgress,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
   Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -378,67 +374,32 @@ const AdminUserManagementPage = () => {
         </Paper>
       </Box>
 
-      {/* Manage Dialog */}
+      {/* ── Manage Dialog ── */}
       {selectedUser && (
         <Dialog open={manageDialogOpen} onClose={() => setManageDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar src={selectedUser.avatarUrl ?? undefined} sx={{ width: 40, height: 40 }}>
+          {/* Header */}
+          <Box sx={{ px: 3, pt: 3, pb: 2.5, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                src={selectedUser.avatarUrl ?? undefined}
+                sx={{ width: 52, height: 52, fontSize: 20, bgcolor: theme.palette.custom.neutral[200], color: theme.palette.custom.neutral[700] }}
+              >
                 {(selectedUser.fullName ?? selectedUser.username ?? '?')[0].toUpperCase()}
               </Avatar>
-              <Box>
-                <Typography sx={{ fontWeight: 600, fontSize: 16 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 16, color: theme.palette.custom.neutral[800] }}>
                   {selectedUser.fullName ?? selectedUser.username}
                 </Typography>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {selectedUser.email}
                 </Typography>
               </Box>
-            </Box>
-          </DialogTitle>
-          <DialogContent dividers>
-            {/* Roles section */}
-            <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
-              Roles
-            </Typography>
-            <FormGroup row>
-              {ALL_ROLES.map((role) => (
-                <FormControlLabel
-                  key={role}
-                  control={
-                    <Checkbox
-                      checked={selectedRoles.includes(role)}
-                      onChange={() => handleRoleToggle(role)}
-                      size="small"
-                    />
-                  }
-                  label={<Typography sx={{ fontSize: 13 }}>{role}</Typography>}
-                  sx={{ mr: 2 }}
-                />
-              ))}
-            </FormGroup>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleSaveRoles}
-              disabled={rolesLoading || selectedRoles.length === 0}
-              startIcon={rolesLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
-              sx={{ mt: 1.5, textTransform: 'none', fontWeight: 600 }}
-            >
-              Save Roles
-            </Button>
-
-            <Divider sx={{ my: 2.5 }} />
-
-            {/* Status section */}
-            <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
-              Account Status
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Chip
                 label={selectedUser.enabled ? 'Active' : 'Inactive'}
+                size="small"
                 sx={{
                   fontWeight: 600,
+                  flexShrink: 0,
                   bgcolor: selectedUser.enabled
                     ? theme.palette.custom.status.success.light
                     : theme.palette.custom.status.error.light,
@@ -447,41 +408,132 @@ const AdminUserManagementPage = () => {
                     : theme.palette.custom.status.error.main,
                 }}
               />
-              {selectedUser.enabled ? (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<PersonOff />}
-                  onClick={handleOpenDeactivate}
-                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                >
-                  Deactivate
-                </Button>
-              ) : (
-                <Button
-                  variant="outlined"
-                  color="success"
-                  size="small"
-                  startIcon={<PersonAdd />}
-                  onClick={() => setActivateDialogOpen(true)}
-                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                >
-                  Activate
-                </Button>
-              )}
+            </Box>
+          </Box>
+
+          <DialogContent sx={{ px: 3, py: 2.5 }}>
+            {/* Roles */}
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 11, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
+                Assign Roles
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {ALL_ROLES.map((role) => {
+                  const selected = selectedRoles.includes(role);
+                  return (
+                    <Chip
+                      key={role}
+                      label={role}
+                      onClick={() => handleRoleToggle(role)}
+                      color={selected ? getRoleColor(role) : 'default'}
+                      variant={selected ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 600, fontSize: 12, cursor: 'pointer', borderRadius: 1.5 }}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+
+            <Divider />
+
+            {/* Status */}
+            <Box sx={{ mt: 2.5 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 11, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
+                Account Status
+              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: selectedUser.enabled
+                    ? theme.palette.custom.status.success.light
+                    : theme.palette.custom.status.error.light,
+                  border: `1px solid ${selectedUser.enabled
+                    ? `${theme.palette.custom.status.success.main}30`
+                    : `${theme.palette.custom.status.error.main}30`}`,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {selectedUser.enabled
+                    ? <CheckCircle sx={{ color: theme.palette.custom.status.success.main, fontSize: 22 }} />
+                    : <Block sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
+                  }
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: selectedUser.enabled ? theme.palette.custom.status.success.main : theme.palette.custom.status.error.main }}>
+                      {selectedUser.enabled ? 'Account is Active' : 'Account is Inactive'}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                      {selectedUser.enabled
+                        ? 'User can log in and use the platform'
+                        : 'User cannot access the platform'}
+                    </Typography>
+                  </Box>
+                </Box>
+                {selectedUser.enabled ? (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    startIcon={<PersonOff sx={{ fontSize: 16 }} />}
+                    onClick={handleOpenDeactivate}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, flexShrink: 0 }}
+                  >
+                    Deactivate
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    startIcon={<PersonAdd sx={{ fontSize: 16 }} />}
+                    onClick={() => setActivateDialogOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, flexShrink: 0 }}
+                  >
+                    Activate
+                  </Button>
+                )}
+              </Box>
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setManageDialogOpen(false)} sx={{ textTransform: 'none' }}>Close</Button>
+
+          <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+            <Button onClick={() => setManageDialogOpen(false)} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+              Close
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSaveRoles}
+              disabled={rolesLoading || selectedRoles.length === 0}
+              startIcon={rolesLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, px: 2.5 }}
+            >
+              Save Roles
+            </Button>
           </DialogActions>
         </Dialog>
       )}
 
-      {/* Deactivate Dialog */}
+      {/* ── Deactivate Dialog ── */}
       <Dialog open={deactivateDialogOpen} onClose={() => setDeactivateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Deactivate User</DialogTitle>
-        <DialogContent>
+        {/* Header */}
+        <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: theme.palette.custom.status.error.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <PersonOff sx={{ color: theme.palette.custom.status.error.main, fontSize: 20 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.custom.neutral[800] }}>Deactivate Account</Typography>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+              {selectedUser?.fullName ?? selectedUser?.username}
+            </Typography>
+          </Box>
+        </Box>
+
+        <DialogContent sx={{ px: 3, py: 2.5 }}>
           <Typography sx={{ mb: 2, color: theme.palette.custom.neutral[600], fontSize: 14 }}>
             Provide a reason for deactivating this account. An email will be sent to the user.
           </Typography>
@@ -495,10 +547,12 @@ const AdminUserManagementPage = () => {
             placeholder="Describe the reason for deactivation..."
             required
             autoFocus
+            size="small"
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeactivateDialogOpen(false)} disabled={statusLoading} sx={{ textTransform: 'none' }}>
+
+        <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+          <Button onClick={() => setDeactivateDialogOpen(false)} disabled={statusLoading} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
             Cancel
           </Button>
           <Button
@@ -507,24 +561,40 @@ const AdminUserManagementPage = () => {
             onClick={handleDeactivate}
             disabled={!deactivateReason.trim() || statusLoading}
             startIcon={statusLoading ? <CircularProgress size={16} color="inherit" /> : <PersonOff />}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
           >
             Confirm Deactivation
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Activate Dialog */}
+      {/* ── Activate Dialog ── */}
       <Dialog open={activateDialogOpen} onClose={() => setActivateDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Activate User</DialogTitle>
-        <DialogContent>
+        {/* Header */}
+        <Box sx={{ px: 3, pt: 3, pb: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: theme.palette.custom.status.success.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <PersonAdd sx={{ color: theme.palette.custom.status.success.main, fontSize: 20 }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: theme.palette.custom.neutral[800] }}>Activate Account</Typography>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+              {selectedUser?.fullName ?? selectedUser?.username}
+            </Typography>
+          </Box>
+        </Box>
+
+        <DialogContent sx={{ px: 3, py: 2.5 }}>
           <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
             Are you sure you want to activate{' '}
-            <strong>{selectedUser?.fullName ?? selectedUser?.username}</strong>? An email notification will be sent.
+            <strong>{selectedUser?.fullName ?? selectedUser?.username}</strong>?
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+            An email notification will be sent to the user.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setActivateDialogOpen(false)} disabled={statusLoading} sx={{ textTransform: 'none' }}>
+
+        <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}` }}>
+          <Button onClick={() => setActivateDialogOpen(false)} disabled={statusLoading} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
             Cancel
           </Button>
           <Button
@@ -533,7 +603,7 @@ const AdminUserManagementPage = () => {
             onClick={handleActivate}
             disabled={statusLoading}
             startIcon={statusLoading ? <CircularProgress size={16} color="inherit" /> : <PersonAdd />}
-            sx={{ textTransform: 'none', fontWeight: 600 }}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
           >
             Confirm Activation
           </Button>

@@ -376,7 +376,7 @@ const ShipmentDetailPage = () => {
 
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
-            {currentStatus !== 'CANCELLED' && currentStatus !== 'DELIVERED' && currentStatus !== 'RETURNED' && (
+            {['PENDING', 'CONFIRMED', 'PROCESSING'].includes(currentStatus) && (
               <Button
                 variant="outlined"
                 color="error"
