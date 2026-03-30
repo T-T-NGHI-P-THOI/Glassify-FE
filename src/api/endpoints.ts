@@ -33,9 +33,11 @@ export const API_ENDPOINTS = {
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
     GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
     GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
+    GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
-    ACTIVATE_PRODUCT: (id: string) => `/product/${id}/activate`,
+    ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
     GET_TEXTURE_FILES:  `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
@@ -219,8 +221,6 @@ export const PAGE_ENDPOINTS = {
     BUYER_CREATE: `/user/refunds/create`,
     SELLER_LIST: `/shop/refunds`,
     SELLER_DETAIL: `/shop/refunds/:requestId`,
-    ADMIN_LIST: `/admin/refunds`,
-    ADMIN_DETAIL: `/admin/refunds/:requestId`,
   },
 
   USER: {

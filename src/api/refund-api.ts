@@ -94,22 +94,7 @@ export const confirmItemReceived = async (
   return response.data;
 };
 
-// Admin APIs
-export const platformReview = async (
-  requestId: string,
-  approved: boolean,
-  reason?: string
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/platform-review`,
-    null,
-    {
-      params: { approved, reason },
-    }
-  );
-  return response.data;
-};
-
+// Seller refund payout API
 export const processRefund = async (
   requestId: string
 ): Promise<ApiResponse<RefundRequest>> => {

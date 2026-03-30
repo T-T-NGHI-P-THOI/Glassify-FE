@@ -57,6 +57,7 @@ import {
   getReturnRequestDetail,
   reviewReturnRequest,
   confirmItemReceived,
+  processRefund,
 } from '@/api/refund-api';
 import { userApi } from '@/api/service/userApi';
 import type {
@@ -82,20 +83,15 @@ type StepItem = { label: string; status: ReturnStatus };
 const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   const normalSteps: StepItem[] = [
     { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
-    { label: 'Seller Reviewing', status: ReturnStatus.SELLER_REVIEWING },
-    { label: 'Platform Review', status: ReturnStatus.PLATFORM_REVIEWING },
-    { label: 'Shop Approved', status: ReturnStatus.SHOP_APPROVED },
     { label: 'Approved', status: ReturnStatus.APPROVED },
     { label: 'Customer Returning Item', status: ReturnStatus.RETURN_SHIPPING },
     { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
-    { label: 'Processing Refund', status: ReturnStatus.REFUNDING },
     { label: 'Completed', status: ReturnStatus.COMPLETED },
   ];
 
   if (status === ReturnStatus.REJECTED || status === ReturnStatus.CANCELLED) {
     return [
       { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
-      { label: 'Seller Reviewing', status: ReturnStatus.SELLER_REVIEWING },
       {
         label: status === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
         status,
@@ -134,6 +130,7 @@ const SellerRefundDetailPage = () => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [itemCondition, setItemCondition] = useState<ItemCondition>(ItemCondition.GOOD);
   const [conditionNotes, setConditionNotes] = useState('');
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -228,8 +225,8 @@ const SellerRefundDetailPage = () => {
       await reviewReturnRequest(requestId, {
         approved: reviewAction === 'approve',
         rejectionReason: reviewAction === 'reject' ? rejectionReason : undefined,
-        returnInstructions: reviewAction === 'approve' ? returnInstructions : undefined,
-        sellerPaysShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
+        returnInstruction: reviewAction === 'approve' ? returnInstructions : undefined,
+        shopCoverShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
       });
       
       toast.success(
@@ -267,18 +264,68 @@ const SellerRefundDetailPage = () => {
     
     try {
       setSubmitting(true);
-      await confirmItemReceived(requestId, {
+      const response = await confirmItemReceived(requestId, {
         itemCondition,
-        conditionNotes,
+        itemConditionNote: conditionNotes,
         meetsReturnCriteria: true, // Seller confirms item meets return criteria
       });
+
+      if (response.data) {
+        setRequest({
+          ...response.data,
+          status: ReturnStatus.ITEM_RECEIVED,
+          statusDisplay: RETURN_STATUS_LABELS[ReturnStatus.ITEM_RECEIVED],
+          completedAt: undefined,
+          itemReceivedAt: response.data.itemReceivedAt || new Date().toISOString(),
+        });
+      }
       
-      toast.success('Return item confirmed. Waiting for refund processing');
+      toast.success('Return item confirmed. You can now process the refund.');
       handleCloseConfirmDialog();
-      await fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to confirm received:', error);
       toast.error(error.response?.data?.message || 'Unable to confirm item receipt');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenRefundDialog = () => {
+    const hasReceivedReturnedItem =
+      request?.status === ReturnStatus.ITEM_RECEIVED && Boolean(request?.itemReceivedAt);
+
+    if (!hasReceivedReturnedItem) {
+      toast.error('You can only process refund after confirming item received');
+      return;
+    }
+
+    setRefundDialogOpen(true);
+  };
+
+  const handleCloseRefundDialog = () => {
+    setRefundDialogOpen(false);
+  };
+
+  const handleProcessRefund = async () => {
+    if (!requestId) return;
+
+    const hasReceivedReturnedItem =
+      request?.status === ReturnStatus.ITEM_RECEIVED && Boolean(request?.itemReceivedAt);
+
+    if (!hasReceivedReturnedItem) {
+      toast.error('You can only process refund after confirming item received');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await processRefund(requestId);
+      toast.success('Refund processed successfully');
+      handleCloseRefundDialog();
+      await fetchRequestDetail();
+    } catch (error: any) {
+      console.error('Failed to process refund:', error);
+      toast.error(error.response?.data?.message || 'Unable to process refund');
     } finally {
       setSubmitting(false);
     }
@@ -330,8 +377,12 @@ const SellerRefundDetailPage = () => {
     );
   }
 
-  const canReview = request.status === ReturnStatus.REQUESTED || request.status === ReturnStatus.SELLER_REVIEWING;
+  const canReview = request.status === ReturnStatus.REQUESTED;
   const canConfirmReceived = request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber;
+  const canProcessRefund =
+    request.status === ReturnStatus.ITEM_RECEIVED && Boolean(request.itemReceivedAt);
+  const showReceivedAlert =
+    request.status === ReturnStatus.ITEM_RECEIVED && Boolean(request.itemReceivedAt);
   const steps = getStatusSteps(request.status);
   const activeStep = getActiveStep(request.status, steps);
   const evidenceFiles = request.evidenceImages || [];
@@ -407,6 +458,14 @@ const SellerRefundDetailPage = () => {
         </Alert>
       )}
 
+      {showReceivedAlert && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography variant="body2" fontWeight="medium">
+            Returned item has been received. Please process the refund for the customer.
+          </Typography>
+        </Alert>
+      )}
+
       {request.status === ReturnStatus.REJECTED && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight="medium">
@@ -437,7 +496,7 @@ const SellerRefundDetailPage = () => {
               Request Information
             </Typography>
 
-            {(canReview || canConfirmReceived) && (
+            {(canReview || canConfirmReceived || canProcessRefund) && (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 {canReview && (
                   <>
@@ -470,6 +529,16 @@ const SellerRefundDetailPage = () => {
                     Confirm Received
                   </Button>
                 )}
+
+                {canProcessRefund && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleOpenRefundDialog}
+                  >
+                    Process Refund
+                  </Button>
+                )}
               </Stack>
             )}
           </Box>
@@ -477,9 +546,9 @@ const SellerRefundDetailPage = () => {
           <Divider sx={{ my: 2 }} />
 
           <Grid container spacing={5} alignItems="flex-start">
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Avatar
                     src={request.productImageUrl}
                     variant="rounded"
@@ -488,7 +557,7 @@ const SellerRefundDetailPage = () => {
                     <AssignmentReturn />
                   </Avatar>
                 </Grid>
-                <Grid item xs={12} sm={8}>
+                <Grid size={{ xs: 12, sm: 8 }}>
                   <Typography variant="h6" fontWeight="medium" gutterBottom>
                     {request.productName}
                   </Typography>
@@ -514,7 +583,7 @@ const SellerRefundDetailPage = () => {
               </Grid>
             </Grid>
 
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Stack spacing={1.5}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
                   <Typography variant="body2" color="text.secondary">Status:</Typography>
@@ -538,7 +607,7 @@ const SellerRefundDetailPage = () => {
                   </Typography>
                 </Box>
 
-                {request.sellerPaysShipping && (
+                {(request.shopCoverShipping ?? request.sellerPaysShipping) && (
                   <Alert severity="info">
                     <Typography variant="caption">You cover the return shipping fee</Typography>
                   </Alert>
@@ -567,7 +636,7 @@ const SellerRefundDetailPage = () => {
               </Stack>
             </Grid>
 
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 <Info sx={{ verticalAlign: 'middle', mr: 1 }} />
                 Request Details
@@ -603,13 +672,13 @@ const SellerRefundDetailPage = () => {
                   </Box>
                 )}
 
-                {request.returnInstructions && (
+                {(request.returnInstruction || request.returnInstructions) && (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Return Instructions:
                     </Typography>
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
-                      <Typography variant="body2">{request.returnInstructions}</Typography>
+                      <Typography variant="body2">{request.returnInstruction || request.returnInstructions}</Typography>
                     </Paper>
                   </Box>
                 )}
@@ -658,7 +727,7 @@ const SellerRefundDetailPage = () => {
               </Typography>
               <Grid container spacing={2}>
                 {videoFiles.map((video, index) => (
-                  <Grid item xs={12} md={6} lg={4} key={`${video}-${index}`}>
+                  <Grid size={{ xs: 12, md: 6, lg: 4 }} key={`${video}-${index}`}>
                     <video
                       src={video}
                       controls
@@ -829,6 +898,38 @@ const SellerRefundDetailPage = () => {
             disabled={submitting}
           >
             {submitting ? <CircularProgress size={24} /> : 'Confirm Receipt'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={refundDialogOpen}
+        onClose={handleCloseRefundDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Process Refund</DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Refund Amount: <strong>{formatCurrency(request.refundAmount)}</strong>
+            </Typography>
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            This action will complete the refund for the customer.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRefundDialog} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleProcessRefund}
+            variant="contained"
+            color="success"
+            disabled={submitting}
+          >
+            {submitting ? <CircularProgress size={24} /> : 'Confirm Refund'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -9,6 +9,14 @@ import { T, type TextureVariant } from "./TryOnTypes";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Status = "idle" | "loading" | "done" | "no_face" | "error";
+type LoadingStep =
+    | null
+    | "init_engine"
+    | "init_three"
+    | "load_model"
+    | "load_texture"
+    | "detect_face"
+    | "detect_age";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +38,7 @@ const ImageTryOn = ({
     reloadSignal
 }: ImageTryOnProps) => {
     const [status, setStatus] = useState<Status>("idle");
+    const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
     const [dragging, setDragging] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,29 +59,29 @@ const ImageTryOn = ({
     useEffect(() => {
         if (reloadSignal === 0) return;
         setStatus("idle");
+        setLoadingStep(null);
         if (prevUrlRef.current) {
             URL.revokeObjectURL(prevUrlRef.current);
             prevUrlRef.current = null;
         }
     }, [reloadSignal]);
 
-    // ── Xử lý thay đổi Texture sau khi đã có ảnh ──
+    // ── Update texture dynamically ──
     useEffect(() => {
         const updateTexture = async () => {
             const three = threeRef.current;
-            // Chỉ chạy khi đã có kết quả (status === "done") và có texture mới
             if (!three || !three.glassesObj || !activeTexture?.url || status !== "done") return;
 
             try {
-                // Đợi texture nạp xong vào material
+                setLoadingStep("load_texture");
                 await three.applyTextureFromUrl(three.glassesObj, activeTexture.url);
-                // Sau đó mới vẽ lại khung hình duy nhất
                 three.renderOnce?.();
             } catch (err) {
                 console.error("Failed to update texture:", err);
+            } finally {
+                setLoadingStep(null);
             }
         };
-
         updateTexture();
     }, [activeTexture, status]);
 
@@ -81,14 +90,13 @@ const ImageTryOn = ({
         if (!file.type.startsWith("image/")) return;
 
         setStatus("loading");
-        
-        // Dọn dẹp URL cũ nếu có
+        setLoadingStep("init_engine");
+
         if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
         const url = URL.createObjectURL(file);
         prevUrlRef.current = url;
 
         try {
-            // Load ảnh vào bộ nhớ
             const img = new Image();
             img.src = url;
             await new Promise<void>((res, rej) => {
@@ -99,26 +107,26 @@ const ImageTryOn = ({
             const canvas = canvasRef.current;
             if (!canvas) return;
 
-            // Khởi tạo AI Engine nếu chưa có
+            // ── 1. Init AI engine ──
             if (!faceEngineRef.current) {
                 const engine = new ImageFaceLandmarkerService();
                 await engine.initializeEngine();
                 faceEngineRef.current = engine;
             }
 
-            // Khởi tạo Scene 3D
+            // ── 2. Init Three.js scene ──
+            setLoadingStep("init_three");
             const threeService = new ThreeJsService();
             threeRef.current = threeService;
-            
-            // 1. Load Model kính và nền ảnh
             await threeService.initializeWithImage(img, canvas, frameGroupId);
-            
+
             if (threeService.glassesObj && threeService.faceObj) {
                 faceEngineRef.current.setThreeObjects(threeService.glassesObj, threeService.faceObj);
             }
 
-            // 2. LOAD TEXTURE TRƯỚC KHI RENDER
+            // ── 3. Load texture ──
             if (activeTexture?.url && threeService.glassesObj) {
+                setLoadingStep("load_texture");
                 try {
                     await threeService.applyTextureFromUrl(threeService.glassesObj, activeTexture.url);
                 } catch (e) {
@@ -126,13 +134,13 @@ const ImageTryOn = ({
                 }
             }
 
-            // 3. Tính toán vị trí kính dựa trên khuôn mặt
+            // ── 4. Detect landmarks ──
+            setLoadingStep("detect_face");
             const { found, landmarks } = await faceEngineRef.current.detectAndApply(img);
 
-            // 4. BÂY GIỜ MỚI RENDER (Lúc này chắc chắn đã có cả Model và Texture)
-            threeService.renderOnce();
-
+            // ── 5. Detect age ──
             if (found && landmarks) {
+                setLoadingStep("detect_age");
                 const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
                 onAnalysisReady(result);
 
@@ -143,10 +151,14 @@ const ImageTryOn = ({
                 }
             }
 
+            // ── Done ──
+            threeService.renderOnce();
             setStatus(found ? "done" : "no_face");
+            setLoadingStep(null);
         } catch (err) {
             console.error("Processing error:", err);
             setStatus("error");
+            setLoadingStep(null);
         }
     }, [onAnalysisReady, onAgeReady, frameGroupId, activeTexture]);
 
@@ -168,7 +180,7 @@ const ImageTryOn = ({
 
     return (
         <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
-            {/* ── Drop zone ── */}
+            {/* Drop zone */}
             {showDropZone && (
                 <Box
                     onClick={() => fileInputRef.current?.click()}
@@ -211,7 +223,7 @@ const ImageTryOn = ({
                 </Box>
             )}
 
-            {/* ── Result canvas ── */}
+            {/* Canvas */}
             <canvas
                 ref={canvasRef}
                 style={{
@@ -220,7 +232,7 @@ const ImageTryOn = ({
                 }}
             />
 
-            {/* ── Processing overlay ── */}
+            {/* Processing overlay */}
             {showProcessing && (
                 <Box sx={{
                     position: "absolute", inset: 0,
@@ -231,12 +243,17 @@ const ImageTryOn = ({
                 }}>
                     <CircularProgress size={38} sx={{ color: T.teal }} />
                     <Typography sx={{ fontFamily: T.fontSans, color: T.overlayTextMuted, fontSize: "0.82rem" }}>
-                        Detecting face…
+                        {loadingStep === "init_engine" && "Loading AI engine…"}
+                        {loadingStep === "init_three" && "Initializing 3D scene…"}
+                        {loadingStep === "load_model" && "Loading 3D model…"}
+                        {loadingStep === "load_texture" && "Applying texture…"}
+                        {loadingStep === "detect_face" && "Detecting landmarks…"}
+                        {loadingStep === "detect_age" && "Analyzing age…"}
                     </Typography>
                 </Box>
             )}
 
-            {/* ── Status pill ── */}
+            {/* Status pill */}
             {(status === "no_face" || status === "error") && (
                 <Box sx={{
                     position: "absolute", top: 56, left: "50%", transform: "translateX(-50%)",
@@ -254,7 +271,7 @@ const ImageTryOn = ({
                 </Box>
             )}
 
-            {/* ── Download button ── */}
+            {/* Download button */}
             {status === "done" && (
                 <Box
                     component="button"
