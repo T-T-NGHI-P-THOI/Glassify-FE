@@ -12,6 +12,7 @@ import {
     type TextureVariant,
 } from "./TryOnTypes";
 import ProductAPI from "@/api/product-api";
+import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ const LensDrawer = ({
 
 // ─── Rec drawer ───────────────────────────────────────────────────────────────
 
-const RecDrawer = ({ result }: { result: FaceAnalysisResult | null }) => {
+const RecDrawer = ({ result, fengShuiResult }: { result: FaceAnalysisResult | null, fengShuiResult: FengShuiResult | null }) => {
     if (!result) {
         return (
             <Box sx={{
@@ -177,7 +178,11 @@ const RecDrawer = ({ result }: { result: FaceAnalysisResult | null }) => {
             "&::-webkit-scrollbar": { width: "3px" },
             "&::-webkit-scrollbar-thumb": { bgcolor: T.tealBorder, borderRadius: "2px" },
         }}>
-            <FaceShapeSuggestionPanel result={result} />
+            <FaceShapeSuggestionPanel
+                result={result}
+                fengShuiResult={fengShuiResult}   // ← thêm dòng này
+                isAnalyzing={false}
+            />
         </Box>
     );
 };
@@ -191,6 +196,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
     const [activeTexture, setActiveTexture] = useState<TextureVariant | null>(null);
     const [activeLens, setActiveLens] = useState<LensOption | null>(null);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
+    const [fengShuiResult, setFengShuiResult] = useState<FengShuiResult | null>(null);
     const [reloadSignal, setReloadSignal] = useState(0);
     const [textures, setTextures] = useState<TextureVariant[]>([]);
     const [loadingTextures, setLoadingTextures] = useState(false);
@@ -204,17 +210,20 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
     const handleClose = useCallback(() => {
         setDrawer(null);
         setAnalysisResult(null);
+        setFengShuiResult(null);
         onClose();
     }, [onClose]);
 
     const handleReload = useCallback(() => {
         setAnalysisResult(null);
+        setFengShuiResult(null);
         setReloadSignal((n) => n + 1);
     }, []);
 
     const handleModeSwitch = (m: "video" | "image") => {
         setMode(m);
         setAnalysisResult(null);
+        setFengShuiResult(null);
         setReloadSignal((n) => n + 1);
     };
 
@@ -295,6 +304,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                 frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
                                 onAnalysisReady={setAnalysisResult}
+                                onFengShuiReady={setFengShuiResult}
                                 onAgeReady={() => { }}
                                 reloadSignal={reloadSignal}
                             />
@@ -518,7 +528,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                 />
                             )}
                             {drawer === "rec" && (
-                                <RecDrawer result={analysisResult} />
+                                <RecDrawer result={analysisResult} fengShuiResult={fengShuiResult} />
                             )}
                         </Box>
 

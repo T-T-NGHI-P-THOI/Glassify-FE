@@ -5,6 +5,7 @@ import { ThreeJsService } from "../../../services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
 import { T, type TextureVariant } from "./TryOnTypes";
+import { analyzeFengShui, type FengShuiResult } from "@/services/FengShuiAnalyzer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ interface ImageTryOnProps {
     frameGroupId: string;
     activeTexture: TextureVariant | null;
     onAnalysisReady: (result: FaceAnalysisResult) => void;
+    onFengShuiReady: (result: FengShuiResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
     reloadSignal: number;
 }
@@ -34,6 +36,7 @@ const ImageTryOn = ({
     frameGroupId,
     activeTexture,
     onAnalysisReady,
+    onFengShuiReady,
     onAgeReady,
     reloadSignal
 }: ImageTryOnProps) => {
@@ -140,10 +143,20 @@ const ImageTryOn = ({
 
             // ── 5. Detect age ──
             if (found && landmarks) {
-                setLoadingStep("detect_age");
+                setLoadingStep("detect_face");
                 const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
                 onAnalysisReady(result);
 
+                const fengShui = analyzeFengShui(
+                    landmarks,
+                    img.naturalWidth,
+                    img.naturalHeight,
+                    result.shape,
+                    result.measurements
+                );
+                onFengShuiReady(fengShui);
+
+                setLoadingStep("detect_age");
                 const ageSvc = ageServiceRef.current;
                 if (ageSvc) {
                     const ageRes = await ageSvc.detectFromImage(img);
