@@ -46,15 +46,11 @@ import { formatCurrency } from '@/utils/formatCurrency';
 const getStatusIcon = (status: ReturnStatus) => {
   switch (status) {
     case ReturnStatus.REQUESTED:
-    case ReturnStatus.SELLER_REVIEWING:
-    case ReturnStatus.PLATFORM_REVIEWING:
       return <HourglassEmpty />;
-    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
       return <LocalShipping />;
     case ReturnStatus.ITEM_RECEIVED:
-    case ReturnStatus.REFUNDING:
       return <Replay />;
     case ReturnStatus.COMPLETED:
       return <CheckCircle />;
@@ -70,14 +66,10 @@ const getStatusIcon = (status: ReturnStatus) => {
 const getStatusColor = (status: ReturnStatus) => {
   switch (status) {
     case ReturnStatus.REQUESTED:
-    case ReturnStatus.SELLER_REVIEWING:
-    case ReturnStatus.PLATFORM_REVIEWING:
       return 'warning';
-    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
     case ReturnStatus.ITEM_RECEIVED:
-    case ReturnStatus.REFUNDING:
       return 'info';
     case ReturnStatus.COMPLETED:
       return 'success';

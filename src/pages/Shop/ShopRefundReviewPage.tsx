@@ -74,9 +74,7 @@ const ShopRefundReviewPage = () => {
 
   const pendingRequests = useMemo(
     () =>
-      requests.filter(
-        (item) => item.status === ReturnStatus.REQUESTED || item.status === ReturnStatus.SELLER_REVIEWING
-      ),
+      requests.filter((item) => item.status === ReturnStatus.REQUESTED),
     [requests]
   );
 
@@ -108,13 +106,11 @@ const ShopRefundReviewPage = () => {
   const getStatusColor = (status: ReturnStatus): 'warning' | 'success' | 'info' | 'error' | 'default' => {
     switch (status) {
       case ReturnStatus.REQUESTED:
-      case ReturnStatus.SELLER_REVIEWING:
         return 'warning';
       case ReturnStatus.APPROVED:
       case ReturnStatus.RETURN_SHIPPING:
         return 'info';
       case ReturnStatus.ITEM_RECEIVED:
-      case ReturnStatus.REFUNDING:
       case ReturnStatus.COMPLETED:
         return 'success';
       case ReturnStatus.REJECTED:
@@ -193,8 +189,7 @@ const ShopRefundReviewPage = () => {
           ) : (
             <Stack spacing={2} sx={{ p: 2 }}>
               {filteredRequests.map((request) => {
-                const isPendingReview =
-                  request.status === ReturnStatus.REQUESTED || request.status === ReturnStatus.SELLER_REVIEWING;
+                const isPendingReview = request.status === ReturnStatus.REQUESTED;
 
                 return (
                   <Paper

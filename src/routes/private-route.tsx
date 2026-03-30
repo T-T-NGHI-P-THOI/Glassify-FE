@@ -30,7 +30,6 @@ import {
     BuyerCreateRefundPage,
     SellerRefundListPage,
     SellerRefundDetailPage,
-    AdminRefundManagementPage,
 } from "@/pages/Refund"
 import AdminUserManagementPage from "@/pages/Admin/AdminUserManagementPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
@@ -332,29 +331,6 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <SellerRefundDetailPage />
-                        </RoleBasedGuard>
-                    </AuthGuard>
-                }
-            />
-
-            {/* Admin Refund Routes */}
-            <Route
-                path={PAGE_ENDPOINTS.REFUND.ADMIN_LIST}
-                element={
-                    <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
-                            <AdminRefundManagementPage />
-                        </RoleBasedGuard>
-                    </AuthGuard>
-                }
-            />
-
-            <Route
-                path={PAGE_ENDPOINTS.REFUND.ADMIN_DETAIL}
-                element={
-                    <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
-                            <AdminRefundManagementPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

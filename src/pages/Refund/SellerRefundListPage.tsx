@@ -46,9 +46,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 const getStatusIcon = (status: ReturnStatus) => {
   switch (status) {
     case ReturnStatus.REQUESTED:
-    case ReturnStatus.SELLER_REVIEWING:
       return <HourglassEmpty />;
-    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
     case ReturnStatus.ITEM_RECEIVED:
@@ -67,14 +65,11 @@ const getStatusIcon = (status: ReturnStatus) => {
 const getStatusColor = (status: ReturnStatus) => {
   switch (status) {
     case ReturnStatus.REQUESTED:
-    case ReturnStatus.SELLER_REVIEWING:
       return 'warning';
-    case ReturnStatus.SHOP_APPROVED:
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
       return 'info';
     case ReturnStatus.ITEM_RECEIVED:
-    case ReturnStatus.REFUNDING:
       return 'success';
     case ReturnStatus.COMPLETED:
       return 'success';
@@ -122,8 +117,8 @@ const SellerRefundListPage = () => {
       const allRequests = response.data || [];
       setCounts({
         all: allRequests.length,
-        pending: allRequests.filter(r => r.status === ReturnStatus.REQUESTED || r.status === ReturnStatus.SELLER_REVIEWING).length,
-        approved: allRequests.filter(r => r.status === ReturnStatus.SHOP_APPROVED || r.status === ReturnStatus.APPROVED).length,
+        pending: allRequests.filter(r => r.status === ReturnStatus.REQUESTED).length,
+        approved: allRequests.filter(r => r.status === ReturnStatus.APPROVED).length,
         itemReceived: allRequests.filter(r => r.status === ReturnStatus.ITEM_RECEIVED).length,
         completed: allRequests.filter(r => r.status === ReturnStatus.COMPLETED).length,
       });
@@ -161,7 +156,6 @@ const SellerRefundListPage = () => {
   const needsAction = (request: RefundRequest) => {
     return (
       request.status === ReturnStatus.REQUESTED ||
-      request.status === ReturnStatus.SELLER_REVIEWING ||
       (request.status === ReturnStatus.RETURN_SHIPPING && !request.returnTrackingNumber)
     );
   };

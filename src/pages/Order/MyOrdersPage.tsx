@@ -211,10 +211,6 @@ const getRefundStatusLabel = (status?: ReturnStatus) => {
   switch (status) {
     case ReturnStatus.REQUESTED:
       return 'Request Submitted';
-    case ReturnStatus.SELLER_REVIEWING:
-      return 'Seller Reviewing';
-    case ReturnStatus.PLATFORM_REVIEWING:
-      return 'Platform Reviewing';
     case ReturnStatus.APPROVED:
       return 'Approved';
     case ReturnStatus.REJECTED:
@@ -223,8 +219,6 @@ const getRefundStatusLabel = (status?: ReturnStatus) => {
       return 'Return Shipping';
     case ReturnStatus.ITEM_RECEIVED:
       return 'Item Received';
-    case ReturnStatus.REFUNDING:
-      return 'Refunding';
     case ReturnStatus.COMPLETED:
       return 'Completed';
     case ReturnStatus.CANCELLED:
