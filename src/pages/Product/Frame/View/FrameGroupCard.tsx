@@ -59,7 +59,7 @@ export interface ProductResponse {
     basePrice: number;
     costPrice: number;
     compareAtPrice: number;
-    stock: number;
+    stockQuantity: number;
     isActive: boolean;
     isFeatured: boolean;
     isReturnable: boolean;
@@ -459,7 +459,7 @@ const FrameGroupCard = ({
     const theme = useTheme();
 
     const variants = fg.frameVariantResponses;
-    const totalStock = variants.reduce((sum, v) => sum + v.stock, 0);
+    const totalStock = variants.reduce((sum, v) => sum + (v.productResponse?.stockQuantity || 0), 0);
     const hasOut = variants.some((v) => v.stock === 0);
     const hasLow = variants.some((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD);
     const featuredFrameVariant = fg.frameVariantResponses.find(

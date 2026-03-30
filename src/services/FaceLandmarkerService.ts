@@ -26,8 +26,8 @@ export const FACE_OVAL = [
 export const CFG = {
     refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
     refFaceHeight: 210,     // Reference face height (pixels)
-    glassesDepth: -120,       // Z-offset: how far glasses sit in front of the face
-    glassesDown: -50,         // Y-offset: push glasses slightly downward
+    glassesDepth: -50,       // Z-offset: how far glasses sit in front of the face
+    glassesDown: -20,         // Y-offset: push glasses slightly downward
     glassesCenterX: 0,      // X-offset: horizontal fine-tuning
     glassesScale: 1.2     // Overall scale multiplier
 };
@@ -35,8 +35,8 @@ export const CFG = {
 export const IMAGE_CFG = {
     refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
     refFaceHeight: 210,     // Reference face height (pixels)
-    glassesDepth: -50,       // Z-offset: how far glasses sit in front of the face
-    glassesDown: 0,         // Y-offset: push glasses slightly downward
+    glassesDepth: -20,       // Z-offset: how far glasses sit in front of the face
+    glassesDown: 20,         // Y-offset: push glasses slightly downward
     glassesCenterX: 0,      // X-offset: horizontal fine-tuning
     glassesScale: 1.2     // Overall scale multiplier
 };
