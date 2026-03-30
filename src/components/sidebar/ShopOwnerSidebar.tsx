@@ -27,11 +27,12 @@ import {
   Build,
   Logout,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { logOut } from '@/auth/Reducer';
+import { shopApi } from '@/api/shopApi';
 
 interface ShopOwnerSidebarProps {
   activeMenu?: string;
@@ -44,8 +45,8 @@ interface ShopOwnerSidebarProps {
 
 export const ShopOwnerSidebar = ({
   activeMenu,
-  shopName,
-  shopLogo,
+  shopName: shopNameProp,
+  shopLogo: shopLogoProp,
   ownerName,
   ownerEmail,
   ownerAvatar,
@@ -55,6 +56,23 @@ export const ShopOwnerSidebar = ({
   const theme = useTheme();
   const { dispatch } = useAuth();
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
+  const [shopName, setShopName] = useState(shopNameProp);
+  const [shopLogo, setShopLogo] = useState(shopLogoProp);
+
+  useEffect(() => {
+    if (shopNameProp) {
+      setShopName(shopNameProp);
+      setShopLogo(shopLogoProp);
+      return;
+    }
+    shopApi.getMyShops().then((res) => {
+      const s = res.data?.[0];
+      if (s) {
+        setShopName(s.shopName);
+        setShopLogo(s.logoUrl ?? undefined);
+      }
+    }).catch(() => {});
+  }, [shopNameProp, shopLogoProp]);
 
   const handleProfileMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
     setProfileAnchorEl(e.currentTarget);
@@ -69,6 +87,8 @@ export const ShopOwnerSidebar = ({
     dispatch(logOut());
     navigate('/');
   };
+
+  const TRANSITION = 'background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease';
 
   const menuItems = [
     { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.SHOP.DASHBOARD },
@@ -168,34 +188,45 @@ export const ShopOwnerSidebar = ({
 
       {/* Main Menu */}
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-        {menuItems.map((item) => (
-          <ListItemButton
-            key={item.label}
-            onClick={() => navigate(item.path)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              backgroundColor: isActive(item.path)
-                ? theme.palette.custom.neutral[100]
-                : 'transparent',
-              '&:hover': {
-                backgroundColor: theme.palette.custom.neutral[100],
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 36, color: theme.palette.text.secondary }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.label}
-              primaryTypographyProps={{
-                fontSize: 14,
-                fontWeight: isActive(item.path) ? 600 : 500,
-                color: theme.palette.text.primary,
+        {menuItems.map((item) => {
+          const active = isActive(item.path);
+          return (
+            <ListItemButton
+              key={item.label}
+              onClick={() => navigate(item.path)}
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                transition: TRANSITION,
+                backgroundColor: active ? theme.palette.custom.neutral[100] : 'transparent',
+                '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
               }}
-            />
-          </ListItemButton>
-        ))}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 36,
+                  transition: TRANSITION,
+                  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                slotProps={{
+                  primary: {
+                    style: {
+                      fontSize: 14,
+                      fontWeight: active ? 600 : 500,
+                      color: active ? theme.palette.primary.main : theme.palette.text.primary,
+                      transition: TRANSITION,
+                    },
+                  },
+                }}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
 
       {/* Bottom Menu */}
@@ -206,9 +237,8 @@ export const ShopOwnerSidebar = ({
             sx={{
               borderRadius: 2,
               mb: 0.5,
-              '&:hover': {
-                backgroundColor: theme.palette.custom.neutral[100],
-              },
+              transition: TRANSITION,
+              '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
             }}
           >
             <ListItemIcon sx={{ minWidth: 36, color: theme.palette.text.secondary }}>
@@ -216,10 +246,10 @@ export const ShopOwnerSidebar = ({
             </ListItemIcon>
             <ListItemText
               primary={item.label}
-              primaryTypographyProps={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: theme.palette.text.primary,
+              slotProps={{
+                primary: {
+                  style: { fontSize: 14, fontWeight: 500, color: theme.palette.text.primary },
+                },
               }}
             />
           </ListItemButton>
@@ -236,7 +266,8 @@ export const ShopOwnerSidebar = ({
           alignItems: 'center',
           gap: 1.5,
           cursor: 'pointer',
-          '&:hover': { bgcolor: theme.palette.custom.neutral[50] },
+          transition: TRANSITION,
+          '&:hover': { bgcolor: theme.palette.custom.neutral[100] },
         }}
       >
         <Avatar

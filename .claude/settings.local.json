@@ -31,7 +31,8 @@
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller",
-      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email"
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/impl"
     ]
   }
 }
