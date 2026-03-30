@@ -33,6 +33,7 @@ import {
 } from "@/pages/Refund"
 import AdminUserManagementPage from "@/pages/Admin/AdminUserManagementPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
+import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
 
 const PrivateRoutesComponent = () => {
     return (
@@ -142,6 +143,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
                             <FrameProductPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_LENS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <CreateLensPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

@@ -145,7 +145,7 @@ export class ThreeJsService {
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.setSize(w, h, false); // false = không override CSS
-        renderer.setClearColor(0x555555);
+        renderer.setClearColor(0xffffff);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -158,23 +158,23 @@ export class ThreeJsService {
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.enablePan = false;
-        controls.minDistance = 1;
-        controls.maxDistance = 20;
-        controls.minPolarAngle = 0.3;
+        controls.minDistance = 2.5;
+        controls.maxDistance = 7;
+        controls.minPolarAngle = 1.5;
         controls.maxPolarAngle = Math.PI / 2 + 0.2;
         controls.autoRotateSpeed = 1.5;
         controls.target.set(0, 1, 0);
         controls.update();
 
         // Ground
-        const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
-        groundGeometry.rotateX(-Math.PI / 2);
-        const groundMesh = new THREE.Mesh(
-            groundGeometry,
-            new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.DoubleSide })
-        );
-        groundMesh.receiveShadow = true;
-        scene.add(groundMesh);
+        // const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
+        // groundGeometry.rotateX(-Math.PI / 2);
+        // const groundMesh = new THREE.Mesh(
+        //     groundGeometry,
+        //     new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.DoubleSide })
+        // );
+        // groundMesh.receiveShadow = true;
+        // scene.add(groundMesh);
 
         // Lights
         const ambient = new THREE.AmbientLight(0xffffff, 1.2);
@@ -241,6 +241,129 @@ export class ThreeJsService {
         window.addEventListener('resize', onResize);
 
         // Animate loop
+        let animId: number;
+        const animate = () => {
+            animId = requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        return () => {
+            cancelAnimationFrame(animId);
+            window.removeEventListener('resize', onResize);
+            controls.dispose();
+            renderer.dispose();
+            scene.clear();
+        };
+    }
+
+    initializeThreeDViewerFromUrl(
+        canvas: HTMLCanvasElement,
+        modelUrl: string,
+        options?: {
+            requestHeaders?: Record<string, string>;
+            onLoaded?: () => void;
+            onError?: (error: unknown) => void;
+        }
+    ): () => void {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.setSize(w, h, false);
+        renderer.setClearColor(0x555555);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 1000);
+        camera.position.set(0, 2, 6);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.enablePan = false;
+        controls.minDistance = 1;
+        controls.maxDistance = 20;
+        controls.minPolarAngle = 0.3;
+        controls.maxPolarAngle = Math.PI / 2 + 0.2;
+        controls.autoRotateSpeed = 1.5;
+        controls.target.set(0, 1, 0);
+        controls.update();
+
+        const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
+        groundGeometry.rotateX(-Math.PI / 2);
+        const groundMesh = new THREE.Mesh(
+            groundGeometry,
+            new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.DoubleSide })
+        );
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambient);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 80, 30, 0.4, 0.5);
+        spotLight.position.set(0, 8, 4);
+        spotLight.castShadow = true;
+        spotLight.shadow.bias = -0.0001;
+        scene.add(spotLight);
+
+        const fillLight = new THREE.DirectionalLight(0xaabbff, 1.0);
+        fillLight.position.set(-4, 3, 4);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        rimLight.position.set(4, 2, -4);
+        scene.add(rimLight);
+
+        this.viewerModel = undefined;
+
+        const loader = new GLTFLoader();
+        if (options?.requestHeaders) {
+            loader.setRequestHeader(options.requestHeaders);
+        }
+        loader.load(
+            modelUrl,
+            (gltf) => {
+                const mesh = gltf.scene;
+                mesh.traverse((child) => {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                });
+
+                this.normalizeModelForViewer(mesh);
+
+                const box = new THREE.Box3().setFromObject(mesh);
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+                controls.target.set(center.x, center.y, center.z);
+                controls.update();
+
+                scene.add(mesh);
+                this.viewerModel = mesh;
+                options?.onLoaded?.();
+            },
+            undefined,
+            (error) => {
+                console.error('[3D Viewer] load error', error);
+                options?.onError?.(error);
+            }
+        );
+
+        const onResize = () => {
+            const cw = canvas.clientWidth;
+            const ch = canvas.clientHeight;
+            if (cw === 0 || ch === 0) return;
+            camera.aspect = cw / ch;
+            camera.updateProjectionMatrix();
+            renderer.setSize(cw, ch, false);
+        };
+        window.addEventListener('resize', onResize);
+
         let animId: number;
         const animate = () => {
             animId = requestAnimationFrame(animate);

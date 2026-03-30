@@ -536,7 +536,7 @@ const AdminShopDetailPage = () => {
                 <Grid container spacing={2}>
                   {products.map((product) => {
                     const pStatus = getProductStatusConfig(product.isActive, product.stockQuantity);
-                    const imgUrl = product.fileResponses?.[0]?.url;
+                    const imgUrl = ProductAPI.getPrimaryImageUrl(product, '');
                     const hasDiscount = product.compareAtPrice > product.basePrice;
                     return (
                       <Grid key={product.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
@@ -770,6 +770,7 @@ interface AdminProductDetailDialogProps {
 
 const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminProductDetailDialogProps) => {
   const theme = useTheme();
+  const productImageUrl = ProductAPI.getPrimaryImageUrl(product, '');
 
   const estimatedRevenue = product.soldCount * product.basePrice;
 
@@ -853,9 +854,9 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
                 mb: 2.5,
               }}
             >
-              {product.fileResponses?.[0]?.url ? (
+              {productImageUrl ? (
                 <img
-                  src={product.fileResponses[0].url}
+                  src={productImageUrl}
                   alt={product.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
