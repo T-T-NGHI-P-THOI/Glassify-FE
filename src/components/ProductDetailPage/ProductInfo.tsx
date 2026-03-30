@@ -106,7 +106,11 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
                   onClick={() => onColorSelect?.(color)}
                   title={color.name}
                 >
-                  <img src={color.image || product.images[0]} alt={color.name} />
+                  <span
+                    className="color-swatch"
+                    style={{ backgroundColor: color.code || '#cccccc' }}
+                    aria-hidden="true"
+                  />
                   <span className="color-name">{color.name}</span>
                 </button>
               );
