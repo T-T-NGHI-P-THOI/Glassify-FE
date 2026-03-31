@@ -59,6 +59,7 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
 import { createReturnRequest, listReturnRequests, uploadRefundEvidenceImages } from '@/api/refund-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 // ==================== ENUMS (matching backend) ====================
 type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
@@ -550,6 +551,7 @@ const MyOrdersPage = () => {
       const itemMap = new Map(selectedOrder.items.map((item) => [item.id, item]));
       const createdRequestIds: string[] = [];
       let failedCount = 0;
+      let firstFailureMessage: string | null = null;
 
       for (const itemId of selectedReturnItemIds) {
         const item = itemMap.get(itemId);
@@ -587,12 +589,15 @@ const MyOrdersPage = () => {
           }
         } catch (error) {
           failedCount += 1;
+          if (!firstFailureMessage) {
+            firstFailureMessage = getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng');
+          }
           console.error(`Failed to create return request for item ${item.id}:`, error);
         }
       }
 
       if (createdRequestIds.length === 0) {
-        toast.error('Không thể tạo yêu cầu trả hàng cho các sản phẩm đã chọn');
+        toast.error(firstFailureMessage || 'Không thể tạo yêu cầu trả hàng cho các sản phẩm đã chọn');
         return;
       }
 
@@ -611,7 +616,7 @@ const MyOrdersPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to create return request:', error);
-      toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu trả hàng');
+      toast.error(getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng'));
     } finally {
       setSubmittingReturn(false);
     }

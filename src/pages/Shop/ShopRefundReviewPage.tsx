@@ -32,6 +32,7 @@ import {
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 const ShopRefundReviewPage = () => {
   const theme = useTheme();
@@ -62,7 +63,7 @@ const ShopRefundReviewPage = () => {
       setRequests(response.data || []);
     } catch (error: any) {
       console.error('Failed to fetch refund requests:', error);
-      toast.error(error.response?.data?.message || 'Failed to load refund requests');
+      toast.error(getApiErrorMessage(error, 'Failed to load refund requests'));
     } finally {
       setLoading(false);
     }
