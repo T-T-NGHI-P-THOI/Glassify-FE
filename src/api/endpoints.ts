@@ -33,9 +33,11 @@ export const API_ENDPOINTS = {
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
     GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
     GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
+    GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
-    ACTIVATE_PRODUCT: (id: string) => `/product/${id}/activate`,
+    ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
     GET_TEXTURE_FILES:  `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
@@ -46,6 +48,9 @@ export const API_ENDPOINTS = {
   LENS: {
     BASE: `${API_ENDPOINT}/lens-catalog`,
     CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+    CREATE: `${API_ENDPOINT}/lenses`,
+    CREATE_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lenses/for-frame/${frameVariantId}`,
+    CREATE_FOR_FRAME_GROUP: (frameGroupId: string) => `${API_ENDPOINT}/lenses/for-frame-group/${frameGroupId}`,
   },
   PRESCRIPTIONS: {
     BASE: `${API_ENDPOINT}/prescriptions`,
@@ -125,6 +130,10 @@ export const API_ENDPOINTS = {
     REQUEST_BY_ID: (id: string) => `${API_ENDPOINT}/return-requests/${id}`,
     CANCEL: (id: string) => `${API_ENDPOINT}/return-requests/${id}/cancel`,
   },
+  SHOP_INVENTORY: {
+    GET: (shopId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}`,
+    SET_STOCK: (shopId: string, variantId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}/variant/${variantId}`,
+  },
   SHOP_WALLET: {
     BASE: `${API_ENDPOINT}/shop/wallet`,
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
@@ -142,6 +151,9 @@ export const API_ENDPOINTS = {
     MY_SHOP_CLOSURE_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/closure-status`,
   },
   ADMIN: {
+    STATS: {
+      OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
+    },
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
@@ -156,6 +168,21 @@ export const API_ENDPOINTS = {
       GET_BY_ID: (id: string) => `${API_ENDPOINT}/admin/users/${id}`,
       SET_ROLES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/roles`,
       SET_STATUS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/status`,
+      ORDERS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/orders`,
+      REFUNDS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/refunds`,
+      WARRANTIES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/warranties`,
+    },
+    ORDERS: {
+      LIST: `${API_ENDPOINT}/admin/orders`,
+      GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}`,
+    },
+    REFUNDS: {
+      LIST: `${API_ENDPOINT}/admin/refunds`,
+      GET_BY_ID: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}`,
+    },
+    WARRANTIES: {
+      LIST: `${API_ENDPOINT}/admin/warranties`,
+      GET_BY_ID: (claimId: string) => `${API_ENDPOINT}/admin/warranties/${claimId}`,
     },
   },
 } as const;
@@ -184,6 +211,7 @@ export const PAGE_ENDPOINTS = {
     PROFILE: `/shop/profile`,
     PRODUCT_FRAME: `/shop/product/frame`,
     CREATE_FRAME: `/shop/product/frame/create`,
+    CREATE_LENS: `/shop/product/lens/create`,
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
@@ -199,6 +227,13 @@ export const PAGE_ENDPOINTS = {
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
     USER_MANAGEMENT: `/admin/users`,
+    USER_DETAIL: `/admin/users/:id`,
+    ORDERS: `/admin/orders`,
+    ORDER_DETAIL: `/admin/orders/:id`,
+    REFUNDS: `/admin/refunds`,
+    REFUND_DETAIL: `/admin/refunds/:id`,
+    WARRANTIES: `/admin/warranties`,
+    WARRANTY_DETAIL: `/admin/warranties/:id`,
   },
 
   ORDER: {

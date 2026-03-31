@@ -444,6 +444,8 @@ const AdminShopDetailPage = () => {
           {/* OVERVIEW TAB */}
           {activeTab === 0 && (
             <Grid container spacing={3}>
+
+              {/* ── Left column: Shop Information ── */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, height: '100%' }}>
                   <SectionHeader icon={<Business />} title="Shop Information" />
@@ -458,65 +460,96 @@ const AdminShopDetailPage = () => {
                     <InfoRow label="Business Type" value={shop.businessLicense?.businessType || '—'} />
                     {shop.businessLicense?.licenseImageUrl && (
                       <Box>
-                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.25, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                          License Image URL
+                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 1, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                          License Image
                         </Typography>
-                        <Typography
-                          component="a"
-                          href={shop.businessLicense.licenseImageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Box
+                          component="img"
+                          src={shop.businessLicense.licenseImageUrl}
+                          alt="License"
+                          onClick={() => window.open(shop.businessLicense.licenseImageUrl, '_blank')}
                           sx={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: theme.palette.primary.main,
-                            wordBreak: 'break-all',
-                            textDecoration: 'none',
-                            '&:hover': { textDecoration: 'underline' },
+                            width: '100%',
+                            maxHeight: 200,
+                            objectFit: 'cover',
+                            borderRadius: 1.5,
+                            border: `1px solid ${theme.palette.custom.border.light}`,
+                            cursor: 'pointer',
+                            display: 'block',
+                            '&:hover': { opacity: 0.85 },
                           }}
-                        >
-                          {shop.businessLicense.licenseImageUrl}
-                        </Typography>
+                        />
                       </Box>
                     )}
-                    <Divider />
-                    <InfoRow label="Commission Rate" value={`${shop.commissionRate}%`} />
-                    <InfoRow label="Joined At" value={formatDate(shop.joinedAt)} icon={<CalendarToday sx={{ fontSize: 15, color: theme.palette.custom.neutral[400] }} />} />
-                    <InfoRow label="Created At" value={formatDate(shop.createdAt)} icon={<CalendarToday sx={{ fontSize: 15, color: theme.palette.custom.neutral[400] }} />} />
                   </Box>
                 </Paper>
               </Grid>
 
+              {/* ── Right column: stacked cards ── */}
               <Grid size={{ xs: 12, md: 6 }}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, height: '100%' }}>
-                  <SectionHeader icon={<Person />} title="Owner Information" />
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mb: 3 }}>
-                    <InfoRow label="Owner Name" value={shop.ownerName ?? '—'} />
-                    <InfoRow label="Owner Email" value={shop.ownerEmail ?? '—'} icon={<Email sx={{ fontSize: 15, color: theme.palette.custom.status.info.main }} />} />
-                    <InfoRow label="Owner ID" value={shop.ownerId ?? '—'} />
-                  </Box>
-                  <Divider sx={{ mb: 3 }} />
-                  <SectionHeader icon={<LocationOn />} title="Address" />
-                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], lineHeight: 1.7 }}>
-                    {shop.address}
-                  </Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[600], mt: 0.5 }}>
-                    {shop.city}
-                  </Typography>
-                </Paper>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
+
+                  {/* Owner card */}
+                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <SectionHeader icon={<Person />} title="Owner Information" />
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', gap: 2,
+                      p: 1.5, borderRadius: 1.5,
+                      bgcolor: theme.palette.custom.neutral[50],
+                      border: `1px solid ${theme.palette.custom.border.light}`,
+                    }}>
+                      <Avatar sx={{ width: 40, height: 40, bgcolor: theme.palette.custom.neutral[200], color: theme.palette.custom.neutral[600], fontWeight: 700, fontSize: 16 }}>
+                        {(shop.ownerName ?? '?')[0].toUpperCase()}
+                      </Avatar>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                          {shop.ownerName ?? '—'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                          <Email sx={{ fontSize: 13, color: theme.palette.custom.status.info.main }} />
+                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {shop.ownerEmail ?? '—'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Paper>
+
+                  {/* Address card */}
+                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <SectionHeader icon={<LocationOn />} title="Address" />
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <LocationOn sx={{ fontSize: 16, color: theme.palette.custom.neutral[400], mt: 0.15, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], lineHeight: 1.7 }}>
+                        {[shop.address, shop.wardName, shop.districtName, shop.provinceName].filter(Boolean).join(', ') || '—'}
+                      </Typography>
+                    </Box>
+                  </Paper>
+
+                  {/* GHN Shipping card */}
+                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <SectionHeader icon={<LocalShipping />} title="GHN Shipping" />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                      <CompactInfoCell label="GHN Shop ID" value={shop.ghnShopId ? String(shop.ghnShopId) : '—'} />
+                      <CompactInfoCell label="Province" value={shop.provinceName || '—'} />
+                      <CompactInfoCell label="District" value={shop.districtName || '—'} />
+                      <CompactInfoCell label="Ward" value={shop.wardName || '—'} />
+                    </Box>
+                  </Paper>
+
+                  {/* Commission & Dates card */}
+                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <SectionHeader icon={<AttachMoney />} title="Commission & Dates" />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5 }}>
+                      <CompactInfoCell label="Commission Rate" value={`${shop.commissionRate}%`} highlight />
+                      <CompactInfoCell label="Joined At" value={formatDate(shop.joinedAt)} />
+                      <CompactInfoCell label="Created At" value={formatDate(shop.createdAt)} />
+                    </Box>
+                  </Paper>
+
+                </Box>
               </Grid>
 
-              <Grid size={{ xs: 12 }}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                  <SectionHeader icon={<LocalShipping />} title="GHN Shipping Configuration" />
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
-                    <InfoRow label="GHN Shop ID" value={shop.ghnShopId ? String(shop.ghnShopId) : '—'} />
-                    <InfoRow label="Province ID" value={shop.ghnProvinceId ? String(shop.ghnProvinceId) : '—'} />
-                    <InfoRow label="District ID" value={shop.ghnDistrictId ? String(shop.ghnDistrictId) : '—'} />
-                    <InfoRow label="Ward Code" value={shop.ghnWardCode ?? '—'} />
-                  </Box>
-                </Paper>
-              </Grid>
             </Grid>
           )}
 
@@ -650,7 +683,6 @@ const AdminShopDetailPage = () => {
           {actionType === 'deactivate' ? 'Deactivate Shop' : 'Close Shop Permanently'}
         </DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
-          {/* Action type toggle */}
           <ToggleButtonGroup
             value={actionType}
             exclusive
@@ -667,7 +699,6 @@ const AdminShopDetailPage = () => {
             </ToggleButton>
           </ToggleButtonGroup>
 
-          {/* Description */}
           {actionType === 'deactivate' ? (
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2.5 }}>
               Shop <strong>{shop.shopName}</strong> sẽ chuyển sang trạng thái <strong>Pending</strong>. Bạn có thể huỷ trong vòng <strong>1 giờ</strong>.
@@ -678,7 +709,6 @@ const AdminShopDetailPage = () => {
             </Alert>
           )}
 
-          {/* Shared: Reason dropdown */}
           <FormControl fullWidth required sx={{ mb: 2.5 }}>
             <InputLabel>Reason</InputLabel>
             <Select
@@ -693,7 +723,6 @@ const AdminShopDetailPage = () => {
             </Select>
           </FormControl>
 
-          {/* Deactivate-specific: end date */}
           {actionType === 'deactivate' && (
             <TextField
               fullWidth type="date"
@@ -707,7 +736,6 @@ const AdminShopDetailPage = () => {
             />
           )}
 
-          {/* Close-specific: confirmation checkbox */}
           {actionType === 'close' && (
             <FormControlLabel
               control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
@@ -814,7 +842,6 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}>
-      {/* Header */}
       <DialogTitle sx={{ pb: 0, pt: 2.5, px: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
@@ -835,7 +862,6 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
 
       <DialogContent sx={{ p: 0 }}>
         <Grid container sx={{ minHeight: 480 }}>
-          {/* Left panel */}
           <Grid
             size={{ xs: 12, md: 5 }}
             sx={{ p: 3, bgcolor: theme.palette.custom.neutral[50], borderRight: `1px solid ${theme.palette.custom.border.light}` }}
@@ -897,7 +923,6 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
             </Paper>
           </Grid>
 
-          {/* Right panel */}
           <Grid size={{ xs: 12, md: 7 }} sx={{ p: 3, overflowY: 'auto', maxHeight: 560 }}>
             <Field label="ID and Product Name">
               <FieldBox>
@@ -1004,12 +1029,14 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
   );
 };
 
+// ==================== Helpers ====================
+
 const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }) => {
   const theme = useTheme();
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
       <Box sx={{ color: theme.palette.custom.neutral[500], display: 'flex' }}>{icon}</Box>
-      <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>{title}</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>{title}</Typography>
     </Box>
   );
 };
@@ -1025,6 +1052,38 @@ const InfoRow = ({ label, value, icon }: { label: string; value: string; icon?: 
         {icon}
         <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{value}</Typography>
       </Box>
+    </Box>
+  );
+};
+
+/** Compact 2-line cell used inside grid layouts in the right column */
+const CompactInfoCell = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        px: 1.5,
+        py: 1.25,
+        borderRadius: 1.5,
+        bgcolor: highlight ? theme.palette.custom.neutral[50] : theme.palette.custom.neutral[50],
+        border: `1px solid ${theme.palette.custom.border.light}`,
+      }}
+    >
+      <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: 0.4, mb: 0.3 }}>
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: 13,
+          fontWeight: highlight ? 700 : 500,
+          color: highlight ? theme.palette.custom.neutral[900] : theme.palette.custom.neutral[800],
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {value}
+      </Typography>
     </Box>
   );
 };

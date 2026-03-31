@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
-  Search, 
   FilterList, 
   ViewModule, 
   ViewList,
@@ -188,6 +187,7 @@ const ProductBrowsePage: React.FC = () => {
         // Transform API products to BrowseProduct format
         const transformedProducts: BrowseProduct[] = apiProducts.map((product) => {
           const productLocation = extractProductLocation(product);
+          const productImage = ProductAPI.getPrimaryImageUrl(product);
 
           return {
             id: product.id,
@@ -200,7 +200,7 @@ const ProductBrowsePage: React.FC = () => {
             rating: product.avgRating || 0,
             reviewCount: product.reviewCount || 0,
             productType: product.productType,
-            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(product.name),
+            image: productImage,
             colorVariants: [],
             isFeatured: product.isFeatured,
             isNew: false,
@@ -311,16 +311,6 @@ const ProductBrowsePage: React.FC = () => {
     setSearchParams({});
   };
 
-  const handleSearch = (query: string) => {
-    setCurrentPage(1);
-    setActiveFilters(prev => ({ ...prev, searchQuery: query }));
-    if (query) {
-      setSearchParams({ q: query });
-    } else {
-      setSearchParams({});
-    }
-  };
-
   const handleSort = (sortBy: ActiveFilters['sortBy']) => {
     setActiveFilters(prev => ({ ...prev, sortBy }));
   };
@@ -364,17 +354,6 @@ const ProductBrowsePage: React.FC = () => {
 
         <main className="browse-main">
           <div className="browse-header">
-            <div className="browse-search">
-              <Search className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search glasses..."
-                value={activeFilters.searchQuery || ''}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="search-input"
-              />
-            </div>
-
             <div className="browse-controls">
               <button 
                 className="filter-toggle-btn"

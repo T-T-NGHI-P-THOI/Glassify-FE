@@ -359,19 +359,27 @@ const ShopOrdersPage = () => {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Tooltip title={row.shippingAddress}>
-                              <Typography
-                                sx={{
-                                  fontSize: 14,
-                                  color: theme.palette.text.primary,
-                                  maxWidth: 200,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {row.shippingAddress}
-                              </Typography>
+                            <Tooltip title={`${row.shippingName} · ${row.shippingPhone} · ${row.shippingAddress}`}>
+                              <Box>
+                                <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.text.primary }}>
+                                  {row.shippingName}
+                                </Typography>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.text.secondary }}>
+                                  {row.shippingPhone}
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    fontSize: 12,
+                                    color: theme.palette.text.secondary,
+                                    maxWidth: 200,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {row.shippingAddress}
+                                </Typography>
+                              </Box>
                             </Tooltip>
                           </TableCell>
                           <TableCell>

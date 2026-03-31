@@ -25,13 +25,16 @@
       "Bash(grep -l \"Xin chào\\\\|Trân trọng\\\\|Đội ngũ\\\\|tiếng việt\\\\|bạn\\\\|hàng\\\\|ngưng\\\\|chấp thuận\\\\|từ chối\\\\|hoàn tiền\\\\|bảo hành\" *.html)",
       "Bash(grep -rl \"upload\\\\|Upload\\\\|cloudinary\\\\|FormData\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src --include=*.ts --include=*.tsx)",
       "Bash(grep -rn \"license.*image\\\\|licenseImage\\\\|upload.*license\\\\|license.*upload\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java --include=*.java)",
-      "Bash(grep -rn \"upload\\\\|Upload\\\\|MultipartFile\\\\|cloudinary\\\\|storage\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller --include=*.java)"
+      "Bash(grep -rn \"upload\\\\|Upload\\\\|MultipartFile\\\\|cloudinary\\\\|storage\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller --include=*.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -name *Admin*Dashboard* -o -name *dashboard*admin*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src -name *Admin* -o -name *dashboard* -o -name *statistic* -o -name *summary*)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller",
-      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email"
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/impl"
     ]
   }
 }

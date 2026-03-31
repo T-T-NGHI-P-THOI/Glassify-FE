@@ -76,10 +76,10 @@ export const Navbar = () => {
   const displayName = user?.username || '';
 
   const mainCategories = [
-    { label: 'Eyeglasses', path: '/products', category: 'Eyeglasses' },
+    { label: 'Eyeglasses', path: '/products', category: 'Frames' },
     { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
-    { label: 'Lenses', path: '/lens', category: null },
-    { label: 'Sports', path: '/sports', category: null },
+    { label: 'Lenses', path: '/products', category: 'Lenses' },
+    { label: 'Accessories', path: '/products', category: 'Accessories' },
     { label: 'Collabs & Partners', path: '/collabs', category: null },
     { label: '✨ Discover', path: '/discover', special: true, category: null },
     { label: '🏷️ Sale', path: '/sale', special: true, category: null },

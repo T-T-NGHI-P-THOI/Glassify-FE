@@ -7,10 +7,18 @@ import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
 import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
+import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
+import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
-import ProductAPI, { type ApiProduct, type ProductWithFrameInfoData, type ReviewResponse } from '../../api/product-api';
+import ProductAPI, {
+  type ApiProduct,
+  type ApiFrameVariant,
+  type ApiTextureFile,
+  type ProductWithFrameInfoData,
+  type ReviewResponse,
+} from '../../api/product-api';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
@@ -29,13 +37,8 @@ const formatEnumLabel = (value?: string | null): string => {
 };
 
 const getProductImages = (apiProduct: ApiProduct): string[] => {
-  const images = (apiProduct.fileResponses || [])
-    .map(file => file.publicUrl || file.url)
-    .filter((url): url is string => Boolean(url));
-
-  return images.length > 0
-    ? images
-    : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
+  const images = ProductAPI.getImageUrls(apiProduct);
+  return images.length > 0 ? images : ['https://placehold.co/600x400/000000/FFFFFF?text=Front'];
 };
 
 const buildFeatures = (frameInfo?: ProductWithFrameInfoData | null): string[] => {
@@ -69,6 +72,10 @@ const ProductDetailPage: React.FC = () => {
   const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
   const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [preview3DOpen, setPreview3DOpen] = useState(false);
+  const [preview3DVariants, setPreview3DVariants] = useState<Product3DVariantOption[]>([]);
+  const [activePreviewVariantId, setActivePreviewVariantId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const editCartItemId = searchParams.get('editCartItemId');
@@ -108,13 +115,20 @@ const ProductDetailPage: React.FC = () => {
 
         const productResponse = productWithFrameInfo?.productResponse ?? apiProduct;
         const frameGroup = productWithFrameInfo?.frameGroup;
-        const frameVariant = productWithFrameInfo?.frameVariant;
+        const frameVariants = productWithFrameInfo?.frameVariants ?? [];
 
-        const frameWidthMm = frameVariant?.frameWidthMm ?? 0;
-        const bridgeMm = frameVariant?.bridgeWidthMm ?? 0;
-        const lensWidthMm = frameVariant?.lensWidthMm ?? 0;
-        const lensHeightMm = frameVariant?.lensHeightMm ?? 0;
-        const templeLengthMm = frameVariant?.templeLengthMm ?? 0;
+        const selectedFrameVariant =
+          frameVariants.find((variant) => variant.id === productResponse.variantId) ||
+          frameVariants.find((variant) => variant.productId === productResponse.id) ||
+          frameVariants.find((variant) => variant.productResponse?.id === productResponse.id) ||
+          frameVariants[0] ||
+          null;
+
+        const frameWidthMm = selectedFrameVariant?.frameWidthMm ?? 0;
+        const bridgeMm = selectedFrameVariant?.bridgeWidthMm ?? 0;
+        const lensWidthMm = selectedFrameVariant?.lensWidthMm ?? 0;
+        const lensHeightMm = selectedFrameVariant?.lensHeightMm ?? 0;
+        const templeLengthMm = selectedFrameVariant?.templeLengthMm ?? 0;
 
         const productImages = getProductImages(productResponse);
         const primaryImage = productImages[0] || PLACEHOLDER_IMAGE;
@@ -122,13 +136,39 @@ const ProductDetailPage: React.FC = () => {
         const shapeLabel = formatEnumLabel(frameGroup?.frameShape);
         const materialLabel = formatEnumLabel(frameGroup?.frameMaterial);
         const rimLabel = formatEnumLabel(frameGroup?.frameStructure);
-        const sizeLabel = formatEnumLabel(frameVariant?.size);
+        const sizeLabel = formatEnumLabel(selectedFrameVariant?.size);
 
         const sizeRange = frameWidthMm > 0
           ? `${Math.max(frameWidthMm - 3, 0)} - ${frameWidthMm + 3} mm / ${mmToInches(Math.max(frameWidthMm - 3, 0))} - ${mmToInches(frameWidthMm + 3)} in`
           : 'N/A';
 
         const productFeatures = buildFeatures(productWithFrameInfo);
+
+        const variantColorOptions = frameVariants.length > 0
+          ? frameVariants.map((variant) => {
+            const variantProduct = variant.productResponse ?? (variant.id === selectedFrameVariant?.id ? productResponse : undefined);
+            const variantImages = getProductImages(variantProduct ?? productResponse);
+            const variantProductId = variantProduct?.id ?? variant.productId ?? productResponse.id;
+
+            return {
+              name: variant.colorName || 'Default',
+              code: variant.colorHex || '#000000',
+              image: variantImages[0] || primaryImage,
+              images: variantImages,
+              productId: variantProductId,
+              variantId: variant.id || variantProduct?.variantId || variantProductId
+            };
+          })
+          : [
+            {
+              name: selectedFrameVariant?.colorName || 'Default',
+              code: selectedFrameVariant?.colorHex || '#000000',
+              image: primaryImage,
+              images: productImages,
+              productId: productResponse.id,
+              variantId: productResponse.variantId || selectedFrameVariant?.id || productResponse.id
+            }
+          ];
         
         // Transform API product to Product format
         const transformedProduct: Product = {
@@ -144,18 +184,11 @@ const ProductDetailPage: React.FC = () => {
           shape: shapeLabel,
           category: productResponse.categoryName,
           productType: productResponse.productType,
-          variantId: productResponse.variantId ?? frameVariant?.id ?? undefined,
+          variantId: productResponse.variantId ?? selectedFrameVariant?.id ?? undefined,
+          frameGroupId: frameGroup?.id ?? selectedFrameVariant?.frameGroupId ?? undefined,
+          vrEnabled: Boolean(frameGroup?.vrEnabled),
           stockQuantity: productResponse.stockQuantity,
-          colors: [
-            {
-              name: frameVariant?.colorName || 'Default',
-              code: frameVariant?.colorHex || '#000000',
-              image: primaryImage,
-              images: productImages,
-              productId: productResponse.id,
-              variantId: productResponse.variantId || frameVariant?.id || productResponse.id
-            }
-          ],
+          colors: variantColorOptions,
           images: productImages,
           frameMeasurements: {
             frameWidth: { mm: frameWidthMm, inches: mmToInches(frameWidthMm) },
@@ -181,8 +214,7 @@ const ProductDetailPage: React.FC = () => {
             readers: false
           },
           description: productResponse.description ?? frameGroup?.description ?? undefined,
-          features: productFeatures,
-          deliveryDate: 'Fri, Jan 23'
+          features: productFeatures
         };
 
         setProduct(transformedProduct);
@@ -218,9 +250,8 @@ const ProductDetailPage: React.FC = () => {
             rating: p.avgRating || 0,
             reviewCount: p.reviewCount || 0,
             shape: 'Rectangle',
-            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
-            colors: ['#000000'],
-            deliveryDate: 'Fri, Jan 23'
+            image: ProductAPI.getPrimaryImageUrl(p),
+            colors: ['#000000']
           }));
 
         setRecommendedProducts(recommended);
@@ -234,10 +265,95 @@ const ProductDetailPage: React.FC = () => {
     fetchProduct();
   }, [slug, sku]);
 
+  useEffect(() => {
+    const build3DVariants = (
+      textures: ApiTextureFile[],
+      frameVariants: ApiFrameVariant[],
+      currentProduct: Product
+    ): Product3DVariantOption[] => {
+      const normalizeHex = (hex?: string) => (hex ?? '').trim().toLowerCase();
+
+      const textureByHex = new Map<string, ApiTextureFile>();
+      textures.forEach((texture) => {
+        const key = normalizeHex(texture.colorHex);
+        if (key && texture.url) {
+          textureByHex.set(key, texture);
+        }
+      });
+
+      const variantsFromProduct = frameVariants.length > 0
+        ? frameVariants
+        : (currentProduct.colors || []).map((color) => ({
+          id: color.variantId,
+          colorName: color.name,
+          colorHex: color.code,
+          size: undefined,
+        }));
+
+      const mappedFromFrameVariants: Product3DVariantOption[] = variantsFromProduct.reduce<Product3DVariantOption[]>((acc, variant) => {
+        const texture = textureByHex.get(normalizeHex(variant.colorHex));
+        if (!texture?.url) return acc;
+
+        acc.push({
+          id: variant.id,
+          variantId: variant.id,
+          label: `${variant.colorName || 'Variant'}${variant.size ? ` (${variant.size})` : ''}`,
+          colorHex: variant.colorHex || '#666666',
+          textureUrl: texture.url,
+        });
+
+        return acc;
+      }, []);
+
+      if (mappedFromFrameVariants.length > 0) {
+        return mappedFromFrameVariants;
+      }
+
+      return textures.map((texture, index) => ({
+        id: `texture-${index}-${texture.colorHex}`,
+        label: `Variant ${index + 1}`,
+        colorHex: texture.colorHex || '#666666',
+        textureUrl: texture.url,
+      }));
+    };
+
+    const loadPreview3DVariants = async () => {
+      if (!product?.vrEnabled || !product.frameGroupId) {
+        setPreview3DVariants([]);
+        setActivePreviewVariantId(null);
+        return;
+      }
+
+      try {
+        const texturePromise = ProductAPI.getTextureFiles(product.frameGroupId);
+        const productWithFrameInfoPromise = ProductAPI.getProductWithFrameInfo(product.id)
+          .catch(() => null);
+
+        const [textures, productWithFrameInfo] = await Promise.all([texturePromise, productWithFrameInfoPromise]);
+        const variants = build3DVariants(textures, productWithFrameInfo?.frameVariants ?? [], product);
+
+        setPreview3DVariants(variants);
+
+        const normalizeHex = (hex?: string) => (hex ?? '').trim().toLowerCase();
+        const selected =
+          variants.find((variant) => variant.variantId === product.variantId) ||
+          variants.find((variant) => normalizeHex(variant.colorHex) === normalizeHex(product.colors?.[0]?.code)) ||
+          variants[0] ||
+          null;
+
+        setActivePreviewVariantId(selected?.id ?? null);
+      } catch (error) {
+        console.error('Error loading 3D preview variants:', error);
+        setPreview3DVariants([]);
+        setActivePreviewVariantId(null);
+      }
+    };
+
+    loadPreview3DVariants();
+  }, [product]);
+
   const getProductImage = (apiProduct: ApiProduct) => {
-    const imageFile = apiProduct.fileResponses?.find(file => file.publicUrl || file.url);
-    return imageFile?.publicUrl || imageFile?.url ||
-      'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(apiProduct.name);
+    return ProductAPI.getPrimaryImageUrl(apiProduct);
   };
 
   const handleAddAccessoryToCart = async (accessory: ApiProduct) => {
@@ -270,6 +386,7 @@ const ProductDetailPage: React.FC = () => {
     currentAccessoryIndex,
     currentAccessoryIndex + ACCESSORIES_PER_VIEW
   );
+  const hasAccessories = accessories.length > 0;
 
   const handlePrevAccessory = () => {
     setCurrentAccessoryIndex(prev => Math.max(0, prev - 1));
@@ -317,9 +434,35 @@ const ProductDetailPage: React.FC = () => {
     console.log('Added to favorites');
   };
 
-  const handleColorClick = (color: { productId: string; variantId: string }) => {
-    // Navigate with slug and sku
-    navigate(`/product/${product?.slug}/${product?.sku || 'default'}`);
+  const handleOpenTryOn = () => {
+    if (!product?.vrEnabled || !product.frameGroupId) return;
+    setTryOnOpen(true);
+  };
+
+  const handleOpen3DPreview = () => {
+    if (!product?.vrEnabled || !product.frameGroupId) return;
+    console.log('[3D Preview] Open clicked with frameGroupId:', product.frameGroupId);
+    setPreview3DOpen(true);
+  };
+
+  const handleColorClick = async (color: { productId: string; variantId: string }) => {
+    if (!color.productId) return;
+
+    if (color.productId === product?.id) {
+      return;
+    }
+
+    try {
+      const targetProduct = await ProductAPI.getProductById(color.productId);
+      navigate(`/product/${targetProduct.slug}/${targetProduct.sku || 'default'}`);
+    } catch (error) {
+      console.error('Error loading selected variant product:', error);
+      setSnackbar({
+        open: true,
+        message: 'Unable to load selected variant. Please try again.',
+        severity: 'error',
+      });
+    }
   };
 
   const handleAddToCart = async (frameOnly: boolean) => {
@@ -433,40 +576,99 @@ const ProductDetailPage: React.FC = () => {
         <span>{product.name} - SKU: {sku}</span>
       </nav>
 
-      <div className="product-main">
-        <div className="product-preview-column">
-          <ImageGallery 
-            images={product.images} 
-            productName={product.name}
-          />
-          {product.colors && product.colors.length > 0 && (
-            <div className="color-variants-section">
-              <div className="color-variants">
-                {product.colors.map((color, index) => (
-                  <button
-                    key={index}
-                    className={`color-variant-btn ${color.variantId === product.id ? 'active' : ''}`}
-                    onClick={() => handleColorClick(color)}
-                    title={color.name}
-                  >
-                    <img src={color.image || product.images[0]} alt={color.name} />
-                    <span className="variant-label">{color.name}</span>
-                  </button>
-                ))}
+      <div className="product-content">
+        <div className="product-left-column">
+          <div className="product-preview-column">
+            <ImageGallery 
+              images={product.images} 
+              productName={product.name}
+              onTryOn={handleOpenTryOn}
+              showTryOn={Boolean(product.vrEnabled && product.frameGroupId)}
+              showPreview3D={Boolean(product.vrEnabled && product.frameGroupId)}
+              onPreview3D={handleOpen3DPreview}
+            />
+            {product.shop && (
+              <div className="product-shop-extended">
+                <ShopInfo shop={product.shop} />
               </div>
+            )}
+          </div>
+
+          {hasAccessories && (
+            <div className="product-details-column">
+              <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
             </div>
           )}
-          {product.shop && <ShopInfo shop={product.shop} />}
         </div>
-        <div className="product-info-column">
-          <ProductInfo
-            product={product}
-            onAddToFavorites={handleAddToFavorites}
-            onAddToCart={handleAddToCart}
-            isEditMode={isEditMode}
-          />
+
+        <div className="product-right-column">
+          <div className="product-info-column">
+            <ProductInfo
+              product={product}
+              onColorSelect={handleColorClick}
+              activeVariantId={product.variantId}
+              onAddToFavorites={handleAddToFavorites}
+              onAddToCart={handleAddToCart}
+              isEditMode={isEditMode}
+            />
+          </div>
+
+          {hasAccessories && (
+            <aside className="product-accessories-column">
+              <div className="accessories-sidebar">
+                <div className="accessories-sidebar-header">
+                  <h3>Accessories</h3>
+                  {accessories.length > ACCESSORIES_PER_VIEW && (
+                    <div className="accessories-nav">
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handlePrevAccessory}
+                        disabled={currentAccessoryIndex === 0}
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        className="accessories-nav-btn"
+                        onClick={handleNextAccessory}
+                        disabled={currentAccessoryIndex >= maxAccessoryIndex}
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="accessories-sidebar-list">
+                  {visibleAccessories.map((accessory) => (
+                    <div key={accessory.id} className="accessories-sidebar-item">
+                      <img src={getProductImage(accessory)} alt={accessory.name} />
+                      <div className="accessories-sidebar-item-info">
+                        <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
+                        <h4>{accessory.name}</h4>
+                        <p className="accessory-sku">SKU: {accessory.sku}</p>
+                        <button
+                          className="add-to-cart-btn"
+                          onClick={() => handleAddAccessoryToCart(accessory)}
+                        >
+                          Add to cart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
+
+      {!hasAccessories && (
+        <div className="product-details-fullwidth">
+          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+        </div>
+      )}
 
       <LensSelectionDialog
         open={lensDialogOpen}
@@ -484,60 +686,31 @@ const ProductDetailPage: React.FC = () => {
         initialSelection={editLensSelection}
       />
 
-      <div className="product-secondary">
-        <div className="product-details-column">
-          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
-        </div>
+      {product.vrEnabled && product.frameGroupId && (
+        <GlassesTryOnPopup
+          frameGroupId={product.frameGroupId}
+          open={tryOnOpen}
+          onClose={() => setTryOnOpen(false)}
+          onAddToCart={(lensId, textureId) => {
+            setSnackbar({
+              open: true,
+              message: `Try-on selected lens ${lensId ?? 'N/A'} with texture ${textureId ?? 'N/A'}`,
+              severity: 'success',
+            });
+          }}
+        />
+      )}
 
-        {accessories.length > 0 && (
-          <aside className="product-accessories-column">
-            <div className="accessories-sidebar">
-              <div className="accessories-sidebar-header">
-                <h3>Accessories</h3>
-                {accessories.length > ACCESSORIES_PER_VIEW && (
-                  <div className="accessories-nav">
-                    <button
-                      type="button"
-                      className="accessories-nav-btn"
-                      onClick={handlePrevAccessory}
-                      disabled={currentAccessoryIndex === 0}
-                    >
-                      ‹
-                    </button>
-                    <button
-                      type="button"
-                      className="accessories-nav-btn"
-                      onClick={handleNextAccessory}
-                      disabled={currentAccessoryIndex >= maxAccessoryIndex}
-                    >
-                      ›
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="accessories-sidebar-list">
-                {visibleAccessories.map((accessory) => (
-                  <div key={accessory.id} className="accessories-sidebar-item">
-                    <img src={getProductImage(accessory)} alt={accessory.name} />
-                    <div className="accessories-sidebar-item-info">
-                      <p className="accessory-price">{formatCurrency(accessory.basePrice)}</p>
-                      <h4>{accessory.name}</h4>
-                      <p className="accessory-sku">SKU: {accessory.sku}</p>
-                      <button
-                        className="add-to-cart-btn"
-                        onClick={() => handleAddAccessoryToCart(accessory)}
-                      >
-                        Add to cart
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        )}
-      </div>
+      {product.vrEnabled && product.frameGroupId && (
+        <Product3DPreviewDialog
+          open={preview3DOpen}
+          onClose={() => setPreview3DOpen(false)}
+          frameGroupId={product.frameGroupId}
+          variants={preview3DVariants}
+          activeVariantId={activePreviewVariantId}
+          onChangeVariant={setActivePreviewVariantId}
+        />
+      )}
 
       <RecommendedProducts products={recommendedProducts} />
 

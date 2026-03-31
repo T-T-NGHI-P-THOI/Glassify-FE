@@ -22,6 +22,8 @@ export interface Product {
   category: string;
   productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
   variantId?: string;
+  frameGroupId?: string;
+  vrEnabled?: boolean;
   shopId?: string;
   stockQuantity?: number;
   shop?: ShopInfo;

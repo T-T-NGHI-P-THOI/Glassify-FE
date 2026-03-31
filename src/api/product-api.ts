@@ -1,7 +1,6 @@
-import api from './axios.config';
+import api, { API_CONFIG } from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { Review } from '../types/product';
-import type { CreateFrameFormData } from '@/pages/Product/Frame/Create/CreateFrameGroupPage';
 import axiosInstance from './axios.config';
 
 // Category type from API
@@ -22,8 +21,8 @@ export interface ApiCategory {
 export interface ProductApiResponse {
   status: number;
   message: string;
-  data: ApiProduct[];
-  errors: null | string;
+  data: ApiProduct[] | ApiProduct;
+  errors: null | string | string[];
 }
 
 // Shop info from API
@@ -84,11 +83,22 @@ export interface ApiProduct {
   updatedAt: string;
   fileResponses?: {
     id: string;
+    storedName?: string;
+    mimeType?: string;
+    fileSize?: number;
+    storageProvider?: string;
+    filePath?: string | null;
     url?: string;
     publicUrl?: string;
+    isPrimary?: boolean | null;
+    productId?: string;
+    createdBy?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     altText?: string;
     originalName?: string;
   }[];
+  productImages?: string[];
 }
 
 export interface ApiFrameGroup {
@@ -97,6 +107,7 @@ export interface ApiFrameGroup {
   frameShape?: string;
   frameStructure?: string;
   frameMaterial?: string;
+  vrEnabled?: boolean;
   hasNosePads?: boolean;
   hasSpringHinge?: boolean;
   genderTarget?: string;
@@ -116,12 +127,36 @@ export interface ApiFrameVariant {
   lensHeightMm?: number;
   bridgeWidthMm?: number;
   templeLengthMm?: number;
+  textureFile?: string;
+  productId?: string;
+  productResponse?: ApiProduct;
 }
 
 export interface ProductWithFrameInfoData {
   productResponse: ApiProduct;
   frameGroup: ApiFrameGroup | null;
-  frameVariant: ApiFrameVariant | null;
+  frameVariants: ApiFrameVariant[];
+  frameVariant?: ApiFrameVariant | null;
+}
+
+export interface ApiTextureFile {
+  colorHex: string;
+  url: string;
+}
+
+export interface ApiShopFrameVariant {
+  id: string;
+  frameGroupId: string;
+  colorName: string;
+  colorHex: string;
+  size: string;
+  productId: string | null;
+}
+
+export interface ApiShopFrameGroup {
+  id: string;
+  frameName: string;
+  frameVariantResponses: ApiShopFrameVariant[];
 }
 
 // Product filter parameters
@@ -173,29 +208,100 @@ export interface ReviewResponse {
 
 export default class ProductAPI {
 
-  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
-    if (Array.isArray(payload)) {
-      return payload as ApiProduct[];
+  static getImageUrls(product?: {
+    productImages?: string[];
+    fileResponses?: Array<{ publicUrl?: string; url?: string; isPrimary?: boolean | null }> | null;
+  } | null): string[] {
+    if (!product) return [];
+
+    const productImages = (product.productImages || [])
+      .map((url) => (typeof url === 'string' ? url.trim() : ''))
+      .filter((url): url is string => Boolean(url));
+
+    if (productImages.length > 0) {
+      return productImages;
     }
-    if (payload && typeof payload === 'object') {
+
+    const fileResponses = [...(product.fileResponses || [])].sort((a, b) => {
+      if (a?.isPrimary === true && b?.isPrimary !== true) return -1;
+      if (b?.isPrimary === true && a?.isPrimary !== true) return 1;
+      return 0;
+    });
+
+    return fileResponses
+      .map((file) => (file?.publicUrl || file?.url || '').trim())
+      .filter((url): url is string => Boolean(url));
+  }
+
+  static getPrimaryImageUrl(
+    product?: {
+      name?: string;
+      productImages?: string[];
+      fileResponses?: Array<{ publicUrl?: string; url?: string; isPrimary?: boolean | null }> | null;
+    } | null,
+    fallback?: string
+  ): string {
+    const first = ProductAPI.getImageUrls(product)[0];
+    if (first) return first;
+
+    if (fallback) return fallback;
+
+    const name = product?.name || 'Product';
+    return `https://placehold.co/300x200/000000/FFFFFF?text=${encodeURIComponent(name)}`;
+  }
+
+  private static unwrapApiData<T>(payload: unknown): T | null {
+    if (!payload) return null;
+
+    if (typeof payload === 'object') {
       const maybeWrapped = payload as { data?: unknown };
-      if (Array.isArray(maybeWrapped.data)) {
-        return maybeWrapped.data as ApiProduct[];
+      if (maybeWrapped.data !== undefined) {
+        return maybeWrapped.data as T;
       }
-      if (maybeWrapped.data && typeof maybeWrapped.data === 'object') {
-        return [maybeWrapped.data as ApiProduct];
-      }
-      return [payload as ApiProduct];
     }
+
+    return payload as T;
+  }
+
+  private static normalizeProductsPayload(payload: unknown): ApiProduct[] {
+    const unwrapped = ProductAPI.unwrapApiData<unknown>(payload);
+    if (Array.isArray(unwrapped)) return unwrapped as ApiProduct[];
+    if (unwrapped && typeof unwrapped === 'object') return [unwrapped as ApiProduct];
     return [];
+  }
+
+  private static normalizeSingleProductPayload(payload: unknown): ApiProduct {
+    const products = ProductAPI.normalizeProductsPayload(payload);
+    if (products.length === 0) {
+      throw new Error('Invalid product payload');
+    }
+    return products[0];
+  }
+
+  private static normalizeProductWithFrameInfoPayload(payload: unknown): ProductWithFrameInfoData {
+    const data = ProductAPI.unwrapApiData<Partial<ProductWithFrameInfoData> & { frameVariant?: ApiFrameVariant | null }>(payload);
+    if (!data?.productResponse) {
+      throw new Error('Invalid product with frame info payload');
+    }
+
+    const frameVariants = Array.isArray(data.frameVariants)
+      ? data.frameVariants
+      : (data.frameVariant ? [data.frameVariant] : []);
+
+    return {
+      productResponse: data.productResponse,
+      frameGroup: data.frameGroup ?? null,
+      frameVariants,
+      frameVariant: data.frameVariant ?? null,
+    };
   }
 
   static async getAllProducts(filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
-      const response = await api.get<ProductApiResponse>(API_ENDPOINTS.PRODUCTS.GET_ALL, {
+      const response = await api.get(API_ENDPOINTS.PRODUCTS.GET_ALL, {
         params: filters
       });
-      return response.data.data;
+      return ProductAPI.normalizeProductsPayload(response.data);
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
@@ -217,10 +323,10 @@ export default class ProductAPI {
 
   static async getProductById(id: string): Promise<ApiProduct> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiProduct }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_ID(id)
       );
-      return response.data.data;
+      return ProductAPI.normalizeSingleProductPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product ${id}:`, error);
       throw error;
@@ -229,10 +335,10 @@ export default class ProductAPI {
 
   static async getProductBySlug(slug: string): Promise<ApiProduct> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiProduct }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_SLUG(slug)
       );
-      return response.data.data;
+      return ProductAPI.normalizeSingleProductPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product with slug ${slug}:`, error);
       throw error;
@@ -241,10 +347,10 @@ export default class ProductAPI {
 
   static async getProductWithFrameInfo(id: string): Promise<ProductWithFrameInfoData> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ProductWithFrameInfoData }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_WITH_FRAME_INFO(id)
       );
-      return response.data.data;
+      return ProductAPI.normalizeProductWithFrameInfoPayload(response.data);
     } catch (error) {
       console.error(`Error fetching product with frame info ${id}:`, error);
       throw error;
@@ -253,13 +359,13 @@ export default class ProductAPI {
 
   static async getProductsByShopId(shopId: string, filters?: ProductFilterParams): Promise<ApiProduct[]> {
     try {
-      const response = await api.get<ProductApiResponse>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_BY_SHOP_ID(shopId),
         {
           params: filters
         }
       );
-      return response.data.data;
+      return ProductAPI.normalizeProductsPayload(response.data);
     } catch (error) {
       console.error(`Error fetching products for shop ${shopId}:`, error);
       throw error;
@@ -268,13 +374,17 @@ export default class ProductAPI {
 
   static async getProductReviews(productId: string, filters?: ReviewFilterParams): Promise<ReviewResponse> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ReviewResponse }>(
+      const response = await api.get(
         API_ENDPOINTS.PRODUCTS.GET_REVIEWS(productId),
         {
           params: filters
         }
       );
-      return response.data.data;
+      const data = ProductAPI.unwrapApiData<ReviewResponse>(response.data);
+      if (!data) {
+        throw new Error('Invalid product reviews payload');
+      }
+      return data;
     } catch (error) {
       console.error(`Error fetching reviews for product ${productId}:`, error);
       // Return empty response structure on error
@@ -290,10 +400,11 @@ export default class ProductAPI {
 
   static async getCategories(): Promise<ApiCategory[]> {
     try {
-      const response = await api.get<{ status: number; message: string; data: ApiCategory[] }>(
+      const response = await api.get(
         API_ENDPOINTS.CATEGORIES.GET_ALL
       );
-      return response.data.data;
+      const data = ProductAPI.unwrapApiData<ApiCategory[]>(response.data);
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Error fetching categories:', error);
       return [];
@@ -301,11 +412,11 @@ export default class ProductAPI {
   }
 
   // ── Frame API ───────────────────────────────────────────────────
- static async getFrameGroupFromShopId(shopId: string) {
+  static async getFrameGroupFromShopId(shopId: string): Promise<ApiShopFrameGroup[]> {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_SHOP_FRAME(shopId)
     );
-    return response.data.data;
+    return response.data.data as ApiShopFrameGroup[];
   }
 
   static async createFrameGroup(body: FormData) {
@@ -361,10 +472,43 @@ export default class ProductAPI {
     return response.data.data;
   }
 
-  static async getTextureFiles(frameGroupId: string) {
+  static async getModel3D(frameGroupId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_MODEL_3D,
+      {
+        params: { frameGroupId },
+        responseType: 'blob',
+      }
+    );
+
+    return response;
+  }
+
+  static async getFrameGroupModel3D(frameGroupId: string): Promise<Blob> {
+    const modelUrl = `${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${encodeURIComponent(frameGroupId)}`;
+    const response = await axiosInstance.get(modelUrl, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
+
+  static async getTextureFiles(frameGroupId: string): Promise<ApiTextureFile[]> {
     const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
       params: { frameGroupId }
     });
+    return response.data.data as ApiTextureFile[];
+  }
+
+  static async updateFrameGroup(id: string, body: FormData) {
+    const response = await axiosInstance.put(
+      API_ENDPOINTS.PRODUCTS.UPDATE_FRAME_GROUP(id),
+      body,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data.data;
   }
 }
