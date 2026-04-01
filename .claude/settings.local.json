@@ -27,7 +27,11 @@
       "Bash(grep -rn \"license.*image\\\\|licenseImage\\\\|upload.*license\\\\|license.*upload\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java --include=*.java)",
       "Bash(grep -rn \"upload\\\\|Upload\\\\|MultipartFile\\\\|cloudinary\\\\|storage\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller --include=*.java)",
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -name *Admin*Dashboard* -o -name *dashboard*admin*)",
-      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src -name *Admin* -o -name *dashboard* -o -name *statistic* -o -name *summary*)"
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src -name *Admin* -o -name *dashboard* -o -name *statistic* -o -name *summary*)",
+      "Bash(grep -r \"approveRefund\\\\|rejectRefund\\\\|cancelRefund\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"review\\\\|approve\\\\|reject\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Admin/AdminRefundsPage.tsx --include=*.tsx -A 5 -B 5)",
+      "Bash(grep -r \"status\\\\|Status\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Shipping/DeliveryPage/ShippingPage.tsx --include=*.tsx -A 3 -B 3)",
+      "Bash(grep -r \"GHN\\\\|ghn\\\\|Giao Hàng Nhanh\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Order/MyOrdersPage.tsx --include=*.tsx -A 3 -B 3)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",

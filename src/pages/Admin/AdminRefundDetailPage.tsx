@@ -2,7 +2,7 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Grid,
+  Divider,
   IconButton,
   Paper,
   Stack,
@@ -49,11 +49,17 @@ const formatDate = (v?: string) => {
   return new Date(v).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
+const SectionLabel = ({ children }: { children: string }) => (
+  <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.disabled', mb: 1.5 }}>
+    {children}
+  </Typography>
+);
+
+const FieldRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
   const theme = useTheme();
   return (
-    <Box sx={{ display: 'flex', py: 1, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
-      <Typography sx={{ width: 200, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', py: 0.6, gap: 2 }}>
+      <Typography sx={{ width: 160, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
       <Box sx={{ flex: 1, fontSize: 13, color: theme.palette.custom.neutral[800] }}>{value}</Box>
     </Box>
   );
@@ -112,58 +118,49 @@ const AdminRefundDetailPage = () => {
               </Stack>
             </Box>
 
-            <Grid container spacing={3} alignItems="stretch">
-              {/* Product info */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Product</Typography>
+            {/* Main detail block */}
+            <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+              {/* Row 1: Product | Request Details */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Product</SectionLabel>
                   {refund.productImageUrl && (
-                    <Box component="img" src={refund.productImageUrl} sx={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 1, mb: 1.5 }} />
+                    <Box component="img" src={refund.productImageUrl} sx={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 1, mb: 1.5 }} />
                   )}
-                  <InfoRow label="Product name" value={refund.productName} />
-                  <InfoRow label="SKU" value={refund.productSku} />
-                  <InfoRow label="Shop" value={refund.shopName} />
-                  <InfoRow label="Order number" value={`#${refund.orderNumber}`} />
-                </Paper>
-              </Grid>
+                  <FieldRow label="Product name" value={refund.productName} />
+                  <FieldRow label="SKU" value={refund.productSku} />
+                  <FieldRow label="Shop" value={refund.shopName} />
+                  <FieldRow label="Order number" value={`#${refund.orderNumber}`} />
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Request Details</SectionLabel>
+                  <FieldRow label="Return type" value={<Chip size="small" label={RETURN_TYPE_LABEL[refund.returnType] ?? refund.returnType} variant="outlined" />} />
+                  <FieldRow label="Reason" value={RETURN_REASON_LABEL[refund.reason] ?? refund.reason} />
+                  <FieldRow label="Refund amount" value={<Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.primary.main }}>{formatCurrency(refund.refundAmount)}</Typography>} />
+                  {refund.reasonDetail && <FieldRow label="Detail" value={refund.reasonDetail} />}
+                </Box>
+              </Box>
 
-              {/* Request info */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Request Details</Typography>
-                  <InfoRow label="Return type" value={<Chip size="small" label={RETURN_TYPE_LABEL[refund.returnType] ?? refund.returnType} variant="outlined" />} />
-                  <InfoRow label="Reason" value={RETURN_REASON_LABEL[refund.reason] ?? refund.reason} />
-                  <InfoRow label="Refund amount" value={<Typography sx={{ fontWeight: 600, color: theme.palette.primary.main }}>{formatCurrency(refund.refundAmount)}</Typography>} />
-                  {refund.reasonDetail && <InfoRow label="Detail" value={refund.reasonDetail} />}
-                </Paper>
-              </Grid>
+              <Divider />
 
-              {/* Resolution */}
-              <Grid item xs={12}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Resolution</Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <InfoRow label="Status" value={<Chip size="small" label={REFUND_STATUS_LABEL[refund.status] ?? refund.status} color={statusColor(refund.status)} />} />
-                      <InfoRow label="Approved at" value={formatDate(refund.approvedAt)} />
-                      <InfoRow label="Completed at" value={formatDate(refund.completedAt)} />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <InfoRow label="Rejected at" value={formatDate(refund.rejectedAt)} />
-                      {refund.rejectionReason && <InfoRow label="Rejection reason" value={refund.rejectionReason} />}
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-            </Grid>
-
-            {/* Timeline — full width, outside Grid */}
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-              <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Timeline</Typography>
-              <InfoRow label="Requested at" value={formatDate(refund.requestedAt)} />
-              <InfoRow label="Approved at" value={formatDate(refund.approvedAt)} />
-              <InfoRow label="Rejected at" value={formatDate(refund.rejectedAt)} />
-              <InfoRow label="Completed at" value={formatDate(refund.completedAt)} />
+              {/* Row 2: Resolution | Timeline */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Resolution</SectionLabel>
+                  <FieldRow label="Status" value={<Chip size="small" label={REFUND_STATUS_LABEL[refund.status] ?? refund.status} color={statusColor(refund.status)} />} />
+                  <FieldRow label="Approved at" value={formatDate(refund.approvedAt)} />
+                  <FieldRow label="Completed at" value={formatDate(refund.completedAt)} />
+                  <FieldRow label="Rejected at" value={formatDate(refund.rejectedAt)} />
+                  {refund.rejectionReason && <FieldRow label="Rejection reason" value={<Typography sx={{ fontSize: 13, color: 'error.main' }}>{refund.rejectionReason}</Typography>} />}
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Timeline</SectionLabel>
+                  <FieldRow label="Requested at" value={formatDate(refund.requestedAt)} />
+                  <FieldRow label="Approved at" value={formatDate(refund.approvedAt)} />
+                  <FieldRow label="Rejected at" value={formatDate(refund.rejectedAt)} />
+                  <FieldRow label="Completed at" value={formatDate(refund.completedAt)} />
+                </Box>
+              </Box>
             </Paper>
           </Stack>
         )}
