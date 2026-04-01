@@ -71,6 +71,7 @@ import {
   ITEM_CONDITION_LABELS,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 type BuyerInfo = {
   name: string;
@@ -152,7 +153,7 @@ const SellerRefundDetailPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch request detail:', error);
-      toast.error(error.response?.data?.message || 'Unable to load return request information');
+      toast.error(getApiErrorMessage(error, 'Unable to load return request information'));
       navigate('/shop/refunds');
     } finally {
       setLoading(false);
@@ -238,7 +239,7 @@ const SellerRefundDetailPage = () => {
       await fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to review request:', error);
-      toast.error(error.response?.data?.message || 'Unable to process request');
+      toast.error(getApiErrorMessage(error, 'Unable to process request'));
     } finally {
       setSubmitting(false);
     }
@@ -284,7 +285,7 @@ const SellerRefundDetailPage = () => {
       handleCloseConfirmDialog();
     } catch (error: any) {
       console.error('Failed to confirm received:', error);
-      toast.error(error.response?.data?.message || 'Unable to confirm item receipt');
+      toast.error(getApiErrorMessage(error, 'Unable to confirm item receipt'));
     } finally {
       setSubmitting(false);
     }
@@ -325,7 +326,7 @@ const SellerRefundDetailPage = () => {
       await fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to process refund:', error);
-      toast.error(error.response?.data?.message || 'Unable to process refund');
+      toast.error(getApiErrorMessage(error, 'Unable to process refund'));
     } finally {
       setSubmitting(false);
     }

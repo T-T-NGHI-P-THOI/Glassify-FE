@@ -41,6 +41,7 @@ import {
   RETURN_REASON_LABELS,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 // Status icon mapping
 const getStatusIcon = (status: ReturnStatus) => {
@@ -124,7 +125,7 @@ const SellerRefundListPage = () => {
       });
     } catch (error: any) {
       console.error('Failed to fetch return requests:', error);
-      toast.error(error.response?.data?.message || 'Failed to load refund requests');
+      toast.error(getApiErrorMessage(error, 'Failed to load refund requests'));
     } finally {
       setLoading(false);
     }

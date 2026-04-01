@@ -52,6 +52,7 @@ import {
   RETURN_REASON_LABELS,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 interface OrderItem {
   id: string;
@@ -177,7 +178,7 @@ const BuyerCreateRefundPage = () => {
       navigate(`/user/refunds/${response.data?.id || ''}`);
     } catch (error: any) {
       console.error('Failed to create return request:', error);
-      toast.error(error.response?.data?.message || 'Unable to create return request');
+      toast.error(getApiErrorMessage(error, 'Unable to create return request'));
     } finally {
       setLoading(false);
     }

@@ -54,6 +54,7 @@ import {
   RETURN_REASON_LABELS,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 type RefundStep = {
   label: string;
@@ -113,7 +114,7 @@ const BuyerRefundDetailPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch return request detail:', error);
-      toast.error(error.response?.data?.message || 'Unable to load request details');
+      toast.error(getApiErrorMessage(error, 'Unable to load request details'));
     } finally {
       setLoading(false);
     }
@@ -141,7 +142,7 @@ const BuyerRefundDetailPage = () => {
       fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to update tracking:', error);
-      toast.error(error.response?.data?.message || 'Unable to update tracking number');
+      toast.error(getApiErrorMessage(error, 'Unable to update tracking number'));
     } finally {
       setSubmitting(false);
     }
@@ -158,7 +159,7 @@ const BuyerRefundDetailPage = () => {
       fetchRequestDetail();
     } catch (error: any) {
       console.error('Failed to cancel request:', error);
-      toast.error(error.response?.data?.message || 'Unable to cancel request');
+      toast.error(getApiErrorMessage(error, 'Unable to cancel request'));
     } finally {
       setSubmitting(false);
     }
