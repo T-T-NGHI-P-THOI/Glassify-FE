@@ -13,6 +13,7 @@ import type {
 } from "@/models/User.ts";
 import axiosInstance, { TokenManager } from "@/api/axios.config.ts";
 import type { ApiResponse } from "@/models/ApiResponse.ts";
+import { API_ENDPOINTS } from "../endpoints";
 
 /**
  * Base URL cho user endpoints
@@ -221,6 +222,15 @@ export const userApi = {
         });
         return response.data;
     },
+
+    // ==================== USER RECOMMENDATION ====================
+    createRecommendation: async (body: FormData): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.post(
+            API_ENDPOINTS.USER_RECOMMENDATION.CREATE,
+            body,
+        );
+        return response.data.data;
+    }
 };
 
 export default userApi;

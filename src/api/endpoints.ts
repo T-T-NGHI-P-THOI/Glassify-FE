@@ -39,7 +39,7 @@ export const API_ENDPOINTS = {
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
-    GET_TEXTURE_FILES:  `${API_ENDPOINT}/product/frame-group/texture-files`,
+    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
@@ -163,7 +163,11 @@ export const API_ENDPOINTS = {
       SET_ROLES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/roles`,
       SET_STATUS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/status`,
     },
+
   },
+  USER_RECOMMENDATION: {
+    CREATE: `${API_BASE}/users/recommendation`
+  }
 } as const;
 
 

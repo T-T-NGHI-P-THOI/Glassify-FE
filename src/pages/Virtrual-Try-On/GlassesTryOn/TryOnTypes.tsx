@@ -1,6 +1,6 @@
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
-export type DrawerType = "lens" | "rec" | null;
+export type DrawerType = "lens" | "rec" | "save_rec"| null;
 
 // export interface TextureVariant {
 //     id: string;
