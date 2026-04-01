@@ -1,5 +1,4 @@
 import {
-  Alert,
   Box,
   Chip,
   CircularProgress,
@@ -7,7 +6,7 @@ import {
   MenuItem,
   Paper,
   Select,
-  Stack,
+
   Table,
   TableBody,
   TableCell,
@@ -185,14 +184,14 @@ const AdminOrdersPage = () => {
                           <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(order.totalAmount)}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Stack spacing={0.5}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                             <Chip
                               size="small"
                               label={order.paymentStatus}
                               color={order.paymentStatus === 'PAID' ? 'success' : order.paymentStatus === 'PENDING' ? 'warning' : 'default'}
                             />
                             <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>{order.paymentMethod}</Typography>
-                          </Stack>
+                          </Box>
                         </TableCell>
                         <TableCell>
                           <Chip

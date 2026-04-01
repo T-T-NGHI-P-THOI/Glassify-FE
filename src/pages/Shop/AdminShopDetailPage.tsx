@@ -68,6 +68,7 @@ import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { ghnApi } from '@/api/ghnApi';
 
 
 const AdminShopDetailPage = () => {
@@ -79,6 +80,7 @@ const AdminShopDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [ghnNames, setGhnNames] = useState<{ provinceName: string; districtName: string; wardName: string } | null>(null);
 
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'deactivate' | 'close'>('deactivate');
@@ -115,6 +117,30 @@ const AdminShopDetailPage = () => {
   useEffect(() => {
     void fetchShop();
   }, [fetchShop]);
+
+  useEffect(() => {
+    if (!shop?.ghnProvinceId || !shop?.ghnDistrictId || !shop?.ghnWardCode) return;
+    const resolveGhnNames = async () => {
+      try {
+        const [provincesRes, districtsRes, wardsRes] = await Promise.all([
+          ghnApi.getProvinces(),
+          ghnApi.getDistricts(shop.ghnProvinceId),
+          ghnApi.getWards(shop.ghnDistrictId),
+        ]);
+        const province = (provincesRes.data ?? []).find((p) => p.ProvinceID === shop.ghnProvinceId);
+        const district = (districtsRes.data ?? []).find((d) => d.DistrictID === shop.ghnDistrictId);
+        const ward = (wardsRes.data ?? []).find((w) => w.WardCode === shop.ghnWardCode);
+        setGhnNames({
+          provinceName: province?.ProvinceName ?? '—',
+          districtName: district?.DistrictName ?? '—',
+          wardName: ward?.WardName ?? '—',
+        });
+      } catch {
+        // silently ignore
+      }
+    };
+    void resolveGhnNames();
+  }, [shop?.ghnProvinceId, shop?.ghnDistrictId, shop?.ghnWardCode]);
 
   const fetchProducts = useCallback(async (shopId: string) => {
     try {
@@ -531,9 +557,9 @@ const AdminShopDetailPage = () => {
                     <SectionHeader icon={<LocalShipping />} title="GHN Shipping" />
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                       <CompactInfoCell label="GHN Shop ID" value={shop.ghnShopId ? String(shop.ghnShopId) : '—'} />
-                      <CompactInfoCell label="Province" value={shop.provinceName || '—'} />
-                      <CompactInfoCell label="District" value={shop.districtName || '—'} />
-                      <CompactInfoCell label="Ward" value={shop.wardName || '—'} />
+                      <CompactInfoCell label="Province" value={ghnNames?.provinceName ?? '—'} />
+                      <CompactInfoCell label="District" value={ghnNames?.districtName ?? '—'} />
+                      <CompactInfoCell label="Ward" value={ghnNames?.wardName ?? '—'} />
                     </Box>
                   </Paper>
 

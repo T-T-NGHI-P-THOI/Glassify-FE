@@ -3,7 +3,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Grid,
   IconButton,
   Paper,
   Stack,
@@ -50,11 +49,17 @@ const formatDate = (v?: string) => {
   return new Date(v).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
+const SectionLabel = ({ children, color }: { children: string; color?: string }) => (
+  <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: color ?? 'text.disabled', mb: 1.5 }}>
+    {children}
+  </Typography>
+);
+
+const FieldRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
   const theme = useTheme();
   return (
-    <Box sx={{ display: 'flex', py: 1, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
-      <Typography sx={{ width: 180, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', py: 0.6, gap: 2 }}>
+      <Typography sx={{ width: 150, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
       <Box sx={{ flex: 1, fontSize: 13, color: theme.palette.custom.neutral[800] }}>{value}</Box>
     </Box>
   );
@@ -113,70 +118,84 @@ const AdminOrderDetailPage = () => {
               </Stack>
             </Box>
 
-            <Grid container spacing={3} alignItems="stretch">
-              {/* Customer info */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Customer</Typography>
-                  <InfoRow label="Full name" value={order.customerFullName || '—'} />
-                  <InfoRow label="Email" value={order.customerEmail || '—'} />
-                </Paper>
-              </Grid>
+            {/* Main detail block — one paper, sections divided by Divider */}
+            <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+              {/* Row 1: Customer | Delivery */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Customer</SectionLabel>
+                  <FieldRow label="Full name" value={order.customerFullName || '—'} />
+                  <FieldRow label="Email" value={order.customerEmail || '—'} />
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Delivery Address</SectionLabel>
+                  <FieldRow label="Recipient" value={order.shippingName || '—'} />
+                  <FieldRow label="Phone" value={order.shippingPhone || '—'} />
+                  <FieldRow label="Address" value={[order.shippingAddress, order.shippingCity].filter(Boolean).join(', ') || '—'} />
+                  {order.trackingNumber && <FieldRow label="Tracking number" value={order.trackingNumber} />}
+                </Box>
+              </Box>
 
-              {/* Delivery info */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Delivery Address</Typography>
-                  <InfoRow label="Recipient" value={order.shippingName || '—'} />
-                  <InfoRow label="Phone" value={order.shippingPhone || '—'} />
-                  <InfoRow label="Address" value={[order.shippingAddress, order.shippingCity].filter(Boolean).join(', ') || '—'} />
-                  {order.trackingNumber && <InfoRow label="Tracking number" value={order.trackingNumber} />}
-                </Paper>
-              </Grid>
+              <Divider />
 
-              {/* Payment info */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Payment</Typography>
-                  <InfoRow label="Method" value={order.paymentMethod || '—'} />
-                  <InfoRow label="Status" value={<Chip size="small" label={order.paymentStatus} color={paymentStatusColor(order.paymentStatus)} />} />
-                  <InfoRow label="Paid at" value={formatDate(order.paidAt)} />
-                </Paper>
-              </Grid>
-
-              {/* Pricing */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Pricing</Typography>
-                  <InfoRow label="Subtotal" value={formatCurrency(order.subtotal)} />
-                  <InfoRow label="Shipping fee" value={formatCurrency(order.shippingFee)} />
-                  <InfoRow label="Discount" value={order.discountAmount > 0 ? `- ${formatCurrency(order.discountAmount)}` : '—'} />
+              {/* Row 2: Payment | Pricing */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Payment</SectionLabel>
+                  <FieldRow label="Method" value={order.paymentMethod || '—'} />
+                  <FieldRow label="Status" value={<Chip size="small" label={order.paymentStatus} color={paymentStatusColor(order.paymentStatus)} />} />
+                  <FieldRow label="Paid at" value={formatDate(order.paidAt)} />
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Pricing</SectionLabel>
+                  <FieldRow label="Subtotal" value={formatCurrency(order.subtotal)} />
+                  <FieldRow label="Shipping fee" value={formatCurrency(order.shippingFee)} />
+                  <FieldRow label="Discount" value={order.discountAmount > 0 ? `- ${formatCurrency(order.discountAmount)}` : '—'} />
                   <Divider sx={{ my: 1 }} />
-                  <Box sx={{ display: 'flex', py: 1 }}>
-                    <Typography sx={{ width: 180, fontSize: 14, fontWeight: 700, flexShrink: 0 }}>Total</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.primary.main }}>{formatCurrency(order.totalAmount)}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', py: 0.6, gap: 2 }}>
+                    <Typography sx={{ width: 150, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Total</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.primary.main }}>{formatCurrency(order.totalAmount)}</Typography>
                   </Box>
-                </Paper>
-              </Grid>
+                </Box>
+              </Box>
 
-              {/* Refund info if any */}
+              {/* Refund section */}
               {order.refundRequestId && (
-                <Grid item xs={12}>
-                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.warning.main}` }}>
-                    <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.warning.dark }}>Refund Request</Typography>
-                    <InfoRow label="Requested at" value={formatDate(order.refundRequestedAt)} />
+                <>
+                  <Divider />
+                  <Box sx={{ p: 3, bgcolor: `${theme.palette.warning.main}0D` }}>
+                    <SectionLabel color={theme.palette.warning.dark}>Refund Request</SectionLabel>
+                    <FieldRow label="Requested at" value={formatDate(order.refundRequestedAt)} />
                     {order.refundStatus && (
-                      <InfoRow label="Status" value={<Chip size="small" label={REFUND_STATUS_LABEL[order.refundStatus] ?? order.refundStatus} color="warning" />} />
+                      <FieldRow label="Status" value={<Chip size="small" label={REFUND_STATUS_LABEL[order.refundStatus] ?? order.refundStatus} color="warning" />} />
                     )}
-                  </Paper>
-                </Grid>
+                  </Box>
+                </>
               )}
-            </Grid>
 
-            {/* Order items */}
+              <Divider />
+
+              {/* Timeline */}
+              <Box sx={{ p: 3 }}>
+                <SectionLabel>Timeline</SectionLabel>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <Box>
+                    <FieldRow label="Ordered at" value={formatDate(order.orderedAt)} />
+                    <FieldRow label="Paid at" value={formatDate(order.paidAt)} />
+                  </Box>
+                  <Box>
+                    <FieldRow label="Completed at" value={formatDate(order.completedAt)} />
+                    <FieldRow label="Cancelled at" value={formatDate(order.cancelledAt)} />
+                  </Box>
+                </Box>
+                {order.customerNote && <FieldRow label="Customer note" value={order.customerNote} />}
+              </Box>
+            </Paper>
+
+            {/* Order items — kept as separate table block */}
             {order.items && order.items.length > 0 && (
               <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
-                <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
                   <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Order Items ({order.items.length})</Typography>
                 </Box>
                 <TableContainer>
@@ -211,16 +230,6 @@ const AdminOrderDetailPage = () => {
                 </TableContainer>
               </Paper>
             )}
-
-            {/* Timestamps */}
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-              <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Timeline</Typography>
-              <InfoRow label="Ordered at" value={formatDate(order.orderedAt)} />
-              <InfoRow label="Paid at" value={formatDate(order.paidAt)} />
-              <InfoRow label="Completed at" value={formatDate(order.completedAt)} />
-              <InfoRow label="Cancelled at" value={formatDate(order.cancelledAt)} />
-              {order.customerNote && <InfoRow label="Customer note" value={order.customerNote} />}
-            </Paper>
           </Stack>
         )}
       </Box>

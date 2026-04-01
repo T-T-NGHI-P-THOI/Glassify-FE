@@ -3,7 +3,7 @@ import {
   Box,
   Chip,
   CircularProgress,
-  Grid,
+  Divider,
   IconButton,
   Paper,
   Stack,
@@ -35,11 +35,17 @@ const formatDate = (v?: string) => {
   return new Date(v).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
+const SectionLabel = ({ children }: { children: string }) => (
+  <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.disabled', mb: 1.5 }}>
+    {children}
+  </Typography>
+);
+
+const FieldRow = ({ label, value }: { label: string; value: React.ReactNode }) => {
   const theme = useTheme();
   return (
-    <Box sx={{ display: 'flex', py: 1, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
-      <Typography sx={{ width: 200, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', py: 0.6, gap: 2 }}>
+      <Typography sx={{ width: 160, fontSize: 13, color: theme.palette.custom.neutral[500], flexShrink: 0 }}>{label}</Typography>
       <Box sx={{ flex: 1, fontSize: 13, color: theme.palette.custom.neutral[800] }}>{value}</Box>
     </Box>
   );
@@ -95,13 +101,14 @@ const AdminWarrantyDetailPage = () => {
               <Chip label={WARRANTY_STATUS_LABEL[warranty.status] ?? warranty.status} color={statusColor(warranty.status)} sx={{ fontWeight: 600 }} />
             </Box>
 
-            <Grid container spacing={3} alignItems="stretch">
-              {/* Customer */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Customer</Typography>
+            {/* Main detail block */}
+            <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+              {/* Row 1: Customer | Product */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Customer</SectionLabel>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                    <Avatar src={warranty.customerAvatarUrl} sx={{ width: 40, height: 40 }}>
+                    <Avatar src={warranty.customerAvatarUrl} sx={{ width: 36, height: 36 }}>
                       {(warranty.customerName ?? '?')[0].toUpperCase()}
                     </Avatar>
                     <Box>
@@ -109,36 +116,36 @@ const AdminWarrantyDetailPage = () => {
                       <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{warranty.customerEmail}</Typography>
                     </Box>
                   </Box>
-                  {warranty.customerAddress && <InfoRow label="Address" value={warranty.customerAddress} />}
-                </Paper>
-              </Grid>
-
-              {/* Product */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Product</Typography>
+                  {warranty.customerAddress && <FieldRow label="Address" value={warranty.customerAddress} />}
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Product</SectionLabel>
                   <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
                     {warranty.productImageUrl && (
-                      <Box component="img" src={warranty.productImageUrl} sx={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
+                      <Box component="img" src={warranty.productImageUrl} sx={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
                     )}
                     <Box>
                       <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{warranty.productName}</Typography>
                       <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>{warranty.shopName}</Typography>
                     </Box>
                   </Box>
-                  <InfoRow label="Purchased at" value={formatDate(warranty.purchasedAt)} />
-                  <InfoRow label="Warranty expires" value={warranty.warrantyExpiresAt ?? '—'} />
-                </Paper>
-              </Grid>
+                  <FieldRow label="Purchased at" value={formatDate(warranty.purchasedAt)} />
+                  <FieldRow label="Warranty expires" value={warranty.warrantyExpiresAt ?? '—'} />
+                </Box>
+              </Box>
 
-              {/* Issue */}
-              <Grid item xs={12}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Issue Reported</Typography>
-                  <InfoRow label="Issue type" value={<Chip size="small" label={warranty.issueType} variant="outlined" />} />
-                  <InfoRow label="Description" value={warranty.issueDescription} />
+              <Divider />
+
+              {/* Issue Reported — full width */}
+              <Box sx={{ p: 3 }}>
+                <SectionLabel>Issue Reported</SectionLabel>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <Box>
+                    <FieldRow label="Issue type" value={<Chip size="small" label={warranty.issueType} variant="outlined" />} />
+                    <FieldRow label="Description" value={warranty.issueDescription} />
+                  </Box>
                   {warranty.issueImages && warranty.issueImages.length > 0 && (
-                    <Box sx={{ mt: 1.5 }}>
+                    <Box>
                       <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 1 }}>Evidence images</Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap">
                         {warranty.issueImages.map((img, i) => (
@@ -146,41 +153,39 @@ const AdminWarrantyDetailPage = () => {
                             key={i}
                             component="img"
                             src={img}
-                            sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 1, border: `1px solid ${theme.palette.custom.border.light}`, cursor: 'pointer' }}
+                            sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 1, border: `1px solid ${theme.palette.custom.border.light}`, cursor: 'pointer' }}
                             onClick={() => window.open(img, '_blank')}
                           />
                         ))}
                       </Stack>
                     </Box>
                   )}
-                </Paper>
-              </Grid>
+                </Box>
+              </Box>
 
-              {/* Resolution */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Resolution</Typography>
-                  <InfoRow label="Status" value={<Chip size="small" label={WARRANTY_STATUS_LABEL[warranty.status] ?? warranty.status} color={statusColor(warranty.status)} />} />
-                  {warranty.resolutionType && <InfoRow label="Resolution type" value={warranty.resolutionType} />}
-                  {warranty.repairCost != null && <InfoRow label="Repair cost" value={formatCurrency(warranty.repairCost)} />}
-                  {warranty.customerPays != null && <InfoRow label="Customer pays" value={formatCurrency(warranty.customerPays)} />}
+              <Divider />
+
+              {/* Row 3: Resolution | Timeline */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <SectionLabel>Resolution</SectionLabel>
+                  <FieldRow label="Status" value={<Chip size="small" label={WARRANTY_STATUS_LABEL[warranty.status] ?? warranty.status} color={statusColor(warranty.status)} />} />
+                  {warranty.resolutionType && <FieldRow label="Resolution type" value={warranty.resolutionType} />}
+                  {warranty.repairCost != null && <FieldRow label="Repair cost" value={formatCurrency(warranty.repairCost)} />}
+                  {warranty.customerPays != null && <FieldRow label="Customer pays" value={formatCurrency(warranty.customerPays)} />}
                   {warranty.rejectionReason && (
-                    <InfoRow label="Rejection reason" value={<Typography sx={{ fontSize: 13, color: 'error.main' }}>{warranty.rejectionReason}</Typography>} />
+                    <FieldRow label="Rejection reason" value={<Typography sx={{ fontSize: 13, color: 'error.main' }}>{warranty.rejectionReason}</Typography>} />
                   )}
-                </Paper>
-              </Grid>
-
-              {/* Timeline */}
-              <Grid item xs={12} md={6} sx={{ display: 'flex' }}>
-                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, flex: 1 }}>
-                  <Typography sx={{ fontWeight: 600, fontSize: 14, mb: 1.5, color: theme.palette.custom.neutral[700] }}>Timeline</Typography>
-                  <InfoRow label="Submitted at" value={formatDate(warranty.submittedAt)} />
-                  <InfoRow label="Approved at" value={formatDate(warranty.approvedAt)} />
-                  <InfoRow label="Rejected at" value={formatDate(warranty.rejectedAt)} />
-                  <InfoRow label="Completed at" value={formatDate(warranty.completedAt)} />
-                </Paper>
-              </Grid>
-            </Grid>
+                </Box>
+                <Box sx={{ p: 3 }}>
+                  <SectionLabel>Timeline</SectionLabel>
+                  <FieldRow label="Submitted at" value={formatDate(warranty.submittedAt)} />
+                  <FieldRow label="Approved at" value={formatDate(warranty.approvedAt)} />
+                  <FieldRow label="Rejected at" value={formatDate(warranty.rejectedAt)} />
+                  <FieldRow label="Completed at" value={formatDate(warranty.completedAt)} />
+                </Box>
+              </Box>
+            </Paper>
           </Stack>
         )}
       </Box>
