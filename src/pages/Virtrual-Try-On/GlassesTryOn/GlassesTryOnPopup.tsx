@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Portal, Typography } from "@mui/material";
 import { useState, useCallback, useEffect } from "react";
 import { type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
 import { FaceShapeSuggestionPanel } from "../FaceShapeSuggestionPanel";
@@ -620,7 +620,8 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                     </Box>
                 </Box>
             </Box>
-        </Box>
+            </Box>
+        </Portal>
     );
 };
 

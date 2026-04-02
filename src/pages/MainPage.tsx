@@ -53,7 +53,7 @@ const MainPage = () => {
           rating: product.avgRating || 0,
           reviews: product.reviewCount && product.reviewCount > 1000 ? `${Math.floor(product.reviewCount / 1000)}K+` : (product.reviewCount || 0).toString(),
           shape: product.productType,
-          image: `https://placehold.co/280x180/000000/FFFFFF?text=${encodeURIComponent(product.name)}`,
+          image: ProductAPI.getPrimaryImageUrl(product),
           slug: product.slug,
           sku: product.sku,
         }));

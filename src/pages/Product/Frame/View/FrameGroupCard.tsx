@@ -23,6 +23,7 @@ import { useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
+import ProductAPI from '@/api/product-api';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -58,7 +59,7 @@ export interface ProductResponse {
     basePrice: number;
     costPrice: number;
     compareAtPrice: number;
-    stock: number;
+    stockQuantity: number;
     isActive: boolean;
     isFeatured: boolean;
     isReturnable: boolean;
@@ -71,7 +72,7 @@ export interface ProductResponse {
     metaDescription: string;
     productType: string;
     productImages: string[];
-    fileResponses: { url: string }[] | null;
+    fileResponses: { publicUrl?: string; url?: string; isPrimary?: boolean | null }[] | null;
 }
 
 export interface FrameGroup {
@@ -458,16 +459,13 @@ const FrameGroupCard = ({
     const theme = useTheme();
 
     const variants = fg.frameVariantResponses;
-    const totalStock = variants.reduce((sum, v) => sum + v.stock, 0);
+    const totalStock = variants.reduce((sum, v) => sum + (v.productResponse?.stockQuantity || 0), 0);
     const hasOut = variants.some((v) => v.stock === 0);
     const hasLow = variants.some((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD);
     const featuredFrameVariant = fg.frameVariantResponses.find(
         fv => fv.productResponse?.isFeatured
     ) ?? null;
-    const images =
-        featuredFrameVariant?.productResponse.productImages ||
-        featuredFrameVariant?.productResponse.fileResponses?.map(f => f.url) ||
-        [];
+    const images = ProductAPI.getImageUrls(featuredFrameVariant?.productResponse);
 
     const [imgIndex, setImgIndex] = useState(0);
 

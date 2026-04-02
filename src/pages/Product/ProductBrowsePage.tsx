@@ -187,6 +187,7 @@ const ProductBrowsePage: React.FC = () => {
         // Transform API products to BrowseProduct format
         const transformedProducts: BrowseProduct[] = apiProducts.map((product) => {
           const productLocation = extractProductLocation(product);
+          const productImage = ProductAPI.getPrimaryImageUrl(product);
 
           return {
             id: product.id,
@@ -199,7 +200,7 @@ const ProductBrowsePage: React.FC = () => {
             rating: product.avgRating || 0,
             reviewCount: product.reviewCount || 0,
             productType: product.productType,
-            image: 'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(product.name),
+            image: productImage,
             colorVariants: [],
             isFeatured: product.isFeatured,
             isNew: false,

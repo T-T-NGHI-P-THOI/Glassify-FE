@@ -12,6 +12,20 @@ import type {
 
 const REFUND_BASE_URL = '/api/v1/refunds';
 
+const ensureRefundApiSuccess = <T>(responseData: ApiResponse<T>): ApiResponse<T> => {
+  if (responseData.status >= 400 || responseData.success === false) {
+    throw {
+      message: responseData.message,
+      errors: responseData.errors,
+      response: {
+        data: responseData,
+      },
+    };
+  }
+
+  return responseData;
+};
+
 // Customer APIs
 export const checkReturnEligibility = async (
   orderItemId: string
@@ -29,7 +43,7 @@ export const createReturnRequest = async (
     REFUND_BASE_URL,
     data
   );
-  return response.data;
+  return ensureRefundApiSuccess(response.data);
 };
 
 export const listReturnRequests = async (

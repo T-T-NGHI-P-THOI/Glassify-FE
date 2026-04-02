@@ -27,6 +27,7 @@ import {
   FormControlLabel,
   Checkbox,
   Divider,
+  Tooltip,
 } from '@mui/material';
 import { styled, useTheme, type Theme } from '@mui/material/styles';
 import {
@@ -181,6 +182,7 @@ const ShipmentDetailPage = () => {
       .catch(console.error)
       .finally(() => setLoadingOrder(false));
   }, [shop, id]);
+
 
   useLayoutConfig({ showNavbar: false, showFooter: false });
 
@@ -374,7 +376,7 @@ const ShipmentDetailPage = () => {
 
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
-            {currentStatus !== 'CANCELLED' && currentStatus !== 'DELIVERED' && currentStatus !== 'RETURNED' && (
+            {['PENDING', 'CONFIRMED', 'PROCESSING'].includes(currentStatus) && (
               <Button
                 variant="outlined"
                 color="error"
@@ -387,22 +389,26 @@ const ShipmentDetailPage = () => {
               </Button>
             )}
             {nextAction && (
-              <Button
-                variant="contained"
-                startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutline />}
-                disabled={actionLoading || cancelLoading}
-                onClick={handleAction}
-                sx={{
-                  bgcolor: theme.palette.custom.status.success.main,
-                  '&:hover': { filter: 'brightness(0.92)' },
-                  fontWeight: 600,
-                  borderRadius: 2,
-                  px: 3,
-                  textTransform: 'none',
-                }}
-              >
-                {nextAction.label}
-              </Button>
+              <Tooltip title={!nextAction.hasApi ? 'This step is handled by the shipping carrier' : ''} placement="top">
+                <span>
+                  <Button
+                    variant="contained"
+                    startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutline />}
+                    disabled={actionLoading || cancelLoading || !nextAction.hasApi}
+                    onClick={handleAction}
+                    sx={{
+                      bgcolor: theme.palette.custom.status.success.main,
+                      '&:hover': { filter: 'brightness(0.92)' },
+                      fontWeight: 600,
+                      borderRadius: 2,
+                      px: 3,
+                      textTransform: 'none',
+                    }}
+                  >
+                    {nextAction.label}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </Box>
         </Paper>
@@ -453,8 +459,8 @@ const ShipmentDetailPage = () => {
             </Box>
             <Box>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>DELIVERY ADDRESS</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {order.shippingAddress}
+              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                {[order.shippingAddress, order.shippingCity].filter(Boolean).join(', ')}
               </Typography>
             </Box>
           </Paper>

@@ -81,9 +81,7 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
                   <span className="review-count">({product.reviewCount})</span>
                 </div>
                 <p className="product-shape">{product.shape}</p>
-                {product.deliveryDate && (
-                  <p className="delivery-date">Get it as early as {product.deliveryDate}</p>
-                )}
+                
                 <div className="color-options">
                   {product.colors.map((color, index) => (
                     <span key={index} className="color-dot" style={{ backgroundColor: color }}></span>
