@@ -1,10 +1,12 @@
 // ─── FaceShapeSuggestionPanel (PREMIUM) ─────────────────────────────────────
 
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Typography, Chip, Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import type { FaceAnalysisResult, FaceShape } from "@/services/FaceShapeAnalyzer";
 import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 import { FengShuiPanel } from "./FengShuiPanel";
+import userApi from "@/api/service/userApi";
+import { toast } from "react-toastify";
 
 // ─── Tokens ─────────────────────────────────────────────────────────────
 
@@ -156,12 +158,14 @@ const ColorChips = ({ colors }: { colors: string[] }) => (
 interface Props {
     result: FaceAnalysisResult | null;
     fengShuiResult?: FengShuiResult | null;
+    setSaveModalOpen: (open: boolean) => void;
     isAnalyzing?: boolean;
 }
 
 export const FaceShapeSuggestionPanel = ({
     result,
     fengShuiResult,
+    setSaveModalOpen,
     isAnalyzing = false
 }: Props) => {
 
@@ -182,7 +186,6 @@ export const FaceShapeSuggestionPanel = ({
             transform: visible ? "translateY(0)" : "translateY(10px)",
             transition: "all 0.4s ease"
         }}>
-
             {/* LOADING */}
             {isAnalyzing && (
                 <Box sx={{ px: 2, py: 2 }}>
@@ -224,6 +227,15 @@ export const FaceShapeSuggestionPanel = ({
                         </Typography>
                     </Card>
 
+
+                    {/* ───────── FENG SHUI ───────── */}
+                    {fengShuiResult && (
+                        <>
+                            <SectionTitle title="Phong thuỷ ngũ hành" />
+                            <FengShuiPanel result={fengShuiResult} />
+                        </>
+                    )}
+
                     {/* ───────── SMART COMBO ───────── */}
                     <SectionTitle title="Gợi ý thông minh" />
 
@@ -254,13 +266,10 @@ export const FaceShapeSuggestionPanel = ({
                         )}
                     </Card>
 
-                    {/* ───────── FENG SHUI ───────── */}
-                    {fengShuiResult && (
-                        <>
-                            <SectionTitle title="Phong thuỷ ngũ hành" />
-                            <FengShuiPanel result={fengShuiResult} />
-                        </>
-                    )}
+
+                    <Button onClick={() => setSaveModalOpen(true)}>
+                        Save
+                    </Button>
                 </>
             )}
         </Box>

@@ -232,7 +232,7 @@ const LensDrawer = ({
     </Box>
 );
 
-const RecDrawer = ({ result, fengShuiResult }: { result: FaceAnalysisResult | null, fengShuiResult: FengShuiResult | null }) => {
+const RecDrawer = ({ result, fengShuiResult, setSaveModalOpen }: { result: FaceAnalysisResult | null, fengShuiResult: FengShuiResult | null, setSaveModalOpen: (open: boolean) => void }) => {
     if (!result) {
         return (
             <Box sx={{
@@ -267,6 +267,7 @@ const RecDrawer = ({ result, fengShuiResult }: { result: FaceAnalysisResult | nu
             <FaceShapeSuggestionPanel
                 result={result}
                 fengShuiResult={fengShuiResult}
+                setSaveModalOpen={setSaveModalOpen}
                 isAnalyzing={false}
             />
         </Box>
@@ -544,17 +545,6 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                             </CanvasIconBtn>
 
                             <CanvasIconBtn
-                                onClick={() => setModalOpen(true)}
-                                active={modalOpen}
-                                title="Save Result"
-                                hasDot={!!analysisResult}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-                                </svg>
-                            </CanvasIconBtn>
-
-                            <CanvasIconBtn
                                 onClick={() => toggleDrawer("lens")}
                                 active={drawer === "lens"}
                                 title="Lenses"
@@ -602,7 +592,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                                 />
                             )}
                             {drawer === "rec" && (
-                                <RecDrawer result={analysisResult} fengShuiResult={fengShuiResult} />
+                                <RecDrawer result={analysisResult} fengShuiResult={fengShuiResult} setSaveModalOpen={() => setModalOpen(true)} />
                             )}
                         </Box>
 
