@@ -161,7 +161,8 @@ const AuthPage = () => {
             isAuthenticated: true,
             user: userData
         }));
-        navigate(PAGE_ENDPOINTS.HOME, { replace: true });
+        const isAdmin = userData?.roles?.includes('ADMIN');
+        navigate(isAdmin ? PAGE_ENDPOINTS.DASHBOARD : PAGE_ENDPOINTS.HOME, { replace: true });
     };
 
     // Email/Password Login

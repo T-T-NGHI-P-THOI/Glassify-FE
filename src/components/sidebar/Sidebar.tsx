@@ -88,6 +88,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
         { label: 'Orders', path: PAGE_ENDPOINTS.ADMIN.ORDERS },
         { label: 'Refunds', path: PAGE_ENDPOINTS.ADMIN.REFUNDS },
         { label: 'Warranties', path: PAGE_ENDPOINTS.ADMIN.WARRANTIES },
+        { label: 'Finance', path: PAGE_ENDPOINTS.ADMIN.TRANSACTIONS },
       ],
     },
     { icon: <AccountBalance />, label: 'Cashflow', path: '/cashflow' },
