@@ -62,7 +62,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -140,14 +140,18 @@ const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
-    case 'PENDING':    return 0;
-    case 'CONFIRMED':  return 1;
-    case 'PROCESSING': return 2;
-    case 'SHIPPED':    return 2;
-    case 'DELIVERED':  return 3;
-    case 'CANCELLED':  return -1;
-    case 'REFUNDED':   return -1;
-    default:           return 0;
+    case 'PENDING':              return 0;
+    case 'CONFIRMED':            return 1;
+    case 'PROCESSING':
+    case 'READY_TO_SHIP':
+    case 'SHIPPED':              return 2;
+    case 'TRANSPORTING':         return 3;
+    case 'DELIVERED':            return 4;
+    case 'RETURN_IN_TRANSIT':
+    case 'REJECTED_BY_CUSTOMER': return 4;
+    case 'CANCELLED':            return -1;
+    case 'REFUNDED':             return -1;
+    default:                     return 0;
   }
 };
 
@@ -625,18 +629,23 @@ const MyOrdersPage = () => {
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case 'PENDING':
+      case 'CONFIRMED':
         return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'PROCESSING':
-        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+      case 'READY_TO_SHIP':
+        return { bg: theme.palette.custom.status.indigo.light, color: theme.palette.custom.status.indigo.main };
       case 'SHIPPED':
+      case 'TRANSPORTING':
+        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'DELIVERED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
       case 'CANCELLED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       case 'REFUNDED':
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
-      case 'CONFIRMED':
-        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
+      case 'RETURN_IN_TRANSIT':
+      case 'REJECTED_BY_CUSTOMER':
+        return { bg: theme.palette.custom.status.rose.light, color: theme.palette.custom.status.rose.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
     }
@@ -674,13 +683,17 @@ const MyOrdersPage = () => {
 
   const getStatusLabel = (status: OrderStatus) => {
     switch (status) {
-      case 'PENDING': return 'Pending';
-      case 'PROCESSING': return 'Processing';
-      case 'SHIPPED': return 'Shipped';
-      case 'DELIVERED': return 'Delivered';
-      case 'CANCELLED': return 'Cancelled';
-      case 'CONFIRMED': return 'Confirmed';
-      case 'REFUNDED': return 'Refunded';
+      case 'PENDING':              return 'Pending';
+      case 'CONFIRMED':            return 'Confirmed';
+      case 'PROCESSING':           return 'Processing';
+      case 'READY_TO_SHIP':        return 'Ready to Ship';
+      case 'SHIPPED':              return 'Shipped';
+      case 'TRANSPORTING':         return 'Transporting';
+      case 'DELIVERED':            return 'Delivered';
+      case 'CANCELLED':            return 'Cancelled';
+      case 'REFUNDED':             return 'Refunded';
+      case 'RETURN_IN_TRANSIT':    return 'Return in Transit';
+      case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
       default: return status;
     }
   };
@@ -704,7 +717,7 @@ const MyOrdersPage = () => {
     if (activeTab === 1) return order.status === 'PENDING';
     if (activeTab === 2) return order.status === 'CONFIRMED';
     if (activeTab === 3) return order.status === 'PROCESSING';
-    if (activeTab === 4) return order.status === 'SHIPPED';
+    if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
     if (activeTab === 5) return order.status === 'DELIVERED';
     if (activeTab === 6) return order.status === 'CANCELLED';
     return true;
@@ -713,7 +726,7 @@ const MyOrdersPage = () => {
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
   const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
-  const shippedCount = orders.filter((o) => o.status === 'SHIPPED').length;
+  const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
 
