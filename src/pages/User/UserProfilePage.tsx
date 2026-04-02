@@ -68,6 +68,8 @@ import userApi from "@/api/service/userApi.ts";
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { AutoAwesome, Face, Palette, Crop169, Lens, ExpandMore } from '@mui/icons-material';
+import { RecommendationsTabContent, type UserRecommendationResponse } from './RecommendationTab';
 
 // ==================== COMPONENT ====================
 
@@ -104,6 +106,22 @@ const UserProfilePage = () => {
         message: '',
         severity: 'success' as 'success' | 'error' | 'info' | 'warning',
     });
+
+    // ========== RECOMMENDATIONS ==========
+    const [recommendations, setRecommendations] = useState<UserRecommendationResponse[]>([]);
+    const [loadingRecs, setLoadingRecs] = useState(false);
+    const [editingRecId, setEditingRecId] = useState<string | null>(null);
+    const [editingRecName, setEditingRecName] = useState('');
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+    const fetchRecommendations = async () => {
+        setLoadingRecs(true);
+        try {
+            const res = await userApi.getMyRecommendations();
+            setRecommendations(res.data ?? []);
+        } catch { setRecommendations([]); }
+        finally { setLoadingRecs(false); }
+    };
 
     // ========== FETCH USER PROFILE ==========
     const fetchUserProfile = async () => {
@@ -265,14 +283,29 @@ const UserProfilePage = () => {
         return false;
     };
 
+    // ========== HANDLE RECOMMENDATION ==========
+
+    const handleDeleteRecommendation = async (id: string) => {
+        await userApi.deleteRecommendation(id);
+        setRecommendations(prev => prev.filter(r => r.id !== id));
+        setSnackbar({ open: true, message: 'Recommendation deleted', severity: 'success' });
+    };
+
+    const handleUpdateRecommendationName = async (id: string, name: string) => {
+        await userApi.updateRecommendationName(id, name);
+        setRecommendations(prev => prev.map(r => r.id === id ? { ...r, name } : r));
+        setSnackbar({ open: true, message: 'Name updated', severity: 'success' });
+    };
+
     // ========== EFFECTS ==========
     // Disable navbar and footer
-    useLayoutConfig({showNavbar: false, showFooter: false});
+    useLayoutConfig({ showNavbar: false, showFooter: false });
 
     // Fetch data on mount
     useEffect(() => {
         fetchUserProfile();
         fetchUserStats();
+        fetchRecommendations();
         shopApi.getMyShops().then((res) => {
             const shops = res.data;
             setShopDetail(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
@@ -876,6 +909,7 @@ const UserProfilePage = () => {
                             }}
                         >
                             <Tab icon={<Person sx={{ fontSize: 18 }} />} iconPosition="start" label="Personal Info" />
+                            <Tab icon={<AutoAwesome sx={{ fontSize: 18 }} />} iconPosition="start" label="Recommendation" />
                             <Tab icon={<Security sx={{ fontSize: 18 }} />} iconPosition="start" label="Security" />
                             <Tab icon={<Settings sx={{ fontSize: 18 }} />} iconPosition="start" label="Settings" />
                         </Tabs>
@@ -1097,8 +1131,17 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 1: Security ========== */}
                     {activeTab === 1 && (
+                        <RecommendationsTabContent
+                            recommendations={recommendations}
+                            loading={loadingRecs}
+                            onDeleteRecommendation={handleDeleteRecommendation}
+                            onUpdateRecommendationName={handleUpdateRecommendationName}
+                        />
+                    )}
+
+                    {/* ========== TAB 1: Security ========== */}
+                    {activeTab === 2 && (
                         <Box sx={{ p: 3 }}>
                             <Grid container spacing={3}>
                                 <Grid size={{ xs: 12, md: 6 }}>
@@ -1303,7 +1346,7 @@ const UserProfilePage = () => {
                     )}
 
                     {/* ========== TAB 2: Settings ========== */}
-                    {activeTab === 2 && (
+                    {activeTab === 3 && (
                         <Box sx={{ p: 4, textAlign: 'center' }}>
                             <Settings
                                 sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }}

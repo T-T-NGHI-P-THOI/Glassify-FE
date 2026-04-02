@@ -224,13 +224,37 @@ export const userApi = {
     },
 
     // ==================== USER RECOMMENDATION ====================
+
+    // getMyRecommendations: () => axios.get('/users/me/recommendations'),
+    // updateRecommendationName: (id: string, name: string) => axios.put(`/users/me/recommendations/${id}`, { name }),
+    // deleteRecommendation: (id: string) => axios.delete(`/users/me/recommendations/${id}`),
+    getMyRecommendations: async (): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.get(API_ENDPOINTS.USER_RECOMMENDATION.GET_MY);
+        return response.data;
+    },
+
     createRecommendation: async (body: FormData): Promise<ApiResponse<any>> => {
         const response = await axiosInstance.post(
             API_ENDPOINTS.USER_RECOMMENDATION.CREATE,
             body,
         );
         return response.data.data;
-    }
+    },
+
+    updateRecommendationName: async (id: string, name: string) => {
+        const response = await axiosInstance.put(
+            API_ENDPOINTS.USER_RECOMMENDATION.UPDATE_NAME(id),
+            { name }
+        );
+        return response.data;
+    },
+
+    deleteRecommendation: async (id: string) => {
+        const response = await axiosInstance.delete(
+            API_ENDPOINTS.USER_RECOMMENDATION.DELETE(id),
+        );
+        return response.data;
+    },
 };
 
 export default userApi;

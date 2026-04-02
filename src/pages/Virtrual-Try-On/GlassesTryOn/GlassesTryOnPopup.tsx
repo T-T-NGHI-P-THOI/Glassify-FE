@@ -620,8 +620,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                     </Box>
                 </Box>
             </Box>
-            </Box>
-        </Portal>
+        </Box>
     );
 };
 

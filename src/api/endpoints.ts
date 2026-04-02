@@ -187,7 +187,10 @@ export const API_ENDPOINTS = {
 
   },
   USER_RECOMMENDATION: {
-    CREATE: `${API_BASE}/users/recommendation`
+    GET_MY: `${API_BASE}/users/recommendation`,
+    CREATE: `${API_BASE}/users/recommendation`,
+    UPDATE_NAME: (id: string) => `${API_BASE}/users/recommendation/${id}`,
+    DELETE: (id: string) => `${API_BASE}/users/recommendation/${id}`,
   }
 } as const;
 
