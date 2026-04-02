@@ -68,51 +68,51 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 const shipmentSteps = [
-  { label: 'Pending',          key: 'PENDING' },
-  { label: 'Confirmed',        key: 'CONFIRMED' },
-  { label: 'Processing',        key: 'PROCESSING' },
-  { label: 'Picked Up',        key: 'PICKED_UP' },
-  { label: 'In Transit',       key: 'SHIPPED' },
-  { label: 'Out for Delivery', key: 'OUT_FOR_DELIVERY' },
-  { label: 'Delivered',        key: 'DELIVERED' },
+  { label: 'Pending',      key: 'PENDING' },
+  { label: 'Confirmed',    key: 'CONFIRMED' },
+  { label: 'Processing',   key: 'PROCESSING' },
+  { label: 'Transporting', key: 'TRANSPORTING' },
+  { label: 'Delivered',    key: 'DELIVERED' },
 ];
-
-type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'PROCESSING'
-  | 'PICKED_UP'
-  | 'SHIPPED'
-  | 'OUT_FOR_DELIVERY'
-  | 'DELIVERED'
-  | 'CANCELLED'
-  | 'RETURNED';
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {};
 
 const getStatusColor = (status: string, theme: Theme) => {
   const { custom } = theme.palette;
   switch (status) {
-    case 'DELIVERED':      return { bg: custom.status.success.light,  color: custom.status.success.main };
+    case 'DELIVERED':          return { bg: custom.status.success.light,  color: custom.status.success.main };
     case 'SHIPPED':
-    case 'IN_TRANSIT':
-    case 'PICKED_UP':      return { bg: custom.status.info.light,     color: custom.status.info.main };
-    case 'OUT_FOR_DELIVERY': return { bg: custom.status.warning.light, color: custom.status.warning.main };
+    case 'TRANSPORTING':       return { bg: custom.status.info.light,     color: custom.status.info.main };
+    case 'READY_TO_SHIP':      return { bg: custom.status.warning.light,  color: custom.status.warning.main };
     case 'CONFIRMED':
-    case 'PROCESSING':     return { bg: custom.status.indigo.light,   color: custom.status.indigo.main };
-    case 'PENDING':        return { bg: custom.neutral[100],           color: custom.neutral[500] };
-    case 'CANCELLED':      return { bg: custom.status.error.light,    color: custom.status.error.main };
-    case 'RETURNED':       return { bg: custom.status.rose.light,     color: custom.status.rose.main };
-    default:               return { bg: custom.neutral[100],           color: custom.neutral[500] };
+    case 'PROCESSING':         return { bg: custom.status.indigo.light,   color: custom.status.indigo.main };
+    case 'PENDING':            return { bg: custom.neutral[100],           color: custom.neutral[500] };
+    case 'CANCELLED':          return { bg: custom.status.error.light,    color: custom.status.error.main };
+    case 'RETURN_IN_TRANSIT':
+    case 'REJECTED_BY_CUSTOMER': return { bg: custom.status.rose.light,   color: custom.status.rose.main };
+    default:                   return { bg: custom.neutral[100],           color: custom.neutral[500] };
   }
 };
 
-const getStatusLabel = (status: string) => {
-  const step = shipmentSteps.find(s => s.key === status);
-  return step?.label ?? status;
+const STATUS_LABEL: Record<string, string> = {
+  PENDING:             'Pending',
+  CONFIRMED:           'Confirmed',
+  PROCESSING:          'Processing',
+  READY_TO_SHIP:       'Ready to Ship',
+  SHIPPED:             'Shipped',
+  TRANSPORTING:        'Transporting',
+  DELIVERED:           'Delivered',
+  CANCELLED:           'Cancelled',
+  RETURN_IN_TRANSIT:   'Return in Transit',
+  REJECTED_BY_CUSTOMER: 'Rejected by Customer',
 };
 
+const getStatusLabel = (status: string) => STATUS_LABEL[status] ?? status;
+
 const getActiveStep = (status: string) => {
+  // READY_TO_SHIP and SHIPPED map to the PROCESSING step visually
+  if (status === 'READY_TO_SHIP' || status === 'SHIPPED') return 2;
+  if (status === 'RETURN_IN_TRANSIT' || status === 'REJECTED_BY_CUSTOMER') return shipmentSteps.length - 1;
   const idx = shipmentSteps.findIndex(s => s.key === status);
   return idx >= 0 ? idx : 0;
 };
@@ -126,9 +126,8 @@ type ActionConfig = {
 
 const getNextAction = (status: string): ActionConfig | null => {
   switch (status) {
-    case 'PENDING':    return { label: 'Confirm Order',  hasApi: true };
+    case 'PENDING':    return { label: 'Confirm Order',    hasApi: true };
     case 'CONFIRMED':  return { label: 'Start Processing', hasApi: true };
-    case 'PROCESSING': return { label: 'Picked Up',      hasApi: false };
     default:           return null;
   }
 };
@@ -376,7 +375,7 @@ const ShipmentDetailPage = () => {
 
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
-            {['PENDING', 'CONFIRMED', 'PROCESSING'].includes(currentStatus) && (
+            {['PENDING', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP'].includes(currentStatus) && (
               <Button
                 variant="outlined"
                 color="error"
@@ -634,7 +633,7 @@ const ShipmentDetailPage = () => {
           elevation={0}
           sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}
         >
-          <Accordion defaultExpanded={order.status === 'RETURNED' || !!order.returnReason}>
+          <Accordion defaultExpanded={['RETURN_IN_TRANSIT', 'REJECTED_BY_CUSTOMER'].includes(order.status) || !!order.returnReason}>
             <AccordionSummary expandIcon={<ExpandMore />}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <ReportProblem

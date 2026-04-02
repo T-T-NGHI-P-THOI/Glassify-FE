@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository/*.java)",
+      "Bash(ls -la /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller/*.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java -name *Return* -o -name *Refund*)",
+      "Bash(grep -i \"\\\\.java$\")"
+    ]
+  }
+}
