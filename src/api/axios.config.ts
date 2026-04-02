@@ -12,8 +12,9 @@ import axios from "axios";
 /**
  * Cấu hình base cho API
  */
-const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081',
+export const API_CONFIG = {
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083',
+    // BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.13.237.100.130.nip.io',
     TIMEOUT: 30000, // 30 seconds
     RETRY_COUNT: 3,
     RETRY_DELAY: 1000, // 1 second
@@ -28,7 +29,7 @@ const PUBLIC_ENDPOINTS = [
     '/auth/forgot-password',
     '/auth/google',
     '/api/v1/auth/google',
-    '/product',
+    // '/product',
     '/categories'
 ];
 
@@ -181,6 +182,17 @@ const createAxiosInstance = (): AxiosInstance => {
                 _retry?: boolean;
             };
 
+            // Handle 403 Account Disabled
+            const responseData = error.response?.data as { errors?: string[] } | undefined;
+            if (
+                error.response?.status === 403 &&
+                responseData?.errors?.includes('ACCOUNT_DISABLED')
+            ) {
+                TokenManager.clearTokens();
+                window.location.href = '/account-disabled';
+                return Promise.reject(error);
+            }
+
             // Handle 401 Unauthorized - Token expired
             if (error.response?.status === 401 && !originalRequest._retry) {
                 originalRequest._retry = true;
@@ -240,13 +252,13 @@ interface FormattedError {
 const formatError = (error: AxiosError): FormattedError => {
     const response = error.response;
 
+    const data = response?.data as { errorMessage?: string; message?: string; errors?: Record<string, string[]> } | undefined;
     return {
         status: response?.status || 500,
-        message:
-            (response?.data as { message?: string })?.message ||
-            error.message ||
-            'An unexpected error occurred',
-        errors: (response?.data as { errors?: Record<string, string[]> })?.errors,
+        // Prefer errorMessage (specific reason, e.g. "Insufficient stock. On hand: 3")
+        // over message (generic wrapper, e.g. "Cannot update cart item!")
+        message: data?.errorMessage || data?.message || error.message || 'An unexpected error occurred',
+        errors: data?.errors,
         originalError: error,
     };
 };

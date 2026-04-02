@@ -12,6 +12,9 @@ export interface CreateOrderRequest {
     customerNote?: string;
     paymentMethod: string;
     couponCode?: string;
+    selectedServiceId?: number;
+    toDistrictId?: number;
+    toWardCode?: string;
 }
 
 export interface CancelOrderRequest {
@@ -62,10 +65,15 @@ export interface OrderResponse {
     completedAt?: string;
     cancelledAt?: string;
     trackingNumber?: string;
+    toDistrictId?: number;
+    toWardCode?: string;
     items: OrderItemResponse[];
     status: string;
     paymentStatus: string;
     paymentMethod: string;
+    refundRequestId?: string;
+    refundRequestedAt?: string;
+    refundStatus?: string;
 }
 
 export interface OrderListResponse {

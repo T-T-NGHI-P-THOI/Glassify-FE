@@ -26,9 +26,20 @@ export const API_ENDPOINTS = {
     BASE: `${API_ENDPOINT}/product`,
     GET_ALL: `${API_ENDPOINT}/product`,
     GET_BY_ID: (id: string) => `${API_ENDPOINT}/product/${id}`,
+    GET_WITH_FRAME_INFO: (id: string) => `${API_ENDPOINT}/product/${id}/with-frame-info`,
+    GET_ACCESSORIES_BY_PARENT_ID: (id: string) => `${API_ENDPOINT}/product/${id}/accessories`,
     GET_BY_SLUG: (slug: string) => `${API_ENDPOINT}/product/slug/${slug}`,
     GET_BY_SHOP_ID: (shopId: string) => `${API_ENDPOINT}/product/shop/${shopId}`,
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
+    GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
+    GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
+    GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
+    CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
+    CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
+    ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
+    UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
+    GET_TEXTURE_FILES:  `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
@@ -37,6 +48,9 @@ export const API_ENDPOINTS = {
   LENS: {
     BASE: `${API_ENDPOINT}/lens-catalog`,
     CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+    CREATE: `${API_ENDPOINT}/lenses`,
+    CREATE_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lenses/for-frame/${frameVariantId}`,
+    CREATE_FOR_FRAME_GROUP: (frameGroupId: string) => `${API_ENDPOINT}/lenses/for-frame-group/${frameGroupId}`,
   },
   PRESCRIPTIONS: {
     BASE: `${API_ENDPOINT}/prescriptions`,
@@ -90,6 +104,13 @@ export const API_ENDPOINTS = {
   USER_WALLET: {
     BASE: `${API_ENDPOINT}/wallet`,
     TRANSACTIONS: `${API_ENDPOINT}/wallet/transactions`,
+    WITHDRAWALS: `${API_ENDPOINT}/wallet/withdrawals`,
+    CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/wallet/withdrawals/${id}/cancel`,
+  },
+  USER_BANK_ACCOUNTS: {
+    BASE: `${API_ENDPOINT}/user/bank-accounts`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/user/bank-accounts/${id}/default`,
+    DELETE: (id: string) => `${API_ENDPOINT}/user/bank-accounts/${id}`,
   },
   USER_ADDRESSES: {
     BASE: `${API_ENDPOINT}/user-addresses`,
@@ -101,17 +122,35 @@ export const API_ENDPOINTS = {
   WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/warranty-claims`,
     CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}`,
+    PAY_VNPAY: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/vnpay`,
+    PAY_WALLET: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/wallet`,
+  },
+  SHOP_WARRANTY: {
+    CLAIMS: `${API_ENDPOINT}/shop/warranty-claims`,
+    APPROVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/approve`,
+    RECEIVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/receive`,
+    REJECT: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/reject`,
+    COMPLETE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/complete`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
     REQUEST_BY_ID: (id: string) => `${API_ENDPOINT}/return-requests/${id}`,
     CANCEL: (id: string) => `${API_ENDPOINT}/return-requests/${id}/cancel`,
   },
+  SHOP_INVENTORY: {
+    GET: (shopId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}`,
+    SET_STOCK: (shopId: string, variantId: string) => `${API_ENDPOINT}/shop/inventory/${shopId}/variant/${variantId}`,
+  },
   SHOP_WALLET: {
     BASE: `${API_ENDPOINT}/shop/wallet`,
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
+  },
+  SHOP_BANK_ACCOUNTS: {
+    BASE: `${API_ENDPOINT}/shops/bank-accounts`,
+    BY_ID: (id: string) => `${API_ENDPOINT}/shops/bank-accounts/${id}`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/shops/bank-accounts/${id}/default`,
   },
   SHOPS: {
     LIST: `${API_ENDPOINT}/shops`,
@@ -124,6 +163,9 @@ export const API_ENDPOINTS = {
     MY_SHOP_CLOSURE_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/closure-status`,
   },
   ADMIN: {
+    STATS: {
+      OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
+    },
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
@@ -132,6 +174,39 @@ export const API_ENDPOINTS = {
       REACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/reactivate`,
       CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close`,
       CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close/cancel`,
+    },
+    USERS: {
+      LIST: `${API_ENDPOINT}/admin/users`,
+      GET_BY_ID: (id: string) => `${API_ENDPOINT}/admin/users/${id}`,
+      SET_ROLES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/roles`,
+      SET_STATUS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/status`,
+      ORDERS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/orders`,
+      REFUNDS: (id: string) => `${API_ENDPOINT}/admin/users/${id}/refunds`,
+      WARRANTIES: (id: string) => `${API_ENDPOINT}/admin/users/${id}/warranties`,
+    },
+    ORDERS: {
+      LIST: `${API_ENDPOINT}/admin/orders`,
+      GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}`,
+    },
+    REFUNDS: {
+      LIST: `${API_ENDPOINT}/admin/refunds`,
+      GET_BY_ID: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}`,
+    },
+    WARRANTIES: {
+      LIST: `${API_ENDPOINT}/admin/warranties`,
+      GET_BY_ID: (claimId: string) => `${API_ENDPOINT}/admin/warranties/${claimId}`,
+    },
+    WALLET: {
+      SUMMARY: `${API_ENDPOINT}/admin/wallet/summary`,
+      USER_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/user-transactions`,
+      SHOP_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/shop-transactions`,
+      PAYMENT_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/payment-transactions`,
+      USER_WITHDRAWALS: `${API_ENDPOINT}/admin/wallet/user-withdrawals`,
+      SHOP_WITHDRAWALS: `${API_ENDPOINT}/admin/wallet/shop-withdrawals`,
+      APPROVE_USER_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/user-withdrawals/${id}/approve`,
+      REJECT_USER_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/user-withdrawals/${id}/reject`,
+      APPROVE_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/approve`,
+      REJECT_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/reject`,
     },
   },
 } as const;
@@ -156,7 +231,11 @@ export const PAGE_ENDPOINTS = {
 
   SHOP: {
     REGISTER: `/shop/register`,
+    RESUBMIT: `/shop/resubmit`,
     PROFILE: `/shop/profile`,
+    PRODUCT_FRAME: `/shop/product/frame`,
+    CREATE_FRAME: `/shop/product/frame/create`,
+    CREATE_LENS: `/shop/product/lens/create`,
     DASHBOARD: `/shop/dashboard`,
     EDIT_PROFILE: `/shop/edit-profile`,
     BANK_ACCOUNTS: `/shop/bank-accounts`,
@@ -164,11 +243,22 @@ export const PAGE_ENDPOINTS = {
     PRODUCTS: `/shop/products`,
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
+    REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
+    WARRANTY: `/shop/warranty`,
   },
 
   ADMIN: {
     SHOP_APPROVAL: `/admin/shop-approval`,
+    USER_MANAGEMENT: `/admin/users`,
+    USER_DETAIL: `/admin/users/:id`,
+    ORDERS: `/admin/orders`,
+    ORDER_DETAIL: `/admin/orders/:id`,
+    REFUNDS: `/admin/refunds`,
+    REFUND_DETAIL: `/admin/refunds/:id`,
+    WARRANTIES: `/admin/warranties`,
+    WARRANTY_DETAIL: `/admin/warranties/:id`,
+    TRANSACTIONS: `/admin/transactions`,
   },
 
   ORDER: {
@@ -179,9 +269,19 @@ export const PAGE_ENDPOINTS = {
     MAIN: `/warranty`,
   },
 
+  REFUND: {
+    BUYER_LIST: `/user/refunds`,
+    BUYER_DETAIL: `/user/refunds/:requestId`,
+    BUYER_CREATE: `/user/refunds/create`,
+    SELLER_LIST: `/shop/refunds`,
+    SELLER_DETAIL: `/shop/refunds/:requestId`,
+  },
+
   USER: {
     PROFILE: `/users/me`,
     WALLET: `/wallet`,
+    BANK_ACCOUNTS: `/user/bank-accounts`,
+    HELP: `/help`,
   },
 
   CART: {

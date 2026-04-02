@@ -4,7 +4,42 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
       "Bash(npx vite build:*)",
-      "Bash(npm install recharts --legacy-peer-deps)"
+      "Bash(npm install recharts --legacy-peer-deps)",
+      "Bash(grep -n \"confirmShopOrder\\\\|processShopOrder\\\\|cancelShopOrder\\\\|ghnApi\\\\|leadtime\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Shop/*.tsx)",
+      "Read(//Users/lamiee/Study/CapstoneProject/Glassify-BE/**)",
+      "Bash(grep -r \"@AuthenticationPrincipal\\\\|SecurityConfig\\\\|JwtAuthenticationFilter\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/config --include=*.java)",
+      "Bash(git checkout:*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto -name *eturn* -o -name *arrant*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name application*.properties -o -name application*.yml)",
+      "Bash(grep -rn \"countBy\\\\|sumBy\\\\|groupBy\\\\|aggregat\\\\|statistic\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository --include=*.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify -type f -name \"*Controller.java\" -exec grep -l \"RequestMapping\\\\|RestController\" {})",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name ShopService*.java -o -name IShopService.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -path *Admin*Dashboard* -o -path *admin*dashboard*)",
+      "Bash(xargs ls:*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src -name *OrderDetail* -o -name *order-detail* -o -name *MyOrder*)",
+      "Bash(grep -rn ToastContainer /Users/lamiee/Study/CapstoneProject/Glassify-FE --include=*.tsx --include=*.ts --include=*.jsx --include=*.js)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -name *email* -o -name *template* -o -name *mail*)",
+      "Bash(grep -l \"Hello\\\\|Best regards\\\\|Order Details\\\\|Shop Name\\\\|Claim Number\\\\|Request Number\" *.html)",
+      "Bash(grep -l \"Xin chào\\\\|Trân trọng\\\\|Đội ngũ\\\\|tiếng việt\\\\|bạn\\\\|hàng\\\\|ngưng\\\\|chấp thuận\\\\|từ chối\\\\|hoàn tiền\\\\|bảo hành\" *.html)",
+      "Bash(grep -rl \"upload\\\\|Upload\\\\|cloudinary\\\\|FormData\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -rn \"license.*image\\\\|licenseImage\\\\|upload.*license\\\\|license.*upload\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java --include=*.java)",
+      "Bash(grep -rn \"upload\\\\|Upload\\\\|MultipartFile\\\\|cloudinary\\\\|storage\" /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller --include=*.java)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages -name *Admin*Dashboard* -o -name *dashboard*admin*)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src -name *Admin* -o -name *dashboard* -o -name *statistic* -o -name *summary*)",
+      "Bash(grep -r \"approveRefund\\\\|rejectRefund\\\\|cancelRefund\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"review\\\\|approve\\\\|reject\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Admin/AdminRefundsPage.tsx --include=*.tsx -A 5 -B 5)",
+      "Bash(grep -r \"status\\\\|Status\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Shipping/DeliveryPage/ShippingPage.tsx --include=*.tsx -A 3 -B 3)",
+      "Bash(grep -r \"GHN\\\\|ghn\\\\|Giao Hàng Nhanh\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Order/MyOrdersPage.tsx --include=*.tsx -A 3 -B 3)",
+      "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE -type f -name *OrderStatus* -o -name *GHN* -o -name *DeliveryStatus* -o -name *ShopOrder*)"
+    ],
+    "additionalDirectories": [
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/warranty",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/resources/templates/email",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/impl"
     ]
   }
 }

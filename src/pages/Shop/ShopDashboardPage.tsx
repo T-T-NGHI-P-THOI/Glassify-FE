@@ -64,6 +64,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
+import type { MonthlyRevenueItem, SalesByCategoryItem, ShopAnalyticsSummary } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse, ShopStatus, ShopTier } from '@/models/Shop';
@@ -78,12 +79,38 @@ const ShopDashboardPage = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [ghnNames, setGhnNames] = useState({ province: '', district: '', ward: '' });
   const [cancelDeactivateLoading, setCancelDeactivateLoading] = useState(false);
+  const [revenueData, setRevenueData] = useState<MonthlyRevenueItem[]>([]);
+  const [categoryData, setCategoryData] = useState<SalesByCategoryItem[]>([]);
+  const [analyticsSummary, setAnalyticsSummary] = useState<ShopAnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   
   useLayoutConfig({showNavbar: false, showFooter: false});
 
   useEffect(() => {
     fetchShopDetail();
   }, []);
+
+  useEffect(() => {
+    if (!shop?.id) return;
+    const fetchAnalytics = async () => {
+      try {
+        setAnalyticsLoading(true);
+        const [monthlyRes, categoryRes, summaryRes] = await Promise.all([
+          shopApi.getMonthlyRevenue(shop.id),
+          shopApi.getSalesByCategory(shop.id),
+          shopApi.getAnalyticsSummary(shop.id),
+        ]);
+        if (monthlyRes.data) setRevenueData(monthlyRes.data);
+        if (categoryRes.data) setCategoryData(categoryRes.data);
+        if (summaryRes.data) setAnalyticsSummary(summaryRes.data);
+      } catch (err) {
+        console.error('Failed to fetch analytics:', err);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, [shop?.id]);
 
   // Resolve GHN province/district/ward names
   useEffect(() => {
@@ -247,6 +274,12 @@ const ShopDashboardPage = () => {
     );
   }
 
+  const formatRevenue = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(3).replace(/\.?0+$/, '')}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+    return value.toString();
+  };
+
   const stats = [
     {
       icon: <ShoppingCart sx={{ color: theme.palette.custom.status.info.main }} />,
@@ -275,42 +308,23 @@ const ShopDashboardPage = () => {
     {
       icon: <AttachMoney sx={{ color: '#f97316' }} />,
       label: 'Total Revenue',
-      value: '₫124.5M',
+      value: analyticsLoading ? '...' : analyticsSummary ? `₫${formatRevenue(analyticsSummary.totalRevenue)}` : '₫0',
       bgColor: '#fff7ed',
     },
   ];
 
-  // Mock chart data
-  const revenueData = [
-    { month: 'Jan', revenue: 12400000, orders: 45 },
-    { month: 'Feb', revenue: 18200000, orders: 62 },
-    { month: 'Mar', revenue: 15800000, orders: 54 },
-    { month: 'Apr', revenue: 22100000, orders: 78 },
-    { month: 'May', revenue: 19600000, orders: 67 },
-    { month: 'Jun', revenue: 28300000, orders: 95 },
-    { month: 'Jul', revenue: 24700000, orders: 83 },
-    { month: 'Aug', revenue: 31200000, orders: 104 },
-    { month: 'Sep', revenue: 26800000, orders: 89 },
-    { month: 'Oct', revenue: 35400000, orders: 118 },
-    { month: 'Nov', revenue: 42100000, orders: 137 },
-    { month: 'Dec', revenue: 38900000, orders: 128 },
-  ];
-
-  const categoryData = [
-    { name: 'Optical Frames', value: 38 },
-    { name: 'Sunglasses', value: 27 },
-    { name: 'Reading Glasses', value: 18 },
-    { name: 'Contact Lenses', value: 12 },
-    { name: 'Accessories', value: 5 },
-  ];
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const revenueChartData = revenueData.map(d => ({
+    month: MONTH_NAMES[(d.month ?? 1) - 1] ?? String(d.month),
+    revenue: Number(d.revenue),
+    orders: Number(d.orders),
+  }));
+  const categoryChartData = categoryData.map(d => ({
+    name: d.categoryName,
+    value: Number(d.percentage),
+  }));
 
   const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899'];
-
-  const formatRevenue = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-    return value.toString();
-  };
 
   const statusStyle = getStatusColor(shop.status);
   const tierStyle = getTierColor(shop.tier);
@@ -350,7 +364,7 @@ const ShopDashboardPage = () => {
           >
             <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
             <Typography sx={{ fontSize: 14 }}>
-              Your shop registration is currently being reviewed by our admin team. You will receive a notification once your shop is approved.
+              Your shop registration is currently being reviewed. All fields are disabled until the review is complete.
             </Typography>
           </Alert>
         )}
@@ -375,9 +389,9 @@ const ShopDashboardPage = () => {
               </Button>
             }
           >
-            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation Request Pending</Typography>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Pending Deactivation Request</Typography>
             <Typography sx={{ fontSize: 14 }}>
-              Your shop deactivation request is being reviewed. You can cancel this request if you change your mind.
+              Your shop has a pending deactivation request. You can cancel it before it takes effect.
             </Typography>
           </Alert>
         )}
@@ -393,7 +407,7 @@ const ShopDashboardPage = () => {
                 variant="outlined"
                 size="small"
                 startIcon={<Edit />}
-                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.EDIT_PROFILE)}
+                onClick={() => navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT)}
                 sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
                 Edit & Resubmit
@@ -482,7 +496,7 @@ const ShopDashboardPage = () => {
                 </Box>
               </Box>
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <AreaChart data={revenueChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
@@ -569,7 +583,7 @@ const ShopDashboardPage = () => {
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie
-                      data={categoryData}
+                      data={categoryChartData}
                       cx="50%"
                       cy="45%"
                       innerRadius={60}
@@ -615,7 +629,7 @@ const ShopDashboardPage = () => {
                 </Typography>
               </Box>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={revenueData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={28}>
+                <BarChart data={revenueChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }} axisLine={false} tickLine={false} />

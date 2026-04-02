@@ -26,6 +26,9 @@ import {
   Logout,
   Receipt,
   VerifiedUser,
+  AccountBalanceWallet,
+  Dashboard,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -36,6 +39,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import CartProvider from "@/contexts/CartProvider";
+import { useLayout } from '@/layouts/LayoutContext';
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +48,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const { itemCount, isAnimating } = useCart();
   const { isAuthenticated, user, dispatch } = useAuth();
+  const { showNavCategories } = useLayout();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -71,12 +76,13 @@ export const Navbar = () => {
   };
 
   const displayName = user?.username || '';
+  const isAdmin = user?.roles?.includes('ADMIN');
 
   const mainCategories = [
-    { label: 'Eyeglasses', path: '/products', category: 'Eyeglasses' },
+    { label: 'Eyeglasses', path: '/products', category: 'Frames' },
     { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
-    { label: 'Lenses', path: '/lens', category: null },
-    { label: 'Sports', path: '/sports', category: null },
+    { label: 'Lenses', path: '/products', category: 'Lenses' },
+    { label: 'Accessories', path: '/products', category: 'Accessories' },
     { label: 'Collabs & Partners', path: '/collabs', category: null },
     { label: '✨ Discover', path: '/discover', special: true, category: null },
     { label: '🏷️ Sale', path: '/sale', special: true, category: null },
@@ -230,26 +236,47 @@ export const Navbar = () => {
                       <Typography variant="body2">View my profile</Typography>
                     </MenuItem>
 
-                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
-                      <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
-                      <Typography variant="body2">View my orders</Typography>
-                    </MenuItem>
-
-                    <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
-                      <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
-                      <Typography variant="body2">My warranty</Typography>
-                    </MenuItem>
-
-                    {myShop ? (
-                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
-                        <Store fontSize="small" sx={{ color: "#6b7280" }} />
-                        <Typography variant="body2">View my shop</Typography>
+                    {isAdmin ? (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Dashboard fontSize="small" sx={{ color: "#2563eb" }} />
+                        <Typography variant="body2" sx={{ color: "#2563eb", fontWeight: 600 }}>Admin Dashboard</Typography>
                       </MenuItem>
                     ) : (
-                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
-                        <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
-                        <Typography variant="body2">Become a shop owner</Typography>
-                      </MenuItem>
+                      <>
+                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
+                          <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
+                          <Typography variant="body2">View my orders</Typography>
+                        </MenuItem>
+
+                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
+                          <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
+                          <Typography variant="body2">My warranty</Typography>
+                        </MenuItem>
+
+                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
+                          <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
+                          <Typography variant="body2">View my wallet</Typography>
+                        </MenuItem>
+
+                        {user?.roles?.includes('SHOP_OWNER') ? (
+                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
+                            <Store fontSize="small" sx={{ color: "#6b7280" }} />
+                            <Typography variant="body2">View my shop</Typography>
+                          </MenuItem>
+                        ) : !myShop ? (
+                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
+                            <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
+                            <Typography variant="body2">Become a shop owner</Typography>
+                          </MenuItem>
+                        ) : null}
+
+                        {myShop?.latestRequestStatus === 'REJECTED' && (
+                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
+                            <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
+                            <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
+                          </MenuItem>
+                        )}
+                      </>
                     )}
 
                     <Divider />
@@ -276,20 +303,23 @@ export const Navbar = () => {
                 </IconButton>
               )}
 
-              <IconButton
-                size="small"
-                sx={{
-                  flexDirection: "column",
-                  color: "#1f2937",
-                  borderRadius: 1,
-                }}
-              >
-                <Favorite sx={{ fontSize: 24 }} />
-                <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Favorites</Box>
-              </IconButton>
+              {!isAdmin && (
+                <IconButton
+                  size="small"
+                  sx={{
+                    flexDirection: "column",
+                    color: "#1f2937",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Favorite sx={{ fontSize: 24 }} />
+                  <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Favorites</Box>
+                </IconButton>
+              )}
 
               <IconButton
                 size="small"
+                onClick={() => navigate(PAGE_ENDPOINTS.USER.HELP)}
                 sx={{
                   flexDirection: "column",
                   color: "#1f2937",
@@ -300,7 +330,7 @@ export const Navbar = () => {
                 <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Help</Box>
               </IconButton>
 
-              <IconButton
+              {!isAdmin && <IconButton
                 size="small"
                 onClick={() => navigate('/cart')}
                 sx={{
@@ -339,44 +369,46 @@ export const Navbar = () => {
                   }} />
                 </Badge>
                 <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Cart</Box>
-              </IconButton>
+              </IconButton>}
             </Box>
           </Toolbar>
 
           {/* Main Navigation */}
-          <Box
-            sx={{
-              display: { xs: "none", md: "flex" },
-              justifyContent: "center",
-              gap: 0.5,
-              py: 1,
-              borderTop: "1px solid #e5e7eb",
-            }}
-          >
-            {mainCategories.map((item) => (
-              <Button
-                key={item.path + item.label}
-                onClick={() => handleCategoryClick(item)}
-                sx={{
-                  backgroundColor: "transparent",
-                  color: item.special ? "#000000" : "#000000",
-                  fontWeight: item.special ? 600 : 500,
-                  px: 2,
-                  py: 0.75,
-                  textTransform: "none",
-                  fontSize: "0.95rem",
-                  boxShadow: "none",
-                  ":hover": {
+          {showNavCategories && (
+            <Box
+              sx={{
+                display: { xs: "none", md: "flex" },
+                justifyContent: "center",
+                gap: 0.5,
+                py: 1,
+                borderTop: "1px solid #e5e7eb",
+              }}
+            >
+              {mainCategories.map((item) => (
+                <Button
+                  key={item.path + item.label}
+                  onClick={() => handleCategoryClick(item)}
+                  sx={{
+                    backgroundColor: "transparent",
+                    color: item.special ? "#000000" : "#000000",
+                    fontWeight: item.special ? 600 : 500,
+                    px: 2,
+                    py: 0.75,
+                    textTransform: "none",
+                    fontSize: "0.95rem",
                     boxShadow: "none",
-                    backgroundColor: "#f3f4f6",
-                    borderRadius: "20px",
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Box>
+                    ":hover": {
+                      boxShadow: "none",
+                      backgroundColor: "#f3f4f6",
+                      borderRadius: "20px",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+          )}
 
           {/* Mobile Search */}
           <Box

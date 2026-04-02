@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, FavoriteBorder } from '@mui/icons-material';
+import { Rating, Stack, Typography, Tooltip } from '@mui/material';
+import { FavoriteBorder } from '@mui/icons-material';
 import type { BrowseProduct } from '../../types/filter';
 import { formatCurrency } from '@/utils/formatCurrency';
 import './ProductGrid.css';
@@ -14,25 +15,18 @@ interface ProductGridProps {
 const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, viewMode = 'grid' }) => {
   const navigate = useNavigate();
 
-  const handleColorClick = (e: React.MouseEvent<HTMLButtonElement>, slug: string, sku: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Color clicked:', slug, sku);
-    navigate(`/product/${slug}/${sku}`);
-  };
-
   return (
     <div className={`product-grid ${viewMode === 'list' ? 'list-view' : 'grid-view'}`}>
-      {products.map(product => (
+      {products.map((product) => (
         <div key={product.id} className="product-grid-card-wrapper">
-          <Link 
+          <Link
             to={`/product/${product.slug}/${product.sku}`}
             className="product-grid-card"
           >
             {product.isNew && <span className="badge badge-new">New</span>}
             {product.isFeatured && <span className="badge badge-bestseller">Best Seller</span>}
-            
-            <button 
+
+            <button
               className="favorite-btn-grid"
               onClick={(e) => {
                 e.preventDefault();
@@ -47,42 +41,24 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToFavorites, v
             </div>
 
             <div className="product-grid-info">
-              <h3 className="product-grid-name">{product.name}</h3>
-              
-              <div className="product-grid-rating">
-                <Star className="star" />
-                <span>{product.rating}</span>
-                <span className="review-count">({product.reviewCount})</span>
-              </div>
+              <p className="product-grid-category">
+                {product.categoryName || product.productType}
+              </p>
 
-              <div className="product-grid-details">
-                <span className="product-type">{product.productType}</span>
-                {product.stockQuantity > 0 && (
-                  <>
-                    <span className="separator">•</span>
-                    <span className="product-stock">In Stock</span>
-                  </>
-                )}
-              </div>
+              <Tooltip title={product.name} arrow enterDelay={250}>
+                <h3 className="product-grid-name">{product.name}</h3>
+              </Tooltip>
+
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Rating value={product.rating} precision={0.5} size="small" readOnly />
+                <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  ({product.reviewCount})
+                </Typography>
+              </Stack>
 
               <p className="product-grid-price">{formatCurrency(product.price)}</p>
             </div>
           </Link>
-          
-          <div className="product-grid-colors">
-            {product.colorVariants.slice(0, 4).map((colorVariant, index) => (
-              <button
-                key={index}
-                className={`color-dot-grid ${colorVariant.variantId === product.variantId ? 'active' : ''}`}
-                style={{ backgroundColor: colorVariant.colorCode }}
-                onClick={(e) => handleColorClick(e, colorVariant.slug, product.sku)}
-                title={colorVariant.color}
-              />
-            ))}
-            {product.colorVariants.length > 4 && (
-              <span className="more-colors">+{product.colorVariants.length - 4}</span>
-            )}
-          </div>
         </div>
       ))}
     </div>

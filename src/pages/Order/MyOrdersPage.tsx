@@ -14,6 +14,15 @@ import {
   DialogActions,
   Divider,
   Grid,
+  Checkbox,
+  TextField,
+  FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -33,15 +42,27 @@ import {
   Description,
   Store,
   Visibility,
+  AssignmentReturn,
+  Close,
+  CloudUpload,
+  Delete,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
+import { ghnApi } from '@/api/ghnApi';
+import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import AccessTime from '@mui/icons-material/AccessTime';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/models/Refund';
+import { createReturnRequest, listReturnRequests, uploadRefundEvidenceImages } from '@/api/refund-api';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { getApiErrorMessage } from '@/utils/api-error';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -90,27 +111,47 @@ interface Order {
   completedAt?: string;
   cancelledAt?: string;
   trackingNumber?: string;
+  toDistrictId?: number;
+  toWardCode?: string;
   items: OrderItem[];
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
+  refundRequestId?: string;
+  refundRequestedAt?: string;
+  refundStatus?: ReturnStatus;
+}
+
+interface ReturnItemForm {
+  reason: ReturnReason;
+  description: string;
+  images: { file: File; preview: string }[];
+}
+
+interface ItemRefundLookup {
+  id: string;
+  status?: ReturnStatus;
 }
 
 // Mock data removed - using real API
 
 // ==================== HELPERS ====================
-const ORDER_STEPS = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
-    case 'PENDING': return 0;
-    case 'CONFIRMED': return 1;
-    case 'PROCESSING': return 1;
-    case 'SHIPPED': return 2;
-    case 'DELIVERED': return 3;
-    case 'CANCELLED': return -1;
-    case 'REFUNDED': return -1;
-    default: return 0;
+    case 'PENDING':              return 0;
+    case 'CONFIRMED':            return 1;
+    case 'PROCESSING':
+    case 'READY_TO_SHIP':
+    case 'SHIPPED':              return 2;
+    case 'TRANSPORTING':         return 3;
+    case 'DELIVERED':            return 4;
+    case 'RETURN_IN_TRANSIT':
+    case 'REJECTED_BY_CUSTOMER': return 4;
+    case 'CANCELLED':            return -1;
+    case 'REFUNDED':             return -1;
+    default:                     return 0;
   }
 };
 
@@ -171,6 +212,27 @@ const groupItemsByShop = (items: OrderItem[]) => {
   return Array.from(shopMap.values());
 };
 
+const getRefundStatusLabel = (status?: ReturnStatus) => {
+  switch (status) {
+    case ReturnStatus.REQUESTED:
+      return 'Request Submitted';
+    case ReturnStatus.APPROVED:
+      return 'Approved';
+    case ReturnStatus.REJECTED:
+      return 'Rejected';
+    case ReturnStatus.RETURN_SHIPPING:
+      return 'Return Shipping';
+    case ReturnStatus.ITEM_RECEIVED:
+      return 'Item Received';
+    case ReturnStatus.COMPLETED:
+      return 'Completed';
+    case ReturnStatus.CANCELLED:
+      return 'Cancelled';
+    default:
+      return 'Request Submitted';
+  }
+};
+
 // ==================== ORDER STEPPER ====================
 interface OrderStepperProps {
   status: OrderStatus;
@@ -204,8 +266,8 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 
   const stepIcons = [
     <HourglassEmpty key="pending" sx={{ fontSize: 18 }} />,
+    <VerifiedUser key="confirmed" sx={{ fontSize: 18 }} />,
     <Inventory key="processing" sx={{ fontSize: 18 }} />,
-    <LocalShipping key="shipped" sx={{ fontSize: 18 }} />,
     <CheckCircle key="delivered" sx={{ fontSize: 18 }} />,
   ];
 
@@ -276,15 +338,38 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 // ==================== MAIN PAGE ====================
 const MyOrdersPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelReasons, setCancelReasons] = useState<string[]>([]);
+  const [leadTime, setLeadTime] = useState<string | null>(null);
+  const [leadTimeLoading, setLeadTimeLoading] = useState(false);
+  const [userAddresses, setUserAddresses] = useState<UserAddressResponse[]>([]);
+
+  const CUSTOMER_CANCEL_REASONS = [
+    'Changed my mind',
+    'Found a better price elsewhere',
+    'Ordered by mistake',
+    'Item no longer needed',
+    'Delivery time is too long',
+    'Other',
+  ];
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
+  // Return Request Dialog States
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [selectedReturnItemIds, setSelectedReturnItemIds] = useState<string[]>([]);
+  const [returnItemForms, setReturnItemForms] = useState<Record<string, ReturnItemForm>>({});
+  const [itemRefundLookup, setItemRefundLookup] = useState<Record<string, ItemRefundLookup>>({});
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+  
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -301,15 +386,32 @@ const MyOrdersPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    userAddressApi.getAll().then((res) => {
+      if (res.data) setUserAddresses(res.data);
+    }).catch(() => {});
   }, [fetchOrders]);
 
-  const handleCancelOrder = async (orderId: string) => {
+  const openCancelDialog = (orderId: string) => {
+    setCancelTargetId(orderId);
+    setCancelReasons([]);
+    setCancelDialogOpen(true);
+  };
+
+  const toggleCancelReason = (reason: string) => {
+    setCancelReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason],
+    );
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTargetId || cancelReasons.length === 0) return;
     try {
-      setCancellingOrderId(orderId);
-      await orderApi.cancelOrder(orderId);
+      setCancellingOrderId(cancelTargetId);
+      await orderApi.cancelOrder(cancelTargetId);
       toast.success('Order cancelled successfully');
+      setCancelDialogOpen(false);
       await fetchOrders();
-      if (selectedOrder?.id === orderId) {
+      if (selectedOrder?.id === cancelTargetId) {
         setDetailDialogOpen(false);
       }
     } catch (error) {
@@ -317,6 +419,7 @@ const MyOrdersPage = () => {
       toast.error('Failed to cancel order');
     } finally {
       setCancellingOrderId(null);
+      setCancelTargetId(null);
     }
   };
 
@@ -331,22 +434,218 @@ const MyOrdersPage = () => {
     }
   };
 
+  const fetchItemRefundLookup = useCallback(async (orderId: string) => {
+    try {
+      const response = await listReturnRequests({
+        orderId,
+        unitPerPage: 200,
+        sortBy: 'requestedAt',
+        sortDirection: 'DESC',
+      });
+
+      const lookup: Record<string, ItemRefundLookup> = {};
+      (response.data || []).forEach((request) => {
+        if (!request.orderItemId) return;
+        if (!lookup[request.orderItemId]) {
+          lookup[request.orderItemId] = {
+            id: request.id,
+            status: request.status,
+          };
+        }
+      });
+
+      setItemRefundLookup(lookup);
+    } catch (error) {
+      console.error('Failed to fetch refund requests for order items:', error);
+      setItemRefundLookup({});
+    }
+  }, []);
+
+  // Return Request Handlers
+  const createDefaultReturnItemForm = (): ReturnItemForm => ({
+    reason: ReturnReason.DEFECTIVE,
+    description: '',
+    images: [],
+  });
+
+  const handleOpenReturnDialog = (orderItem: OrderItem) => {
+    setSelectedReturnItemIds([orderItem.id]);
+    setReturnItemForms({
+      [orderItem.id]: createDefaultReturnItemForm(),
+    });
+    setReturnDialogOpen(true);
+  };
+
+  const handleCloseReturnDialog = () => {
+    Object.values(returnItemForms).forEach((form) => {
+      form.images.forEach((img) => URL.revokeObjectURL(img.preview));
+    });
+    setReturnDialogOpen(false);
+    setSelectedReturnItemIds([]);
+    setReturnItemForms({});
+  };
+
+  const handleReturnItemFieldChange = (
+    itemId: string,
+    field: 'reason' | 'description',
+    value: ReturnReason | string
+  ) => {
+    setReturnItemForms((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...(prev[itemId] || createDefaultReturnItemForm()),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleImageUpload = (itemId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    // Keep File objects for server upload and use object URL only for preview.
+    Array.from(files).forEach((file) => {
+      const preview = URL.createObjectURL(file);
+      setReturnItemForms((prev) => {
+        const current = prev[itemId] || createDefaultReturnItemForm();
+        return {
+          ...prev,
+          [itemId]: {
+            ...current,
+            images: [...current.images, { file, preview }],
+          },
+        };
+      });
+    });
+
+    event.target.value = '';
+  };
+
+  const handleRemoveImage = (itemId: string, index: number) => {
+    setReturnItemForms((prev) => {
+      const current = prev[itemId] || createDefaultReturnItemForm();
+      const imageToRemove = current.images[index];
+      if (imageToRemove?.preview) {
+        URL.revokeObjectURL(imageToRemove.preview);
+      }
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          images: current.images.filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+  const handleSubmitReturnRequest = async () => {
+    if (!selectedOrder) {
+      toast.error('Không tìm thấy thông tin đơn hàng');
+      return;
+    }
+
+    if (selectedReturnItemIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 sản phẩm để tạo yêu cầu');
+      return;
+    }
+
+    try {
+      setSubmittingReturn(true);
+
+      const itemMap = new Map(selectedOrder.items.map((item) => [item.id, item]));
+      const createdRequestIds: string[] = [];
+      let failedCount = 0;
+      let firstFailureMessage: string | null = null;
+
+      for (const itemId of selectedReturnItemIds) {
+        const item = itemMap.get(itemId);
+        const form = returnItemForms[itemId];
+        if (!item) {
+          failedCount += 1;
+          continue;
+        }
+
+        if (!form || !form.description.trim()) {
+          failedCount += 1;
+          continue;
+        }
+
+        const requestData = {
+          orderItemId: item.id,
+          returnType: ReturnType.REFUND,
+          reason: form.reason,
+          reasonDetail: form.description,
+          quantity: item.quantity,
+          evidenceImages: [],
+        };
+
+        try {
+          const response = await createReturnRequest(requestData);
+          if (response.data?.id) {
+            createdRequestIds.push(response.data.id);
+
+            if (form.images.length > 0) {
+              await uploadRefundEvidenceImages(
+                response.data.id,
+                form.images.map((img) => img.file)
+              );
+            }
+          }
+        } catch (error) {
+          failedCount += 1;
+          if (!firstFailureMessage) {
+            firstFailureMessage = getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng');
+          }
+          console.error(`Failed to create return request for item ${item.id}:`, error);
+        }
+      }
+
+      if (createdRequestIds.length === 0) {
+        toast.error(firstFailureMessage || 'Không thể tạo yêu cầu trả hàng cho các sản phẩm đã chọn');
+        return;
+      }
+
+      toast.success(`Tạo thành công ${createdRequestIds.length} yêu cầu trả hàng`);
+      if (failedCount > 0) {
+        toast.warning(`${failedCount} sản phẩm không tạo được yêu cầu`);
+      }
+
+      handleCloseReturnDialog();
+      setDetailDialogOpen(false);
+
+      if (createdRequestIds.length === 1) {
+        navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', createdRequestIds[0]));
+      } else {
+        navigate(PAGE_ENDPOINTS.REFUND.BUYER_LIST);
+      }
+    } catch (error: any) {
+      console.error('Failed to create return request:', error);
+      toast.error(getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng'));
+    } finally {
+      setSubmittingReturn(false);
+    }
+  };
+
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case 'PENDING':
+      case 'CONFIRMED':
         return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'PROCESSING':
-        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+      case 'READY_TO_SHIP':
+        return { bg: theme.palette.custom.status.indigo.light, color: theme.palette.custom.status.indigo.main };
       case 'SHIPPED':
-        return { bg: theme.palette.custom.status.purple.light, color: theme.palette.custom.status.purple.main };
+      case 'TRANSPORTING':
+        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'DELIVERED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
       case 'CANCELLED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       case 'REFUNDED':
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
-      case 'CONFIRMED':
-        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+      case 'RETURN_IN_TRANSIT':
+      case 'REJECTED_BY_CUSTOMER':
+        return { bg: theme.palette.custom.status.rose.light, color: theme.palette.custom.status.rose.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
     }
@@ -384,13 +683,17 @@ const MyOrdersPage = () => {
 
   const getStatusLabel = (status: OrderStatus) => {
     switch (status) {
-      case 'PENDING': return 'Pending';
-      case 'PROCESSING': return 'Processing';
-      case 'SHIPPED': return 'Shipped';
-      case 'DELIVERED': return 'Delivered';
-      case 'CANCELLED': return 'Cancelled';
-      case 'CONFIRMED': return 'Confirmed';
-      case 'REFUNDED': return 'Refunded';
+      case 'PENDING':              return 'Pending';
+      case 'CONFIRMED':            return 'Confirmed';
+      case 'PROCESSING':           return 'Processing';
+      case 'READY_TO_SHIP':        return 'Ready to Ship';
+      case 'SHIPPED':              return 'Shipped';
+      case 'TRANSPORTING':         return 'Transporting';
+      case 'DELIVERED':            return 'Delivered';
+      case 'CANCELLED':            return 'Cancelled';
+      case 'REFUNDED':             return 'Refunded';
+      case 'RETURN_IN_TRANSIT':    return 'Return in Transit';
+      case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
       default: return status;
     }
   };
@@ -412,22 +715,48 @@ const MyOrdersPage = () => {
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return order.status === 'PENDING';
-    if (activeTab === 2) return order.status === 'PROCESSING';
-    if (activeTab === 3) return order.status === 'SHIPPED';
-    if (activeTab === 4) return order.status === 'DELIVERED';
-    if (activeTab === 5) return order.status === 'CANCELLED';
+    if (activeTab === 2) return order.status === 'CONFIRMED';
+    if (activeTab === 3) return order.status === 'PROCESSING';
+    if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
+    if (activeTab === 5) return order.status === 'DELIVERED';
+    if (activeTab === 6) return order.status === 'CANCELLED';
     return true;
   });
 
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+  const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
-  const shippedCount = orders.filter((o) => o.status === 'SHIPPED').length;
+  const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
 
-  const handleViewDetails = (order: Order) => {
+  const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
+    setLeadTime(null);
     setDetailDialogOpen(true);
+    setItemRefundLookup({});
+    fetchItemRefundLookup(order.id);
+
+    const shopId = order.items[0]?.shopId;
+    // toDistrictId/toWardCode may not be in order response — fall back to matched user address
+    const toDistrictId = order.toDistrictId
+      ?? userAddresses.find(
+          (a) => a.recipientPhone === order.shippingPhone && a.recipientName === order.shippingName,
+        )?.ghnDistrictId;
+    const toWardCode = order.toWardCode
+      ?? userAddresses.find(
+          (a) => a.recipientPhone === order.shippingPhone && a.recipientName === order.shippingName,
+        )?.ghnWardCode;
+
+    if (shopId && toDistrictId && toWardCode) {
+      setLeadTimeLoading(true);
+      ghnApi.getLeadTime({ shopId, toDistrictId, toWardCode })
+        .then((res) => {
+          if (res.data?.expectedDeliveryTime) setLeadTime(res.data.expectedDeliveryTime);
+        })
+        .catch(() => {})
+        .finally(() => setLeadTimeLoading(false));
+    }
   };
 
   return (
@@ -477,6 +806,7 @@ const MyOrdersPage = () => {
           >
             <Tab label={`All (${orders.length})`} />
             <Tab label={`Pending (${pendingCount})`} />
+            <Tab label={`Confirmed (${confirmedCount})`} />
             <Tab label={`Processing (${processingCount})`} />
             <Tab label={`Shipped (${shippedCount})`} />
             <Tab label={`Delivered (${deliveredCount})`} />
@@ -521,8 +851,9 @@ const MyOrdersPage = () => {
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Store sx={{ fontSize: 16, color: theme.palette.custom.neutral[600] }} />
                     <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                      {order.orderNumber}
+                      {[...new Set(order.items.map(i => i.shopName).filter(Boolean))].join(', ') || order.orderNumber}
                     </Typography>
                     <Chip
                       label={getStatusLabel(order.status)}
@@ -701,26 +1032,45 @@ const MyOrdersPage = () => {
                       {formatCurrency(order.totalAmount)}
                     </Typography>
                   </Box>
-                  <Button
-                    variant="outlined"
-                    endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
-                    onClick={() => handleViewDetails(order)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: 13,
-                      borderColor: theme.palette.custom.border.main,
-                      color: theme.palette.custom.neutral[700],
-                      borderRadius: '10px',
-                      px: 2.5,
-                      '&:hover': {
-                        borderColor: theme.palette.custom.neutral[400],
-                        bgcolor: theme.palette.custom.neutral[50],
-                      },
-                    }}
-                  >
-                    View Details
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1.5 }}>
+                    {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        disabled={cancellingOrderId === order.id}
+                        onClick={() => openCancelDialog(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                        }}
+                      >
+                        {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outlined"
+                      endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
+                      onClick={() => handleViewDetails(order)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        borderColor: theme.palette.custom.border.main,
+                        color: theme.palette.custom.neutral[700],
+                        borderRadius: '10px',
+                        px: 2.5,
+                        '&:hover': {
+                          borderColor: theme.palette.custom.neutral[400],
+                          bgcolor: theme.palette.custom.neutral[50],
+                        },
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </Box>
                 </Box>
               </Paper>
             );
@@ -816,6 +1166,25 @@ const MyOrdersPage = () => {
                         {selectedOrder.shippingAddress}
                         {selectedOrder.shippingCity && `, ${selectedOrder.shippingCity}`}
                       </Typography>
+                      {(leadTimeLoading || leadTime) && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                          {leadTimeLoading ? (
+                            <CircularProgress size={12} sx={{ color: theme.palette.custom.neutral[400] }} />
+                          ) : leadTime ? (
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                              Estimated delivery:{' '}
+                              <span style={{ fontWeight: 600 }}>
+                                {new Date(leadTime).toLocaleDateString('vi-VN', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      )}
                     </Box>
                   </Grid>
 
@@ -1067,6 +1436,55 @@ const MyOrdersPage = () => {
                                             -{formatCurrency(item.discountAmount)}
                                           </Typography>
                                         )}
+                                        {selectedOrder.status === 'DELIVERED' && (
+                                          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
+                                            {itemRefundLookup[item.id]?.status && (
+                                              <Chip
+                                                label={getRefundStatusLabel(itemRefundLookup[item.id].status)}
+                                                size="small"
+                                                sx={{
+                                                  height: 20,
+                                                  fontSize: 10,
+                                                  fontWeight: 600,
+                                                  bgcolor: theme.palette.custom.status.info.light,
+                                                  color: theme.palette.custom.status.info.main,
+                                                }}
+                                              />
+                                            )}
+                                            <Button
+                                              size="small"
+                                              variant="outlined"
+                                              onClick={() => {
+                                                const existingRequest = itemRefundLookup[item.id];
+                                                if (existingRequest?.id) {
+                                                  navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', existingRequest.id));
+                                                  return;
+                                                }
+                                                handleOpenReturnDialog(item);
+                                              }}
+                                              sx={{
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                fontSize: 10,
+                                                lineHeight: 1,
+                                                minHeight: 22,
+                                                height: 22,
+                                                minWidth: 'unset',
+                                                px: 1.25,
+                                                py: 0,
+                                                borderRadius: '8px',
+                                                borderColor: itemRefundLookup[item.id]?.id
+                                                  ? theme.palette.custom.status.info.main
+                                                  : theme.palette.custom.status.warning.main,
+                                                color: itemRefundLookup[item.id]?.id
+                                                  ? theme.palette.custom.status.info.main
+                                                  : theme.palette.custom.status.warning.main,
+                                              }}
+                                            >
+                                              {itemRefundLookup[item.id]?.id ? 'View Request' : 'Request Return'}
+                                            </Button>
+                                          </Box>
+                                        )}
                                       </Box>
                                     </Box>
                                   </Box>
@@ -1136,26 +1554,30 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (
-                  <Button
-                    variant="contained"
-                    onClick={() => handleReOrder(selectedOrder.id)}
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      bgcolor: '#111',
-                      '&:hover': { bgcolor: '#333' },
-                    }}
-                  >
-                    Buy Again
-                  </Button>
-                )}
-                {selectedOrder.status === 'PENDING' && (
+                {selectedOrder.status === 'DELIVERED' && (() => {
+                  return (
+                  <>
+                    <Button
+                      variant="contained"
+                      onClick={() => handleReOrder(selectedOrder.id)}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        bgcolor: '#111',
+                        '&:hover': { bgcolor: '#333' },
+                      }}
+                    >
+                      Buy Again
+                    </Button>
+                  </>
+                  );
+                })()}
+                {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"
                     color="error"
                     disabled={cancellingOrderId === selectedOrder.id}
-                    onClick={() => handleCancelOrder(selectedOrder.id)}
+                    onClick={() => openCancelDialog(selectedOrder.id)}
                     sx={{ textTransform: 'none', fontWeight: 600 }}
                   >
                     {cancellingOrderId === selectedOrder.id ? 'Cancelling...' : 'Cancel Order'}
@@ -1165,6 +1587,256 @@ const MyOrdersPage = () => {
             </>
           );
         })()}
+      </Dialog>
+
+      {/* ── Cancel Confirmation Dialog ───────────────────────────── */}
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Cancel sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+              Cancel Order
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+            Please tell us why you'd like to cancel. This action cannot be undone.
+          </Typography>
+        </DialogTitle>
+
+        <Divider />
+
+        <DialogContent sx={{ py: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {CUSTOMER_CANCEL_REASONS.map((reason) => (
+              <FormControlLabel
+                key={reason}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={cancelReasons.includes(reason)}
+                    onChange={() => toggleCancelReason(reason)}
+                    sx={{ color: theme.palette.custom.neutral[400] }}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+                    {reason}
+                  </Typography>
+                }
+              />
+            ))}
+          </Box>
+          {cancelReasons.length === 0 && (
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.error.main, mt: 1 }}>
+              Please select at least one reason to proceed.
+            </Typography>
+          )}
+        </DialogContent>
+
+        <Divider />
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button
+            onClick={() => setCancelDialogOpen(false)}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Go Back
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelReasons.length === 0 || !!cancellingOrderId}
+            onClick={handleConfirmCancel}
+            startIcon={cancellingOrderId ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== RETURN REQUEST DIALOG ==================== */}
+      <Dialog
+        open={returnDialogOpen}
+        onClose={handleCloseReturnDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AssignmentReturn sx={{ fontSize: 24, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Return / Refund Request
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseReturnDialog}>
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          {selectedOrder && (
+            <>
+              {selectedOrder.items
+                .filter((item) => selectedReturnItemIds.includes(item.id))
+                .map((item) => {
+                  const itemForm = returnItemForms[item.id] || {
+                    reason: ReturnReason.DEFECTIVE,
+                    description: '',
+                    images: [],
+                  };
+
+                  return (
+                    <Box
+                      key={item.id}
+                      sx={{
+                        mb: 3,
+                        p: 2,
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1.5, color: theme.palette.custom.neutral[700] }}>
+                        Request Details For: {item.productName}
+                      </Typography>
+
+                      <FormControl fullWidth sx={{ mb: 2 }}>
+                        <InputLabel id={`return-reason-label-${item.id}`}>Return Reason *</InputLabel>
+                        <Select
+                          labelId={`return-reason-label-${item.id}`}
+                          value={itemForm.reason}
+                          label="Return Reason *"
+                          onChange={(e) => handleReturnItemFieldChange(item.id, 'reason', e.target.value as ReturnReason)}
+                        >
+                          {Object.values(ReturnReason).map((reason) => (
+                            <MenuItem key={reason} value={reason}>
+                              {RETURN_REASON_LABELS[reason]}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Detailed Description *"
+                        placeholder="Please describe the issue and item condition in detail..."
+                        value={itemForm.description}
+                        onChange={(e) => handleReturnItemFieldChange(item.id, 'description', e.target.value)}
+                        sx={{ mb: 2 }}
+                      />
+
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1, color: theme.palette.custom.neutral[700] }}>
+                          Evidence Images For This Item
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 1.5 }}>
+                          {itemForm.images.map((image, index) => (
+                            <Box
+                              key={`${item.id}-${index}`}
+                              sx={{
+                                position: 'relative',
+                                width: 80,
+                                height: 80,
+                                borderRadius: 2,
+                                overflow: 'hidden',
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                              }}
+                            >
+                              <img
+                                src={image.preview}
+                                alt={`Evidence ${index + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={() => handleRemoveImage(item.id, index)}
+                                sx={{
+                                  position: 'absolute',
+                                  top: 2,
+                                  right: 2,
+                                  bgcolor: 'rgba(0,0,0,0.6)',
+                                  color: 'white',
+                                  '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                                }}
+                              >
+                                <Delete sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Box>
+                          ))}
+
+                          {itemForm.images.length < 5 && (
+                            <Button
+                              component="label"
+                              variant="outlined"
+                              sx={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 2,
+                                borderStyle: 'dashed',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 0.5,
+                              }}
+                            >
+                              <CloudUpload sx={{ fontSize: 24 }} />
+                              <Typography sx={{ fontSize: 10 }}>Add</Typography>
+                              <input
+                                type="file"
+                                hidden
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleImageUpload(item.id, e)}
+                              />
+                            </Button>
+                          )}
+                        </Box>
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                          Up to 5 images per item. Supported: JPG, PNG
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })}
+
+              <Alert severity="info" sx={{ mt: 3 }}>
+                <Typography sx={{ fontSize: 13 }}>
+                  Return requests will be sent to the seller for review. You will receive updates when the status changes.
+                </Typography>
+              </Alert>
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleCloseReturnDialog}
+            disabled={submittingReturn}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitReturnRequest}
+            disabled={
+              submittingReturn
+              || selectedReturnItemIds.length === 0
+              || selectedReturnItemIds.some((itemId) => !(returnItemForms[itemId]?.description || '').trim())
+            }
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              bgcolor: theme.palette.custom.status.warning.main,
+              '&:hover': { bgcolor: theme.palette.custom.status.warning.main },
+            }}
+          >
+            {submittingReturn ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

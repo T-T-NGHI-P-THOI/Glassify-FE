@@ -4,23 +4,16 @@ import axiosInstance from '@/api/axios.config';
 
 const GHN_BASE_URL = '/api/v1/ghn';
 
-export interface GhnShippingFeeRequest {
-  shopId: string;
-  toDistrictId: number;
-  toWardCode: string;
-  weight: number;
-  length: number;
-  width: number;
-  height: number;
-  insuranceValue: number;
+export interface GhnCheckoutShippingFeeResponse {
+  actualFee: number;
+  buyerFee: number;
+  platformSubsidy: number;
+  freeShipping: boolean;
 }
 
-export interface GhnShippingFeeOption {
-  serviceId: number;
-  serviceName: string;
-  serviceTypeId: number;
-  totalFee: number;
-  insuranceFee: number;
+export interface GhnLeadTimeResponse {
+  leadtime: number;
+  expectedDeliveryTime: string; // ISO date string
 }
 
 export const ghnApi = {
@@ -47,10 +40,28 @@ export const ghnApi = {
     return response.data;
   },
 
-  getShippingFee: async (body: GhnShippingFeeRequest): Promise<ApiResponse<GhnShippingFeeOption[]>> => {
-    const response = await axiosInstance.post<ApiResponse<GhnShippingFeeOption[]>>(
-      `${GHN_BASE_URL}/shipping-fee`,
-      body,
+  getLeadTime: async (params: {
+    shopId: string;
+    toDistrictId: number;
+    toWardCode: string;
+  }): Promise<ApiResponse<GhnLeadTimeResponse>> => {
+    const response = await axiosInstance.get<ApiResponse<GhnLeadTimeResponse>>(
+      `${GHN_BASE_URL}/leadtime`,
+      { params },
+    );
+    return response.data;
+  },
+
+  getCheckoutShippingFee: async (params: {
+    shopId: string;
+    toDistrictId: number;
+    toWardCode: string;
+    orderSubtotal: number;
+    cartId: string;
+  }): Promise<ApiResponse<GhnCheckoutShippingFeeResponse>> => {
+    const response = await axiosInstance.get<ApiResponse<GhnCheckoutShippingFeeResponse>>(
+      `${GHN_BASE_URL}/checkout-shipping-fee`,
+      { params },
     );
     return response.data;
   },

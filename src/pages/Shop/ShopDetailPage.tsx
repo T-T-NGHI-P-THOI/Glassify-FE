@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
-  Paper,
   Avatar,
   Chip,
   CircularProgress,
@@ -17,7 +16,6 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import {
   Store,
   Verified,
@@ -25,11 +23,13 @@ import {
   Inventory,
   Search,
   ArrowBack,
+  TuneRounded,
 } from '@mui/icons-material';
 import ProductGrid from '../../components/ProductBrowse/ProductGrid';
 import type { BrowseProduct } from '../../types/filter';
 import type { ApiShopInfo } from '../../api/product-api';
 import ProductAPI from '../../api/product-api';
+import { useLayout } from '../../layouts/LayoutContext';
 
 type SortOption = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc';
 
@@ -44,7 +44,12 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 const ShopDetailPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
   const navigate = useNavigate();
-  const theme = useTheme();
+  const { setShowNavCategories } = useLayout();
+
+  useEffect(() => {
+    setShowNavCategories(false);
+    return () => setShowNavCategories(true);
+  }, [setShowNavCategories]);
 
   const [shop, setShop] = useState<ApiShopInfo | null>(null);
   const [products, setProducts] = useState<BrowseProduct[]>([]);
@@ -83,9 +88,7 @@ const ShopDetailPage: React.FC = () => {
           rating: p.avgRating || 0,
           reviewCount: p.reviewCount || 0,
           productType: p.productType,
-          image:
-            p.fileResponses?.[0]?.url ||
-            'https://placehold.co/300x200/000000/FFFFFF?text=' + encodeURIComponent(p.name),
+          image: ProductAPI.getPrimaryImageUrl(p),
           stockQuantity: p.stockQuantity,
           isNew: false,
           isFeatured: p.isFeatured,
@@ -127,50 +130,29 @@ const ShopDetailPage: React.FC = () => {
     if (selectedCategory) {
       result = result.filter((p) => p.categoryName === selectedCategory);
     }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((p) => p.name.toLowerCase().includes(q));
     }
-
-    if (minPrice !== '') {
-      result = result.filter((p) => p.price >= Number(minPrice));
-    }
-    if (maxPrice !== '') {
-      result = result.filter((p) => p.price <= Number(maxPrice));
-    }
+    if (minPrice !== '') result = result.filter((p) => p.price >= Number(minPrice));
+    if (maxPrice !== '') result = result.filter((p) => p.price <= Number(maxPrice));
 
     switch (sortBy) {
-      case 'name_asc':
-        result.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'name_desc':
-        result.sort((a, b) => b.name.localeCompare(a.name));
-        break;
-      case 'price_asc':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price_desc':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating_desc':
-        result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
+      case 'name_asc': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'name_desc': result.sort((a, b) => b.name.localeCompare(a.name)); break;
+      case 'price_asc': result.sort((a, b) => a.price - b.price); break;
+      case 'price_desc': result.sort((a, b) => b.price - a.price); break;
+      case 'rating_desc': result.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
     }
 
     return result;
   }, [products, searchQuery, sortBy, minPrice, maxPrice, selectedCategory]);
 
+  const hasActiveFilter = !!(searchQuery || minPrice || maxPrice || sortBy !== 'name_asc' || selectedCategory);
+
   if (isLoading) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-        }}
-      >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -178,17 +160,9 @@ const ShopDetailPage: React.FC = () => {
 
   if (error || !shop) {
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          gap: 2,
-        }}
-      >
-        <Typography color="text.secondary">{error || 'Shop not found'}</Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 2 }}>
+        <Store sx={{ fontSize: 64, color: '#d1d5db' }} />
+        <Typography sx={{ color: '#6b7280', fontSize: 16 }}>{error || 'Shop not found'}</Typography>
         <Button variant="outlined" onClick={() => navigate(-1)} startIcon={<ArrowBack />}>
           Go Back
         </Button>
@@ -197,98 +171,77 @@ const ShopDetailPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ bgcolor: theme.palette.custom.neutral[50], minHeight: '100vh', pb: 6 }}>
+    <Box sx={{ bgcolor: '#f9fafb', minHeight: '100vh', pb: 8 }}>
       <Box sx={{ maxWidth: 1280, mx: 'auto', px: { xs: 2, md: 4 }, pt: 4 }}>
-        {/* Back button */}
-        {/* <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate(-1)}
-          sx={{ mb: 3, color: theme.palette.custom.neutral[600] }}
-        >
-          Back
-        </Button> */}
 
-        {/* Shop Header */}
-        <Paper
-          elevation={0}
+        {/* ── Shop Header Card ── */}
+        <Box
           sx={{
+            bgcolor: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 2,
             p: 3,
             mb: 3,
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
             display: 'flex',
             alignItems: 'center',
-            gap: 3,
+            gap: 2.5,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           }}
         >
           <Avatar
             variant="rounded"
             src={shop.logoUrl || undefined}
-            sx={{ width: 80, height: 80, bgcolor: theme.palette.custom.neutral[100] }}
+            sx={{ width: 72, height: 72, bgcolor: '#f3f4f6', flexShrink: 0, borderRadius: 1.5 }}
           >
-            <Store sx={{ fontSize: 40 }} />
+            <Store sx={{ fontSize: 36, color: '#9ca3af' }} />
           </Avatar>
 
           <Box sx={{ flex: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-              <Typography
-                sx={{ fontSize: 22, fontWeight: 700, color: theme.palette.custom.neutral[800] }}
-              >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
+              <Typography sx={{ fontSize: 20, fontWeight: 700, color: '#111827' }}>
                 {shop.shopName}
               </Typography>
               {shop.isVerified && (
-                <Verified sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }} />
+                <Verified sx={{ fontSize: 18, color: '#3b82f6' }} titleAccess="Verified" />
               )}
               <Chip
                 label={shop.tier}
                 size="small"
-                sx={{
-                  ml: 1,
-                  fontWeight: 700,
-                  fontSize: 11,
-                  bgcolor: theme.palette.custom.neutral[100],
-                  color: theme.palette.custom.neutral[600],
-                }}
+                sx={{ fontWeight: 700, fontSize: 10, bgcolor: '#f3f4f6', color: '#6b7280' }}
               />
             </Box>
-            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 1.5 }}>
-              Code: {shop.shopCode}
+
+            <Typography sx={{ fontSize: 11, color: '#9ca3af', mb: 1.25 }}>
+              #{shop.shopCode}
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <Star sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
-                <Typography
-                  sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}
-                >
-                  {shop.avgRating.toFixed(1)}
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                  Rating
-                </Typography>
-              </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Star sx={{ fontSize: 14, color: '#f59e0b' }} />
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                {(shop.avgRating ?? 0).toFixed(1)}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: '#9ca3af', mr: 2 }}>Rating</Typography>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <Inventory sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
-                <Typography
-                  sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}
-                >
-                  {shop.totalProducts}
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                  Products
-                </Typography>
-              </Box>
+              <Inventory sx={{ fontSize: 14, color: '#9ca3af' }} />
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                {shop.totalProducts}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>Products</Typography>
             </Box>
           </Box>
-        </Paper>
+        </Box>
 
-        {/* Category Tabs + Filter — unified */}
-        <Paper
-          elevation={0}
-          sx={{ mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
+        {/* ── Toolbar: Category Tabs + Filters (one card) ── */}
+        <Box
+          sx={{
+            bgcolor: '#fff',
+            borderRadius: 2,
+            border: '1px solid #e5e7eb',
+            mb: 3,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}
         >
-          {/* Row 1: Category tabs */}
+          {/* Category tabs row */}
           <Tabs
             value={selectedCategory ?? '__all__'}
             onChange={(_, val: string) => setSelectedCategory(val === '__all__' ? null : val)}
@@ -296,30 +249,31 @@ const ShopDetailPage: React.FC = () => {
             scrollButtons="auto"
             sx={{
               px: 1,
-              borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+              minHeight: 46,
+              borderBottom: '1px solid #f3f4f6',
               '& .MuiTab-root': {
                 textTransform: 'none',
                 fontWeight: 500,
                 fontSize: 13,
-                minHeight: 44,
-                px: 1.5,
-                color: theme.palette.custom.neutral[600],
+                minHeight: 46,
+                px: 2,
+                color: '#6b7280',
               },
-              '& .Mui-selected': { fontWeight: 700, color: theme.palette.custom.neutral[900] },
-              '& .MuiTabs-indicator': { backgroundColor: theme.palette.custom.neutral[900] },
+              '& .Mui-selected': { fontWeight: 700, color: '#111827' },
+              '& .MuiTabs-indicator': { backgroundColor: '#667eea', height: 2 },
             }}
           >
-            <Tab label={`All (${products.length})`} value="__all__" />
+            <Tab label={`All  (${products.length})`} value="__all__" />
             {categories.map((cat) => (
               <Tab
                 key={cat}
-                label={`${cat} (${products.filter((p) => p.categoryName === cat).length})`}
+                label={`${cat}  (${products.filter((p) => p.categoryName === cat).length})`}
                 value={cat}
               />
             ))}
           </Tabs>
 
-          {/* Row 2: Filter controls */}
+          {/* Filter controls row */}
           <Box
             sx={{
               display: 'flex',
@@ -330,34 +284,37 @@ const ShopDetailPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
+            <TuneRounded sx={{ fontSize: 18, color: '#9ca3af', flexShrink: 0 }} />
+
             <TextField
               placeholder="Search products..."
               size="small"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              sx={{ flex: 1, minWidth: 160 }}
+              sx={{
+                flex: 1,
+                minWidth: 160,
+                '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#f9fafb' },
+              }}
               slotProps={{
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Search sx={{ color: theme.palette.custom.neutral[400], fontSize: 16 }} />
+                      <Search sx={{ color: '#9ca3af', fontSize: 16 }} />
                     </InputAdornment>
                   ),
                 },
               }}
             />
 
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl
+              size="small"
+              sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#f9fafb' } }}
+            >
               <InputLabel>Sort by</InputLabel>
-              <Select
-                value={sortBy}
-                label="Sort by"
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-              >
+              <Select value={sortBy} label="Sort by" onChange={(e) => setSortBy(e.target.value as SortOption)}>
                 {SORT_OPTIONS.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -368,7 +325,7 @@ const ShopDetailPage: React.FC = () => {
               type="number"
               value={minPrice}
               onChange={(e) => setMinPrice(e.target.value)}
-              sx={{ width: 100 }}
+              sx={{ width: 100, '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#f9fafb' } }}
               slotProps={{ htmlInput: { min: 0 } }}
             />
 
@@ -378,13 +335,14 @@ const ShopDetailPage: React.FC = () => {
               type="number"
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
-              sx={{ width: 100 }}
+              sx={{ width: 100, '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: '#f9fafb' } }}
               slotProps={{ htmlInput: { min: 0 } }}
             />
 
-            {(searchQuery || minPrice || maxPrice || sortBy !== 'name_asc' || selectedCategory) && (
+            {hasActiveFilter && (
               <Button
                 size="small"
+                variant="text"
                 onClick={() => {
                   setSearchQuery('');
                   setMinPrice('');
@@ -392,58 +350,42 @@ const ShopDetailPage: React.FC = () => {
                   setSortBy('name_asc');
                   setSelectedCategory(null);
                 }}
-                sx={{ color: theme.palette.custom.neutral[500], fontSize: 12, whiteSpace: 'nowrap' }}
+                sx={{ color: '#6b7280', fontSize: 12, whiteSpace: 'nowrap', textTransform: 'none' }}
               >
-                Reset
+                Clear all
+              </Button>
+            )}
+
+            <Typography sx={{ ml: 'auto', fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+              {filteredProducts.length} / {products.length} products
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ── Product Grid ── */}
+        {filteredProducts.length > 0 ? (
+          <ProductGrid products={filteredProducts} viewMode="grid" />
+        ) : (
+          <Box sx={{ py: 10, textAlign: 'center', bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Store sx={{ fontSize: 56, color: '#d1d5db', mb: 1.5 }} />
+            <Typography sx={{ fontSize: 15, color: '#9ca3af' }}>No products found</Typography>
+            {hasActiveFilter && (
+              <Button
+                size="small"
+                sx={{ mt: 1.5, color: '#667eea', textTransform: 'none' }}
+                onClick={() => {
+                  setSearchQuery('');
+                  setMinPrice('');
+                  setMaxPrice('');
+                  setSortBy('name_asc');
+                  setSelectedCategory(null);
+                }}
+              >
+                Clear filters
               </Button>
             )}
           </Box>
-        </Paper>
-
-        {/* Products Section */}
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
-            overflow: 'hidden',
-          }}
-        >
-          <Box
-            sx={{
-              px: 2.5,
-              py: 2,
-              borderBottom: `1px solid ${theme.palette.custom.border.light}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <Typography
-              sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}
-            >
-              {selectedCategory ?? 'All Products'}
-            </Typography>
-            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-              {filteredProducts.length} of {products.length} products
-            </Typography>
-          </Box>
-
-          <Box sx={{ p: 2.5 }}>
-            {filteredProducts.length > 0 ? (
-              <ProductGrid products={filteredProducts} viewMode="grid" />
-            ) : (
-              <Box sx={{ py: 8, textAlign: 'center' }}>
-                <Store
-                  sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }}
-                />
-                <Typography sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }}>
-                  No products found
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Paper>
+        )}
       </Box>
     </Box>
   );

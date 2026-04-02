@@ -27,9 +27,18 @@ export const CFG = {
     refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
     refFaceHeight: 210,     // Reference face height (pixels)
     glassesDepth: -50,       // Z-offset: how far glasses sit in front of the face
-    glassesDown: -10,         // Y-offset: push glasses slightly downward
+    glassesDown: -20,         // Y-offset: push glasses slightly downward
     glassesCenterX: 0,      // X-offset: horizontal fine-tuning
-    glassesScale: 1.22      // Overall scale multiplier
+    glassesScale: 1.2     // Overall scale multiplier
+};
+
+export const IMAGE_CFG = {
+    refHeadWidth: 140,      // Reference head width (pixels) for scale normalization
+    refFaceHeight: 210,     // Reference face height (pixels)
+    glassesDepth: -20,       // Z-offset: how far glasses sit in front of the face
+    glassesDown: 20,         // Y-offset: push glasses slightly downward
+    glassesCenterX: 0,      // X-offset: horizontal fine-tuning
+    glassesScale: 1.2     // Overall scale multiplier
 };
 
 const sm = {
@@ -146,7 +155,7 @@ export class FaceLandmarkerService {
 
         if (results.faceLandmarks && results.faceLandmarks.length > 0 && this.glassesObj) {
             this.glassesObj.visible = true;
-            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
+            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, CFG);
             this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
@@ -158,11 +167,11 @@ export class FaceLandmarkerService {
         this.scheduleNextPrediction(video);
     }
 
-    // Shared landmark → Three.js logic (used by both VIDEO and IMAGE services)
     applyLandmarks(
         landmarks: vision.NormalizedLandmark[],
         width: number,
-        height: number
+        height: number,
+        CFG: any
     ) {
         if (!this.glassesObj) return;
 
@@ -228,21 +237,21 @@ export class FaceLandmarkerService {
 
         sm.prev.copy(tGPos);
 
-        this.glassesObj!.scale.set(
+        this.glassesObj.scale.set(
             sm.gScale.x * this.baseScale.x,
             sm.gScale.y * this.baseScale.y,
             sm.gScale.z * this.baseScale.z
         );
 
-        this.normalizePosition(this.glassesObj!);
-        this.glassesObj!.position.set(
-            sm.gPos.x + this.glassesObj!.position.x,
-            sm.gPos.y + this.glassesObj!.position.y,
-            sm.gPos.z + this.glassesObj!.position.z
+        this.normalizePosition(this.glassesObj);
+        this.glassesObj.position.set(
+            sm.gPos.x + this.glassesObj.position.x,
+            sm.gPos.y + this.glassesObj.position.y,
+            sm.gPos.z + this.glassesObj.position.z
         );
 
-        this.glassesObj!.quaternion.copy(sm.gQuat);
-        this.glassesObj!.updateWorldMatrix(true, true);
+        this.glassesObj.quaternion.copy(sm.gQuat);
+        this.glassesObj.updateWorldMatrix(true, true);
 
         if (this.faceObj) {
             let posAttr = this.faceObj.geometry.getAttribute('position');
@@ -326,7 +335,8 @@ export class ImageFaceLandmarkerService {
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],
             img.naturalWidth,
-            img.naturalHeight
+            img.naturalHeight,
+            IMAGE_CFG
         );
 
         return { found: true, landmarks: results.faceLandmarks[0] };

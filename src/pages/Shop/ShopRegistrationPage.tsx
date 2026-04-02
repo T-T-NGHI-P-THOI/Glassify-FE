@@ -50,6 +50,9 @@ import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/m
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { useAuth } from '@/hooks/useAuth';
+import { initialize } from '@/auth/Reducer';
+import userApi from '@/api/service/userApi';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -101,6 +104,7 @@ interface ShopFormData {
 const ShopRegistrationPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { dispatch } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<ShopFormData>({
     shopName: '',
@@ -129,6 +133,10 @@ const ShopRegistrationPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // GHN location state
   const [provinces, setProvinces] = useState<GhnProvince[]>([]);
@@ -139,6 +147,15 @@ const ShopRegistrationPage = () => {
   const [loadingWards, setLoadingWards] = useState(false);
 
   useLayoutConfig({ showNavbar: false, showFooter: true });
+
+  // Redirect if user already has a shop
+  useEffect(() => {
+    shopApi.getMyShops().then((res) => {
+      if (res.data && res.data.length > 0) {
+        navigate(PAGE_ENDPOINTS.SHOP.PROFILE, { replace: true });
+      }
+    }).catch(() => {});
+  }, []);
 
   // Fetch provinces on mount
   useEffect(() => {
@@ -205,6 +222,76 @@ const ShopRegistrationPage = () => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
+  // Text fields: max 21 chars, no special characters (allow letters incl. Vietnamese, digits, spaces, . - /)
+  const handleTextChange = (field: keyof ShopFormData) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const filtered = e.target.value
+      .replace(/[^a-zA-Z0-9\s\u00C0-\u1EF9.,\-/]/g, '')
+      .slice(0, 21);
+    setFormData((prev) => ({ ...prev, [field]: filtered }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  // Number-only fields: digits only, configurable max chars
+  const handleNumberFieldChange = (field: keyof ShopFormData, maxLen = 21) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, maxLen);
+    setFormData((prev) => ({ ...prev, [field]: digits }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const handleAddressChange = (field: keyof ShopFormData) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const value = e.target.value.slice(0, 50);
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setUploadingLogo(true);
+    try {
+      const res = await shopApi.uploadLogoImage(file);
+      if (res.data?.url) {
+        setFormData((prev) => ({ ...prev, logoUrl: res.data!.url }));
+      }
+    } catch {
+      setLogoFile(null);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleLicenseFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLicenseFile(file);
+    setErrors((prev) => ({ ...prev, licenseImageUrl: '' }));
+    setUploadingLicense(true);
+    try {
+      const res = await shopApi.uploadLicenseImage(file);
+      if (res.data?.url) {
+        setFormData((prev) => ({ ...prev, licenseImageUrl: res.data!.url }));
+      }
+    } catch {
+      setErrors((prev) => ({ ...prev, licenseImageUrl: 'Upload failed. Please try again.' }));
+      setLicenseFile(null);
+    } finally {
+      setUploadingLicense(false);
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData((prev) => ({ ...prev, phone: digits }));
+    if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+  };
+
   const handleSelectChange = (field: keyof ShopFormData) => (e: any) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
@@ -220,17 +307,41 @@ const ShopRegistrationPage = () => {
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Please enter a valid email address';
       }
-      if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+      if (!formData.phone.trim()) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!/^0\d{9}$/.test(formData.phone)) {
+        newErrors.phone = 'Invalid phone number (must be 10 digits, starting with 0)';
+      }
       if (!formData.address.trim()) newErrors.address = 'Street address is required';
       if (!formData.city) newErrors.city = 'City/Province is required';
+      if (!formData.district) newErrors.district = 'District is required';
+      if (!formData.ward) newErrors.ward = 'Ward is required';
     }
 
     if (step === 1) {
-      if (!formData.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
+      if (!formData.licenseNumber.trim()) {
+        newErrors.licenseNumber = 'License number is required';
+      } else if (!/^\d+$/.test(formData.licenseNumber)) {
+        newErrors.licenseNumber = 'License number must contain digits only';
+      }
       if (!formData.businessName.trim()) newErrors.businessName = 'Business name is required';
       if (!formData.businessType) newErrors.businessType = 'Business type is required';
-      if (!formData.taxId.trim()) newErrors.taxId = 'Tax ID is required';
+      if (!formData.taxId.trim()) {
+        newErrors.taxId = 'Tax ID is required';
+      } else if (!/^\d+$/.test(formData.taxId)) {
+        newErrors.taxId = 'Tax ID must contain digits only';
+      }
       if (!formData.legalRepresentative.trim()) newErrors.legalRepresentative = 'Legal representative name is required';
+      if (!formData.licenseImageUrl.trim()) newErrors.licenseImageUrl = 'License image URL is required';
+      if (formData.expiryDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(formData.expiryDate) <= today) {
+          newErrors.expiryDate = 'Expiry date must be a future date';
+        } else if (formData.issuedDate && new Date(formData.expiryDate) <= new Date(formData.issuedDate)) {
+          newErrors.expiryDate = 'Expiry date must be after the issued date';
+        }
+      }
     }
 
     if (step === 2) {
@@ -241,8 +352,23 @@ const ShopRegistrationPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validateStep(activeStep)) return;
+
+    if (activeStep === 0) {
+      try {
+        const res = await shopApi.checkEmail(formData.email);
+        if (!res.data?.available) {
+          setErrors((prev) => ({ ...prev, email: res.data?.message || 'This email is already used by another shop' }));
+          return;
+        }
+      } catch (err: any) {
+        const msg = err?.originalError?.response?.data?.data?.message || err?.message || 'This email is already used by another shop';
+        setErrors((prev) => ({ ...prev, email: msg }));
+        return;
+      }
+    }
+
     setErrors({});
     setActiveStep((prev) => Math.min(prev + 1, registrationSteps.length - 1));
   };
@@ -288,11 +414,26 @@ const ShopRegistrationPage = () => {
       };
 
       await shopApi.register(requestData);
+      // Refresh user profile so the SHOP_OWNER role is reflected in FE context
+      try {
+        const profileRes = await userApi.getMyProfile();
+        if (profileRes.data) {
+          dispatch(initialize({ isInitialized: true, isAuthenticated: true, user: profileRes.data as any }));
+        }
+      } catch {
+        // profile refresh failure is non-critical
+      }
       setSuccessDialogOpen(true);
     } catch (err: any) {
-      const message =
-        err?.message || err?.errors?.[0] || 'Registration failed. Please try again.';
-      setSubmitError(message);
+      const rawErrors = err?.originalError?.response?.data?.errors;
+      const beError = Array.isArray(rawErrors) ? rawErrors[0] : rawErrors?.[Object.keys(rawErrors ?? {})[0]]?.[0];
+      const message = beError || err?.message || 'Registration failed. Please try again.';
+      if (message.toLowerCase().includes('email')) {
+        setActiveStep(0);
+        setErrors({ email: message });
+      } else {
+        setSubmitError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -300,7 +441,7 @@ const ShopRegistrationPage = () => {
 
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
-    navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD);
+    navigate(PAGE_ENDPOINTS.HOME);
   };
 
   const renderShopInfoForm = () => (
@@ -327,13 +468,11 @@ const ShopRegistrationPage = () => {
             required
             label="Shop Name"
             value={formData.shopName}
-            onChange={handleInputChange('shopName')}
+            onChange={handleTextChange('shopName')}
             placeholder="Enter your shop name"
             error={!!errors.shopName}
-            helperText={errors.shopName}
-            InputProps={{
-              startAdornment: <Store sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.shopName || `${formData.shopName.length}/21`}
+            slotProps={{ input: { startAdornment: <Store sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -348,9 +487,7 @@ const ShopRegistrationPage = () => {
             placeholder="Enter email address"
             error={!!errors.email}
             helperText={errors.email}
-            InputProps={{
-              startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ input: { startAdornment: <Email sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -360,24 +497,65 @@ const ShopRegistrationPage = () => {
             required
             label="Phone Number"
             value={formData.phone}
-            onChange={handleInputChange('phone')}
-            placeholder="Enter phone number"
+            onChange={handlePhoneChange}
+            placeholder="e.g. 0912345678"
             error={!!errors.phone}
-            helperText={errors.phone}
-            InputProps={{
-              startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.phone || '10 digits, starts with 0'}
+            inputMode="numeric"
+            slotProps={{ htmlInput: { maxLength: 10, inputMode: 'numeric' }, input: { startAdornment: <Phone sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Logo URL"
-            value={formData.logoUrl}
-            onChange={handleInputChange('logoUrl')}
-            placeholder="Enter logo image URL"
-          />
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[700], mb: 0.75 }}>
+              Shop Logo
+            </Typography>
+            <Box
+              component="label"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                p: 2,
+                borderRadius: 2,
+                border: `2px dashed ${uploadingLogo ? theme.palette.primary.main : formData.logoUrl ? theme.palette.custom.status.success.main : theme.palette.custom.border.light}`,
+                bgcolor: theme.palette.custom.neutral[50],
+                cursor: uploadingLogo ? 'wait' : 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': { borderColor: theme.palette.primary.main, bgcolor: theme.palette.primary.main + '08' },
+              }}
+            >
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleLogoFileChange}
+                disabled={uploadingLogo}
+              />
+              {uploadingLogo ? (
+                <CircularProgress size={40} />
+              ) : formData.logoUrl ? (
+                <Avatar
+                  variant="rounded"
+                  src={formData.logoUrl}
+                  sx={{ width: 56, height: 56, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
+                />
+              ) : (
+                <Avatar variant="rounded" sx={{ width: 56, height: 56, bgcolor: theme.palette.custom.neutral[100], borderRadius: 2 }}>
+                  <Store sx={{ color: theme.palette.custom.neutral[400], fontSize: 28 }} />
+                </Avatar>
+              )}
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[700] }}>
+                  {uploadingLogo ? 'Uploading...' : formData.logoUrl ? (logoFile?.name || 'Logo uploaded') : 'Click to upload shop logo'}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                  {formData.logoUrl ? 'Click to replace' : 'PNG, JPG or WEBP'}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
         </Grid>
       </Grid>
 
@@ -405,13 +583,11 @@ const ShopRegistrationPage = () => {
             required
             label="Street Address"
             value={formData.address}
-            onChange={handleInputChange('address')}
+            onChange={handleAddressChange('address')}
             placeholder="Enter street address"
             error={!!errors.address}
-            helperText={errors.address}
-            InputProps={{
-              startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.address || `${formData.address.length}/50`}
+            slotProps={{ htmlInput: { maxLength: 50 }, input: { startAdornment: <LocationOn sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -436,36 +612,44 @@ const ShopRegistrationPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required error={!!errors.district}>
             <InputLabel>District</InputLabel>
             <Select
               value={formData.district}
               label="District"
+              error={!!errors.district}
               disabled={!formData.city || loadingDistricts}
               onChange={(e) => {
                 setFormData((prev) => ({ ...prev, district: e.target.value, ward: '' }));
+                if (errors.district) setErrors((prev) => ({ ...prev, district: '' }));
               }}
             >
               {districts.map((d) => (
                 <MenuItem key={d.DistrictID} value={String(d.DistrictID)}>{d.DistrictName}</MenuItem>
               ))}
             </Select>
+            {errors.district && <FormHelperText>{errors.district}</FormHelperText>}
           </FormControl>
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <FormControl fullWidth>
+          <FormControl fullWidth required error={!!errors.ward}>
             <InputLabel>Ward</InputLabel>
             <Select
               value={formData.ward}
               label="Ward"
+              error={!!errors.ward}
               disabled={!formData.district || loadingWards}
-              onChange={handleSelectChange('ward')}
+              onChange={(e) => {
+                handleSelectChange('ward')(e);
+                if (errors.ward) setErrors((prev) => ({ ...prev, ward: '' }));
+              }}
             >
               {wards.map((w) => (
                 <MenuItem key={w.WardCode} value={w.WardCode}>{w.WardName}</MenuItem>
               ))}
             </Select>
+            {errors.ward && <FormHelperText>{errors.ward}</FormHelperText>}
           </FormControl>
         </Grid>
       </Grid>
@@ -498,19 +682,19 @@ const ShopRegistrationPage = () => {
         License Information
       </Typography>
       <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Row 1: License Number + Tax ID */}
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             fullWidth
             required
             label="License Number"
             value={formData.licenseNumber}
-            onChange={handleInputChange('licenseNumber')}
+            onChange={handleNumberFieldChange('licenseNumber', 13)}
             placeholder="e.g. 0312345678"
+            inputMode="numeric"
             error={!!errors.licenseNumber}
-            helperText={errors.licenseNumber}
-            InputProps={{
-              startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.licenseNumber || `Digits only · ${formData.licenseNumber.length}/13`}
+            slotProps={{ htmlInput: { maxLength: 13 }, input: { startAdornment: <Description sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -518,15 +702,29 @@ const ShopRegistrationPage = () => {
           <TextField
             fullWidth
             required
+            label="Tax ID"
+            value={formData.taxId}
+            onChange={handleNumberFieldChange('taxId', 13)}
+            placeholder="e.g. 0312345678"
+            inputMode="numeric"
+            error={!!errors.taxId}
+            helperText={errors.taxId || `Digits only · ${formData.taxId.length}/13`}
+            slotProps={{ htmlInput: { maxLength: 13 }, input: { startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
+          />
+        </Grid>
+
+        {/* Row 2: Business Name + Business Type */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            fullWidth
+            required
             label="Business Name"
             value={formData.businessName}
-            onChange={handleInputChange('businessName')}
+            onChange={handleTextChange('businessName')}
             placeholder="Registered business name"
             error={!!errors.businessName}
-            helperText={errors.businessName}
-            InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.businessName || `${formData.businessName.length}/21`}
+            slotProps={{ input: { startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -548,75 +746,108 @@ const ShopRegistrationPage = () => {
           </FormControl>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            required
-            label="Tax ID"
-            value={formData.taxId}
-            onChange={handleInputChange('taxId')}
-            placeholder="e.g. 0312345678"
-            error={!!errors.taxId}
-            helperText={errors.taxId}
-            InputProps={{
-              startAdornment: <Business sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
+        {/* Row 3: Issued Date + Expiry Date + Issued By */}
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField
             fullWidth
             label="Issued Date"
             type="date"
             value={formData.issuedDate}
             onChange={handleInputChange('issuedDate')}
-            slotProps={{ inputLabel: { shrink: true } }}
-            InputProps={{
-              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField
             fullWidth
             label="Expiry Date"
             type="date"
             value={formData.expiryDate}
             onChange={handleInputChange('expiryDate')}
-            slotProps={{ inputLabel: { shrink: true } }}
-            InputProps={{
-              startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
+            error={!!errors.expiryDate}
+            helperText={errors.expiryDate}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { min: new Date().toISOString().split('T')[0] },
+              input: { startAdornment: <CalendarToday sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> },
             }}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField
             fullWidth
             label="Issued By"
             value={formData.issuedBy}
             onChange={handleInputChange('issuedBy')}
-            placeholder="e.g. Sở Kế hoạch và Đầu tư TP.HCM"
-            InputProps={{
-              startAdornment: <AccountBalance sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            placeholder="e.g. Sở KH&ĐT TP.HCM"
+            slotProps={{ input: { startAdornment: <AccountBalance sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="License Image URL"
-            value={formData.licenseImageUrl}
-            onChange={handleInputChange('licenseImageUrl')}
-            placeholder="Paste the URL of your scanned license document"
-            InputProps={{
-              startAdornment: <LinkIcon sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
-            helperText="Upload your document to a cloud storage and paste the public link here."
-          />
+        {/* Row 4: License Document — full width */}
+        <Grid size={{ xs: 12 }}>
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[700], mb: 0.75 }}>
+              License Document <span style={{ color: '#dc2626' }}>*</span>
+            </Typography>
+            <Box
+              component="label"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                px: 1.75,
+                height: 56,
+                borderRadius: 1,
+                border: `1px solid ${errors.licenseImageUrl ? '#dc2626' : formData.licenseImageUrl ? theme.palette.custom.status.success.main : theme.palette.custom.border.light}`,
+                bgcolor: 'background.paper',
+                cursor: uploadingLicense ? 'wait' : 'pointer',
+                transition: 'border-color 0.2s',
+                '&:hover': { borderColor: errors.licenseImageUrl ? '#dc2626' : theme.palette.text.primary },
+              }}
+            >
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                style={{ display: 'none' }}
+                onChange={handleLicenseFileChange}
+                disabled={uploadingLicense}
+              />
+              {uploadingLicense ? (
+                <CircularProgress size={18} sx={{ flexShrink: 0 }} />
+              ) : formData.licenseImageUrl ? (
+                <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main, flexShrink: 0 }} />
+              ) : (
+                <LinkIcon sx={{ fontSize: 20, color: theme.palette.custom.neutral[400], flexShrink: 0 }} />
+              )}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  noWrap
+                  sx={{
+                    fontSize: 14,
+                    color: uploadingLicense
+                      ? theme.palette.primary.main
+                      : formData.licenseImageUrl
+                      ? theme.palette.custom.status.success.main
+                      : theme.palette.custom.neutral[500],
+                  }}
+                >
+                  {uploadingLicense
+                    ? 'Uploading...'
+                    : formData.licenseImageUrl
+                    ? (licenseFile?.name || 'File uploaded — click to replace')
+                    : 'Click to upload license document (PNG, JPG, WEBP, PDF)'}
+                </Typography>
+              </Box>
+            </Box>
+            {errors.licenseImageUrl && (
+              <Typography sx={{ fontSize: 12, color: '#dc2626', mt: 0.5, ml: 0.5 }}>
+                {errors.licenseImageUrl}
+              </Typography>
+            )}
+          </Box>
         </Grid>
       </Grid>
 
@@ -633,13 +864,11 @@ const ShopRegistrationPage = () => {
             required
             label="Legal Representative Name"
             value={formData.legalRepresentative}
-            onChange={handleInputChange('legalRepresentative')}
+            onChange={handleTextChange('legalRepresentative')}
             placeholder="Full name as on ID card"
             error={!!errors.legalRepresentative}
-            helperText={errors.legalRepresentative}
-            InputProps={{
-              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={errors.legalRepresentative || `${formData.legalRepresentative.length}/21`}
+            slotProps={{ input: { startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
 
@@ -648,11 +877,10 @@ const ShopRegistrationPage = () => {
             fullWidth
             label="Registered Address"
             value={formData.registeredAddress}
-            onChange={handleInputChange('registeredAddress')}
+            onChange={handleAddressChange('registeredAddress')}
             placeholder="Business registered address"
-            InputProps={{
-              startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} />,
-            }}
+            helperText={`${formData.registeredAddress.length}/50`}
+            slotProps={{ htmlInput: { maxLength: 50 }, input: { startAdornment: <Badge sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> } }}
           />
         </Grid>
       </Grid>
@@ -1143,15 +1371,30 @@ const ShopRegistrationPage = () => {
 
       {/* Main Content */}
       <Box sx={{ maxWidth: 900, mx: 'auto', p: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-            Register Your Shop
+        {/* Welcome Banner */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            mb: 4,
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.primary.main}30`,
+          }}
+        >
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 800, color: theme.palette.custom.neutral[900], mb: 1 }}
+          >
+            Welcome to Glassify ✨
           </Typography>
-          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-            Complete the registration process to start selling on our platform
+          <Typography sx={{ fontSize: 15, color: theme.palette.custom.neutral[700], mb: 2, lineHeight: 1.7 }}>
+            Glassify is Vietnam's leading eyewear marketplace — built for sellers who want to reach more customers with less effort.
+            Our platform combines a modern storefront with <strong>AI-powered try-on technology</strong>, letting shoppers virtually try on your frames in real time, boosting confidence and conversion like never before.
           </Typography>
-        </Box>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], lineHeight: 1.7 }}>
+            Ready to grow your eyewear business? Fill in the form below and our team will review your application. Once approved, your shop goes live and you can start selling right away.
+          </Typography>
+        </Paper>
 
         {/* Progress Stepper */}
         <Paper
@@ -1167,7 +1410,7 @@ const ShopRegistrationPage = () => {
             {registrationSteps.map((step, index) => (
               <Step key={step.key} completed={index < activeStep}>
                 <StepLabel
-                  StepIconComponent={() => (
+                  slots={{ stepIcon: () => (
                     <Box
                       sx={{
                         width: 32,
@@ -1190,7 +1433,7 @@ const ShopRegistrationPage = () => {
                     >
                       {index < activeStep ? <CheckCircle sx={{ fontSize: 20 }} /> : index + 1}
                     </Box>
-                  )}
+                  ) }}
                 >
                   <Typography
                     sx={{
@@ -1505,7 +1748,7 @@ const ShopRegistrationPage = () => {
               onClick={handleSuccessDialogClose}
               sx={{ px: 5, py: 1.2 }}
             >
-              Back to Dashboard
+              Back to Homepage
             </Button>
           </DialogActions>
         </Dialog>

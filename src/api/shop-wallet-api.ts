@@ -2,6 +2,18 @@ import axiosInstance from './axios.config';
 import { API_ENDPOINTS } from './endpoints';
 import type { ApiResponse } from '@/models/ApiResponse';
 
+// ==================== Bank Account Types ====================
+export interface ShopBankAccountResponse {
+    id: string;
+    shopId: string;
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+    isDefault: boolean;
+    isVerified: boolean;
+    createdAt: string;
+}
+
 // ==================== Request Types ====================
 export interface WithdrawalRequest {
     amount: number;
@@ -95,6 +107,13 @@ export const shopWalletApi = {
     }): Promise<ApiResponse<PaginatedResponse<TransactionResponse>>> => {
         const response = await axiosInstance.get<ApiResponse<PaginatedResponse<TransactionResponse>>>(
             API_ENDPOINTS.SHOP_WALLET.TRANSACTIONS, { params }
+        );
+        return response.data;
+    },
+
+    getBankAccounts: async (): Promise<ApiResponse<ShopBankAccountResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<ShopBankAccountResponse[]>>(
+            API_ENDPOINTS.SHOP_BANK_ACCOUNTS.BASE
         );
         return response.data;
     },

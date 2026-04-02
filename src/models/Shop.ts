@@ -81,6 +81,9 @@ export interface ShopDetailResponse {
   ghnProvinceId: number;
   ghnDistrictId: number;
   ghnWardCode: string;
+  provinceName: string;
+  districtName: string;
+  wardName: string;
 
   joinedAt: string;
   createdAt: string;
@@ -166,6 +169,9 @@ export interface ShopRequest {
   phone: string;
   address: string;
   city: string;
+  provinceName: string;
+  districtName: string;
+  wardName: string;
   logoUrl: string;
   businessLicense: BusinessLicense;
   userId: string;

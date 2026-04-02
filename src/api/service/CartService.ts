@@ -2,6 +2,7 @@ import CartAPI from '@/api/cart-api';
 import { TokenManager } from '@/api/axios.config';
 import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartItemRequest, BeCartResponse, ItemType } from './Type';
 import type { LensSelection } from '@/models/Lens';
+import ProductAPI from '@/api/product-api';
 
 // ==================== Display Metadata Cache ====================
 // BE cart items only store UUIDs. We cache display metadata locally
@@ -13,6 +14,7 @@ interface ItemDisplayMeta {
     productType: string;
     description?: string;
     brandName?: string;
+    shopName?: string;
     sku?: string;
     color?: string;
     size?: string;
@@ -66,6 +68,32 @@ function getOrCreateSessionId(): string {
         localStorage.setItem(key, sessionId);
     }
     return sessionId;
+}
+
+// ==================== Shop Name Enrichment ====================
+// For items already in the cache but missing shopName, fetch product info to get it.
+
+async function enrichShopNamesInCache(items: BeCartItemResponse[]): Promise<void> {
+    const cache = getDisplayCache();
+    const toEnrich = items.filter(item =>
+        item.shopId && cache[item.id] && !cache[item.id].shopName
+    );
+    if (toEnrich.length === 0) return;
+
+    await Promise.all(toEnrich.map(async (item) => {
+        const meta = cache[item.id];
+        if (!meta?.productSlug) return;
+        try {
+            const apiProduct = await ProductAPI.getProductBySlug(meta.productSlug);
+            if (apiProduct.shop?.shopName) {
+                cache[item.id] = { ...meta, shopName: apiProduct.shop.shopName };
+            }
+        } catch {
+            // ignore — shop name is optional display data
+        }
+    }));
+
+    saveDisplayCache(cache);
 }
 
 // ==================== Transform BE -> FE ====================
@@ -123,6 +151,7 @@ function transformSingleItem(
         updated_at: beItem.updatedAt || now,
         item_type: beItem.itemType,
         shop_id: beItem.shopId,
+        shop_name: meta?.shopName,
         product: {
             id: beItem.productId || '',
             product_type: productType as 'frame' | 'lens' | 'accessory',
@@ -150,7 +179,8 @@ function transformSingleItem(
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
         lens_selection: meta?.lensSelection,
-        stock_quantity: meta?.stockQuantity,
+        // Prefer live qtyAvailable from BE (real-time inventory); fall back to cached value
+        stock_quantity: beItem.qtyAvailable ?? meta?.stockQuantity,
     };
 }
 
@@ -269,6 +299,7 @@ export interface AddToCartMockParams {
     productId: string;
     productType: string;
     brandName?: string;
+    shopName?: string;
     sku?: string;
     color?: string;
     size?: string;
@@ -302,6 +333,7 @@ export const CartService = {
             }
 
             currentCartId = beCart.id;
+            await enrichShopNamesInCache(beCart.items || []);
             return transformBeCart(beCart);
         } catch {
             return emptyCartResponse();
@@ -328,7 +360,15 @@ export const CartService = {
             itemType: params.itemType,
         };
 
-        const beCart = await CartAPI.addItem(cartId, beRequest);
+        let beCart = await CartAPI.addItem(cartId, beRequest);
+
+        // Cart may have been completed (e.g. after checkout). Reset and create a fresh cart, then retry.
+        if (!beCart) {
+            currentCartId = null;
+            const freshCartId = await ensureCart();
+            beCart = await CartAPI.addItem(freshCartId, beRequest);
+        }
+
         currentCartId = beCart.id;
 
         // Find the newly created item (it's the one not in our cache)
@@ -343,6 +383,7 @@ export const CartService = {
                 productSlug: params.productSlug,
                 productType: params.productType,
                 brandName: params.brandName,
+                shopName: params.shopName,
                 sku: params.sku,
                 color: params.color,
                 size: params.size,

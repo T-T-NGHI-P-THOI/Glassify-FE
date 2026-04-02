@@ -12,19 +12,41 @@ export interface UserWalletResponse {
     totalSpent: number;
 }
 
-// UserTransactionType: TOP_UP | ORDER_PAYMENT | REFUND
+// UserTransactionType: TOP_UP | ORDER_PAYMENT | REFUND | WITHDRAWAL
 // TransactionStatus:   PENDING | PROCESSING | COMPLETED | FAILED | CANCELLED
 export interface UserTransactionResponse {
     id: string;
     amount: number;
     balanceBefore: number;
     balanceAfter: number;
-    type: 'TOP_UP' | 'ORDER_PAYMENT' | 'REFUND';
+    type: 'TOP_UP' | 'ORDER_PAYMENT' | 'REFUND' | 'WITHDRAWAL';
     status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
     referenceType: string;
     referenceId: string;
     description: string;
     createdAt: string;
+}
+
+export type WithdrawalStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+
+export interface UserWithdrawalResponse {
+    id: string;
+    userId: string;
+    amount: number;
+    fee: number;
+    netAmount: number;
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+    status: WithdrawalStatus;
+    requestedAt: string;
+    processedAt?: string;
+    rejectionReason?: string;
+}
+
+export interface UserWithdrawalRequest {
+    amount: number;
+    bankAccountId: string;
 }
 
 // ==================== API ====================
@@ -43,6 +65,27 @@ export const userWalletApi = {
     }): Promise<ApiResponse<UserTransactionResponse[]>> => {
         const response = await axiosInstance.get<ApiResponse<UserTransactionResponse[]>>(
             API_ENDPOINTS.USER_WALLET.TRANSACTIONS, { params }
+        );
+        return response.data;
+    },
+
+    requestWithdrawal: async (req: UserWithdrawalRequest): Promise<ApiResponse<UserWithdrawalResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<UserWithdrawalResponse>>(
+            API_ENDPOINTS.USER_WALLET.WITHDRAWALS, req
+        );
+        return response.data;
+    },
+
+    cancelWithdrawal: async (id: string): Promise<ApiResponse<UserWithdrawalResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<UserWithdrawalResponse>>(
+            API_ENDPOINTS.USER_WALLET.CANCEL_WITHDRAWAL(id)
+        );
+        return response.data;
+    },
+
+    getWithdrawalHistory: async (params?: { page?: number; size?: number }): Promise<ApiResponse<UserWithdrawalResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<UserWithdrawalResponse[]>>(
+            API_ENDPOINTS.USER_WALLET.WITHDRAWALS, { params }
         );
         return response.data;
     },
