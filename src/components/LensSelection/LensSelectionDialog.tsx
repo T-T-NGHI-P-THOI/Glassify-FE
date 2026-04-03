@@ -47,7 +47,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePrescriptions } from '@/hooks/usePrescriptions';
 import type {
     LensUsage,
-    LensUsageType,
     LensType,
     LensFeature,
     LensTint,
@@ -303,7 +302,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         id: usage.usageId,
                         name: usage.name,
                         description: usage.description,
-                        type: usage.type as LensUsageType,
+                        type: usage.type,
                     });
                 }
             });
@@ -323,7 +322,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             .filter(lens => lens.usages.some(u => u.usageId === selectedUsage.id))
             .map(lens => {
                 const currentUsage = lens.usages.find(u => u.usageId === selectedUsage.id);
-                const isPrescription = currentUsage?.type !== 'NON_PRESCRIPTION';
+                const isPrescription = currentUsage?.type
+                    ? currentUsage.type !== 'NON_PRESCRIPTION'
+                    : true;
                 
                 return {
                     id: lens.lensId,
