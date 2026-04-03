@@ -1,41 +1,31 @@
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Checkbox,
+  CircularProgress,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
-  FormControlLabel,
-  InputLabel,
-  Grid,
-  ListItemText,
-  Typography,
-  TextField,
-  InputAdornment,
-  CircularProgress,
-  Paper,
-  Chip,
-  Avatar,
-  Pagination,
   FormControl,
-  Select,
-  MenuItem,
+  FormControlLabel,
   IconButton,
+  InputLabel,
+  ListItemText,
   Menu,
+  MenuItem,
+  Pagination,
+  Paper,
+  Select,
   Switch,
+  TextField,
+  Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import {
-  Search,
-  Add,
-  Visibility,
-  AutoAwesome,
-  LensBlur,
-  MoreVert,
-} from '@mui/icons-material';
+import { Add, AutoAwesome, Inventory2, LensBlur, MoreVert, Search, Verified, Visibility } from '@mui/icons-material';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -201,7 +191,6 @@ const LensProductPage = () => {
     });
     setUsageDialogOpen(true);
   };
-
 
   const handleToggleLensStatus = async (lens: LensResponse) => {
     if (updatingId) return;
@@ -397,6 +386,38 @@ const LensProductPage = () => {
     });
   }, [lenses, search, statusFilter]);
 
+  const totalLenses = lenses.length;
+  const activeLenses = lenses.filter((lens) => lens.isActive).length;
+  const progressiveLenses = lenses.filter((lens) => lens.isProgressive).length;
+  const usageObjects = usages.length;
+
+  const stats = [
+    {
+      icon: <Inventory2 sx={{ color: theme.palette.custom.status.info.main }} />,
+      label: 'Total Lenses',
+      value: totalLenses,
+      bgColor: theme.palette.custom.status.info.light,
+    },
+    {
+      icon: <Verified sx={{ color: theme.palette.custom.status.success.main }} />,
+      label: 'Active',
+      value: activeLenses,
+      bgColor: theme.palette.custom.status.success.light,
+    },
+    {
+      icon: <AutoAwesome sx={{ color: theme.palette.custom.status.warning.main }} />,
+      label: 'Progressive',
+      value: progressiveLenses,
+      bgColor: theme.palette.custom.status.warning.light,
+    },
+    {
+      icon: <LensBlur sx={{ color: theme.palette.custom.status.pink.main }} />,
+      label: 'Usage Objects',
+      value: usageObjects,
+      bgColor: theme.palette.custom.status.pink.light,
+    },
+  ];
+
   const totalPages = Math.ceil(filtered.length / rowsPerPage);
   const startEntry = filtered.length === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const endEntry = Math.min(page * rowsPerPage, filtered.length);
@@ -427,13 +448,13 @@ const LensProductPage = () => {
       <ShopOwnerSidebar {...sidebarProps} />
 
       <Box sx={{ flex: 1, p: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 0.5 }}>
               Lens Management
             </Typography>
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Manage lens catalog for your shop
+              Quản lý và theo dõi lens catalog của cửa hàng
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -456,40 +477,81 @@ const LensProductPage = () => {
           </Box>
         </Box>
 
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
+          {stats.map((stat) => (
+            <Box
+              key={stat.label}
+              sx={{
+                p: 2.5,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.custom.border.light}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  bgcolor: stat.bgColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {stat.icon}
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
+                  {stat.label}
+                </Typography>
+                <Typography sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                  {stat.value.toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+          </Box>
+        </Box>
+
         <Paper
           elevation={0}
           sx={{
             borderRadius: 2,
             border: `1px solid ${theme.palette.custom.border.light}`,
             p: 2,
-            mb: 2,
+            mb: 3,
             display: 'flex',
             justifyContent: 'space-between',
             gap: 2,
+            flexWrap: 'wrap',
             alignItems: 'center',
           }}
         >
-          <TextField
-            size="small"
-            placeholder="Search lens by name, SKU, category"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            sx={{ width: 360 }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+              Lens List
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+              · Search, filter, and manage lens cards
+            </Typography>
+          </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <TextField
+              size="small"
+              placeholder="Search lenses by name, SKU, category"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              sx={{ width: { xs: '100%', sm: 320 } }}
+            />
+
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <Select
                 value={statusFilter}
@@ -520,119 +582,6 @@ const LensProductPage = () => {
           </Box>
         </Paper>
 
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.custom.border.light}`,
-            p: 2.5,
-            mb: 2,
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 1.5 }}>
-            <Box>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                Usage Management
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                Create usage objects and attach default usage rules to selected lenses.
-              </Typography>
-            </Box>
-            <Button variant="contained" startIcon={<Add />} onClick={openCreateUsageDialog}>
-              Add Usage
-            </Button>
-          </Box>
-
-          {usages.length === 0 ? (
-            <Alert severity="info">No usage objects have been created yet.</Alert>
-          ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 1.5 }}>
-              {usages.slice(0, 8).map((usage) => {
-                const attachments = usageRuleAttachmentsByUsageId.get(usage.id) ?? [];
-                const mappedLensNames = Array.from(new Set(attachments.map((item) => item.lensName))).filter(Boolean);
-
-                return (
-                <Paper
-                  key={usage.id}
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    borderColor: theme.palette.custom.border.light,
-                    bgcolor: usage.isActive ? 'transparent' : theme.palette.custom.neutral[50],
-                  }}
-                >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 0.75 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }} noWrap>
-                        {usage.name}
-                      </Typography>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} noWrap>
-                        Usage rule settings
-                      </Typography>
-                    </Box>
-                    <Chip
-                      size="small"
-                      label={usage.isActive ? 'Active' : 'Inactive'}
-                      color={usage.isActive ? 'success' : 'default'}
-                      variant={usage.isActive ? 'filled' : 'outlined'}
-                    />
-                  </Box>
-
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], minHeight: 36, mb: 1 }}>
-                    {usage.description || 'No description'}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                      {attachments.length} rule(s) • {mappedLensNames.length} lens(es)
-                    </Typography>
-                    <Button size="small" variant="text" onClick={(event) => openUsageMenu(event, usage)}>
-                      Actions
-                    </Button>
-                  </Box>
-
-                  {mappedLensNames.length > 0 ? (
-                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
-                      {mappedLensNames.slice(0, 3).map((lensName) => (
-                        <Chip key={`${usage.id}-${lensName}`} size="small" label={lensName} variant="outlined" />
-                      ))}
-                      {mappedLensNames.length > 3 && (
-                        <Chip
-                          size="small"
-                          label={`+${mappedLensNames.length - 3} more`}
-                          variant="outlined"
-                        />
-                      )}
-                    </Box>
-                  ) : (
-                    <Typography sx={{ mt: 1, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                      No lens usage rule linked yet.
-                    </Typography>
-                  )}
-                </Paper>
-                );
-              })}
-              {usages.length > 8 && (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    borderStyle: 'dashed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: theme.palette.custom.neutral[500],
-                  }}
-                >
-                  +{usages.length - 8} more
-                </Paper>
-              )}
-            </Box>
-          )}
-        </Paper>
-
         {paginated.length === 0 ? (
           <Paper
             elevation={0}
@@ -643,10 +592,8 @@ const LensProductPage = () => {
               textAlign: 'center',
             }}
           >
-            <LensBlur sx={{ fontSize: 46, color: theme.palette.custom.neutral[300], mb: 1 }} />
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              No lenses found
-            </Typography>
+            <LensBlur sx={{ fontSize: 48, color: theme.palette.custom.neutral[300], mb: 1 }} />
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>No lenses found</Typography>
           </Paper>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
@@ -690,11 +637,7 @@ const LensProductPage = () => {
                       color={lens.isActive ? 'success' : 'default'}
                       variant={lens.isActive ? 'filled' : 'outlined'}
                     />
-                    <IconButton
-                      size="small"
-                      onClick={(event) => openLensMenu(event, lens)}
-                      aria-label="lens actions"
-                    >
+                    <IconButton size="small" onClick={(event) => openLensMenu(event, lens)} aria-label="lens actions">
                       <MoreVert fontSize="small" />
                     </IconButton>
                   </Box>
@@ -726,6 +669,135 @@ const LensProductPage = () => {
           </Box>
         )}
 
+        {filtered.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 3, gap: 2, flexWrap: 'wrap' }}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, newPage) => setPage(newPage)}
+              size="small"
+              shape="rounded"
+              sx={{
+                '& .MuiPaginationItem-root': { fontSize: 13 },
+                '& .Mui-selected': { bgcolor: `${theme.palette.custom.status.info.main} !important`, color: '#fff' },
+              }}
+            />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                Showing {startEntry}–{endEntry} of {filtered.length}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.custom.border.light}`,
+            p: 2.5,
+            mt: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 1.5 }}>
+            <Box>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Usage Management
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                Create usage objects and attach default usage rules to selected lenses.
+              </Typography>
+            </Box>
+            <Button variant="contained" startIcon={<Add />} onClick={openCreateUsageDialog}>
+              Add Usage
+            </Button>
+          </Box>
+
+          {usages.length === 0 ? (
+            <Alert severity="info">No usage objects have been created yet.</Alert>
+          ) : (
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 1.5 }}>
+              {usages.slice(0, 8).map((usage) => {
+                const attachments = usageRuleAttachmentsByUsageId.get(usage.id) ?? [];
+                const mappedLensNames = Array.from(new Set(attachments.map((item) => item.lensName))).filter(Boolean);
+
+                return (
+                  <Paper
+                    key={usage.id}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      borderColor: theme.palette.custom.border.light,
+                      bgcolor: usage.isActive ? 'transparent' : theme.palette.custom.neutral[50],
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mb: 0.75 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }} noWrap>
+                          {usage.name}
+                        </Typography>
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} noWrap>
+                          Usage rule settings
+                        </Typography>
+                      </Box>
+                      <Chip
+                        size="small"
+                        label={usage.isActive ? 'Active' : 'Inactive'}
+                        color={usage.isActive ? 'success' : 'default'}
+                        variant={usage.isActive ? 'filled' : 'outlined'}
+                      />
+                    </Box>
+
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], minHeight: 36, mb: 1 }}>
+                      {usage.description || 'No description'}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                        {attachments.length} rule(s) • {mappedLensNames.length} lens(es)
+                      </Typography>
+                      <Button size="small" variant="text" onClick={(event) => openUsageMenu(event, usage)}>
+                        Actions
+                      </Button>
+                    </Box>
+
+                    {mappedLensNames.length > 0 ? (
+                      <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
+                        {mappedLensNames.slice(0, 3).map((lensName) => (
+                          <Chip key={`${usage.id}-${lensName}`} size="small" label={lensName} variant="outlined" />
+                        ))}
+                        {mappedLensNames.length > 3 && <Chip size="small" label={`+${mappedLensNames.length - 3} more`} variant="outlined" />}
+                      </Box>
+                    ) : (
+                      <Typography sx={{ mt: 1, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                        No lens usage rule linked yet.
+                      </Typography>
+                    )}
+                  </Paper>
+                );
+              })}
+              {usages.length > 8 && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    borderStyle: 'dashed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: theme.palette.custom.neutral[500],
+                  }}
+                >
+                  +{usages.length - 8} more
+                </Paper>
+              )}
+            </Box>
+          )}
+        </Paper>
+
         <Menu
           anchorEl={menuAnchorEl}
           open={menuOpen}
@@ -736,53 +808,49 @@ const LensProductPage = () => {
           <MenuItem onClick={openEditLensPage}>Edit</MenuItem>
           <MenuItem onClick={openLensDetails}>Details</MenuItem>
           <MenuItem
-            disabled={!selectedLens || updatingId === selectedLens?.id}
+            disabled={!selectedLens || updatingId === selectedLens.id}
             onClick={() => {
               if (!selectedLens) return;
               closeLensMenu();
               handleToggleLensStatus(selectedLens);
             }}
           >
-            {updatingId && selectedLens && updatingId === selectedLens.id
-              ? 'Updating...'
-              : selectedLens?.isActive
-                ? 'Deactivate'
-                : 'Activate'}
+            {updatingId && selectedLens && updatingId === selectedLens.id ? 'Updating...' : selectedLens?.isActive ? 'Deactivate' : 'Activate'}
           </MenuItem>
         </Menu>
 
-          <Menu
-            anchorEl={usageMenuAnchorEl}
-            open={usageMenuOpen}
-            onClose={closeUsageMenu}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        <Menu
+          anchorEl={usageMenuAnchorEl}
+          open={usageMenuOpen}
+          onClose={closeUsageMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem
+            onClick={() => {
+              if (!selectedUsage) return;
+              closeUsageMenu();
+              openEditUsageDialog(selectedUsage);
+            }}
           >
-            <MenuItem
-              onClick={() => {
-                if (!selectedUsage) return;
-                closeUsageMenu();
-                openEditUsageDialog(selectedUsage);
-              }}
-            >
-              Edit
-            </MenuItem>
-            <MenuItem
-              disabled={!selectedUsage || usageSubmitting}
-              onClick={() => {
-                if (!selectedUsage) return;
-                closeUsageMenu();
-                handleToggleUsageStatus(selectedUsage);
-              }}
-            >
-              {selectedUsage?.isActive ? 'Deactivate' : 'Activate'}
-            </MenuItem>
-          </Menu>
+            Edit
+          </MenuItem>
+          <MenuItem
+            disabled={!selectedUsage || usageSubmitting}
+            onClick={() => {
+              if (!selectedUsage) return;
+              closeUsageMenu();
+              handleToggleUsageStatus(selectedUsage);
+            }}
+          >
+            {selectedUsage?.isActive ? 'Deactivate' : 'Activate'}
+          </MenuItem>
+        </Menu>
 
         <Dialog open={usageDialogOpen} onClose={closeUsageDialog} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-              {usageDialogMode === 'edit' ? 'Edit Usage' : 'Create Usage'}
-            </DialogTitle>
+          <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+            {usageDialogMode === 'edit' ? 'Edit Usage' : 'Create Usage'}
+          </DialogTitle>
           <DialogContent dividers sx={{ pt: 2 }}>
             <Alert severity="info" sx={{ mb: 2 }}>
               Usage objects are shared. When you select lenses here, the same usage rule will be attached to each lens.
@@ -960,7 +1028,6 @@ const LensProductPage = () => {
                 </Paper>
               </Box>
             </Box>
-
           </DialogContent>
           <DialogActions sx={{ p: 2, gap: 1 }}>
             <Button onClick={closeUsageDialog} disabled={usageSubmitting}>
@@ -971,21 +1038,6 @@ const LensProductPage = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {filtered.length > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
-            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-              Showing {startEntry}-{endEntry} of {filtered.length}
-            </Typography>
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(_, value) => setPage(value)}
-              size="small"
-              shape="rounded"
-            />
-          </Box>
-        )}
       </Box>
     </Box>
   );

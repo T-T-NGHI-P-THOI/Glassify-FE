@@ -99,6 +99,7 @@ export interface CreateLensRequest {
 
 export interface LensFeatureFrameCompatibility {
   id: string;
+  shopId?: string;
   featureId: string;
   featureSku?: string;
   frameVariantId: string;
@@ -106,6 +107,24 @@ export interface LensFeatureFrameCompatibility {
   sph?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface LensFeatureFrameCompatibilityCreateRequest {
+  shopId: string;
+  featureId: string;
+  frameVariantId: string;
+  sph?: number;
+}
+
+export interface LensFeatureFrameCompatibilityUpdateRequest {
+  shopId: string;
+  sph?: number;
+}
+
+export interface LensFeatureFrameCompatibilityFilterRequest {
+  featureId?: string;
+  frameVariantId?: string;
+  shopId?: string;
 }
 
 export interface LensFeature {
@@ -590,6 +609,60 @@ export const lensApi = {
     const response = await axiosInstance.put<ApiResponse<LensFeature>>(
       API_ENDPOINTS.LENS.UPDATE_FEATURE(featureId),
       payload,
+    );
+    return response.data;
+  },
+
+  getFeatureFrameCompatibilities: async (
+    filter: LensFeatureFrameCompatibilityFilterRequest = {},
+  ): Promise<LensFeatureFrameCompatibility[]> => {
+    const response = await axiosInstance.get<ApiResponse<LensFeatureFrameCompatibility[] | LensFeatureFrameCompatibility>>(
+      API_ENDPOINTS.LENS.FEATURE_FRAME_COMPATIBILITIES,
+      { params: filter },
+    );
+    const payload = response.data?.data;
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object') return [payload];
+    return [];
+  },
+
+  getFeatureFrameCompatibility: async (
+    compatibilityId: string,
+  ): Promise<LensFeatureFrameCompatibility | null> => {
+    const response = await axiosInstance.get<ApiResponse<LensFeatureFrameCompatibility>>(
+      API_ENDPOINTS.LENS.FEATURE_FRAME_COMPATIBILITY_BY_ID(compatibilityId),
+    );
+    return response.data?.data ?? null;
+  },
+
+  createFeatureFrameCompatibility: async (
+    payload: LensFeatureFrameCompatibilityCreateRequest,
+  ): Promise<ApiResponse<LensFeatureFrameCompatibility>> => {
+    const response = await axiosInstance.post<ApiResponse<LensFeatureFrameCompatibility>>(
+      API_ENDPOINTS.LENS.FEATURE_FRAME_COMPATIBILITIES,
+      payload,
+    );
+    return response.data;
+  },
+
+  updateFeatureFrameCompatibility: async (
+    compatibilityId: string,
+    payload: LensFeatureFrameCompatibilityUpdateRequest,
+  ): Promise<ApiResponse<LensFeatureFrameCompatibility>> => {
+    const response = await axiosInstance.put<ApiResponse<LensFeatureFrameCompatibility>>(
+      API_ENDPOINTS.LENS.FEATURE_FRAME_COMPATIBILITY_BY_ID(compatibilityId),
+      payload,
+    );
+    return response.data;
+  },
+
+  deleteFeatureFrameCompatibility: async (
+    compatibilityId: string,
+    shopId: string,
+  ): Promise<ApiResponse<LensFeatureFrameCompatibility>> => {
+    const response = await axiosInstance.delete<ApiResponse<LensFeatureFrameCompatibility>>(
+      API_ENDPOINTS.LENS.FEATURE_FRAME_COMPATIBILITY_BY_ID(compatibilityId),
+      { params: { shopId } },
     );
     return response.data;
   },

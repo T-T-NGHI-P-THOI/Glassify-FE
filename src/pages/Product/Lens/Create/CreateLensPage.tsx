@@ -42,7 +42,14 @@ import ProductAPI from '@/api/product-api';
 import { lensService } from '@/api/service/LensService';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
-import { lensApi, type CreateLensRequest, type LensResponse } from '@/api/lens-api';
+import {
+  lensApi,
+  type CreateLensRequest,
+  type LensFeatureFrameCompatibility,
+  type LensFeatureFrameCompatibilityCreateRequest,
+  type LensFeatureFrameCompatibilityUpdateRequest,
+  type LensResponse,
+} from '@/api/lens-api';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { getApiErrorMessage } from '@/utils/api-error';
 
@@ -119,6 +126,15 @@ interface ExistingFeatureOption {
   name: string;
   sku: string;
 }
+
+interface CompatibilityDraft {
+  featureId: string;
+  sph: string;
+}
+
+type EditingCompatibility = Omit<LensFeatureFrameCompatibility, 'sph'> & {
+  sph: string;
+};
 
 interface ExistingTintOption {
   id: string;
@@ -213,6 +229,11 @@ const DEFAULT_INITIAL_LINKED: InitialLinkedDetailState = {
   featureIds: [],
   tintIds: [],
   usageIds: [],
+};
+
+const DEFAULT_COMPATIBILITY_DRAFT: CompatibilityDraft = {
+  featureId: '',
+  sph: '0',
 };
 
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -470,10 +491,15 @@ const CreateLensPage = () => {
   const [existingFeatures, setExistingFeatures] = useState<ExistingFeatureOption[]>([]);
   const [existingTints, setExistingTints] = useState<ExistingTintOption[]>([]);
   const [existingUsages, setExistingUsages] = useState<ExistingUsageOption[]>([]);
+  const [existingCompatibilities, setExistingCompatibilities] = useState<LensFeatureFrameCompatibility[]>([]);
   const [selectedFeatureId, setSelectedFeatureId] = useState('');
   const [selectedTintId, setSelectedTintId] = useState('');
   const [selectedUsageId, setSelectedUsageId] = useState('');
-  const [detailsObjectTab, setDetailsObjectTab] = useState<'FEATURE' | 'TINT' | 'USAGE' | 'PROGRESSIVE'>('FEATURE');
+  const [selectedCompatibilityFeatureId, setSelectedCompatibilityFeatureId] = useState('');
+  const [compatibilityDraft, setCompatibilityDraft] = useState<CompatibilityDraft>(DEFAULT_COMPATIBILITY_DRAFT);
+  const [detailsObjectTab, setDetailsObjectTab] = useState<'FEATURE' | 'TINT' | 'USAGE' | 'COMPATIBILITY' | 'PROGRESSIVE'>('FEATURE');
+  const [editingCompatibilityId, setEditingCompatibilityId] = useState<string | null>(null);
+  const [editingCompatibility, setEditingCompatibility] = useState<EditingCompatibility | null>(null);
   const [lensLoading, setLensLoading] = useState(false);
   const [initialLinkedDetails, setInitialLinkedDetails] = useState<InitialLinkedDetailState>(
     DEFAULT_INITIAL_LINKED,
@@ -748,6 +774,7 @@ const CreateLensPage = () => {
         if (!isEditMode) {
           setExistingFeatures([]);
           setExistingTints([]);
+          setExistingCompatibilities([]);
         }
         return;
       }
@@ -817,11 +844,22 @@ const CreateLensPage = () => {
           return Array.from(next.values());
         });
         setExistingUsages((prev) => mergeUsageOptions(prev, usages));
+
+        if (shop?.id) {
+          const compatibilities = await lensApi.getFeatureFrameCompatibilities({
+            shopId: shop.id,
+            frameVariantId: selectedCatalogFrameVariantId,
+          });
+
+          if (!active) return;
+          setExistingCompatibilities(compatibilities);
+        }
       } catch (error) {
         if (!active) return;
         console.error('Failed to load catalog:', error);
         setExistingFeatures([]);
         setExistingTints([]);
+        setExistingCompatibilities([]);
       } finally {
         if (active) setCatalogLoading(false);
       }
@@ -832,7 +870,7 @@ const CreateLensPage = () => {
     return () => {
       active = false;
     };
-  }, [selectedCatalogFrameVariantId, isEditMode]);
+  }, [selectedCatalogFrameVariantId, isEditMode, shop?.id]);
 
   useEffect(() => {
     let active = true;
@@ -1444,6 +1482,132 @@ const CreateLensPage = () => {
     [existingUsages],
   );
 
+  const existingCompatibilityFeatureIds = useMemo(
+    () => new Set(existingCompatibilities.map((item) => item.featureId).filter(Boolean)),
+    [existingCompatibilities],
+  );
+
+  const startEditingCompatibility = (compatibility: LensFeatureFrameCompatibility) => {
+    setEditingCompatibilityId(compatibility.id);
+    setEditingCompatibility({
+      ...compatibility,
+      sph: String(compatibility.sph ?? 0),
+    });
+  };
+
+  const stopEditingCompatibility = () => {
+    setEditingCompatibilityId(null);
+    setEditingCompatibility(null);
+  };
+
+  const resetCompatibilityDraft = () => {
+    setSelectedCompatibilityFeatureId('');
+    setCompatibilityDraft(DEFAULT_COMPATIBILITY_DRAFT);
+  };
+
+  const refreshCompatibilities = async () => {
+    if (!shop?.id || !selectedCatalogFrameVariantId) return;
+    const compatibilities = await lensApi.getFeatureFrameCompatibilities({
+      shopId: shop.id,
+      frameVariantId: selectedCatalogFrameVariantId,
+    });
+    setExistingCompatibilities(compatibilities);
+  };
+
+  const handleSaveCompatibility = async () => {
+    if (!shop?.id) {
+      toast.error('Shop not found');
+      return;
+    }
+
+    if (!selectedCatalogFrameVariantId) {
+      toast.error('Please select a frame variant first');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      if (editingCompatibilityId && editingCompatibility) {
+        const updatePayload: LensFeatureFrameCompatibilityUpdateRequest = {
+          shopId: shop.id,
+          sph: Number(editingCompatibility.sph || 0),
+        };
+        const response = await lensApi.updateFeatureFrameCompatibility(editingCompatibilityId, updatePayload);
+        if ((response?.status ?? 0) >= 400 || !response?.data?.id) {
+          throw new Error(response?.message || 'Unable to update feature compatibility');
+        }
+
+        toast.success('Feature compatibility updated successfully');
+        stopEditingCompatibility();
+        await refreshCompatibilities();
+        return;
+      }
+
+      if (!selectedCompatibilityFeatureId) {
+        toast.error('Please select a feature');
+        return;
+      }
+
+      if (existingCompatibilityFeatureIds.has(selectedCompatibilityFeatureId)) {
+        toast.error('This feature already has a compatibility for the selected frame variant');
+        return;
+      }
+
+      const createPayload: LensFeatureFrameCompatibilityCreateRequest = {
+        shopId: shop.id,
+        featureId: selectedCompatibilityFeatureId,
+        frameVariantId: selectedCatalogFrameVariantId,
+        sph: Number(compatibilityDraft.sph || 0),
+      };
+
+      const response = await lensApi.createFeatureFrameCompatibility(createPayload);
+      if ((response?.status ?? 0) >= 400 || !response?.data?.id) {
+        throw new Error(response?.message || 'Unable to create feature compatibility');
+      }
+
+      toast.success('Feature compatibility created successfully');
+      resetCompatibilityDraft();
+      await refreshCompatibilities();
+    } catch (error: any) {
+      console.error('Failed to save feature compatibility:', error);
+      toast.error(getApiErrorMessage(error, 'Failed to save feature compatibility')); 
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCompatibility = async (compatibilityId: string) => {
+    if (!shop?.id) {
+      toast.error('Shop not found');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await lensApi.deleteFeatureFrameCompatibility(compatibilityId, shop.id);
+      if ((response?.status ?? 0) >= 400) {
+        throw new Error(response?.message || 'Unable to delete feature compatibility');
+      }
+
+      toast.success('Feature compatibility deleted successfully');
+      if (editingCompatibilityId === compatibilityId) {
+        stopEditingCompatibility();
+      }
+      await refreshCompatibilities();
+    } catch (error: any) {
+      console.error('Failed to delete feature compatibility:', error);
+      toast.error(getApiErrorMessage(error, 'Failed to delete feature compatibility'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    stopEditingCompatibility();
+    resetCompatibilityDraft();
+  }, [selectedCatalogFrameVariantId]);
+
   if (loading || lensLoading) {
     return (
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -1690,6 +1854,7 @@ const CreateLensPage = () => {
                   <Tab value="FEATURE" label={`Features (${form.featureIds.length + form.featuresToCreate.length})`} />
                   <Tab value="TINT" label={`Tints (${form.tintIds.length + form.tintsToCreate.length})`} />
                   <Tab value="USAGE" label={`Usage Rules (${form.usageIds.length})`} />
+                  <Tab value="COMPATIBILITY" label={`Frame Compatibility (${existingCompatibilities.length})`} />
                   {form.isProgressive && <Tab value="PROGRESSIVE" label={`Progressive Options (${form.progressiveOptions.length})`} />}
                 </Tabs>
 
@@ -2768,6 +2933,201 @@ const CreateLensPage = () => {
                       <Alert severity="info">
                         Shop can select usages and configure usage rules per lens.
                       </Alert>
+                    </>
+                  )}
+
+                  {detailsObjectTab === 'COMPATIBILITY' && (
+                    <>
+                      <Typography sx={{ fontWeight: 600, mb: 1 }}>
+                        Frame Feature Compatibility
+                      </Typography>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
+                        Manage which lens features are compatible with the currently selected frame variant.
+                      </Typography>
+
+                      {!selectedCatalogFrameVariantId && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          Select a frame variant or frame group first to manage feature compatibility.
+                        </Alert>
+                      )}
+
+                      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid size={{ xs: 12, md: 7 }}>
+                            <FormControl fullWidth disabled={!selectedCatalogFrameVariantId || catalogLoading}>
+                              <InputLabel>Feature Object</InputLabel>
+                              <Select
+                                value={selectedCompatibilityFeatureId}
+                                label="Feature Object"
+                                onChange={(e) => setSelectedCompatibilityFeatureId(e.target.value)}
+                                disabled={Boolean(editingCompatibilityId)}
+                              >
+                                {existingFeatures
+                                  .filter((feature) => !existingCompatibilityFeatureIds.has(feature.id))
+                                  .map((option) => (
+                                    <MenuItem key={option.id} value={option.id}>
+                                      {formatPrimarySecondaryLabel(option.id, option.name, option.sku)}
+                                    </MenuItem>
+                                  ))}
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                          <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField
+                              fullWidth
+                              type="text"
+                              label="SPH Limit"
+                              value={editingCompatibilityId ? editingCompatibility?.sph ?? '0' : compatibilityDraft.sph}
+                              onChange={(e) => {
+                                const value = sanitizeDecimalInput(e.target.value);
+                                if (editingCompatibilityId) {
+                                  setEditingCompatibility((prev) => (prev ? { ...prev, sph: value } : prev));
+                                  return;
+                                }
+                                setCompatibilityDraft((prev) => ({ ...prev, sph: value }));
+                              }}
+                              onKeyDown={(e) => {
+                                if (shouldBlockNonNumericKey(e)) e.preventDefault();
+                              }}
+                              inputProps={{ inputMode: 'decimal' }}
+                              disabled={!selectedCatalogFrameVariantId || catalogLoading}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, md: 2 }} sx={{ display: 'flex', gap: 1 }}>
+                            {editingCompatibilityId ? (
+                              <>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  startIcon={<CheckCircle />}
+                                  onClick={handleSaveCompatibility}
+                                  disabled={submitting}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  startIcon={<Cancel />}
+                                  onClick={stopEditingCompatibility}
+                                  disabled={submitting}
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="contained"
+                                startIcon={<Add />}
+                                onClick={handleSaveCompatibility}
+                                disabled={submitting || !selectedCatalogFrameVariantId || !selectedCompatibilityFeatureId}
+                              >
+                                Add
+                              </Button>
+                            )}
+                          </Grid>
+                        </Grid>
+                      </Paper>
+
+                      {!!existingCompatibilities.length && (
+                        <Box sx={{ display: 'grid', gap: 1.5 }}>
+                          {existingCompatibilities.map((compatibility) => {
+                            const featureName = featureLabelById[compatibility.featureId] || compatibility.featureSku || compatibility.featureId;
+                            const isEditing = editingCompatibilityId === compatibility.id;
+
+                            return (
+                              <Accordion key={compatibility.id}>
+                                <AccordionSummary expandIcon={<ExpandMore />}>
+                                  <Typography sx={{ flex: 1, fontWeight: 500 }}>
+                                    {featureName}
+                                  </Typography>
+                                  <Chip
+                                    size="small"
+                                    label={`SPH ${compatibility.sph ?? 0}`}
+                                    color="primary"
+                                    variant="outlined"
+                                    sx={{ mr: 1 }}
+                                  />
+                                  {isEditing && (
+                                    <Chip
+                                      size="small"
+                                      label="Editing"
+                                      color="secondary"
+                                      variant="outlined"
+                                      sx={{ mr: 1 }}
+                                    />
+                                  )}
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                  <Grid container spacing={1.5}>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                      <Typography sx={{ fontSize: 13 }}>
+                                        <strong>Feature:</strong> {featureName}
+                                      </Typography>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                      <Typography sx={{ fontSize: 13 }}>
+                                        <strong>Frame Variant:</strong> {compatibility.frameVariantName || compatibility.frameVariantId}
+                                      </Typography>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 4 }}>
+                                      <Typography sx={{ fontSize: 13 }}>
+                                        <strong>SPH Limit:</strong> {compatibility.sph ?? 0}
+                                      </Typography>
+                                    </Grid>
+
+                                    {isEditing && editingCompatibility && (
+                                      <Grid size={{ xs: 12, md: 4 }}>
+                                        <TextField
+                                          fullWidth
+                                          type="text"
+                                          label="SPH Limit"
+                                          value={editingCompatibility.sph}
+                                          onChange={(e) => {
+                                            const value = sanitizeDecimalInput(e.target.value);
+                                            setEditingCompatibility((prev) => (prev ? { ...prev, sph: value } : prev));
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (shouldBlockNonNumericKey(e)) e.preventDefault();
+                                          }}
+                                          inputProps={{ inputMode: 'decimal' }}
+                                        />
+                                      </Grid>
+                                    )}
+
+                                    <Grid size={{ xs: 12 }} sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                      {!isEditing && (
+                                        <Button
+                                          size="small"
+                                          startIcon={<Edit />}
+                                          onClick={() => startEditingCompatibility(compatibility)}
+                                          disabled={submitting}
+                                        >
+                                          Edit
+                                        </Button>
+                                      )}
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        startIcon={<Delete />}
+                                        onClick={() => handleDeleteCompatibility(compatibility.id)}
+                                        disabled={submitting}
+                                      >
+                                        Delete
+                                      </Button>
+                                    </Grid>
+                                  </Grid>
+                                </AccordionDetails>
+                              </Accordion>
+                            );
+                          })}
+                        </Box>
+                      )}
+
+                      {!existingCompatibilities.length && selectedCatalogFrameVariantId && (
+                        <Alert severity="info">
+                          No feature compatibility entries for this frame variant yet.
+                        </Alert>
+                      )}
                     </>
                   )}
 

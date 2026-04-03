@@ -56,6 +56,8 @@ export const API_ENDPOINTS = {
     CREATE_FOR_FRAME_GROUP: (frameGroupId: string) => `${API_ENDPOINT}/lenses/for-frame-group/${frameGroupId}`,
     CREATE_FEATURE: `${API_ENDPOINT}/lenses/features`,
     UPDATE_FEATURE: (featureId: string) => `${API_ENDPOINT}/lenses/features/${featureId}`,
+    FEATURE_FRAME_COMPATIBILITIES: `${API_ENDPOINT}/lenses/feature-frame-compatibilities`,
+    FEATURE_FRAME_COMPATIBILITY_BY_ID: (compatibilityId: string) => `${API_ENDPOINT}/lenses/feature-frame-compatibilities/${compatibilityId}`,
     CREATE_TINT: `${API_ENDPOINT}/lenses/tints`,
     UPDATE_TINT: (tintId: string) => `${API_ENDPOINT}/lenses/tints/${tintId}`,
     CREATE_USAGE: `${API_ENDPOINT}/lenses/usages`,
