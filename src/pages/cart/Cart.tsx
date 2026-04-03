@@ -34,7 +34,9 @@ import {
 } from '@mui/icons-material';
 import type { CartItemWithDetails, ItemType } from '@/api/service/Type';
 import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { PAGE_ENDPOINTS } from '@/api/endpoints';
 
 // =====================================================
 // Quantity Selector Component
@@ -1038,6 +1040,14 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
 // =====================================================
 const ShoppingCart: React.FC = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    React.useEffect(() => {
+        if (user?.roles?.includes('ADMIN')) {
+            navigate(PAGE_ENDPOINTS.DASHBOARD, { replace: true });
+        }
+    }, [user, navigate]);
+
     const {
         cartData,
         summary,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
 import type { Product, ProductColor } from '../../types/product';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { useAuth } from '@/hooks/useAuth';
 import './ProductInfo.css';
 
 interface ProductInfoProps {
@@ -21,6 +22,8 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   onAddToCart,
   isEditMode,
 }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.roles?.includes('ADMIN');
   const [showSizeChart, setShowSizeChart] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>(
     product.sizes && product.sizes.length > 0 ? product.sizes[0] : 'Medium'
@@ -119,22 +122,24 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </div>
       )}
 
-      <div className="action-buttons">
-        {product.productType === 'FRAME' ? (
-          <>
-            <button className="select-lenses-btn" onClick={handleSelectLenses}>
-              {isEditMode ? 'Update Lenses' : 'Select Lenses'}
+      {!isAdmin && (
+        <div className="action-buttons">
+          {product.productType === 'FRAME' ? (
+            <>
+              <button className="select-lenses-btn" onClick={handleSelectLenses}>
+                {isEditMode ? 'Update Lenses' : 'Select Lenses'}
+              </button>
+              <button className="add-to-cart-btn-frame" onClick={handleAddToCart}>
+                <ShoppingCart /> {isEditMode ? 'Update Cart (without lenses)' : 'Add to Cart (without lenses)'}
+              </button>
+            </>
+          ) : (
+            <button className="select-lenses-btn" onClick={handleAddToCart}>
+              <ShoppingCart /> {isEditMode ? 'Update Cart Item' : 'Add to Cart'}
             </button>
-            <button className="add-to-cart-btn-frame" onClick={handleAddToCart}>
-              <ShoppingCart /> {isEditMode ? 'Update Cart (without lenses)' : 'Add to Cart (without lenses)'}
-            </button>
-          </>
-        ) : (
-          <button className="select-lenses-btn" onClick={handleAddToCart}>
-            <ShoppingCart /> {isEditMode ? 'Update Cart Item' : 'Add to Cart'}
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       
       <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
         <Favorite /> Add to favorites

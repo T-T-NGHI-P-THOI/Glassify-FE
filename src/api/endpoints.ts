@@ -121,6 +121,13 @@ export const API_ENDPOINTS = {
   USER_WALLET: {
     BASE: `${API_ENDPOINT}/wallet`,
     TRANSACTIONS: `${API_ENDPOINT}/wallet/transactions`,
+    WITHDRAWALS: `${API_ENDPOINT}/wallet/withdrawals`,
+    CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/wallet/withdrawals/${id}/cancel`,
+  },
+  USER_BANK_ACCOUNTS: {
+    BASE: `${API_ENDPOINT}/user/bank-accounts`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/user/bank-accounts/${id}/default`,
+    DELETE: (id: string) => `${API_ENDPOINT}/user/bank-accounts/${id}`,
   },
   USER_ADDRESSES: {
     BASE: `${API_ENDPOINT}/user-addresses`,
@@ -156,6 +163,11 @@ export const API_ENDPOINTS = {
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
+  },
+  SHOP_BANK_ACCOUNTS: {
+    BASE: `${API_ENDPOINT}/shops/bank-accounts`,
+    BY_ID: (id: string) => `${API_ENDPOINT}/shops/bank-accounts/${id}`,
+    SET_DEFAULT: (id: string) => `${API_ENDPOINT}/shops/bank-accounts/${id}/default`,
   },
   SHOPS: {
     LIST: `${API_ENDPOINT}/shops`,
@@ -200,6 +212,18 @@ export const API_ENDPOINTS = {
     WARRANTIES: {
       LIST: `${API_ENDPOINT}/admin/warranties`,
       GET_BY_ID: (claimId: string) => `${API_ENDPOINT}/admin/warranties/${claimId}`,
+    },
+    WALLET: {
+      SUMMARY: `${API_ENDPOINT}/admin/wallet/summary`,
+      USER_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/user-transactions`,
+      SHOP_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/shop-transactions`,
+      PAYMENT_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/payment-transactions`,
+      USER_WITHDRAWALS: `${API_ENDPOINT}/admin/wallet/user-withdrawals`,
+      SHOP_WITHDRAWALS: `${API_ENDPOINT}/admin/wallet/shop-withdrawals`,
+      APPROVE_USER_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/user-withdrawals/${id}/approve`,
+      REJECT_USER_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/user-withdrawals/${id}/reject`,
+      APPROVE_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/approve`,
+      REJECT_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/reject`,
     },
   },
 } as const;
@@ -254,6 +278,7 @@ export const PAGE_ENDPOINTS = {
     REFUND_DETAIL: `/admin/refunds/:id`,
     WARRANTIES: `/admin/warranties`,
     WARRANTY_DETAIL: `/admin/warranties/:id`,
+    TRANSACTIONS: `/admin/transactions`,
   },
 
   ORDER: {
@@ -275,6 +300,7 @@ export const PAGE_ENDPOINTS = {
   USER: {
     PROFILE: `/users/me`,
     WALLET: `/wallet`,
+    BANK_ACCOUNTS: `/user/bank-accounts`,
     HELP: `/help`,
   },
 
