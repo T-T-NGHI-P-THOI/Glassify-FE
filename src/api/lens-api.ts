@@ -89,6 +89,7 @@ export interface CreateLensRequest {
   shopId: string;
   sku: string;
   name: string;
+  imageFile?: File;
   basePrice: number;
   isProgressive: boolean;
   isActive: boolean;
@@ -215,6 +216,8 @@ export interface LensResponse {
   shopId: string;
   sku: string;
   name: string;
+  imageFileId?: string;
+  imageUrl?: string;
   basePrice: number;
   isProgressive: boolean;
   isActive: boolean;
@@ -248,12 +251,47 @@ export interface LensFilterRequest {
 export interface UpdateLensRequest {
   sku?: string;
   name?: string;
+  imageFile?: File;
   basePrice?: number;
   isProgressive?: boolean;
   isActive?: boolean;
   category?: LensCategory;
   progressiveType?: LensProgressiveType;
 }
+
+const buildUpdateLensFormData = (payload: UpdateLensRequest): FormData => {
+  const formData = new FormData();
+
+  if (payload.sku !== undefined) formData.append('sku', payload.sku);
+  if (payload.name !== undefined) formData.append('name', payload.name);
+  if (payload.imageFile !== undefined) formData.append('imageFile', payload.imageFile);
+  if (payload.basePrice !== undefined) formData.append('basePrice', String(payload.basePrice));
+  if (payload.isProgressive !== undefined) formData.append('isProgressive', String(payload.isProgressive));
+  if (payload.isActive !== undefined) formData.append('isActive', String(payload.isActive));
+  if (payload.category !== undefined) formData.append('category', payload.category);
+  if (payload.progressiveType !== undefined) formData.append('progressiveType', payload.progressiveType);
+
+  return formData;
+};
+
+const buildCreateLensFormData = (payload: CreateLensRequest): FormData => {
+  const formData = new FormData();
+
+  formData.append('shopId', payload.shopId);
+  formData.append('sku', payload.sku);
+  formData.append('name', payload.name);
+  if (payload.imageFile !== undefined) formData.append('imageFile', payload.imageFile);
+  formData.append('basePrice', String(payload.basePrice));
+  formData.append('isProgressive', String(payload.isProgressive));
+  formData.append('isActive', String(payload.isActive));
+  formData.append('category', payload.category);
+  if (payload.progressiveType !== undefined) formData.append('progressiveType', payload.progressiveType);
+  if (payload.lensDetailData !== undefined) {
+    formData.append('lensDetailData', JSON.stringify(payload.lensDetailData));
+  }
+
+  return formData;
+};
 
 export interface CreateLensFeatureRequest {
   sku: string;
@@ -475,9 +513,10 @@ export const lensApi = {
 
   create: async (payload: CreateLensRequest): Promise<ApiResponse<LensResponse>> => {
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
+    const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
       API_ENDPOINTS.LENS.CREATE,
-      sanitizedPayload,
+      formData,
     );
     return response.data;
   },
@@ -487,9 +526,10 @@ export const lensApi = {
     payload: CreateLensRequest,
   ): Promise<ApiResponse<LensResponse>> => {
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
+    const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
       API_ENDPOINTS.LENS.CREATE_FOR_FRAME(frameVariantId),
-      sanitizedPayload,
+      formData,
     );
     return response.data;
   },
@@ -499,17 +539,19 @@ export const lensApi = {
     payload: CreateLensRequest,
   ): Promise<ApiResponse<LensResponse>> => {
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
+    const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
       API_ENDPOINTS.LENS.CREATE_FOR_FRAME_GROUP(frameGroupId),
-      sanitizedPayload,
+      formData,
     );
     return response.data;
   },
 
   update: async (id: string, payload: UpdateLensRequest): Promise<ApiResponse<LensResponse>> => {
+    const formData = buildUpdateLensFormData(payload);
     const response = await axiosInstance.put<ApiResponse<LensResponse>>(
       API_ENDPOINTS.LENS.UPDATE(id),
-      payload,
+      formData,
     );
     return response.data;
   },

@@ -31,7 +31,7 @@ import {
   Typography,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
-import { Add, ArrowBack, CheckCircle, Delete, Edit, Save, Cancel, ExpandMore } from '@mui/icons-material';
+import { Add, ArrowBack, CheckCircle, Delete, Edit, Save, Cancel, ExpandMore, CloudUpload, InfoOutlined } from '@mui/icons-material';
 import { useMemo, useState, useEffect, type KeyboardEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -480,6 +480,7 @@ const CreateLensPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [saveCompleted, setSaveCompleted] = useState(false);
   const [submitProgress, setSubmitProgress] = useState('');
   const [activeStep, setActiveStep] = useState(0);
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
@@ -514,6 +515,39 @@ const CreateLensPage = () => {
   const [editingExistingUsage, setEditingExistingUsage] = useState<EditingExistingUsage | null>(null);
   const [lens, setLens] = useState<LensResponse | null>(null);
   const [usageRuleDrafts, setUsageRuleDrafts] = useState<Record<string, UsageRuleDraft>>({});
+  const [currentLensImageUrl, setCurrentLensImageUrl] = useState('');
+  const [selectedLensImageFile, setSelectedLensImageFile] = useState<File | null>(null);
+  const [selectedLensImagePreview, setSelectedLensImagePreview] = useState('');
+
+  const previewLensImageUrl = selectedLensImagePreview || currentLensImageUrl;
+
+  const clearSelectedLensImage = () => {
+    if (selectedLensImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedLensImagePreview);
+    }
+    setSelectedLensImagePreview('');
+    setSelectedLensImageFile(null);
+  };
+
+  const handleLensImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (selectedLensImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedLensImagePreview);
+    }
+
+    setSelectedLensImageFile(file);
+    setSelectedLensImagePreview(URL.createObjectURL(file));
+  };
+
+  useEffect(() => {
+    return () => {
+      if (selectedLensImagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(selectedLensImagePreview);
+      }
+    };
+  }, [selectedLensImagePreview]);
 
   useEffect(() => {
     (async () => {
@@ -542,6 +576,9 @@ const CreateLensPage = () => {
         setLensLoading(true);
         const fetchedLens = await lensApi.getById(lensId);
         setLens(fetchedLens);
+        setCurrentLensImageUrl(fetchedLens.imageUrl || '');
+        setSelectedLensImageFile(null);
+        setSelectedLensImagePreview('');
 
         const rawFeatureMappings = (Array.isArray(fetchedLens.featureMappings) ? fetchedLens.featureMappings : []) as unknown[];
         const rawTintOptions = (Array.isArray(fetchedLens.tintOptions) ? fetchedLens.tintOptions : []) as unknown[];
@@ -1027,10 +1064,12 @@ const CreateLensPage = () => {
 
   const handleNext = () => {
     if (!validateStep(activeStep)) return;
+    setSaveCompleted(false);
     setActiveStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   };
 
   const handleBack = () => {
+    setSaveCompleted(false);
     setActiveStep((prev) => Math.max(prev - 1, 0));
   };
 
@@ -1078,6 +1117,7 @@ const CreateLensPage = () => {
       shopId: shop?.id ?? '',
       sku: form.sku.trim(),
       name: form.name.trim(),
+      imageFile: selectedLensImageFile ?? undefined,
       basePrice: Number(form.basePrice),
       isProgressive: form.isProgressive,
       isActive: form.isActive,
@@ -1337,6 +1377,7 @@ const CreateLensPage = () => {
 
     try {
       setSubmitting(true);
+      setSaveCompleted(false);
       setSubmitProgress(isEditMode ? 'Updating lens...' : 'Creating lens...');
       const payload = buildPayload();
 
@@ -1345,6 +1386,7 @@ const CreateLensPage = () => {
         response = await lensApi.update(lensId, {
           sku: payload.sku,
           name: payload.name,
+          imageFile: selectedLensImageFile ?? undefined,
           basePrice: payload.basePrice,
           isProgressive: payload.isProgressive,
           isActive: payload.isActive,
@@ -1393,6 +1435,7 @@ const CreateLensPage = () => {
           ? `Lens updated successfully${updatedOrCreatedLens?.id ? ` (ID: ${updatedOrCreatedLens.id})` : ''}.`
           : `Lens created successfully${updatedOrCreatedLens?.id ? ` (ID: ${updatedOrCreatedLens.id})` : ''}.`,
       );
+      setSaveCompleted(true);
       toast.success(isEditMode ? 'Lens updated successfully' : 'Lens created successfully');
     } catch (error: any) {
       console.error('Create lens failed:', error);
@@ -1623,8 +1666,18 @@ const CreateLensPage = () => {
     <Box sx={{ minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50], display: 'flex' }}>
       <ShopOwnerSidebar {...sidebarProps} />
 
-      <Box sx={{ flex: 1, p: 4, maxWidth: 1100 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+      <Box
+        sx={{
+          flex: 1,
+          p: { xs: 2, md: 2.5, lg: 3 },
+          width: '100%',
+          height: '100vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
           <IconButton onClick={() => navigate(-1)}>
             <ArrowBack />
           </IconButton>
@@ -1645,7 +1698,7 @@ const CreateLensPage = () => {
           </Alert>
         )}
 
-        <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+        <Paper elevation={0} sx={{ p: 2.5, mb: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
           <Stepper activeStep={activeStep} connector={<CustomConnector />} alternativeLabel>
             {STEPS.map((step, index) => (
               <Step key={step.label} completed={index < activeStep}>
@@ -1664,7 +1717,9 @@ const CreateLensPage = () => {
                         fontWeight: 600,
                       }}
                     >
-                      {index < activeStep ? <CheckCircle sx={{ fontSize: 20 }} /> : index + 1}
+                      {index < activeStep || (saveCompleted && index === activeStep)
+                        ? <CheckCircle sx={{ fontSize: 20 }} />
+                        : index + 1}
                     </Box>
                   )}
                 >
@@ -1675,148 +1730,248 @@ const CreateLensPage = () => {
           </Stepper>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2.5,
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.custom.border.light}`,
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pr: 0.5 }}>
           {activeStep === 0 && (
-            <Grid container spacing={2.5}>
-              {!isEditMode && (
-                <Grid size={{ xs: 12 }}>
-                  <FormControl>
-                    <FormLabel>Apply Scope</FormLabel>
-                    <RadioGroup
-                      row
-                      value={form.scope}
-                      onChange={(e) => handleFieldChange('scope', e.target.value as LensScope)}
-                    >
-                      <FormControlLabel value="GLOBAL" control={<Radio />} label="Global" />
-                      <FormControlLabel value="FRAME_VARIANT" control={<Radio />} label="For Frame Variant" />
-                      <FormControlLabel value="FRAME_GROUP" control={<Radio />} label="For Frame Group" />
-                    </RadioGroup>
-                  </FormControl>
-                </Grid>
-              )}
+            <Grid container spacing={2.5} alignItems="stretch" sx={{ pt: 0.5 }}>
+              <Grid size={{ xs: 12, lg: isEditMode ? 7 : 12 }}>
+                <Grid container spacing={2.5}>
+                  {!isEditMode && (
+                    <Grid size={{ xs: 12 }}>
+                      <FormControl>
+                        <FormLabel>Apply Scope</FormLabel>
+                        <RadioGroup
+                          row
+                          value={form.scope}
+                          onChange={(e) => handleFieldChange('scope', e.target.value as LensScope)}
+                        >
+                          <FormControlLabel value="GLOBAL" control={<Radio />} label="Global" />
+                          <FormControlLabel value="FRAME_VARIANT" control={<Radio />} label="For Frame Variant" />
+                          <FormControlLabel value="FRAME_GROUP" control={<Radio />} label="For Frame Group" />
+                        </RadioGroup>
+                      </FormControl>
+                    </Grid>
+                  )}
 
-              {form.scope === 'FRAME_VARIANT' && (
-                <Grid size={{ xs: 12, md: 8 }}>
-                  <FormControl fullWidth error={!!errors.frameVariantId}>
-                    <InputLabel>Frame Variant</InputLabel>
-                    <Select
-                      label="Frame Variant"
-                      value={form.frameVariantId}
-                      onChange={(e) => handleFieldChange('frameVariantId', e.target.value)}
-                    >
-                      {variantOptions.map((variant) => (
-                        <MenuItem key={variant.id} value={variant.id}>{variant.label}</MenuItem>
-                      ))}
-                    </Select>
-                    {!!errors.frameVariantId && <Typography color="error" fontSize={12}>{errors.frameVariantId}</Typography>}
-                  </FormControl>
-                </Grid>
-              )}
+                  {form.scope === 'FRAME_VARIANT' && (
+                    <Grid size={{ xs: 12, md: 8 }}>
+                      <FormControl fullWidth error={!!errors.frameVariantId}>
+                        <InputLabel>Frame Variant</InputLabel>
+                        <Select
+                          label="Frame Variant"
+                          value={form.frameVariantId}
+                          onChange={(e) => handleFieldChange('frameVariantId', e.target.value)}
+                        >
+                          {variantOptions.map((variant) => (
+                            <MenuItem key={variant.id} value={variant.id}>{variant.label}</MenuItem>
+                          ))}
+                        </Select>
+                        {!!errors.frameVariantId && <Typography color="error" fontSize={12}>{errors.frameVariantId}</Typography>}
+                      </FormControl>
+                    </Grid>
+                  )}
 
-              {form.scope === 'FRAME_GROUP' && (
-                <Grid size={{ xs: 12, md: 8 }}>
-                  <FormControl fullWidth error={!!errors.frameGroupId}>
-                    <InputLabel>Frame Group</InputLabel>
-                    <Select
-                      label="Frame Group"
-                      value={form.frameGroupId}
-                      onChange={(e) => handleFieldChange('frameGroupId', e.target.value)}
-                    >
-                      {frameGroups.map((group) => (
-                        <MenuItem key={group.id} value={group.id}>{group.frameName}</MenuItem>
-                      ))}
-                    </Select>
-                    {!!errors.frameGroupId && <Typography color="error" fontSize={12}>{errors.frameGroupId}</Typography>}
-                  </FormControl>
-                </Grid>
-              )}
+                  {form.scope === 'FRAME_GROUP' && (
+                    <Grid size={{ xs: 12, md: 8 }}>
+                      <FormControl fullWidth error={!!errors.frameGroupId}>
+                        <InputLabel>Frame Group</InputLabel>
+                        <Select
+                          label="Frame Group"
+                          value={form.frameGroupId}
+                          onChange={(e) => handleFieldChange('frameGroupId', e.target.value)}
+                        >
+                          {frameGroups.map((group) => (
+                            <MenuItem key={group.id} value={group.id}>{group.frameName}</MenuItem>
+                          ))}
+                        </Select>
+                        {!!errors.frameGroupId && <Typography color="error" fontSize={12}>{errors.frameGroupId}</Typography>}
+                      </FormControl>
+                    </Grid>
+                  )}
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  required
-                  label="SKU"
-                  value={form.sku}
-                  onChange={(e) => handleFieldChange('sku', e.target.value)}
-                  error={!!errors.sku}
-                  helperText={errors.sku}
-                />
+                  <Grid size={{ xs: 12, md: 12 }}>
+                    <TextField
+                      sx={{ mt: 0.5 }}
+                      fullWidth
+                      required
+                      label="SKU"
+                      value={form.sku}
+                      onChange={(e) => handleFieldChange('sku', e.target.value)}
+                      error={!!errors.sku}
+                      helperText={errors.sku}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 12 }}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Lens Name"
+                      value={form.name}
+                      onChange={(e) => handleFieldChange('name', e.target.value)}
+                      error={!!errors.name}
+                      helperText={errors.name}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      required
+                      type="text"
+                      label="Base Price"
+                      value={form.basePrice}
+                      onChange={(e) => handlePriceFieldChange('basePrice', e.target.value)}
+                      onKeyDown={(e) => {
+                        if (shouldBlockNonNumericKey(e)) e.preventDefault();
+                      }}
+                      inputProps={{ inputMode: 'decimal' }}
+                      error={!!errors.basePrice}
+                      helperText={errors.basePrice}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Category</InputLabel>
+                      <Select
+                        value={form.category}
+                        label="Category"
+                        onChange={(e) => handleFieldChange('category', e.target.value as LensCategory)}
+                      >
+                        <MenuItem value="SINGLE_VISION">Single Vision</MenuItem>
+                        <MenuItem value="BIFOCAL">Bifocal</MenuItem>
+                        <MenuItem value="PROGRESSIVE">Progressive</MenuItem>
+                        <MenuItem value="READING">Reading</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <FormControl fullWidth disabled={!form.isProgressive} error={!!errors.progressiveType}>
+                      <InputLabel>Progressive Type</InputLabel>
+                      <Select
+                        value={form.progressiveType}
+                        label="Progressive Type"
+                        onChange={(e) => handleFieldChange('progressiveType', e.target.value as ProgressiveType)}
+                      >
+                        <MenuItem value="STANDARD">Standard</MenuItem>
+                        <MenuItem value="PREMIUM">Premium</MenuItem>
+                        <MenuItem value="MID_RANGE">Mid Range</MenuItem>
+                        <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
+                      </Select>
+                      {!!errors.progressiveType && <Typography color="error" fontSize={12}>{errors.progressiveType}</Typography>}
+                    </FormControl>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Tooltip title="Enable this if the lens supports progressive/multifocal vision. When enabled, the shop should choose a Progressive Type and can configure Progressive Options.">
+                      <FormControlLabel
+                        control={<Switch checked={form.isProgressive} onChange={(e) => handleFieldChange('isProgressive', e.target.checked)} />}
+                        label="Progressive Lens"
+                      />
+                    </Tooltip>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Tooltip title="Enable this to make the lens visible and sellable in the shop. Disable it to hide the lens from the storefront while keeping its data.">
+                      <FormControlLabel
+                        control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
+                        label="Active Lens"
+                      />
+                    </Tooltip>
+                  </Grid>
+                </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Lens Name"
-                  value={form.name}
-                  onChange={(e) => handleFieldChange('name', e.target.value)}
-                  error={!!errors.name}
-                  helperText={errors.name}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 4 }}>
-                <TextField
-                  fullWidth
-                  required
-                  type="text"
-                  label="Base Price"
-                  value={form.basePrice}
-                  onChange={(e) => handlePriceFieldChange('basePrice', e.target.value)}
-                  onKeyDown={(e) => {
-                    if (shouldBlockNonNumericKey(e)) e.preventDefault();
+              <Grid size={{ xs: 12, lg: isEditMode ? 5 : 12 }} sx={{ display: 'flex' }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderColor: theme.palette.custom.border.light,
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
                   }}
-                  inputProps={{ inputMode: 'decimal' }}
-                  error={!!errors.basePrice}
-                  helperText={errors.basePrice}
-                />
-              </Grid>
+                >
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1 }}>Lens Image</Typography>
 
-              <Grid size={{ xs: 12, md: 4 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={form.category}
-                    label="Category"
-                    onChange={(e) => handleFieldChange('category', e.target.value as LensCategory)}
-                  >
-                    <MenuItem value="SINGLE_VISION">Single Vision</MenuItem>
-                    <MenuItem value="BIFOCAL">Bifocal</MenuItem>
-                    <MenuItem value="PROGRESSIVE">Progressive</MenuItem>
-                    <MenuItem value="READING">Reading</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                  {isEditMode ? (
+                    <>
+                      <Box
+                        sx={{
+                          width: 'min(100%, 180px)',
+                          flex: '0 0 auto',
+                          aspectRatio: '1 / 1',
+                          borderRadius: 1.5,
+                          overflow: 'hidden',
+                          border: `1px solid ${theme.palette.custom.border.light}`,
+                          bgcolor: theme.palette.custom.neutral[100],
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mx: 'auto',
+                        }}
+                      >
+                        {previewLensImageUrl ? (
+                          <Box
+                            component="img"
+                            src={previewLensImageUrl}
+                            alt="Lens preview"
+                            sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        ) : (
+                          <Typography sx={{ px: 2, textAlign: 'center', fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                            This lens has no image yet. Upload a file to preview it here before saving.
+                          </Typography>
+                        )}
+                      </Box>
 
-              <Grid size={{ xs: 12, md: 4 }}>
-                <FormControl fullWidth disabled={!form.isProgressive} error={!!errors.progressiveType}>
-                  <InputLabel>Progressive Type</InputLabel>
-                  <Select
-                    value={form.progressiveType}
-                    label="Progressive Type"
-                    onChange={(e) => handleFieldChange('progressiveType', e.target.value as ProgressiveType)}
-                  >
-                    <MenuItem value="STANDARD">Standard</MenuItem>
-                    <MenuItem value="PREMIUM">Premium</MenuItem>
-                    <MenuItem value="MID_RANGE">Mid Range</MenuItem>
-                    <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
-                  </Select>
-                  {!!errors.progressiveType && <Typography color="error" fontSize={12}>{errors.progressiveType}</Typography>}
-                </FormControl>
-              </Grid>
+                      <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          startIcon={<CloudUpload />}
+                        >
+                          Choose New Image
+                          <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={handleLensImageChange}
+                          />
+                        </Button>
+                        {selectedLensImageFile && (
+                          <Button color="error" variant="text" onClick={clearSelectedLensImage}>
+                            Remove Selected File
+                          </Button>
+                        )}
+                      </Box>
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormControlLabel
-                  control={<Switch checked={form.isProgressive} onChange={(e) => handleFieldChange('isProgressive', e.target.checked)} />}
-                  label="Is Progressive"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <FormControlLabel
-                  control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
-                  label="Is Active"
-                />
+                      <Typography sx={{ mt: 1, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                        {selectedLensImageFile ? selectedLensImageFile.name : 'Keep current image if no new file selected'}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      Upload image will be available when editing an existing lens.
+                    </Alert>
+                  )}
+                </Paper>
               </Grid>
             </Grid>
           )}
@@ -1851,19 +2006,61 @@ const CreateLensPage = () => {
                   variant="scrollable"
                   allowScrollButtonsMobile
                 >
-                  <Tab value="FEATURE" label={`Features (${form.featureIds.length + form.featuresToCreate.length})`} />
-                  <Tab value="TINT" label={`Tints (${form.tintIds.length + form.tintsToCreate.length})`} />
-                  <Tab value="USAGE" label={`Usage Rules (${form.usageIds.length})`} />
-                  <Tab value="COMPATIBILITY" label={`Frame Compatibility (${existingCompatibilities.length})`} />
-                  {form.isProgressive && <Tab value="PROGRESSIVE" label={`Progressive Options (${form.progressiveOptions.length})`} />}
+                  <Tab
+                    value="FEATURE"
+                    label={
+                      <Tooltip title="Lens features are add-ons such as coatings/treatments that can be mapped to this lens.">
+                        <span>{`Features (${form.featureIds.length + form.featuresToCreate.length})`}</span>
+                      </Tooltip>
+                    }
+                  />
+                  <Tab
+                    value="TINT"
+                    label={
+                      <Tooltip title="Lens tints define color/appearance options and price adjustments for this lens.">
+                        <span>{`Tints (${form.tintIds.length + form.tintsToCreate.length})`}</span>
+                      </Tooltip>
+                    }
+                  />
+                  <Tab
+                    value="USAGE"
+                    label={
+                      <Tooltip title="Usage rules define how this lens can be used (for example: allow tint, allow progressive, and min price adjustment).">
+                        <span>{`Usage Rules (${form.usageIds.length})`}</span>
+                      </Tooltip>
+                    }
+                  />
+                  <Tab
+                    value="COMPATIBILITY"
+                    label={
+                      <Tooltip title="Frame compatibility controls which features are allowed for the selected frame variant and optional SPH limits.">
+                        <span>{`Frame Compatibility (${existingCompatibilities.length})`}</span>
+                      </Tooltip>
+                    }
+                  />
+                  {form.isProgressive && (
+                    <Tab
+                      value="PROGRESSIVE"
+                      label={
+                        <Tooltip title="Progressive options define premium tiers, distance range, and extra price for progressive lenses.">
+                          <span>{`Progressive Options (${form.progressiveOptions.length})`}</span>
+                        </Tooltip>
+                      }
+                    />
+                  )}
                 </Tabs>
 
                 <Box sx={{ p: 2.5 }}>
                   {detailsObjectTab === 'FEATURE' && (
                     <>
-                      <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                        {isEditMode ? 'Mapped Features' : 'Select Existing Features'}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {isEditMode ? 'Mapped Features' : 'Select Existing Features'}
+                        </Typography>
+                        <Tooltip title="Choose existing features from your catalog or create new feature objects below.">
+                          <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                        </Tooltip>
+                      </Box>
                       <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
                         <Grid size={{ xs: 12 }}>
                           <FormControl fullWidth disabled={!selectedCatalogFrameVariantId || catalogLoading}>
@@ -2130,7 +2327,12 @@ const CreateLensPage = () => {
                         <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography sx={{ fontWeight: 600 }}>Create New Feature Objects</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Typography sx={{ fontWeight: 600 }}>Create New Feature Objects</Typography>
+                            <Tooltip title="Create new feature definitions when the needed feature is not available in existing objects.">
+                              <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                            </Tooltip>
+                          </Box>
                           <Button startIcon={<Add />} onClick={() => handleFieldChange('featuresToCreate', [...form.featuresToCreate, { ...DEFAULT_FEATURE }])}>
                             Add Feature
                           </Button>
@@ -2170,9 +2372,14 @@ const CreateLensPage = () => {
 
                   {detailsObjectTab === 'TINT' && (
                     <>
-                      <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                        {isEditMode ? 'Mapped Tints' : 'Select Existing Tints'}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {isEditMode ? 'Mapped Tints' : 'Select Existing Tints'}
+                        </Typography>
+                        <Tooltip title="Choose existing tint objects or create new tint objects with color, behavior, and price.">
+                          <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                        </Tooltip>
+                      </Box>
                       <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
                         <Grid size={{ xs: 12 }}>
                           <FormControl fullWidth disabled={!selectedCatalogFrameVariantId || catalogLoading}>
@@ -2548,7 +2755,12 @@ const CreateLensPage = () => {
                         <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography sx={{ fontWeight: 600 }}>Create New Tint Objects</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Typography sx={{ fontWeight: 600 }}>Create New Tint Objects</Typography>
+                            <Tooltip title="Create a tint when you need a new color/behavior option for this lens.">
+                              <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                            </Tooltip>
+                          </Box>
                           <Button startIcon={<Add />} onClick={() => handleFieldChange('tintsToCreate', [...form.tintsToCreate, { ...DEFAULT_TINT }])}>
                             Add Tint
                           </Button>
@@ -2629,9 +2841,14 @@ const CreateLensPage = () => {
 
                   {detailsObjectTab === 'USAGE' && (
                     <>
-                      <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                        {isEditMode ? 'Mapped Usages' : 'Select Existing Usages'}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {isEditMode ? 'Mapped Usages' : 'Select Existing Usages'}
+                        </Typography>
+                        <Tooltip title="Usage rules control where this lens can be applied and pricing behavior for each usage type.">
+                          <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                        </Tooltip>
+                      </Box>
                       <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
                         <Grid size={{ xs: 12 }}>
                           <FormControl fullWidth disabled={catalogLoading}>
@@ -2875,10 +3092,10 @@ const CreateLensPage = () => {
                                           <strong>Name:</strong> {usageName}
                                         </Typography>
                                         <Typography sx={{ fontSize: 14 }}>
-                                          <strong>Allow Tint:</strong> {String(usageRuleDraft?.allowTint ?? usageRule?.allowTint ?? true)}
+                                          <strong>Allow Tint:</strong> {(usageRuleDraft?.allowTint ?? usageRule?.allowTint ?? true) ? 'Yes' : 'No'}
                                         </Typography>
                                         <Typography sx={{ fontSize: 14 }}>
-                                          <strong>Allow Progressive:</strong> {String(usageRuleDraft?.allowProgressive ?? usageRule?.allowProgressive ?? true)}
+                                          <strong>Allow Progressive:</strong> {(usageRuleDraft?.allowProgressive ?? usageRule?.allowProgressive ?? true) ? 'Yes' : 'No'}
                                         </Typography>
                                         <Typography sx={{ fontSize: 14 }}>
                                           <strong>Min Price Adjustment:</strong> {String(usageRuleDraft?.minPriceAdjustment ?? usageRule?.minPriceAdjustment ?? 0)}
@@ -2938,9 +3155,14 @@ const CreateLensPage = () => {
 
                   {detailsObjectTab === 'COMPATIBILITY' && (
                     <>
-                      <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                        Frame Feature Compatibility
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                        <Typography sx={{ fontWeight: 600 }}>
+                          Frame Feature Compatibility
+                        </Typography>
+                        <Tooltip title="Define which features are compatible with the selected frame variant and optional SPH thresholds.">
+                          <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                        </Tooltip>
+                      </Box>
                       <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
                         Manage which lens features are compatible with the currently selected frame variant.
                       </Typography>
@@ -3134,9 +3356,14 @@ const CreateLensPage = () => {
                   {detailsObjectTab === 'PROGRESSIVE' && (
                     <>
                       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {isEditMode ? 'Progressive Options' : 'Create Progressive Options'}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Typography sx={{ fontWeight: 600 }}>
+                            {isEditMode ? 'Progressive Options' : 'Create Progressive Options'}
+                          </Typography>
+                          <Tooltip title="Configure option tiers for progressive lenses, including distance range, type, and extra price.">
+                            <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
+                          </Tooltip>
+                        </Box>
                         <Button
                           variant="contained"
                           startIcon={<Add />}
@@ -3308,9 +3535,9 @@ const CreateLensPage = () => {
                     <Typography sx={{ fontSize: 13 }}>Name: {form.name || 'N/A'}</Typography>
                     <Typography sx={{ fontSize: 13 }}>Base Price: {form.basePrice || '0'}</Typography>
                     <Typography sx={{ fontSize: 13 }}>Category: {form.category}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Is Progressive: {form.isProgressive ? 'Yes' : 'No'}</Typography>
+                    <Typography sx={{ fontSize: 13 }}>Progressive: {form.isProgressive ? 'Yes' : 'No'}</Typography>
                     <Typography sx={{ fontSize: 13 }}>Progressive Type: {form.isProgressive ? form.progressiveType : 'N/A'}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Is Active: {form.isActive ? 'Yes' : 'No'}</Typography>
+                    <Typography sx={{ fontSize: 13 }}>Active status: {form.isActive ? 'Yes' : 'No'}</Typography>
                   </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -3327,33 +3554,38 @@ const CreateLensPage = () => {
               </Grid>
             </Box>
           )}
+          </Box>
 
           <Box sx={{ mt: 3, pt: 2.5, borderTop: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', justifyContent: 'space-between' }}>
             <Button variant="outlined" onClick={handleBack} disabled={activeStep === 0 || submitting}>Back</Button>
             <Box sx={{ display: 'flex', gap: 1.5 }}>
               {successMessage && (
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    if (isEditMode) {
-                      setSuccessMessage('');
-                    } else {
-                      setForm(DEFAULT_FORM);
-                      setSuccessMessage('');
-                      setActiveStep(0);
-                      setErrors({});
-                    }
-                  }}
-                >
-                  {isEditMode ? 'Dismiss' : 'Create Another'}
-                </Button>
+                !saveCompleted && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      if (isEditMode) {
+                        setSuccessMessage('');
+                      } else {
+                        setForm(DEFAULT_FORM);
+                        setSuccessMessage('');
+                        setActiveStep(0);
+                        setErrors({});
+                      }
+                    }}
+                  >
+                    {isEditMode ? 'Dismiss' : 'Create Another'}
+                  </Button>
+                )
               )}
               {activeStep < STEPS.length - 1 ? (
                 <Button variant="contained" onClick={handleNext} disabled={submitting}>Continue</Button>
               ) : (
-                <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? submitProgress || 'Submitting...' : isEditMode ? 'Save Lens' : 'Submit Lens'}
-                </Button>
+                !saveCompleted && (
+                  <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? submitProgress || 'Submitting...' : isEditMode ? 'Save Lens' : 'Submit Lens'}
+                  </Button>
+                )
               )}
               <Button variant="text" onClick={() => navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_LENS)} disabled={submitting}>
                 Back to Lens List

@@ -133,7 +133,6 @@ const createAxiosInstance = (): AxiosInstance => {
         baseURL: API_CONFIG.BASE_URL,
         timeout: API_CONFIG.TIMEOUT,
         headers: {
-            'Content-Type': 'application/json',
             Accept: 'application/json',
         },
     });
@@ -143,6 +142,16 @@ const createAxiosInstance = (): AxiosInstance => {
         (config: InternalAxiosRequestConfig) => {
             // Thêm metadata để tracking thời gian
             config.metadata = { startTime: Date.now() };
+
+            // Let browser/axios set multipart boundary automatically for FormData payloads.
+            if (config.data instanceof FormData) {
+                if (config.headers) {
+                    delete config.headers['Content-Type'];
+                    delete config.headers['content-type'];
+                }
+            } else if (config.headers && !config.headers['Content-Type']) {
+                config.headers['Content-Type'] = 'application/json';
+            }
 
             // Thêm Authorization header nếu có token
             const token = TokenManager.getAccessToken();

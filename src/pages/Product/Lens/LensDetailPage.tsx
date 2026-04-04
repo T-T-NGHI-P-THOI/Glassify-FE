@@ -42,6 +42,8 @@ type GroupedLensDetailItem = {
   frameLabels: string[];
 };
 
+const LENS_FALLBACK_IMAGE = '/assets/imgs/Logo/logo.png';
+
 const LensDetailPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -53,6 +55,7 @@ const LensDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [lensDetail, setLensDetail] = useState<(LensResponse & Record<string, unknown>) | null>(null);
+  const [lensImageFailed, setLensImageFailed] = useState(false);
 
   const findLensDetailsFromCatalog = async (
     targetLensId: string,
@@ -330,6 +333,8 @@ const LensDetailPage = () => {
       return;
     }
 
+    setLensImageFailed(false);
+
     (async () => {
       try {
         const shopRes = await shopApi.getMyShops();
@@ -407,6 +412,10 @@ const LensDetailPage = () => {
     ownerEmail: user?.email,
     ownerAvatar: user?.avatarUrl,
   };
+
+  const lensImageSrc = !lensImageFailed && lensDetail?.imageUrl
+    ? lensDetail.imageUrl
+    : LENS_FALLBACK_IMAGE;
 
   const renderGroupedCards = (items: GroupedLensDetailItem[], preferredKeys: string[], emptyLabel: string) => {
     if (items.length === 0) {
@@ -495,6 +504,22 @@ const LensDetailPage = () => {
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
               <Typography sx={{ fontWeight: 700, mb: 1.5 }}>Basic Info</Typography>
+              <Box
+                component="img"
+                src={lensImageSrc}
+                alt={lensDetail?.name || 'Lens image'}
+                onError={() => setLensImageFailed(true)}
+                sx={{
+                  width: '100%',
+                  maxWidth: 220,
+                  aspectRatio: '1 / 1',
+                  objectFit: 'cover',
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.custom.border.light}`,
+                  mb: 2,
+                  bgcolor: theme.palette.custom.neutral[100],
+                }}
+              />
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>SKU</Typography>

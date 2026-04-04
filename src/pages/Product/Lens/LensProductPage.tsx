@@ -74,6 +74,8 @@ type UsageRuleAttachment = {
   minPriceAdjustment?: number;
 };
 
+const LENS_FALLBACK_IMAGE = '/assets/imgs/Logo/logo.png';
+
 const LensProductPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -99,8 +101,21 @@ const LensProductPage = () => {
   const [usageDialogOpen, setUsageDialogOpen] = useState(false);
   const [usageSubmitting, setUsageSubmitting] = useState(false);
   const [usageForm, setUsageForm] = useState<UsageFormState>(DEFAULT_USAGE_FORM_STATE());
+  const [failedLensImages, setFailedLensImages] = useState<Record<string, true>>({});
   const menuOpen = Boolean(menuAnchorEl);
   const usageMenuOpen = Boolean(usageMenuAnchorEl);
+
+  const getLensImageSrc = (lens: LensResponse): string => {
+    if (failedLensImages[lens.id] || !lens.imageUrl) return LENS_FALLBACK_IMAGE;
+    return lens.imageUrl;
+  };
+
+  const handleLensImageError = (lensId: string) => {
+    setFailedLensImages((prev) => {
+      if (prev[lensId]) return prev;
+      return { ...prev, [lensId]: true };
+    });
+  };
 
   const openLensMenu = (event: React.MouseEvent<HTMLElement>, lens: LensResponse) => {
     setMenuAnchorEl(event.currentTarget);
@@ -609,9 +624,21 @@ const LensProductPage = () => {
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                   <Box sx={{ display: 'flex', gap: 1.5, minWidth: 0 }}>
-                    <Avatar sx={{ bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main }}>
-                      <AutoAwesome />
-                    </Avatar>
+                    <Box
+                      component="img"
+                      src={getLensImageSrc(lens)}
+                      alt={lens.name}
+                      onError={() => handleLensImageError(lens.id)}
+                      sx={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 1.5,
+                        objectFit: 'cover',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                        flexShrink: 0,
+                        bgcolor: theme.palette.custom.neutral[100],
+                      }}
+                    />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography
                         sx={{
