@@ -83,6 +83,7 @@ const USAGE_ICONS: { [key: string]: React.ReactElement } = {
 };
 
 const steps = ['Usage Purpose', 'Prescription (if any)', 'Lens Type', 'Tint Color', 'Additional Features', 'Confirmation'];
+const LENS_FALLBACK_IMAGE = '/assets/imgs/Logo/logo.png';
 
 // Custom StepIcon component
 const CustomStepIcon: React.FC<StepIconProps & { isSkipped?: boolean }> = (props) => {
@@ -175,6 +176,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     });
     const [selectedFeatures, setSelectedFeatures] = useState<LensFeature[]>([]);
     const [selectedTint, setSelectedTint] = useState<LensTint | null>(null);
+    const [failedLensImageIds, setFailedLensImageIds] = useState<Record<string, true>>({});
     const [prescriptionMode, setPrescriptionMode] = useState<'saved' | 'manual'>('saved');
     const [syncBothEyes, setSyncBothEyes] = useState({
         sphere: false,
@@ -222,7 +224,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         .map(p => ({
             id: p.id,
             name: p.name,
-            date: new Date(p.prescriptionDate).toLocaleDateString('vi-VN'),
+            date: new Date(p.prescriptionDate).toLocaleDateString('en-US'),
             left_eye: {
                 sphere: p.sphL.toFixed(2),
                 cylinder: p.cylL !== 0 ? p.cylL.toFixed(2) : undefined,
@@ -303,6 +305,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         name: usage.name,
                         description: usage.description,
                         type: usage.type,
+                        isNonPrescription: usage.isNonPrescription ?? usage.type === 'NON_PRESCRIPTION',
                     });
                 }
             });
@@ -322,14 +325,27 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             .filter(lens => lens.usages.some(u => u.usageId === selectedUsage.id))
             .map(lens => {
                 const currentUsage = lens.usages.find(u => u.usageId === selectedUsage.id);
-                const isPrescription = currentUsage?.type
-                    ? currentUsage.type !== 'NON_PRESCRIPTION'
-                    : true;
+                const isNonPrescription = currentUsage?.isNonPrescription ?? currentUsage?.type === 'NON_PRESCRIPTION';
+                const isPrescription = !isNonPrescription;
+                const lensRecord = lens as Record<string, unknown>;
+                const apiDescription = [
+                    lensRecord.description,
+                    lensRecord.lensDescription,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+                const resolvedImageUrl = [
+                    lens.imageUrl,
+                    lens.lensImageUrl,
+                    lensRecord.imageFileUrl,
+                    lensRecord.image_file_url,
+                    lensRecord.image,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+                const displayDescription = [apiDescription, `SKU: ${lens.lensSku}`].filter(Boolean).join(' • ');
                 
                 return {
                     id: lens.lensId,
                     name: lens.lensName,
-                    description: `SKU: ${lens.lensSku}`,
+                    description: displayDescription,
+                    imageUrl: resolvedImageUrl,
                     price: lens.basePrice,
                     isPrescription: isPrescription,
                     isProgressive: lens.isProgressive,
@@ -337,6 +353,23 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 };
             });
     }, [selectedUsage, apiLensData]);
+
+    const getLensImageSrc = useCallback((lensType: LensType | null | undefined): string => {
+        if (!lensType) return LENS_FALLBACK_IMAGE;
+
+    const isNonPrescriptionUsage = (usage?: LensUsage | null) => {
+        return Boolean(usage?.isNonPrescription ?? usage?.type === 'NON_PRESCRIPTION');
+    };
+        if (failedLensImageIds[lensType.id]) return LENS_FALLBACK_IMAGE;
+        return lensType.imageUrl || LENS_FALLBACK_IMAGE;
+    }, [failedLensImageIds]);
+
+    const handleLensImageError = useCallback((lensId: string) => {
+        setFailedLensImageIds((prev) => {
+            if (prev[lensId]) return prev;
+            return { ...prev, [lensId]: true };
+        });
+    }, []);
 
     const availableTints = useMemo(() => {
         if (!selectedLensType || !apiLensData) {
@@ -473,7 +506,23 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     // This avoids unnecessary API calls when first entering step or selecting saved prescription
 
     const handleNext = async () => {
-        if (activeStep === 1 && selectedUsage && selectedUsage.type !== 'NON_PRESCRIPTION') {
+        // If warnings are already shown, user can acknowledge and continue on next click.
+        if (pendingWarnings.length > 0 && !warningsAcknowledged) {
+            setWarningsAcknowledged(true);
+            setPendingWarnings([]);
+            setValidationIssues([]);
+
+            if (activeStep === 0 && isNonPrescriptionUsage(selectedUsage)) {
+                setActiveStep((prev) => prev + 2);
+            } else if (activeStep === 2 && availableTints.length === 0) {
+                setActiveStep((prev) => prev + 2);
+            } else {
+                setActiveStep((prev) => prev + 1);
+            }
+            return;
+        }
+
+        if (activeStep === 1 && selectedUsage && !isNonPrescriptionUsage(selectedUsage)) {
             
             const addValue = prescription.right_eye.add || prescription.left_eye.add;
             if (!addValue || addValue === '' || addValue === '0' || addValue === '0.0' || addValue === '0.00') {
@@ -701,12 +750,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             setPendingWarnings([]);
         }
         
-        if (pendingWarnings.length > 0 && !warningsAcknowledged) {
-            setWarningsAcknowledged(true);
-            return;
-        }
-        
-        if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+        if (activeStep === 0 && isNonPrescriptionUsage(selectedUsage)) {
             setActiveStep((prev) => prev + 2);
         } else if (activeStep === 2 && availableTints.length === 0) {
             // Skip color step if no tints available
@@ -737,7 +781,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 break;
         }
         
-        if (activeStep === 2 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+        if (activeStep === 2 && isNonPrescriptionUsage(selectedUsage)) {
             setActiveStep((prev) => prev - 2);
         } else if (activeStep === 4 && availableTints.length === 0) {
             // Skip color step when going back if no tints available
@@ -808,7 +852,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         setPendingWarnings([]);
         setValidationIssues([]);
         setWarningsAcknowledged(false);
-        if (activeStep === 0 && selectedUsage && selectedUsage.type === 'NON_PRESCRIPTION') {
+        if (activeStep === 0 && isNonPrescriptionUsage(selectedUsage)) {
             setActiveStep((prev) => prev + 2);
         } else if (activeStep === 2 && availableTints.length === 0) {
             // Skip color step if no tints available
@@ -843,7 +887,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 return selectedUsage !== null;
             case 1:
                 { 
-                    if (selectedUsage?.type === 'NON_PRESCRIPTION') {
+                    if (isNonPrescriptionUsage(selectedUsage)) {
                     return true;
                 }
                 const addValue = prescription.right_eye.add || prescription.left_eye.add;
@@ -881,7 +925,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 return selectedUsage !== null;
             case 1:
                 { 
-                    if (selectedUsage?.type === 'NON_PRESCRIPTION') {
+                    if (isNonPrescriptionUsage(selectedUsage)) {
                     return true;
                 }
                 const addValue = prescription.right_eye.add || prescription.left_eye.add;
@@ -1010,9 +1054,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                         {usage.name}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {usage.description}
-                                    </Typography>
+                                    {usage.description && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {usage.description}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 {selectedUsage?.id === usage.id && (
                                     <CheckCircle color="primary" />
@@ -1083,15 +1129,34 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'flex-start',
+                                            gap: 1.5,
                                         }}
                                     >
-                                        <Box sx={{ flex: 1 }}>
+                                        <Box
+                                            component="img"
+                                            src={getLensImageSrc(lensType)}
+                                            alt={lensType.name}
+                                            onError={() => handleLensImageError(lensType.id)}
+                                            sx={{
+                                                width: 76,
+                                                height: 76,
+                                                borderRadius: 1.5,
+                                                objectFit: 'cover',
+                                                border: '1px solid',
+                                                borderColor: theme.palette.divider,
+                                                bgcolor: 'background.default',
+                                                flexShrink: 0,
+                                            }}
+                                        />
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                                 {lensType.name}
                                             </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                                {lensType.description}
-                                            </Typography>
+                                            {lensType.description && (
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                    {lensType.description}
+                                                </Typography>
+                                            )}
                                             <Typography variant="h6" color="primary" sx={{ fontWeight: 700, mb: 1 }}>
                                                 {formatCurrency(lensType.price)}
                                             </Typography>
@@ -1651,7 +1716,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                 {(saved.right_eye.pd || saved.left_eye.pd) && (
                                                     <Box>
                                                         <Typography variant="caption" color="text.secondary" display="block">
-                                                            {saved.right_eye.pd === saved.left_eye.pd ? 'PD (chung)' : 'PD'}
+                                                            {saved.right_eye.pd === saved.left_eye.pd ? 'PD (single)' : 'PD'}
                                                         </Typography>
                                                         <Typography variant="body2" fontWeight={600}>
                                                             {saved.right_eye.pd === saved.left_eye.pd 
@@ -2185,12 +2250,14 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                                     {selectedTint.name}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" paragraph>
-                                    {selectedTint.description}
-                                </Typography>
+                                {selectedTint.description && (
+                                    <Typography variant="body2" color="text.secondary" paragraph>
+                                        {selectedTint.description}
+                                    </Typography>
+                                )}
                                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                                     <Chip
-                                        label={`Price: ${selectedTint.price.toLocaleString('vi-VN')} đ`}
+                                        label={`Price: ${selectedTint.price.toLocaleString('en-US')} VND`}
                                         color="primary"
                                         size="small"
                                     />
@@ -2253,14 +2320,16 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                 {tint.name}
                                             </Typography>
                                             <Chip
-                                                label={`${tint.price.toLocaleString('vi-VN')} đ`}
+                                                label={`${tint.price.toLocaleString('en-US')} VND`}
                                                 size="small"
                                                 color={selectedTint?.id === tint.id ? 'primary' : 'default'}
                                             />
                                         </Box>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {tint.description}
-                                        </Typography>
+                                        {tint.description && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                {tint.description}
+                                            </Typography>
+                                        )}
                                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                                             Opacity: {Math.round(tint.opacity)}%
                                         </Typography>
@@ -2348,13 +2417,15 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                     >
                                                         {feature.name}
                                                     </Typography>
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                        sx={{ mb: 1, fontSize: '0.85rem' }}
-                                                    >
-                                                        {feature.description}
-                                                    </Typography>
+                                                    {feature.description && (
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            sx={{ mb: 1, fontSize: '0.85rem' }}
+                                                        >
+                                                            {feature.description}
+                                                        </Typography>
+                                                    )}
                                                     <Typography
                                                         variant="body2"
                                                         color="primary"
@@ -2398,23 +2469,43 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         <Typography variant="body1" fontWeight="bold">
                             {selectedUsage?.name}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {selectedUsage?.description}
-                        </Typography>
+                        {selectedUsage?.description && (
+                            <Typography variant="body2" color="text.secondary">
+                                {selectedUsage.description}
+                            </Typography>
+                        )}
                     </Paper>
 
                     <Paper elevation={1} sx={{ p: 2 }}>
                         <Typography variant="subtitle2" color="primary" gutterBottom>
                             Lens Type
                         </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                            <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 1.5 }}>
+                            <Box
+                                component="img"
+                                src={getLensImageSrc(selectedLensType)}
+                                alt={selectedLensType?.name || 'Selected lens'}
+                                onError={() => selectedLensType && handleLensImageError(selectedLensType.id)}
+                                sx={{
+                                    width: 72,
+                                    height: 72,
+                                    borderRadius: 1.5,
+                                    objectFit: 'cover',
+                                    border: '1px solid',
+                                    borderColor: theme.palette.divider,
+                                    bgcolor: 'background.default',
+                                    flexShrink: 0,
+                                }}
+                            />
+                            <Box sx={{ flex: 1 }}>
                                 <Typography variant="body1" fontWeight="bold">
                                     {selectedLensType?.name}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {selectedLensType?.description}
-                                </Typography>
+                                {selectedLensType?.description && (
+                                    <Typography variant="body2" color="text.secondary">
+                                        {selectedLensType.description}
+                                    </Typography>
+                                )}
                             </Box>
                             <Chip label={formatCurrency(selectedLensType?.price || 0)} color="primary" size="small" />
                         </Box>
@@ -2489,7 +2580,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                     )}
                                     {!has2PD && (prescription.right_eye.pd || prescription.left_eye.pd) && (
                                         <Typography variant="body2">
-                                            <strong>PD (chung):</strong> {prescription.right_eye.pd || prescription.left_eye.pd} mm
+                                            <strong>PD (single):</strong> {prescription.right_eye.pd || prescription.left_eye.pd} mm
                                         </Typography>
                                     )}
                                 </Box>
@@ -2518,9 +2609,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                     <Typography variant="body1" fontWeight="bold">
                                         {selectedTint.name}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {selectedTint.description}
-                                    </Typography>
+                                    {selectedTint.description && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {selectedTint.description}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 <Chip label={formatCurrency(selectedTint.price)} color="primary" size="small" />
                             </Box>
@@ -2543,9 +2636,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             <Typography variant="body2" fontWeight="medium">
                                                 {feature.name}
                                             </Typography>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {feature.description}
-                                            </Typography>
+                                            {feature.description && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {feature.description}
+                                                </Typography>
+                                            )}
                                         </Box>
                                         <Chip label={formatCurrency(feature.price)} size="small" variant="outlined" />
                                     </Box>
@@ -2704,7 +2799,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             {steps.map((label, index) => {
                                 const isSkipped = !!(index === 1 && 
                                                   selectedUsage && 
-                                                  selectedUsage.type === 'NON_PRESCRIPTION' && 
+                                                  isNonPrescriptionUsage(selectedUsage) && 
                                                   activeStep > 1);
                                 return (
                                     <Step 
@@ -2876,7 +2971,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             )}
                             {!has2PD && (prescription.right_eye.pd || prescription.left_eye.pd) && (
                                 <Typography variant="body2">
-                                    <strong>PD (chung):</strong> {prescription.right_eye.pd || prescription.left_eye.pd} mm
+                                    <strong>PD (single):</strong> {prescription.right_eye.pd || prescription.left_eye.pd} mm
                                 </Typography>
                             )}
                         </Box>

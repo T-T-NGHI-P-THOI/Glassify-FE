@@ -43,6 +43,7 @@ type UsageFormState = {
   name: string;
   description: string;
   isActive: boolean;
+  isNonPrescription: boolean;
   selectedLensIds: string[];
   allowTint: boolean;
   allowProgressive: boolean;
@@ -55,6 +56,7 @@ const DEFAULT_USAGE_FORM: UsageFormState = {
   name: '',
   description: '',
   isActive: true,
+  isNonPrescription: false,
   selectedLensIds: [],
   allowTint: true,
   allowProgressive: true,
@@ -192,6 +194,7 @@ const LensProductPage = () => {
     );
 
     const firstRule = linkedAttachments[0];
+    const usageRecord = usage as Record<string, unknown>;
 
     setUsageDialogMode('edit');
     setSelectedUsage(usage);
@@ -199,6 +202,7 @@ const LensProductPage = () => {
       name: usage.name,
       description: usage.description ?? '',
       isActive: Boolean(usage.isActive),
+      isNonPrescription: Boolean(usage.isNonPrescription ?? usageRecord.type === 'NON_PRESCRIPTION'),
       selectedLensIds: linkedAttachments.map((item) => item.lensId),
       allowTint: firstRule?.allowTint ?? true,
       allowProgressive: firstRule?.allowProgressive ?? true,
@@ -327,6 +331,7 @@ const LensProductPage = () => {
             shopId: shop.id,
             lensIds: selectedLensIds,
             usageRules: selectedLensIds.map((lensId) => ({
+              shopId: shop.id,
               lensId,
               allowTint: usageForm.allowTint,
               allowProgressive: usageForm.allowProgressive,
@@ -336,9 +341,11 @@ const LensProductPage = () => {
         : undefined;
 
       const payload = {
+        shopId: shop.id,
         name: usageForm.name.trim(),
         description: usageForm.description.trim(),
         isActive: usageForm.isActive,
+        isNonPrescription: usageForm.isNonPrescription,
         usageDetailData,
       };
 
@@ -366,9 +373,17 @@ const LensProductPage = () => {
   const handleToggleUsageStatus = async (usage: LensUsage) => {
     if (usageSubmitting) return;
 
+    if (!shop?.id) {
+      toast.error('Shop not found');
+      return;
+    }
+
     try {
       setUsageSubmitting(true);
-      const response = await lensApi.updateUsage(usage.id, { isActive: !usage.isActive });
+      const response = await lensApi.updateUsage(usage.id, {
+        shopId: shop.id,
+        isActive: !usage.isActive,
+      });
 
       if ((response?.status ?? 0) >= 400 || !response?.data?.id) {
         throw new Error(response?.message || 'Unable to update usage');
@@ -1004,6 +1019,15 @@ const LensProductPage = () => {
                       />
                     }
                     label="Active"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={usageForm.isNonPrescription}
+                        onChange={(e) => setUsageForm((prev) => ({ ...prev, isNonPrescription: e.target.checked }))}
+                      />
+                    }
+                    label="Non-prescription"
                   />
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
                     {usageForm.selectedLensIds.length} lens(es) selected

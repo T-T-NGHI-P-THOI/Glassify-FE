@@ -7,6 +7,7 @@ export interface LensUsage {
     name: string;
     description: string;
     type?: string;
+    isNonPrescription?: boolean;
     icon?: string;
 }
 
@@ -14,6 +15,7 @@ export interface LensType {
     id: string;
     name: string;
     description: string;
+    imageUrl?: string;
     price: number;
     isPrescription: boolean;
     isProgressive?: boolean;
@@ -128,6 +130,7 @@ export interface LensFrameValidationResponse {
 export interface LensCatalogUsage {
     usageId: string;
     type?: string;
+    isNonPrescription?: boolean;
     name: string;
     description: string;
     allowTint: boolean;
@@ -172,6 +175,8 @@ export interface LensCatalogLens {
     lensId: string;
     lensSku: string;
     lensName: string;
+    imageUrl?: string;
+    lensImageUrl?: string;
     basePrice: number;
     isProgressive: boolean;
     usages: LensCatalogUsage[];

@@ -52,6 +52,7 @@ export interface LensUsageCreateInput {
   name: string;
   description?: string;
   isActive?: boolean;
+  isNonPrescription?: boolean;
   usageDetailData?: {
     shopId: string;
     lensIds: string[];
@@ -159,6 +160,8 @@ export interface LensUsage {
   name: string;
   description?: string;
   isActive?: boolean;
+  type?: string;
+  isNonPrescription?: boolean;
   lensUsageRules?: LensUsageRule[];
 }
 
@@ -328,13 +331,17 @@ export interface CreateLensTintRequest {
 }
 
 export interface CreateLensUsageRequest {
+  shopId?: string;
   name: string;
   description?: string;
   isActive?: boolean;
+  isNonPrescription?: boolean;
   usageDetailData?: {
     shopId: string;
     lensIds: string[];
     usageRules?: Array<{
+      shopId?: string;
+      usageId?: string;
       lensId: string;
       allowTint?: boolean;
       allowProgressive?: boolean;
@@ -389,14 +396,17 @@ export interface LensUsageFilterRequest {
 }
 
 export interface UpdateLensUsageRequest {
+  shopId?: string;
   name?: string;
   description?: string;
   isActive?: boolean;
+  isNonPrescription?: boolean;
 }
 
 export interface LensCatalogUsageOption {
   usageId?: string;
   type?: string;
+  isNonPrescription?: boolean;
   name?: string;
   description?: string;
   allowTint?: boolean;
