@@ -327,7 +327,13 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 const currentUsage = lens.usages.find(u => u.usageId === selectedUsage.id);
                 const isNonPrescription = currentUsage?.isNonPrescription ?? currentUsage?.type === 'NON_PRESCRIPTION';
                 const isPrescription = !isNonPrescription;
-                const lensRecord = lens as Record<string, unknown>;
+                const lensRecord = lens as unknown as {
+                    description?: string;
+                    lensDescription?: string;
+                    imageFileUrl?: string;
+                    image_file_url?: string;
+                    image?: string;
+                };
                 const apiDescription = [
                     lensRecord.description,
                     lensRecord.lensDescription,
@@ -354,12 +360,12 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             });
     }, [selectedUsage, apiLensData]);
 
-    const getLensImageSrc = useCallback((lensType: LensType | null | undefined): string => {
-        if (!lensType) return LENS_FALLBACK_IMAGE;
-
     const isNonPrescriptionUsage = (usage?: LensUsage | null) => {
         return Boolean(usage?.isNonPrescription ?? usage?.type === 'NON_PRESCRIPTION');
     };
+
+    const getLensImageSrc = useCallback((lensType: LensType | null | undefined): string => {
+        if (!lensType) return LENS_FALLBACK_IMAGE;
         if (failedLensImageIds[lensType.id]) return LENS_FALLBACK_IMAGE;
         return lensType.imageUrl || LENS_FALLBACK_IMAGE;
     }, [failedLensImageIds]);
@@ -1232,7 +1238,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 {selectedLensType && !selectedLensType.isPrescription && (
                     <Alert severity="success" sx={{ mt: 3 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            ✓ You have chosen a lens type that doesn't require a prescription. The prescription step will be skipped.
+                            You have chosen a lens type that doesn't require a prescription. The prescription step will be skipped.
                         </Typography>
                     </Alert>
                 )}

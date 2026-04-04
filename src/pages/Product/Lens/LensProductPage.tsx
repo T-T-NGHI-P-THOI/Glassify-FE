@@ -325,17 +325,23 @@ const LensProductPage = () => {
       setUsageSubmitting(true);
 
       const selectedLensIds = Array.from(new Set(usageForm.selectedLensIds));
+      const shouldSendUsageRules = usageDialogMode === 'edit' && Boolean(selectedUsage?.id);
       const usageDetailData = selectedLensIds.length
         ? {
             shopId: shop.id,
             lensIds: selectedLensIds,
-            usageRules: selectedLensIds.map((lensId) => ({
-              shopId: shop.id,
-              lensId,
-              allowTint: usageForm.allowTint,
-              allowProgressive: usageForm.allowProgressive,
-              minPriceAdjustment: Number(usageForm.minPriceAdjustment || 0),
-            })),
+            ...(shouldSendUsageRules
+              ? {
+                  usageRules: selectedLensIds.map((lensId) => ({
+                    shopId: shop.id,
+                    usageId: selectedUsage?.id,
+                    lensId,
+                    allowTint: usageForm.allowTint,
+                    allowProgressive: usageForm.allowProgressive,
+                    minPriceAdjustment: Number(usageForm.minPriceAdjustment || 0),
+                  })),
+                }
+              : {}),
           }
         : undefined;
 
