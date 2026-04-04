@@ -13,19 +13,19 @@ import {
   FormControl,
   FormControlLabel,
   IconButton,
-  InputLabel,
   ListItemText,
   Menu,
   MenuItem,
   Pagination,
   Paper,
   Select,
+  Tooltip,
   Switch,
   TextField,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Add, AutoAwesome, Inventory2, LensBlur, MoreVert, Search, Verified, Visibility } from '@mui/icons-material';
+import { Add, AutoAwesome, InfoOutlined, Inventory2, LensBlur, MoreVert, Search, Verified, Visibility } from '@mui/icons-material';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -194,7 +194,6 @@ const LensProductPage = () => {
     );
 
     const firstRule = linkedAttachments[0];
-    const usageRecord = usage as Record<string, unknown>;
 
     setUsageDialogMode('edit');
     setSelectedUsage(usage);
@@ -202,7 +201,7 @@ const LensProductPage = () => {
       name: usage.name,
       description: usage.description ?? '',
       isActive: Boolean(usage.isActive),
-      isNonPrescription: Boolean(usage.isNonPrescription ?? usageRecord.type === 'NON_PRESCRIPTION'),
+      isNonPrescription: Boolean(usage.isNonPrescription),
       selectedLensIds: linkedAttachments.map((item) => item.lensId),
       allowTint: firstRule?.allowTint ?? true,
       allowProgressive: firstRule?.allowProgressive ?? true,
@@ -941,7 +940,14 @@ const LensProductPage = () => {
                 <TextField
                   fullWidth
                   required
-                  label="Usage Name"
+                  label={
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      Usage Name
+                      <Tooltip title="Use a clear, customer-friendly name for this usage so customers can recognize it quickly.">
+                        <InfoOutlined fontSize="inherit" sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                      </Tooltip>
+                    </Box>
+                  }
                   value={usageForm.name}
                   onChange={(e) => setUsageForm((prev) => ({ ...prev, name: e.target.value }))}
                 />
@@ -952,7 +958,14 @@ const LensProductPage = () => {
                   fullWidth
                   multiline
                   minRows={3}
-                  label="Description"
+                  label={
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                      Description
+                      <Tooltip title="Add a short explanation for customers. Keep it focused on when this usage should be applied.">
+                        <InfoOutlined fontSize="inherit" sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                      </Tooltip>
+                    </Box>
+                  }
                   value={usageForm.description}
                   onChange={(e) => setUsageForm((prev) => ({ ...prev, description: e.target.value }))}
                 />
@@ -960,10 +973,16 @@ const LensProductPage = () => {
 
               <Box sx={{ gridColumn: { xs: '1 / -1', md: 'span 6' } }}>
                 <FormControl fullWidth>
-                  <InputLabel>Attach to Lenses</InputLabel>
+                  <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography component="span" sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[700] }}>
+                      Attach to Lenses
+                    </Typography>
+                    <Tooltip title="Choose the lenses that should use this default configuration. The same rule set will be attached to each selected lens.">
+                      <InfoOutlined fontSize="small" sx={{ color: theme.palette.custom.neutral[400] }} />
+                    </Tooltip>
+                  </Box>
                   <Select
                     multiple
-                    label="Attach to Lenses"
                     value={usageForm.selectedLensIds}
                     onChange={(e) =>
                       setUsageForm((prev) => ({
@@ -1013,19 +1032,23 @@ const LensProductPage = () => {
                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                   <FormControlLabel
                     control={
-                      <Switch
-                        checked={usageForm.isActive}
-                        onChange={(e) => setUsageForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                      />
+                      <Tooltip title="Inactive usage objects stay saved but are hidden from normal selection and rule assignment.">
+                        <Switch
+                          checked={usageForm.isActive}
+                          onChange={(e) => setUsageForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                        />
+                      </Tooltip>
                     }
                     label="Active"
                   />
                   <FormControlLabel
                     control={
-                      <Switch
-                        checked={usageForm.isNonPrescription}
-                        onChange={(e) => setUsageForm((prev) => ({ ...prev, isNonPrescription: e.target.checked }))}
-                      />
+                      <Tooltip title="Enable this when the usage does not require a prescription step in lens configuration.">
+                        <Switch
+                          checked={usageForm.isNonPrescription}
+                          onChange={(e) => setUsageForm((prev) => ({ ...prev, isNonPrescription: e.target.checked }))}
+                        />
+                      </Tooltip>
                     }
                     label="Non-prescription"
                   />
@@ -1037,7 +1060,12 @@ const LensProductPage = () => {
 
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                  <Typography sx={{ fontWeight: 600, mb: 1 }}>Default Usage Rule</Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    Default Usage Rule
+                    <Tooltip title="These values are copied into the lens usage rules created for each selected lens.">
+                      <InfoOutlined fontSize="inherit" sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                    </Tooltip>
+                  </Typography>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
                     These values will be copied into each selected lens usage rule.
                   </Typography>
@@ -1046,10 +1074,12 @@ const LensProductPage = () => {
                     <Box sx={{ gridColumn: { xs: '1 / -1', md: 'span 4' } }}>
                       <FormControlLabel
                         control={
-                          <Switch
-                            checked={usageForm.allowTint}
-                            onChange={(e) => setUsageForm((prev) => ({ ...prev, allowTint: e.target.checked }))}
-                          />
+                          <Tooltip title="Allow customers to choose a tint option when this usage is applied.">
+                            <Switch
+                              checked={usageForm.allowTint}
+                              onChange={(e) => setUsageForm((prev) => ({ ...prev, allowTint: e.target.checked }))}
+                            />
+                          </Tooltip>
                         }
                         label="Allow Tint"
                       />
@@ -1057,10 +1087,12 @@ const LensProductPage = () => {
                     <Box sx={{ gridColumn: { xs: '1 / -1', md: 'span 4' } }}>
                       <FormControlLabel
                         control={
-                          <Switch
-                            checked={usageForm.allowProgressive}
-                            onChange={(e) => setUsageForm((prev) => ({ ...prev, allowProgressive: e.target.checked }))}
-                          />
+                          <Tooltip title="Allow this usage to be used with progressive lens options.">
+                            <Switch
+                              checked={usageForm.allowProgressive}
+                              onChange={(e) => setUsageForm((prev) => ({ ...prev, allowProgressive: e.target.checked }))}
+                            />
+                          </Tooltip>
                         }
                         label="Allow Progressive"
                       />
@@ -1069,7 +1101,14 @@ const LensProductPage = () => {
                       <TextField
                         fullWidth
                         type="text"
-                        label="Min Price Adjustment"
+                        label={
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                            Min Price Adjustment
+                            <Tooltip title="Set the minimum price adjustment allowed for usage rules linked to the selected lenses.">
+                              <InfoOutlined fontSize="inherit" sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />
+                            </Tooltip>
+                          </Box>
+                        }
                         value={usageForm.minPriceAdjustment}
                         onChange={(e) => setUsageForm((prev) => ({ ...prev, minPriceAdjustment: e.target.value }))}
                         inputProps={{ inputMode: 'decimal' }}
