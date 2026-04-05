@@ -15,30 +15,27 @@ import ProductAPI from "@/api/product-api";
 import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 import userApi from "@/api/service/userApi";
 import { toast } from "react-toastify";
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/services/ThreeJsService";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface GlassesTryOnPopupProps {
-    frameGroupId: string,
+    frameGroupId: string;
     open: boolean;
     onClose: () => void;
     onAddToCart?: (lensId: string | null, textureId: string | null) => void;
+    isTryOn?: boolean; // true = try-on mode, false = face analysis/recommend mode
 }
 
 // ─── Sizes ────────────────────────────────────────────────────────────────────
 
-const CANVAS_W = 880;
+const CANVAS_W = CANVAS_WIDTH;
 const DRAWER_W = 300;
 const MODAL_H = 540;
 
-// ─── Save Modal (Popup con) ──────────────────────────────────────────────────
+// ─── Save Modal ──────────────────────────────────────────────────────────────
 
-const SaveModal = ({
-    open,
-    onClose,
-    onSave,
-    isSaving,
-}: any) => {
+const SaveModal = ({ open, onClose, onSave, isSaving }: any) => {
     const [nickname, setNickname] = useState("");
 
     if (!open) return null;
@@ -48,8 +45,8 @@ const SaveModal = ({
             onClick={onClose}
             sx={{
                 position: "fixed",
-                inset: 0, // Phủ kín màn hình
-                zIndex: 3000, // Cao hơn modal chính (1200)
+                inset: 0,
+                zIndex: 3000,
                 bgcolor: "rgba(0,0,0,0.75)",
                 display: "flex",
                 alignItems: "center",
@@ -78,24 +75,24 @@ const SaveModal = ({
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="Nhập tên gợi nhớ..."
                     style={{
-                        width: '100%',
-                        padding: '12px',
-                        marginBottom: '20px',
-                        background: '#262626',
-                        border: '1px solid #444',
-                        color: '#fff',
-                        borderRadius: '8px',
-                        outline: 'none',
+                        width: "100%",
+                        padding: "12px",
+                        marginBottom: "20px",
+                        background: "#262626",
+                        border: "1px solid #444",
+                        color: "#fff",
+                        borderRadius: "8px",
+                        outline: "none",
                     }}
                 />
 
-                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
+                <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
                     <Box
                         component="button"
                         onClick={onClose}
                         sx={{
-                            px: 2, py: 1, borderRadius: '6px', border: 'none',
-                            cursor: 'pointer', bgcolor: 'transparent', color: '#aaa'
+                            px: 2, py: 1, borderRadius: "6px", border: "none",
+                            cursor: "pointer", bgcolor: "transparent", color: "#aaa",
                         }}
                     >
                         Hủy
@@ -105,10 +102,10 @@ const SaveModal = ({
                         disabled={isSaving || !nickname.trim()}
                         onClick={() => onSave(nickname)}
                         sx={{
-                            px: 2, py: 1, borderRadius: '6px', border: 'none',
-                            cursor: 'pointer', bgcolor: T.teal, color: '#fff',
+                            px: 2, py: 1, borderRadius: "6px", border: "none",
+                            cursor: "pointer", bgcolor: T.teal, color: "#fff",
                             fontWeight: 600,
-                            '&:disabled': { opacity: 0.5, cursor: 'not-allowed' }
+                            "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
                         }}
                     >
                         {isSaving ? "Đang lưu..." : "Lưu lại"}
@@ -119,7 +116,7 @@ const SaveModal = ({
     );
 };
 
-// ─── Các sub-components khác giữ nguyên logic cũ của bạn ──────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 const CanvasIconBtn = ({
     onClick, active, title, hasDot, children,
@@ -232,7 +229,13 @@ const LensDrawer = ({
     </Box>
 );
 
-const RecDrawer = ({ result, fengShuiResult, setSaveModalOpen }: { result: FaceAnalysisResult | null, fengShuiResult: FengShuiResult | null, setSaveModalOpen: (open: boolean) => void }) => {
+const RecDrawer = ({
+    result, fengShuiResult, setSaveModalOpen,
+}: {
+    result: FaceAnalysisResult | null;
+    fengShuiResult: FengShuiResult | null;
+    setSaveModalOpen: (open: boolean) => void;
+}) => {
     if (!result) {
         return (
             <Box sx={{
@@ -276,7 +279,13 @@ const RecDrawer = ({ result, fengShuiResult, setSaveModalOpen }: { result: FaceA
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: GlassesTryOnPopupProps) => {
+const GlassesTryOnPopup = ({
+    frameGroupId,
+    open,
+    onClose,
+    onAddToCart,
+    isTryOn = true,
+}: GlassesTryOnPopupProps) => {
 
     const [mode, setMode] = useState<"video" | "image">("video");
     const [drawer, setDrawer] = useState<DrawerType>(null);
@@ -317,23 +326,21 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
             setIsSaving(true);
 
             const payload = new FormData();
-            payload.append('name', nickname);
-            payload.append('faceShape', analysisResult.shape.toUpperCase());
-            payload.append('faceConfidence', String(analysisResult?.confidence ?? ''));
-            payload.append('element', fengShuiResult?.element.toUpperCase() ?? '');
-            payload.append('yinYang', fengShuiResult?.yinYang.toUpperCase() ?? '')
-            payload.append('overallScore', String(fengShuiResult?.overallScore ?? ''));
-            payload.append('luckyColors', fengShuiResult?.luckyColors.toString() ?? '')
-            payload.append('recommendedFrameStyles', '')
-            payload.append('recommendedLens', '')
+            payload.append("name", nickname);
+            payload.append("faceShape", analysisResult.shape.toUpperCase());
+            payload.append("faceConfidence", String(analysisResult?.confidence ?? ""));
+            payload.append("element", fengShuiResult?.element.toUpperCase() ?? "");
+            payload.append("yinYang", fengShuiResult?.yinYang.toUpperCase() ?? "");
+            payload.append("overallScore", String(fengShuiResult?.overallScore ?? ""));
+            payload.append("luckyColors", fengShuiResult?.luckyColors.toString() ?? "");
+            payload.append("recommendedFrameStyles", "");
+            payload.append("recommendedLens", "");
 
-            const resp = await userApi.createRecommendation(payload);
-
-            toast.success('Save recommendation success')
-            // Thực hiện API call ở đây
+            await userApi.createRecommendation(payload);
+            toast.success("Save recommendation success");
             setModalOpen(false);
         } catch (err) {
-            toast.error('Cannot save recommendation')
+            toast.error("Cannot save recommendation");
             console.error(err);
         } finally {
             setIsSaving(false);
@@ -347,9 +354,9 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
         setReloadSignal((n) => n + 1);
     };
 
-
     useEffect(() => {
-        if (!frameGroupId) return;
+        // Only fetch textures when in try-on mode
+        if (!frameGroupId || !isTryOn) return;
         const fetchTextures = async () => {
             try {
                 setLoadingTextures(true);
@@ -363,7 +370,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
             }
         };
         fetchTextures();
-    }, [frameGroupId]);
+    }, [frameGroupId, isTryOn]);
 
     if (!open) return null;
 
@@ -378,7 +385,7 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                 p: 2,
             }}
         >
-            {/* ══ Save Result Modal (Đưa ra ngoài để không bị che khuất) ══ */}
+            {/* ══ Save Result Modal ══ */}
             <SaveModal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
@@ -386,13 +393,13 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                 isSaving={isSaving}
             />
 
-            {/* ══ Main Try-On Modal ══ */}
+            {/* ══ Main Modal ══ */}
             <Box
                 onClick={(e) => e.stopPropagation()}
                 sx={{
                     width: drawerOpen ? CANVAS_W + DRAWER_W : CANVAS_W,
                     maxWidth: "100%",
-                    height: MODAL_H,
+                    height: CANVAS_HEIGHT,
                     bgcolor: T.bg,
                     borderRadius: "16px",
                     border: `1px solid ${T.border}`,
@@ -418,17 +425,19 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                             <VideoTryOn
                                 frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
-                                onAnalysisReady={setAnalysisResult}
-                                onAgeReady={() => { }}
+                                isTryOn={isTryOn}
+                                onAnalysisReady={isTryOn ? () => {} : setAnalysisResult}
+                                onAgeReady={() => {}}
                                 onReload={handleReload}
                             />
                         ) : (
                             <ImageTryOn
                                 frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
-                                onAnalysisReady={setAnalysisResult}
-                                onFengShuiReady={setFengShuiResult}
-                                onAgeReady={() => { }}
+                                isTryOn={isTryOn}
+                                onAnalysisReady={isTryOn ? () => {} : setAnalysisResult}
+                                onFengShuiReady={isTryOn ? () => {} : setFengShuiResult}
+                                onAgeReady={() => {}}
                                 reloadSignal={reloadSignal}
                             />
                         )}
@@ -506,54 +515,61 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                             </svg>
                         </Box>
 
-                        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.8 }}>
-                            <Typography sx={{ fontFamily: T.fontSans, fontSize: "0.7rem", color: T.overlayTextMuted }}>
-                                Variant:
-                            </Typography>
-                            {textures.map((tv) => {
-                                const isActive = activeTexture?.colorHex === tv.colorHex;
-                                return (
-                                    <Box
-                                        key={tv.colorHex}
-                                        onClick={() => setActiveTexture(tv)}
-                                        sx={{
-                                            width: 25, height: 25, borderRadius: "50%",
-                                            cursor: "pointer",
-                                            border: isActive ? "2px solid white" : "1px solid #ccc",
-                                            bgcolor: tv.colorHex, overflow: "hidden"
-                                        }}
-                                    >
-                                        {!tv.colorHex && tv.url && (
-                                            <img src={tv.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        )}
-                                    </Box>
-                                );
-                            })}
-                        </Box>
+                        {/* Variant swatches — chỉ hiện khi try-on */}
+                        {isTryOn && (
+                            <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.8 }}>
+                                <Typography sx={{ fontFamily: T.fontSans, fontSize: "0.7rem", color: T.overlayTextMuted }}>
+                                    Variant:
+                                </Typography>
+                                {textures.map((tv) => {
+                                    const isActive = activeTexture?.colorHex === tv.colorHex;
+                                    return (
+                                        <Box
+                                            key={tv.colorHex}
+                                            onClick={() => setActiveTexture(tv)}
+                                            sx={{
+                                                width: 25, height: 25, borderRadius: "50%",
+                                                cursor: "pointer",
+                                                border: isActive ? "2px solid white" : "1px solid #ccc",
+                                                bgcolor: tv.colorHex, overflow: "hidden",
+                                            }}
+                                        >
+                                            {!tv.colorHex && tv.url && (
+                                                <img src={tv.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                            )}
+                                        </Box>
+                                    );
+                                })}
+                            </Box>
+                        )}
 
-                        {/* Nhóm Icon Buttons bên phải */}
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-                            <CanvasIconBtn
-                                onClick={() => toggleDrawer("rec")}
-                                active={drawer === "rec"}
-                                title="Recommendations"
-                                hasDot={!!analysisResult}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                                </svg>
-                            </CanvasIconBtn>
+                        {/* Icon buttons — lens chỉ hiện khi try-on, rec chỉ hiện khi recommend */}
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, ml: "auto" }}>
+                            {isTryOn && (
+                                <CanvasIconBtn
+                                    onClick={() => toggleDrawer("lens")}
+                                    active={drawer === "lens"}
+                                    title="Lenses"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="7" cy="12" r="3.5" /><circle cx="17" cy="12" r="3.5" />
+                                        <line x1="10.5" y1="12" x2="13.5" y2="12" />
+                                    </svg>
+                                </CanvasIconBtn>
+                            )}
 
-                            <CanvasIconBtn
-                                onClick={() => toggleDrawer("lens")}
-                                active={drawer === "lens"}
-                                title="Lenses"
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="7" cy="12" r="3.5" /><circle cx="17" cy="12" r="3.5" />
-                                    <line x1="10.5" y1="12" x2="13.5" y2="12" />
-                                </svg>
-                            </CanvasIconBtn>
+                            {!isTryOn && (
+                                <CanvasIconBtn
+                                    onClick={() => toggleDrawer("rec")}
+                                    active={drawer === "rec"}
+                                    title="Recommendations"
+                                    hasDot={!!analysisResult}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                                    </svg>
+                                </CanvasIconBtn>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -580,23 +596,27 @@ const GlassesTryOnPopup = ({ frameGroupId, open, onClose, onAddToCart }: Glasses
                             <Box
                                 component="button"
                                 onClick={() => setDrawer(null)}
-                                sx={{ cursor: 'pointer', border: 'none', bgcolor: 'transparent', color: T.textMuted }}
+                                sx={{ cursor: "pointer", border: "none", bgcolor: "transparent", color: T.textMuted }}
                             >✕</Box>
                         </Box>
 
                         <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                            {drawer === "lens" && (
+                            {drawer === "lens" && isTryOn && (
                                 <LensDrawer
                                     activeLensId={activeLens?.id ?? null}
                                     onSelect={setActiveLens}
                                 />
                             )}
-                            {drawer === "rec" && (
-                                <RecDrawer result={analysisResult} fengShuiResult={fengShuiResult} setSaveModalOpen={() => setModalOpen(true)} />
+                            {drawer === "rec" && !isTryOn && (
+                                <RecDrawer
+                                    result={analysisResult}
+                                    fengShuiResult={fengShuiResult}
+                                    setSaveModalOpen={() => setModalOpen(true)}
+                                />
                             )}
                         </Box>
 
-                        {drawer === "lens" && (
+                        {drawer === "lens" && isTryOn && (
                             <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${T.borderSubtle}` }}>
                                 {activeLens && (
                                     <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, mb: 0.8 }}>

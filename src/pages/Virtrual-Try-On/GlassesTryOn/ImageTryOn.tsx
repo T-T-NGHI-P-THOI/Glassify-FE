@@ -24,6 +24,7 @@ type LoadingStep =
 interface ImageTryOnProps {
     frameGroupId: string;
     activeTexture: TextureVariant | null;
+    isTryOn: boolean; // true = skip face analysis; false = skip Three.js/glasses
     onAnalysisReady: (result: FaceAnalysisResult) => void;
     onFengShuiReady: (result: FengShuiResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
@@ -35,15 +36,16 @@ interface ImageTryOnProps {
 const ImageTryOn = ({
     frameGroupId,
     activeTexture,
+    isTryOn,
     onAnalysisReady,
     onFengShuiReady,
     onAgeReady,
-    reloadSignal
+    reloadSignal,
 }: ImageTryOnProps) => {
     const [status, setStatus] = useState<Status>("idle");
     const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
     const [dragging, setDragging] = useState(false);
-    const [marginLeftCanvas, setMarginLeftCanvas] = useState(0)
+    const [marginLeftCanvas, setMarginLeftCanvas] = useState(0);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,12 +54,13 @@ const ImageTryOn = ({
     const ageServiceRef = useRef<AgeDetectionService | null>(null);
     const prevUrlRef = useRef<string | null>(null);
 
-    // ── Init age service ──
+    // ── Init age service (chỉ khi recommend mode) ──
     useEffect(() => {
+        if (isTryOn) return;
         const ageSvc = new AgeDetectionService();
         ageServiceRef.current = ageSvc;
         ageSvc.loadModels().catch(console.error);
-    }, []);
+    }, [isTryOn]);
 
     // ── Reload signal → reset to idle ──
     useEffect(() => {
@@ -70,8 +73,9 @@ const ImageTryOn = ({
         }
     }, [reloadSignal]);
 
-    // ── Update texture dynamically ──
+    // ── Update texture dynamically (chỉ khi try-on mode) ──
     useEffect(() => {
+        if (!isTryOn) return;
         const updateTexture = async () => {
             const three = threeRef.current;
             if (!three || !three.glassesObj || !activeTexture?.url || status !== "done") return;
@@ -87,7 +91,7 @@ const ImageTryOn = ({
             }
         };
         updateTexture();
-    }, [activeTexture, status]);
+    }, [activeTexture, status, isTryOn]);
 
     // ── Process uploaded image ──
     const processImage = useCallback(async (file: File) => {
@@ -95,7 +99,6 @@ const ImageTryOn = ({
 
         setStatus("loading");
         setLoadingStep("init_engine");
-
 
         if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
         const url = URL.createObjectURL(file);
@@ -120,69 +123,96 @@ const ImageTryOn = ({
                 faceEngineRef.current = engine;
             }
 
-            // ── 2. Init Three.js scene ──
-            setLoadingStep("init_three");
-            const threeService = new ThreeJsService();
-            threeRef.current = threeService;
-            await threeService.initializeWithImage(img, canvas, frameGroupId);
+            if (isTryOn) {
+                // ════════════════════════════════════════════
+                // TRY-ON MODE: Three.js + glasses, skip analysis
+                // ════════════════════════════════════════════
 
-            if (threeService.glassesObj && threeService.faceObj) {
-                faceEngineRef.current.setThreeObjects(threeService.glassesObj, threeService.faceObj);
-            }
+                // ── 2. Init Three.js scene ──
+                setLoadingStep("init_three");
+                const threeService = new ThreeJsService();
+                threeRef.current = threeService;
+                await threeService.initializeWithImage(img, canvas, frameGroupId);
 
-            // ── 3. Load texture ──
-            if (activeTexture?.url && threeService.glassesObj) {
-                setLoadingStep("load_texture");
-                try {
-                    await threeService.applyTextureFromUrl(threeService.glassesObj, activeTexture.url);
-                } catch (e) {
-                    console.warn("Texture load failed, using default.");
+                if (threeService.glassesObj && threeService.faceObj) {
+                    faceEngineRef.current.setThreeObjects(threeService.glassesObj, threeService.faceObj);
                 }
-            }
 
-            // ── 4. Detect landmarks ──
-            setLoadingStep("detect_face");
-            const { found, landmarks } = await faceEngineRef.current.detectAndApply(img);
+                // ── 3. Load texture ──
+                if (activeTexture?.url && threeService.glassesObj) {
+                    setLoadingStep("load_texture");
+                    try {
+                        await threeService.applyTextureFromUrl(threeService.glassesObj, activeTexture.url);
+                    } catch (e) {
+                        console.warn("Texture load failed, using default.");
+                    }
+                }
 
-            // ── 5. Detect age ──
-            if (found && landmarks) {
+                // ── 4. Detect landmarks (for glasses positioning only) ──
                 setLoadingStep("detect_face");
-                const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
-                onAnalysisReady(result);
+                const { found } = await faceEngineRef.current.detectAndApply(img, true);
 
-                const fengShui = analyzeFengShui(
-                    landmarks,
-                    img.naturalWidth,
-                    img.naturalHeight,
-                    result.shape,
-                    result.measurements
-                );
-                onFengShuiReady(fengShui);
+                threeService.renderOnce();
+                setStatus(found ? "done" : "no_face");
 
-                setLoadingStep("detect_age");
-                const ageSvc = ageServiceRef.current;
-                if (ageSvc) {
-                    const ageRes = await ageSvc.detectFromImage(img);
-                    if (ageRes) onAgeReady(ageRes);
+            } else {
+                // ════════════════════════════════════════════
+                // RECOMMEND MODE: face analysis only, skip Three.js
+                // ════════════════════════════════════════════
+
+                // ── 2. Vẽ ảnh lên canvas để user thấy ──
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
                 }
+
+                // ── 3. Detect landmarks ──
+                // Không gọi setThreeObjects nên detectAndApply chỉ detect, không drive glasses
+                setLoadingStep("detect_face");
+                const { found, landmarks } = await faceEngineRef.current.detectAndApply(img, false);
+
+                if (found && landmarks) {
+                    const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
+                    onAnalysisReady(result);
+
+                    const fengShui = analyzeFengShui(
+                        landmarks,
+                        img.naturalWidth,
+                        img.naturalHeight,
+                        result.shape,
+                        result.measurements
+                    );
+                    onFengShuiReady(fengShui);
+
+                    // ── 3. Age detection ──
+                    setLoadingStep("detect_age");
+                    const ageSvc = ageServiceRef.current;
+                    if (ageSvc) {
+                        const ageRes = await ageSvc.detectFromImage(img);
+                        if (ageRes) onAgeReady(ageRes);
+                    }
+
+                    console.log("Result: ", result)
+                }
+
+                setStatus(found ? "done" : "no_face");
             }
 
-            // ── Done ──
-            threeService.renderOnce();
-            setStatus(found ? "done" : "no_face");
             setLoadingStep(null);
         } catch (err) {
             console.error("Processing error:", err);
             setStatus("error");
             setLoadingStep(null);
         }
-    }, [onAnalysisReady, onAgeReady, frameGroupId, activeTexture]);
+    }, [onAnalysisReady, onFengShuiReady, onAgeReady, frameGroupId, activeTexture, isTryOn]);
 
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) processImage(file);
         e.target.value = "";
-        setMarginLeftCanvas(0)
+        setMarginLeftCanvas(0);
     };
 
     const onDrop = (e: React.DragEvent) => {
@@ -289,8 +319,8 @@ const ImageTryOn = ({
                 </Box>
             )}
 
-            {/* Download button */}
-            {status === "done" && (
+            {/* Download button — chỉ hiện khi try-on mode */}
+            {status === "done" && isTryOn && (
                 <Box
                     component="button"
                     onClick={() => {
