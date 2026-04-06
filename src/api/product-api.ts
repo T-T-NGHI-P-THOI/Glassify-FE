@@ -183,6 +183,8 @@ export interface ProductFilterParams {
   minRating?: number;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
+  colors?: string[];
+  frameShapes?: string[];
 }
 
 // Review filter parameters

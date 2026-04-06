@@ -6,8 +6,8 @@ export interface UserRecommendationResponse {
     element: string;         // WuXingElement e.g. "WOOD", "FIRE"...
     yinYang: string;         // "YIN" | "YANG"
     overallScore: number;
-    luckyColors: string;
-    recommendedFrameStyles: string;
+    luckyColors: string[];
+    recommendedFrameStyles: string[];
     recommendedLens: string;
     createdAt: string;
 }

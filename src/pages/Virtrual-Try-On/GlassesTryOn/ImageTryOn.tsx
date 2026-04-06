@@ -161,53 +161,57 @@ const ImageTryOn = ({
 
                 // ── 2. Vẽ ảnh lên canvas để user thấy ──
 
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-                const vw = img.naturalWidth;
-                const vh = img.naturalHeight;
-
-                // 👇 size hiển thị (CSS)
-                const displayWidth = CANVAS_WIDTH;
-                const displayHeight = CANVAS_HEIGHT;
-
-                // 👇 set resolution thật (quan trọng)
-                canvas.width = displayWidth * dpr;
-                canvas.height = displayHeight * dpr;
-
-                // 👇 giữ size hiển thị
-                canvas.style.width = displayWidth + "px";
-                canvas.style.height = displayHeight + "px";
-
-                const ctx = canvas.getContext("2d");
-                if (!ctx) return;
-
-                // 👇 scale context theo DPR
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-                // ===== FIT IMAGE =====
-                const imgRatio = vw / vh;
-                const canvasRatio = displayWidth / displayHeight;
-
-                let drawWidth: number;
-                let drawHeight: number;
-
-                if (imgRatio > canvasRatio) {
-                    // ảnh rộng hơn
-                    drawWidth = displayWidth;
-                    drawHeight = displayWidth / imgRatio;
-                } else {
+                if (img.width < img.height) {
                     // ảnh cao hơn (portrait)
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+                    const vw = img.naturalWidth;
+                    const vh = img.naturalHeight;
+
+                    // 👇 size hiển thị (CSS)
+                    const displayWidth = CANVAS_WIDTH;
+                    const displayHeight = CANVAS_HEIGHT;
+
+                    // 👇 set resolution thật (quan trọng)
+                    canvas.width = displayWidth * dpr;
+                    canvas.height = displayHeight * dpr;
+
+                    // 👇 giữ size hiển thị
+                    canvas.style.width = displayWidth + "px";
+                    canvas.style.height = displayHeight + "px";
+
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) return;
+
+                    // 👇 scale context theo DPR
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+                    // ===== FIT IMAGE =====
+                    const imgRatio = vw / vh;
+                    const canvasRatio = displayWidth / displayHeight;
+
+                    let drawWidth: number = 0;
+                    let drawHeight: number = 0;
                     drawHeight = displayHeight;
                     drawWidth = displayHeight * imgRatio;
+                    // ===== CENTER =====
+                    const offsetX = (displayWidth - drawWidth) / 2;
+                    const offsetY = (displayHeight - drawHeight) / 2;
+
+                    // ===== DRAW =====
+                    ctx.clearRect(0, 0, displayWidth, displayHeight);
+                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                }
+                else {
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) return;
+                    ctx.drawImage(img, 0, 0)
                 }
 
-                // ===== CENTER =====
-                const offsetX = (displayWidth - drawWidth) / 2;
-                const offsetY = (displayHeight - drawHeight) / 2;
 
-                // ===== DRAW =====
-                ctx.clearRect(0, 0, displayWidth, displayHeight);
-                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
                 // ── 3. Detect landmarks ──
                 // Không gọi setThreeObjects nên detectAndApply chỉ detect, không drive glasses
                 setLoadingStep("detect_face");
@@ -233,8 +237,6 @@ const ImageTryOn = ({
                         const ageRes = await ageSvc.detectFromImage(img);
                         if (ageRes) onAgeReady(ageRes);
                     }
-
-                    console.log("Result: ", result)
                 }
 
                 setStatus(found ? "done" : "no_face");

@@ -7,6 +7,7 @@ import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 import { FengShuiPanel } from "./FengShuiPanel";
 import userApi from "@/api/service/userApi";
 import { toast } from "react-toastify";
+import type { FrameShape } from "@/types/user-recommendation.enum";
 
 // ─── Tokens ─────────────────────────────────────────────────────────────
 
@@ -87,6 +88,25 @@ function getLens(shape: FaceShape, feng?: FengShuiResult) {
 }
 
 // ─── Frame Recommendation (🔥 combine AI + FengShui) ───────────────────
+function getFrameShapes(face: FaceShape): FrameShape[] {
+    switch (face) {
+        case "round":
+            return ["RECTANGLE", "WAYFARER"];
+        case "square":
+            return ["ROUND", "AVIATOR"];
+        case "oval":
+            return ["WAYFARER", "GEOMETRIC"];
+        case "heart":
+            return ["AVIATOR", "ROUND"];
+        case "oblong":
+            return ["WAYFARER"];
+        case "diamond":
+            return ["CAT_EYE", "OVAL"];
+        default:
+            return [];
+    }
+}
+
 
 function getFrameCombo(face: FaceShape, feng?: FengShuiResult) {
     let frame = "";
@@ -160,23 +180,35 @@ interface Props {
     fengShuiResult?: FengShuiResult | null;
     setSaveModalOpen: (open: boolean) => void;
     isAnalyzing?: boolean;
+    onRecommendReady?: (frames: FrameShape[], lens: string) => void;
 }
 
 export const FaceShapeSuggestionPanel = ({
     result,
     fengShuiResult,
     setSaveModalOpen,
-    isAnalyzing = false
+    isAnalyzing = false,
+    onRecommendReady
 }: Props) => {
 
     const [visible, setVisible] = useState(false);
-
+    
     useEffect(() => {
         if (result) {
             setVisible(false);
             setTimeout(() => setVisible(true), 60);
         }
     }, [result]);
+
+    useEffect(() => {
+        if (!result) return;
+
+        const frames = getFrameShapes(result.shape);
+        const lens = getLens(result.shape, fengShuiResult ?? undefined);
+
+        onRecommendReady?.(frames, lens);
+
+    }, [result, fengShuiResult]);
 
     if (!result && !isAnalyzing) return null;
 
@@ -223,7 +255,7 @@ export const FaceShapeSuggestionPanel = ({
                             color: TEAL,
                             fontWeight: 600
                         }}>
-                            Độ chính xác: {Math.round(result.confidence * 100)}%
+                            Accuracy: {Math.round(result.confidence * 100)}%
                         </Typography>
                     </Card>
 

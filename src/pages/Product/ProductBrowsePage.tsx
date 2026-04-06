@@ -1,16 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { 
-  FilterList, 
-  ViewModule, 
+import {
+  FilterList,
+  ViewModule,
   ViewList,
-  Sort 
+  Sort,
+  KeyboardArrowDown
 } from '@mui/icons-material';
 import FilterSidebar from '../../components/ProductBrowse/FilterSidebar';
 import ProductGrid from '../../components/ProductBrowse/ProductGrid';
 import type { FilterOptions, ActiveFilters, BrowseProduct } from '../../types/filter';
 import ProductAPI, { type ProductFilterParams } from '../../api/product-api';
 import './ProductBrowsePage.css';
+import type { ProductType } from '@/api/service/Type';
+import { Box, Button, Checkbox, Chip, Menu, MenuItem } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { Color, type FrameShape } from '@/types/user-recommendation.enum';
+
+const DdButton = styled(Button)({
+  height: 36,
+  padding: '0 12px',
+  fontSize: 13,
+  fontWeight: 400,
+  color: 'inherit',
+  border: '1px solid #c4bbbb',
+  borderRadius: 8,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+  background: '#fff',
+  '&:hover': { background: '#f5f5f5', border: '1px solid #e0e0e0' },
+});
+
+const shapes: FrameShape[] = [
+  'RECTANGLE', 'ROUND', 'OVAL', 'SQUARE',
+  'CAT_EYE', 'AVIATOR', 'BROWLINE', 'GEOMETRIC'
+];
+
+const colorOptions: { val: Color; hex: string }[] = [
+  { val: Color.BLACK, hex: '#1a1a1a' },
+  { val: Color.WHITE, hex: '#e5e5e5' },
+  { val: Color.GOLD, hex: '#c8a84b' },
+  { val: Color.SILVER, hex: '#a8a9ad' },
+  { val: Color.BROWN, hex: '#8b6914' },
+  { val: Color.BLUE, hex: '#2563eb' },
+  { val: Color.RED, hex: '#dc2626' },
+  { val: Color.PINK, hex: '#ec4899' },
+  { val: Color.GREEN, hex: '#16a34a' },
+  { val: Color.TRANSPARENT, hex: '#dbeafe' },
+];
 
 const ProductBrowsePage: React.FC = () => {
   const defaultShopCities = [
@@ -39,6 +76,8 @@ const ProductBrowsePage: React.FC = () => {
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
     priceMin: searchParams.get('minPrice') ? parseInt(searchParams.get('minPrice')!) : undefined,
     minRating: searchParams.get('minRating') ? parseInt(searchParams.get('minRating')!) : undefined,
+    colors: searchParams.get('colors') ? [searchParams.get('colors')!] : undefined,
+    frameShapes: searchParams.get('frameShapes') ? [searchParams.get('frameShapes')!] : undefined,
   });
 
   useEffect(() => {
@@ -46,19 +85,19 @@ const ProductBrowsePage: React.FC = () => {
     const productType = searchParams.get('productType');
     const query = searchParams.get('q');
     const shopCity = searchParams.get('shopCity');
-    
+
     // Only update if there are actual params in URL
     if (category || productType || query || shopCity) {
       setActiveFilters(prev => {
         const updates: Partial<ActiveFilters> = {
           searchQuery: query || '',
         };
-        
+
         // Handle productType (FRAME, LENS, ACCESSORIES)
         if (productType) {
           updates.productType = productType as ActiveFilters['productType'];
         }
-        
+
         // Handle category name - set it to categoryNames array for API filtering
         if (category) {
           updates.categoryNames = [category];
@@ -67,7 +106,7 @@ const ProductBrowsePage: React.FC = () => {
         if (shopCity) {
           updates.shopCities = [shopCity];
         }
-        
+
         return { ...prev, ...updates };
       });
     }
@@ -78,6 +117,15 @@ const ProductBrowsePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [typeOpen, setTypeOpen] = useState<HTMLElement | null>(null);
+  const [shapeOpen, setShapeOpen] = useState<HTMLElement | null>(null);
+  const [colorOpen, setColorOpen] = useState<HTMLElement | null>(null);
+  const [typeAnchor, setTypeAnchor] = useState<null | HTMLElement>(null);
+  const [shapeAnchor, setShapeAnchor] = useState<null | HTMLElement>(null);
+  const [colorAnchor, setColorAnchor] = useState<null | HTMLElement>(null);
+  const typeRef = useRef<HTMLDivElement>(null);
+  const shapeRef = useRef<HTMLDivElement>(null);
+  const colorRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 10;
 
   const normalizeLocationText = (value: string) =>
@@ -112,6 +160,16 @@ const ProductBrowsePage: React.FC = () => {
     };
   };
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!typeRef.current?.contains(e.target as Node)) setTypeOpen(null);
+      if (!shapeRef.current?.contains(e.target as Node)) setShapeOpen(null);
+      if (!colorRef.current?.contains(e.target as Node)) setColorOpen(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // Fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
@@ -120,7 +178,7 @@ const ProductBrowsePage: React.FC = () => {
         const categoryOptions = categories
           .filter(cat => cat.isActive)
           .map(cat => ({ id: cat.id, name: cat.name }));
-        
+
         setFilterOptions(prev => ({
           ...prev,
           categories: categoryOptions
@@ -129,7 +187,7 @@ const ProductBrowsePage: React.FC = () => {
         console.error('Error fetching categories:', error);
       }
     };
-    
+
     fetchCategories();
   }, []);
 
@@ -153,6 +211,8 @@ const ProductBrowsePage: React.FC = () => {
           isReturnable: activeFilters.isReturnable,
           page: currentPage,
           unitPerPage: PAGE_SIZE,
+          frameShapes: activeFilters.frameShapes || undefined,
+          colors: activeFilters.colors || undefined,
         };
 
         // Map sortBy to API params
@@ -236,7 +296,7 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, currentPage]);
+  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, currentPage]);
 
   // Apply location filtering client-side because product listing API does not currently expose city param.
   useEffect(() => {
@@ -267,10 +327,10 @@ const ProductBrowsePage: React.FC = () => {
   const handleFilterChange = (newFilters: ActiveFilters) => {
     setCurrentPage(1);
     setActiveFilters(newFilters);
-    
+
     // Update URL params to match filters
     const params = new URLSearchParams();
-    
+
     // Convert productType to category name for URL
     if (newFilters.productType) {
       const categoryName = newFilters.categoryNames && newFilters.categoryNames.length > 0
@@ -295,6 +355,12 @@ const ProductBrowsePage: React.FC = () => {
     if (newFilters.shopCities && newFilters.shopCities.length > 0) {
       params.set('shopCity', newFilters.shopCities[0]);
     }
+    if (newFilters.frameShapes?.length) {
+      newFilters.frameShapes.forEach(s => params.append('frameShapes', s));
+    }
+    if (newFilters.colors?.length) {
+      newFilters.colors.forEach(c => params.append('colors', c));
+    }
     setSearchParams(params);
   };
 
@@ -316,12 +382,12 @@ const ProductBrowsePage: React.FC = () => {
   };
 
   const handleProductTypeClick = (productType: ActiveFilters['productType']) => {
-    const newFilters = { 
-      ...activeFilters, 
-      productType 
+    const newFilters = {
+      ...activeFilters,
+      productType
     };
     setActiveFilters(newFilters);
-    
+
     if (productType) {
       setSearchParams({ productType });
     } else {
@@ -334,7 +400,7 @@ const ProductBrowsePage: React.FC = () => {
   return (
     <div className="browse-page">
       {isMobileFilterOpen && (
-        <div 
+        <div
           className="filter-overlay"
           onClick={() => setIsMobileFilterOpen(false)}
         />
@@ -355,7 +421,7 @@ const ProductBrowsePage: React.FC = () => {
         <main className="browse-main">
           <div className="browse-header">
             <div className="browse-controls">
-              <button 
+              <button
                 className="filter-toggle-btn"
                 onClick={() => setIsMobileFilterOpen(true)}
               >
@@ -376,6 +442,144 @@ const ProductBrowsePage: React.FC = () => {
                   <option value="price-desc">Price: High to Low</option>
                 </select>
               </div>
+              {/* Product Type */}
+              <DdButton
+                onClick={e => setTypeAnchor(e.currentTarget)}
+                endIcon={<KeyboardArrowDown fontSize="small" />}
+              >
+                {activeFilters.productType
+                  ? activeFilters.productType.charAt(0) + activeFilters.productType.slice(1).toLowerCase()
+                  : 'All types'}
+              </DdButton>
+              <Menu
+                anchorEl={typeAnchor}
+                open={Boolean(typeAnchor)}
+                onClose={() => setTypeAnchor(null)}
+                slotProps={{ paper: { sx: { mt: 0.5, borderRadius: 2, minWidth: 160 } } }}
+              >
+                {[
+                  { val: undefined, label: 'All types' },
+                  { val: 'FRAME' as ProductType, label: 'Frames' },
+                  { val: 'LENS' as ProductType, label: 'Lenses' },
+                  { val: 'ACCESSORIES' as ProductType, label: 'Accessories' },
+                ].map(opt => (
+                  <MenuItem
+                    key={opt.label}
+                    selected={activeFilters.productType === opt.val}
+                    sx={{ fontSize: 13 }}
+                    onClick={() => {
+                      handleFilterChange({ ...activeFilters, productType: opt.val, frameShapes: [] });
+                      setTypeAnchor(null);
+                    }}
+                  >
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Menu>
+
+              {/* Frame Shape */}
+              {(!activeFilters.productType || activeFilters.productType === 'FRAME') && (
+                <>
+                  <DdButton
+                    onClick={e => setShapeAnchor(e.currentTarget)}
+                    endIcon={
+                      activeFilters.frameShapes?.length
+                        ? <Chip label={activeFilters.frameShapes.length} size="small" sx={{
+                          height: 18, fontSize: 11, ml: 0.5,
+                          '& .MuiChip-label': {
+                            fontSize: 14,
+                            lineHeight: '18px',
+                          },
+                        }} />
+                        : <KeyboardArrowDown fontSize="small" />
+                    }
+                  >
+                    Frame shape
+                  </DdButton>
+                  <Menu
+                    anchorEl={shapeAnchor}
+                    open={Boolean(shapeAnchor)}
+                    onClose={() => setShapeAnchor(null)}
+                    slotProps={{ paper: { sx: { mt: 0.5, borderRadius: 2, minWidth: 180 } } }}
+                  >
+                    {shapes.map(shape => {
+                      const checked = activeFilters.frameShapes?.includes(shape as any) ?? false;
+                      return (
+                        <MenuItem
+                          key={shape}
+                          sx={{ fontSize: 13, py: 0.5 }}
+                          onClick={() => {
+                            const prev = activeFilters.frameShapes ?? [];
+                            const next = checked ? prev.filter(s => s !== shape) : [...prev, shape as any];
+                            handleFilterChange({ ...activeFilters, frameShapes: next });
+                          }}
+                        >
+                          <Checkbox checked={checked} size="small" sx={{ p: 0, mr: 1 }} />
+                          {shape.charAt(0) + shape.slice(1).toLowerCase().replace(/_/g, ' ')}
+                        </MenuItem>
+                      );
+                    })}
+                  </Menu>
+                </>
+              )}
+
+              {/* Color */}
+              <DdButton
+                onClick={e => setColorAnchor(e.currentTarget)}
+                endIcon={
+                  activeFilters.colors?.length ? (
+                    <Chip label={activeFilters.colors.length} size="small" sx={{
+                      height: 18, fontSize: 11, ml: 0.5,
+                      '& .MuiChip-label': {
+                        fontSize: 14,
+                        lineHeight: '18px',
+                      },
+                    }} />
+                  ) : (
+                    <KeyboardArrowDown fontSize="small" />
+                  )
+                }
+              >
+                Color
+              </DdButton>
+
+              <Menu
+                anchorEl={colorAnchor}
+                open={Boolean(colorAnchor)}
+                onClose={() => setColorAnchor(null)}
+                slotProps={{ paper: { sx: { mt: 0.5, borderRadius: 2, minWidth: 180 } } }}
+              >
+                {colorOptions.map(({ val, hex }) => {
+                  const checked = activeFilters.colors?.includes(val) ?? false;
+
+                  return (
+                    <MenuItem
+                      key={val}
+                      sx={{ fontSize: 13, py: 0.5 }}
+                      onClick={() => {
+                        const prev = activeFilters.colors ?? [];
+                        const next = checked ? prev.filter(c => c !== val) : [...prev, val];
+                        handleFilterChange({ ...activeFilters, colors: next });
+                      }}
+                    >
+                      <Checkbox checked={checked} size="small" sx={{ p: 0, mr: 1 }} />
+                      <Box
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: '50%',
+                          background: hex,
+                          border: '1px solid rgba(0,0,0,.15)',
+                          display: 'inline-block',
+                          mr: 1,
+                          flexShrink: 0,
+                        }}
+                      />
+                      {val.charAt(0) + val.slice(1).toLowerCase()}
+                    </MenuItem>
+                  );
+                })}
+              </Menu>
 
               <div className="view-controls">
                 <button
@@ -396,7 +600,7 @@ const ProductBrowsePage: React.FC = () => {
 
           <div className="browse-results-info">
             <h1 className="results-title">
-              {activeFilters.productType 
+              {activeFilters.productType
                 ? `All ${activeFilters.productType.charAt(0) + activeFilters.productType.slice(1).toLowerCase()}`
                 : 'All Products'}
             </h1>

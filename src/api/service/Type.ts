@@ -6,7 +6,7 @@ import type { Product } from "@/models/Product";
 import type { LensSelection } from "@/models/Lens";
 
 // Enums matching PostgreSQL enums
-export type ProductType = 'frame' | 'lens' | 'accessory';
+export type ProductType = 'FRAME' | 'LENS' | 'ACCESSORIES';
 export type CartStatus = 'active' | 'abandoned' | 'converted' | 'expired';
 export type AccessoryType = 'wiper' | 'glasses_case' | 'glasses_cleaner';
 export type FrameSize = 'S' | 'M' | 'L';

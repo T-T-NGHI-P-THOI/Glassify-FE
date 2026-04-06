@@ -16,6 +16,7 @@ import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 import userApi from "@/api/service/userApi";
 import { toast } from "react-toastify";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/services/ThreeJsService";
+import type { FrameShape } from "@/types/user-recommendation.enum";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -230,11 +231,13 @@ const LensDrawer = ({
 );
 
 const RecDrawer = ({
-    result, fengShuiResult, setSaveModalOpen,
+    result, fengShuiResult, setSaveModalOpen, setRecommendedFrameStyles, setRecommendedLens
 }: {
     result: FaceAnalysisResult | null;
     fengShuiResult: FengShuiResult | null;
     setSaveModalOpen: (open: boolean) => void;
+    setRecommendedFrameStyles: (frame: FrameShape[]) => void;
+    setRecommendedLens: (lenses: string) => void;
 }) => {
     if (!result) {
         return (
@@ -272,6 +275,11 @@ const RecDrawer = ({
                 fengShuiResult={fengShuiResult}
                 setSaveModalOpen={setSaveModalOpen}
                 isAnalyzing={false}
+
+                onRecommendReady={(frames, lens) => {
+                    setRecommendedFrameStyles(frames);
+                    setRecommendedLens(lens);
+                }}
             />
         </Box>
     );
@@ -298,6 +306,8 @@ const GlassesTryOnPopup = ({
     const [loadingTextures, setLoadingTextures] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [recommendedFrameStyles, setRecommendedFrameStyles] = useState<FrameShape[]>([]);
+    const [recommendedLens, setRecommendedLens] = useState<string>("");
 
     const drawerOpen = drawer !== null;
 
@@ -325,16 +335,19 @@ const GlassesTryOnPopup = ({
         try {
             setIsSaving(true);
 
-            const payload = new FormData();
-            payload.append("name", nickname);
-            payload.append("faceShape", analysisResult.shape.toUpperCase());
-            payload.append("faceConfidence", String(analysisResult?.confidence ?? ""));
-            payload.append("element", fengShuiResult?.element.toUpperCase() ?? "");
-            payload.append("yinYang", fengShuiResult?.yinYang.toUpperCase() ?? "");
-            payload.append("overallScore", String(fengShuiResult?.overallScore ?? ""));
-            payload.append("luckyColors", fengShuiResult?.luckyColors.toString() ?? "");
-            payload.append("recommendedFrameStyles", "");
-            payload.append("recommendedLens", "");
+            const payload = {
+                name: "string",
+                faceShape: "OVAL",
+                faceConfidence: 0,
+                element: "METAL",
+                yinYang: "YIN",
+                overallScore: 0,
+                luckyColors: (fengShuiResult?.luckyColors ?? [])
+                    .flat(Infinity)
+                    .map(c => String(c).toUpperCase().trim()),
+                recommendedFrameStyles: ["RECTANGLE"],
+                recommendedLens: recommendedLens
+            };
 
             await userApi.createRecommendation(payload);
             toast.success("Save recommendation success");
@@ -426,8 +439,8 @@ const GlassesTryOnPopup = ({
                                 frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
                                 isTryOn={isTryOn}
-                                onAnalysisReady={isTryOn ? () => {} : setAnalysisResult}
-                                onAgeReady={() => {}}
+                                onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
+                                onAgeReady={() => { }}
                                 onReload={handleReload}
                             />
                         ) : (
@@ -435,9 +448,9 @@ const GlassesTryOnPopup = ({
                                 frameGroupId={frameGroupId}
                                 activeTexture={activeTexture}
                                 isTryOn={isTryOn}
-                                onAnalysisReady={isTryOn ? () => {} : setAnalysisResult}
-                                onFengShuiReady={isTryOn ? () => {} : setFengShuiResult}
-                                onAgeReady={() => {}}
+                                onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
+                                onFengShuiReady={isTryOn ? () => { } : setFengShuiResult}
+                                onAgeReady={() => { }}
                                 reloadSignal={reloadSignal}
                             />
                         )}
@@ -612,6 +625,8 @@ const GlassesTryOnPopup = ({
                                     result={analysisResult}
                                     fengShuiResult={fengShuiResult}
                                     setSaveModalOpen={() => setModalOpen(true)}
+                                    setRecommendedFrameStyles={setRecommendedFrameStyles}
+                                    setRecommendedLens={setRecommendedLens}
                                 />
                             )}
                         </Box>

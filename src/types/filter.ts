@@ -1,3 +1,5 @@
+import type { ProductType } from "@/api/service/Type";
+
 export interface FilterOptions {
   productTypes: Array<'FRAME' | 'LENS' | 'ACCESSORIES'>;
   brands: Array<{ id: string; name: string }>;
@@ -11,7 +13,7 @@ export interface FilterOptions {
 }
 
 export interface ActiveFilters {
-  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType?: ProductType;
   brandIds: string[];
   categoryNames: string[];
   shopCities: string[];
@@ -23,6 +25,8 @@ export interface ActiveFilters {
   isFeatured?: boolean;
   isReturnable?: boolean;
   inStock?: boolean;
+  colors?: string[];
+  frameShapes?: string[];
 }
 
 export interface ColorVariant {

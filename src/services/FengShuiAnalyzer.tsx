@@ -1,5 +1,3 @@
-// ─── FengShuiAnalyzer.ts ──────────────────────────────────────────────────────
-
 export type WuXingElement = 'metal' | 'wood' | 'water' | 'fire' | 'earth';
 export type YinYang = 'yin' | 'yang' | 'balanced';
 

@@ -233,7 +233,7 @@ export const userApi = {
         return response.data;
     },
 
-    createRecommendation: async (body: FormData): Promise<ApiResponse<any>> => {
+    createRecommendation: async (body: any): Promise<ApiResponse<any>> => {
         const response = await axiosInstance.post(
             API_ENDPOINTS.USER_RECOMMENDATION.CREATE,
             body,

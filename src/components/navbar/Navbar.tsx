@@ -42,7 +42,7 @@ import type { ShopDetailResponse } from '@/models/Shop';
 import CartProvider from "@/contexts/CartProvider";
 import { useLayout } from '@/layouts/LayoutContext';
 import { RecommendationSearchButton } from '../custom/RecommendationSearchButton';
-import type { UserRecommendationResponse } from "@/pages/User/RecommendationTab";
+import type { UserRecommendationResponse } from '@/models/Recommendation';
 import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 
 export const Navbar = () => {
@@ -78,12 +78,6 @@ export const Navbar = () => {
     handleUserMenuClose();
     dispatch(logOut());
     navigate('/');
-  };
-
-  const handleSearchWithRec = (rec: UserRecommendationResponse) => {
-    // Prefill search box với frame style đầu tiên
-    const firstFrame = rec.recommendedFrameStyles?.split(',')[0]?.trim() ?? '';
-    setSearchQuery(firstFrame ? `${firstFrame} glasses` : '');
   };
 
   const displayName = user?.username || '';
@@ -209,7 +203,7 @@ export const Navbar = () => {
               />
 
               {isAuthenticated && (
-                <RecommendationSearchButton onSearchWithRec={handleSearchWithRec} />
+                <RecommendationSearchButton />
               )}
             </Box>
 
