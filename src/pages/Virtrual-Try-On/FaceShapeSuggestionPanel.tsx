@@ -231,7 +231,7 @@ export const FaceShapeSuggestionPanel = ({
                     {/* ───────── FENG SHUI ───────── */}
                     {fengShuiResult && (
                         <>
-                            <SectionTitle title="Phong thuỷ ngũ hành" />
+                            <SectionTitle title="Feng shui" />
                             <FengShuiPanel result={fengShuiResult} />
                         </>
                     )}
@@ -241,7 +241,7 @@ export const FaceShapeSuggestionPanel = ({
 
                     <Card>
                         <Typography sx={{ fontWeight: 600 }}>
-                            👓 Gọng kính phù hợp
+                            👓 Frames
                         </Typography>
 
                         <Typography sx={{ fontSize: "0.75rem", color: TEXT_SEC }}>
@@ -249,7 +249,7 @@ export const FaceShapeSuggestionPanel = ({
                         </Typography>
 
                         <Typography sx={{ fontWeight: 600, mt: 1 }}>
-                            🔍 Tròng kính
+                            🔍 Lenses
                         </Typography>
 
                         <Typography sx={{ fontSize: "0.75rem", color: TEXT_SEC }}>
@@ -259,7 +259,7 @@ export const FaceShapeSuggestionPanel = ({
                         {fengShuiResult && (
                             <>
                                 <Typography sx={{ fontWeight: 600, mt: 1 }}>
-                                    🎨 Màu hợp mệnh
+                                    🎨 Lucky Colors
                                 </Typography>
                                 <ColorChips colors={fengShuiResult.luckyColors} />
                             </>

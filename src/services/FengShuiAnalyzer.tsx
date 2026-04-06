@@ -4,54 +4,54 @@ export type WuXingElement = 'metal' | 'wood' | 'water' | 'fire' | 'earth';
 export type YinYang = 'yin' | 'yang' | 'balanced';
 
 export interface FacialZoneReading {
-    zone: string;         // "Trán", "Mũi", "Mắt", …
-    lmIndices: number[];  // MediaPipe indices dùng để đo
-    reading: string;      // Nhận xét cụ thể
-    fortuneArea: string;  // Lĩnh vực ảnh hưởng: "Tài lộc", "Sự nghiệp", …
-    score: number;        // 0–100
+    zone: string;
+    lmIndices: number[];
+    reading: string;
+    fortuneArea: string;
+    score: number;
 }
 
 export interface FengShuiResult {
     element: WuXingElement;
-    elementLabel: string;            // "Thổ", "Kim", …
+    elementLabel: string;
     elementDescription: string;
     yinYang: YinYang;
     yinYangLabel: string;
     luckyColors: string[];
     luckyDirections: string[];
     luckyNumbers: number[];
-    strengths: string[];             // Điểm mạnh tướng số
-    challenges: string[];            // Điểm cần chú ý
+    strengths: string[];
+    challenges: string[];
     facialZones: FacialZoneReading[];
     fortuneAreas: {
-        wealth: number;    // 0–100
+        wealth: number;
         career: number;
         love: number;
         health: number;
         wisdom: number;
     };
-    overallScore: number;           // 0–100
+    overallScore: number;
 }
 
 // ─── Landmark indices ─────────────────────────────────────────────────────────
 
 const LM = {
-    forehead:     10,
-    foreheadLeft: 54,   foreheadRight: 284,
-    browLeft:     70,   browRight:     300,   // Lông mày (ngoài)
-    browInLeft:   107,  browInRight:   336,   // Lông mày (trong)
-    eyeLidLeft:   159,  eyeLidRight:   386,   // Mi mắt
-    eyeLeft:       33,  eyeRight:      263,
-    cheekLeft:    234,  cheekRight:    454,
-    noseTip:        4,
+    forehead: 10,
+    foreheadLeft: 54, foreheadRight: 284,
+    browLeft: 70, browRight: 300,
+    browInLeft: 107, browInRight: 336,
+    eyeLidLeft: 159, eyeLidRight: 386,
+    eyeLeft: 33, eyeRight: 263,
+    cheekLeft: 234, cheekRight: 454,
+    noseTip: 4,
     noseBridgeTop: 6,
-    noseBaseLeft: 129,  noseBaseRight: 358,
-    lipTop:        13,  lipBot:         14,
-    lipLeft:       61,  lipRight:      291,
-    chin:         152,
-    jawLeft:      172,  jawRight:      397,
-    jawAngleLeft:  58,  jawAngleRight: 288,
-    templeLeft:   127,  templeRight:   356,
+    noseBaseLeft: 129, noseBaseRight: 358,
+    lipTop: 13, lipBot: 14,
+    lipLeft: 61, lipRight: 291,
+    chin: 152,
+    jawLeft: 172, jawRight: 397,
+    jawAngleLeft: 58, jawAngleRight: 288,
+    templeLeft: 127, templeRight: 356,
 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,279 +71,227 @@ function norm(value: number, lo: number, hi: number, outLo = 0, outHi = 100) {
     return clamp(((value - lo) / (hi - lo)) * (outHi - outLo) + outLo, outLo, outHi);
 }
 
-// ─── Ngũ hành mapping ─────────────────────────────────────────────────────────
+// ─── Element info ─────────────────────────────────────────────────────────────
 
-const ELEMENT_INFO: Record<WuXingElement, {
-    label: string;
-    description: string;
-    colors: string[];
-    directions: string[];
-    numbers: number[];
-    strengths: string[];
-    challenges: string[];
-}> = {
+const ELEMENT_INFO: Record<WuXingElement, any> = {
     metal: {
-        label: 'Kim',
-        description: 'Hành Kim chủ về ý chí, kỷ luật và tư duy sắc bén. Khuôn mặt cân đối, xương gò má và cằm rõ nét.',
-        colors: ['Trắng', 'Vàng kim', 'Bạc'],
-        directions: ['Tây', 'Tây Bắc'],
+        label: 'Metal',
+        description: 'Represents discipline, determination, and sharp thinking. Balanced face with defined cheekbones and jaw.',
+        colors: ['White', 'Gold', 'Silver'],
+        directions: ['West', 'Northwest'],
         numbers: [6, 7],
-        strengths: ['Quyết đoán, nhất quán', 'Tổ chức tốt', 'Đáng tin cậy'],
-        challenges: ['Có thể cứng nhắc', 'Khó buông bỏ'],
+        strengths: ['Decisive', 'Organized', 'Reliable'],
+        challenges: ['Can be rigid', 'Difficulty letting go'],
     },
     wood: {
-        label: 'Mộc',
-        description: 'Hành Mộc tượng trưng cho sự phát triển, sáng tạo và nhân từ. Khuôn mặt thon dài, trán rộng.',
-        colors: ['Xanh lá', 'Xanh dương nhạt'],
-        directions: ['Đông', 'Đông Nam'],
+        label: 'Wood',
+        description: 'Symbolizes growth, creativity, and compassion. Long face with a broad forehead.',
+        colors: ['Green', 'Light blue'],
+        directions: ['East', 'Southeast'],
         numbers: [3, 4],
-        strengths: ['Sáng tạo, linh hoạt', 'Đồng cảm cao', 'Học hỏi nhanh'],
-        challenges: ['Hay do dự', 'Dễ bị phân tâm'],
+        strengths: ['Creative', 'Flexible', 'Quick learner'],
+        challenges: ['Indecisive', 'Easily distracted'],
     },
     water: {
-        label: 'Thuỷ',
-        description: 'Hành Thuỷ liên quan tới trí tuệ, trực giác và khả năng thích nghi. Khuôn mặt mềm mại, đôi mắt sâu.',
-        colors: ['Đen', 'Xanh navy', 'Xám đậm'],
-        directions: ['Bắc'],
+        label: 'Water',
+        description: 'Associated with intelligence, intuition, and adaptability. Soft facial features with deep eyes.',
+        colors: ['Black', 'Navy', 'Dark gray'],
+        directions: ['North'],
         numbers: [1],
-        strengths: ['Trực giác mạnh', 'Khéo léo trong giao tiếp', 'Thích nghi tốt'],
-        challenges: ['Hay lo lắng', 'Cần điểm tựa ổn định'],
+        strengths: ['Strong intuition', 'Good communication', 'Adaptable'],
+        challenges: ['Overthinking', 'Needs emotional stability'],
     },
     fire: {
-        label: 'Hoả',
-        description: 'Hành Hoả đại diện cho nhiệt huyết, lãnh đạo và sức hút. Khuôn mặt nhọn về phía trán hoặc cằm.',
-        colors: ['Đỏ', 'Cam', 'Hồng đậm'],
-        directions: ['Nam'],
+        label: 'Fire',
+        description: 'Represents passion, leadership, and charisma. Face tapers toward forehead or chin.',
+        colors: ['Red', 'Orange', 'Deep pink'],
+        directions: ['South'],
         numbers: [2, 9],
-        strengths: ['Lãnh đạo thiên bẩm', 'Đam mê cuồng nhiệt', 'Truyền cảm hứng'],
-        challenges: ['Nóng vội', 'Cần kiểm soát cảm xúc'],
+        strengths: ['Natural leader', 'Passionate', 'Inspiring'],
+        challenges: ['Impulsive', 'Emotional control needed'],
     },
     earth: {
-        label: 'Thổ',
-        description: 'Hành Thổ biểu thị sự bền vững, trung thực và đáng tin. Khuôn mặt vuông vắn, đầy đặn.',
-        colors: ['Vàng đất', 'Nâu', 'Be'],
-        directions: ['Trung tâm', 'Đông Bắc', 'Tây Nam'],
+        label: 'Earth',
+        description: 'Symbolizes stability, honesty, and reliability. Square and full face shape.',
+        colors: ['Yellow', 'Brown', 'Beige'],
+        directions: ['Center', 'Northeast', 'Southwest'],
         numbers: [5, 8],
-        strengths: ['Kiên nhẫn, bền bỉ', 'Trung thành, đáng tin', 'Thực tế'],
-        challenges: ['Khó thay đổi', 'Đôi khi thiếu linh hoạt'],
+        strengths: ['Patient', 'Loyal', 'Practical'],
+        challenges: ['Resistant to change', 'Less flexible'],
     },
 };
 
 // ─── Zone analysers ───────────────────────────────────────────────────────────
 
 function analyzeForehead(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const top  = px(lms[LM.forehead],      w, h);
-    const fL   = px(lms[LM.foreheadLeft],  w, h);
-    const fR   = px(lms[LM.foreheadRight], w, h);
-    const browL = px(lms[LM.browLeft],     w, h);
-    const browR = px(lms[LM.browRight],    w, h);
+    const top = px(lms[LM.forehead], w, h);
+    const fL = px(lms[LM.foreheadLeft], w, h);
+    const fR = px(lms[LM.foreheadRight], w, h);
+    const browL = px(lms[LM.browLeft], w, h);
+    const browR = px(lms[LM.browRight], w, h);
 
     const foreheadH = d2(top, { x: (browL.x + browR.x) / 2, y: (browL.y + browR.y) / 2 });
     const foreheadW = d2(fL, fR);
     const ratio = foreheadW / Math.max(foreheadH, 1);
 
-    // Trán rộng và cao = tốt cho sự nghiệp và trí tuệ
     const score = clamp(norm(ratio, 1.5, 3.5, 30, 90));
     const reading = ratio > 2.8
-        ? 'Trán rộng và cao — biểu hiện của trí tuệ vượt trội và tầm nhìn xa.'
+        ? 'Wide and high forehead — indicates strong intelligence and long-term vision.'
         : ratio > 2.0
-        ? 'Trán cân đối — cân bằng giữa lý trí và trực giác.'
-        : 'Trán hẹp — tinh tế, sâu sắc, thiên về cảm xúc hơn lý trí.';
+            ? 'Balanced forehead — harmony between logic and intuition.'
+            : 'Narrow forehead — emotionally driven and deeply perceptive.';
 
-    return { zone: 'Trán', lmIndices: [10, 54, 284, 70, 300], reading, fortuneArea: 'Sự nghiệp & Trí tuệ', score };
+    return { zone: 'Forehead', lmIndices: [10, 54, 284, 70, 300], reading, fortuneArea: 'Career & Wisdom', score };
 }
 
 function analyzeBrows(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const bL  = px(lms[LM.browLeft],   w, h);
-    const bR  = px(lms[LM.browRight],  w, h);
+    const bL = px(lms[LM.browLeft], w, h);
+    const bR = px(lms[LM.browRight], w, h);
     const biL = px(lms[LM.browInLeft], w, h);
-    const biR = px(lms[LM.browInRight],w, h);
+    const biR = px(lms[LM.browInRight], w, h);
 
-    const browWidth = d2(bL, biL); // chiều dài lông mày trái
-    const browGap   = d2(biL, biR); // khoảng cách giữa 2 đầu mày
-    const symmetry  = Math.abs(d2(bL, biL) - d2(bR, biR)) / Math.max(browWidth, 1);
+    const browWidth = d2(bL, biL);
+    const browGap = d2(biL, biR);
+    const symmetry = Math.abs(d2(bL, biL) - d2(bR, biR)) / Math.max(browWidth, 1);
 
     const score = clamp(norm(1 - symmetry, 0, 0.2, 50, 95) * (browGap < 50 ? 0.9 : 1));
     const reading = symmetry < 0.05
-        ? 'Lông mày cân đối, rõ nét — tướng số nhất quán, đáng tin cậy.'
+        ? 'Balanced eyebrows — consistent and reliable personality.'
         : symmetry < 0.12
-        ? 'Lông mày tương đối đều — tính cách ổn định với đôi chút biến hoá.'
-        : 'Lông mày lệch nhau — cá tính đặc biệt, tư duy sáng tạo ngoài khuôn khổ.';
+            ? 'Slightly uneven eyebrows — stable with some flexibility.'
+            : 'Asymmetrical eyebrows — unique and unconventional thinking.';
 
-    return { zone: 'Lông mày', lmIndices: [70, 300, 107, 336], reading, fortuneArea: 'Tình duyên & Quan hệ', score };
+    return { zone: 'Brows', lmIndices: [70, 300, 107, 336], reading, fortuneArea: 'Love & Relationships', score };
 }
 
 function analyzeEyes(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const eL  = px(lms[LM.eyeLeft],     w, h);
-    const eR  = px(lms[LM.eyeRight],    w, h);
-    const lidL = px(lms[LM.eyeLidLeft],  w, h);
+    const eL = px(lms[LM.eyeLeft], w, h);
+    const eR = px(lms[LM.eyeRight], w, h);
+    const lidL = px(lms[LM.eyeLidLeft], w, h);
     const lidR = px(lms[LM.eyeLidRight], w, h);
 
-    const eyeSpan  = d2(eL, eR);
-    const cheekW   = d2(px(lms[LM.cheekLeft], w, h), px(lms[LM.cheekRight], w, h));
+    const eyeSpan = d2(eL, eR);
+    const cheekW = d2(px(lms[LM.cheekLeft], w, h), px(lms[LM.cheekRight], w, h));
     const eyeRatio = eyeSpan / Math.max(cheekW, 1);
-    const lidH     = (lidL.y - eL.y + lidR.y - eR.y) / 2; // độ mở mi (thô)
 
-    // Mắt to, cách xa vừa phải = tướng tốt
     const score = clamp(norm(eyeRatio, 0.30, 0.55, 40, 95));
     const reading = eyeRatio > 0.48
-        ? 'Mắt to, khoảng cách hài hoà — trực giác sắc bén, dễ thu hút người khác.'
+        ? 'Large, well-spaced eyes — strong intuition and attractive presence.'
         : eyeRatio > 0.38
-        ? 'Mắt cân đối — quan sát tinh tế, biết lắng nghe.'
-        : 'Mắt nhỏ, nhìn sâu — tập trung cao, cẩn thận trong từng quyết định.';
+            ? 'Balanced eyes — observant and attentive.'
+            : 'Smaller eyes — focused and detail-oriented.';
 
-    return { zone: 'Đôi mắt', lmIndices: [33, 263, 159, 386], reading, fortuneArea: 'Trí tuệ & Duyên số', score };
+    return { zone: 'Eyes', lmIndices: [33, 263, 159, 386], reading, fortuneArea: 'Wisdom & Destiny', score };
 }
 
 function analyzeNose(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const tip   = px(lms[LM.noseTip],       w, h);
+    const tip = px(lms[LM.noseTip], w, h);
     const bridge = px(lms[LM.noseBridgeTop], w, h);
-    const nL    = px(lms[LM.noseBaseLeft],  w, h);
-    const nR    = px(lms[LM.noseBaseRight], w, h);
+    const nL = px(lms[LM.noseBaseLeft], w, h);
+    const nR = px(lms[LM.noseBaseRight], w, h);
 
-    const noseH     = d2(tip, bridge);
-    const noseW     = d2(nL, nR);
-    const noseRatio = noseH / Math.max(noseW, 1); // cao / rộng
+    const noseH = d2(tip, bridge);
+    const noseW = d2(nL, nR);
+    const noseRatio = noseH / Math.max(noseW, 1);
 
-    // Mũi cao, thẳng, cánh mũi đầy = tài lộc
     const score = clamp(norm(noseRatio, 0.8, 2.0, 40, 90));
     const reading = noseRatio > 1.6
-        ? 'Mũi cao và thẳng — cung tài lộc vượng, quyết đoán trong kinh doanh.'
+        ? 'High and straight nose — strong wealth potential and decisiveness.'
         : noseRatio > 1.1
-        ? 'Mũi cân đối — tài lộc ổn định, biết quản lý chi tiêu.'
-        : 'Mũi thấp, cánh rộng — hào phóng, trọng tình nghĩa hơn tiền bạc.';
+            ? 'Balanced nose — stable finances and good money management.'
+            : 'Low nose — generous and values relationships over money.';
 
-    return { zone: 'Mũi', lmIndices: [4, 6, 129, 358], reading, fortuneArea: 'Tài lộc & Sức khoẻ', score };
+    return { zone: 'Nose', lmIndices: [4, 6, 129, 358], reading, fortuneArea: 'Wealth & Health', score };
 }
 
 function analyzeMouth(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const mL = px(lms[LM.lipLeft],  w, h);
+    const mL = px(lms[LM.lipLeft], w, h);
     const mR = px(lms[LM.lipRight], w, h);
-    const mT = px(lms[LM.lipTop],   w, h);
-    const mB = px(lms[LM.lipBot],   w, h);
+    const mT = px(lms[LM.lipTop], w, h);
+    const mB = px(lms[LM.lipBot], w, h);
 
     const mouthW = d2(mL, mR);
-    const lipH   = d2(mT, mB);
     const cheekW = d2(px(lms[LM.cheekLeft], w, h), px(lms[LM.cheekRight], w, h));
     const mRatio = mouthW / Math.max(cheekW, 1);
 
-    // Miệng vừa, môi đầy = phúc lộc
     const score = clamp(norm(mRatio, 0.30, 0.55, 50, 90));
     const reading = mRatio > 0.48
-        ? 'Miệng rộng, môi đầy — phúc lộc dồi dào, khả năng thuyết phục tốt.'
+        ? 'Wide mouth with full lips — prosperity and persuasive communication.'
         : mRatio > 0.35
-        ? 'Miệng hài hoà — giao tiếp khéo léo, tạo thiện cảm dễ dàng.'
-        : 'Miệng nhỏ, thanh tú — cẩn thận lời nói, suy nghĩ trước khi nói.';
+            ? 'Balanced mouth — good communication skills.'
+            : 'Small mouth — careful and thoughtful speaker.';
 
-    return { zone: 'Miệng & Môi', lmIndices: [13, 14, 61, 291], reading, fortuneArea: 'Phúc lộc & Giao tiếp', score };
+    return { zone: 'Mouth & Lips', lmIndices: [13, 14, 61, 291], reading, fortuneArea: 'Prosperity & Communication', score };
 }
 
 function analyzeChin(lms: LM3D[], w: number, h: number): FacialZoneReading {
-    const chin  = px(lms[LM.chin],        w, h);
-    const jawL  = px(lms[LM.jawLeft],     w, h);
-    const jawR  = px(lms[LM.jawRight],    w, h);
-    const jaL   = px(lms[LM.jawAngleLeft], w, h);
-    const jaR   = px(lms[LM.jawAngleRight], w, h);
+    const jawL = px(lms[LM.jawLeft], w, h);
+    const jawR = px(lms[LM.jawRight], w, h);
 
-    const chinW  = d2(jawL, jawR);
+    const chinW = d2(jawL, jawR);
     const cheekW = d2(px(lms[LM.cheekLeft], w, h), px(lms[LM.cheekRight], w, h));
     const chinRatio = chinW / Math.max(cheekW, 1);
 
-    // Cằm rộng, vuông = bền bỉ, ý chí
     const score = clamp(norm(chinRatio, 0.55, 0.90, 45, 90));
     const reading = chinRatio > 0.80
-        ? 'Cằm rộng, hàm chắc — ý chí kiên cường, bền vững lâu dài.'
+        ? 'Wide and strong chin — persistence and long-term stability.'
         : chinRatio > 0.65
-        ? 'Cằm cân đối — nhẫn nại, biết khi nào nên kiên trì khi nào nên buông.'
-        : 'Cằm thon, nhọn — linh hoạt, dễ thích nghi nhưng cần lực tựa ổn định.';
+            ? 'Balanced chin — patient and adaptable.'
+            : 'Pointed chin — flexible but needs stability.';
 
-    return { zone: 'Cằm & Hàm', lmIndices: [152, 172, 397, 58, 288], reading, fortuneArea: 'Vận cuối đời & Ý chí', score };
+    return { zone: 'Chin & Jaw', lmIndices: [152, 172, 397, 58, 288], reading, fortuneArea: 'Later Life & Willpower', score };
 }
 
-// ─── Ngũ hành từ hình dạng khuôn mặt ─────────────────────────────────────────
-//  Dựa trên tướng học cổ điển:
-//   Kim = mặt hình chữ nhật ngang, gò má nổi
-//   Mộc = mặt dài, trán cao
-//   Thuỷ = mặt tròn, đầy đặn
-//   Hoả = mặt nhọn, trán hẹp hoặc cằm nhọn
-//   Thổ = mặt vuông, cằm rộng
+// ─── Core logic giữ nguyên ─────────────────────────────────────────────────────
 
-function deriveElement(
-    faceShape: string,
-    ratio: number,   // cheek/height
-    fNorm: number,   // forehead/cheek
-    jNorm: number,   // jaw/cheek
-    tNorm: number,   // temple/cheek
-): WuXingElement {
-    // Cho điểm mỗi hành
+function deriveElement(faceShape: string, ratio: number, fNorm: number, jNorm: number, tNorm: number): WuXingElement {
     const scores: Record<WuXingElement, number> = {
         metal: 0, wood: 0, water: 0, fire: 0, earth: 0,
     };
 
-    // Kim: cheek rộng hơn trán và hàm, tỉ lệ trung bình
     scores.metal += (1 - Math.abs(fNorm - 0.82)) * 2;
     scores.metal += (1 - Math.abs(jNorm - 0.82)) * 2;
-    scores.metal += clamp(ratio > 0.74 && ratio < 0.88 ? 1 : 0, 0, 1);
+    scores.metal += ratio > 0.74 && ratio < 0.88 ? 1 : 0;
 
-    // Mộc: mặt dài (ratio thấp), trán rộng
     scores.wood += clamp(norm(1 - ratio, 0.10, 0.45, 0, 3), 0, 3);
     scores.wood += fNorm > 0.85 ? 1.5 : 0;
 
-    // Thuỷ: mặt tròn, đầy
     scores.water += clamp(norm(ratio, 0.85, 1.10, 0, 3), 0, 3);
     scores.water += fNorm > 0.80 && jNorm > 0.80 ? 1 : 0;
 
-    // Hoả: trán hẹp hoặc cằm nhọn (heart / diamond)
-    scores.fire += faceShape === 'heart'   ? 2.5 : 0;
+    scores.fire += faceShape === 'heart' ? 2.5 : 0;
     scores.fire += faceShape === 'diamond' ? 1.5 : 0;
     scores.fire += fNorm < 0.75 ? 1.5 : 0;
 
-    // Thổ: cằm và trán đều rộng (square / oblong)
     scores.earth += faceShape === 'square' ? 2.5 : 0;
     scores.earth += jNorm > 0.88 ? 2 : 0;
     scores.earth += Math.abs(fNorm - jNorm) < 0.08 ? 1 : 0;
 
-    const best = (Object.keys(scores) as WuXingElement[])
-        .sort((a, b) => scores[b] - scores[a])[0];
-    return best;
+    return (Object.keys(scores) as WuXingElement[]).sort((a, b) => scores[b] - scores[a])[0];
 }
 
-// ─── Yin/Yang từ tỉ lệ và đặc điểm ──────────────────────────────────────────
-
-function deriveYinYang(
-    ratio: number,
-    symmetryScore: number,
-    element: WuXingElement
-): YinYang {
-    // Yin: mặt tròn mềm mại, đối xứng cao
-    // Yang: mặt góc cạnh, tỉ lệ cao hơn
-    const yinScore  = ratio * 0.6 + symmetryScore * 0.4;
+function deriveYinYang(ratio: number, symmetryScore: number, element: WuXingElement): YinYang {
+    const yinScore = ratio * 0.6 + symmetryScore * 0.4;
     const yangScore = (1 - ratio) * 0.4 + (element === 'fire' || element === 'metal' ? 0.6 : 0.2);
 
     if (Math.abs(yinScore - yangScore) < 0.08) return 'balanced';
     return yinScore > yangScore ? 'yin' : 'yang';
 }
 
-const YIN_YANG_LABELS: Record<YinYang, string> = {
-    yin: 'Âm (Yin)',
-    yang: 'Dương (Yang)',
-    balanced: 'Âm Dương cân bằng',
-};
-
-// ─── Fortune areas từ zone scores ────────────────────────────────────────────
+// ─── Fortune areas (fixed keys) ───────────────────────────────────────────────
 
 function calcFortuneAreas(zones: FacialZoneReading[]) {
     const z = Object.fromEntries(zones.map(z => [z.zone, z.score]));
     return {
-        wealth:  Math.round((z['Mũi'] * 0.5 + (z['Miệng & Môi'] ?? 70) * 0.3 + (z['Cằm & Hàm'] ?? 70) * 0.2)),
-        career:  Math.round((z['Trán'] * 0.5 + z['Lông mày'] * 0.3 + z['Đôi mắt'] * 0.2)),
-        love:    Math.round((z['Lông mày'] * 0.4 + z['Đôi mắt'] * 0.3 + (z['Miệng & Môi'] ?? 70) * 0.3)),
-        health:  Math.round((z['Mũi'] * 0.35 + z['Đôi mắt'] * 0.35 + (z['Cằm & Hàm'] ?? 70) * 0.3)),
-        wisdom:  Math.round((z['Trán'] * 0.45 + z['Đôi mắt'] * 0.35 + z['Lông mày'] * 0.2)),
+        wealth: Math.round((z['Nose'] * 0.5 + (z['Mouth & Lips'] ?? 70) * 0.3 + (z['Chin & Jaw'] ?? 70) * 0.2)),
+        career: Math.round((z['Forehead'] * 0.5 + z['Brows'] * 0.3 + z['Eyes'] * 0.2)),
+        love: Math.round((z['Brows'] * 0.4 + z['Eyes'] * 0.3 + (z['Mouth & Lips'] ?? 70) * 0.3)),
+        health: Math.round((z['Nose'] * 0.35 + z['Eyes'] * 0.35 + (z['Chin & Jaw'] ?? 70) * 0.3)),
+        wisdom: Math.round((z['Forehead'] * 0.45 + z['Eyes'] * 0.35 + z['Brows'] * 0.2)),
     };
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function analyzeFengShui(
     landmarks: LM3D[],
@@ -360,31 +308,26 @@ export function analyzeFengShui(
         symmetryScore: number;
     }
 ): FengShuiResult {
-    const w = imageWidth, h = imageHeight;
 
     const fNorm = measurements.foreheadWidth / measurements.cheekWidth;
-    const jNorm = measurements.jawWidth      / measurements.cheekWidth;
-    const tNorm = measurements.templeWidth   / measurements.cheekWidth;
+    const jNorm = measurements.jawWidth / measurements.cheekWidth;
+    const tNorm = measurements.templeWidth / measurements.cheekWidth;
 
-    // Phân tích từng cung
-    const facialZones: FacialZoneReading[] = [
-        analyzeForehead(landmarks, w, h),
-        analyzeBrows(landmarks, w, h),
-        analyzeEyes(landmarks, w, h),
-        analyzeNose(landmarks, w, h),
-        analyzeMouth(landmarks, w, h),
-        analyzeChin(landmarks, w, h),
+    const facialZones = [
+        analyzeForehead(landmarks, imageWidth, imageHeight),
+        analyzeBrows(landmarks, imageWidth, imageHeight),
+        analyzeEyes(landmarks, imageWidth, imageHeight),
+        analyzeNose(landmarks, imageWidth, imageHeight),
+        analyzeMouth(landmarks, imageWidth, imageHeight),
+        analyzeChin(landmarks, imageWidth, imageHeight),
     ];
 
-    // Ngũ hành & Âm Dương
-    const element  = deriveElement(faceShape, measurements.ratio, fNorm, jNorm, tNorm);
-    const yinYang  = deriveYinYang(measurements.ratio, measurements.symmetryScore, element);
-    const info     = ELEMENT_INFO[element];
+    const element = deriveElement(faceShape, measurements.ratio, fNorm, jNorm, tNorm);
+    const yinYang = deriveYinYang(measurements.ratio, measurements.symmetryScore, element);
+    const info = ELEMENT_INFO[element];
 
-    // Fortune areas
     const fortuneAreas = calcFortuneAreas(facialZones);
 
-    // Overall score: trung bình có trọng số
     const zoneAvg = facialZones.reduce((s, z) => s + z.score, 0) / facialZones.length;
     const symBonus = measurements.symmetryScore * 10;
     const overallScore = Math.round(clamp(zoneAvg * 0.7 + symBonus * 0.3 + 5, 0, 100));
@@ -394,7 +337,7 @@ export function analyzeFengShui(
         elementLabel: info.label,
         elementDescription: info.description,
         yinYang,
-        yinYangLabel: YIN_YANG_LABELS[yinYang],
+        yinYangLabel: yinYang,
         luckyColors: info.colors,
         luckyDirections: info.directions,
         luckyNumbers: info.numbers,

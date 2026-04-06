@@ -81,7 +81,7 @@ export class ThreeJsService {
     }
 
     // ── IMAGE mode (photo upload page) ───────────────────────────────────
-    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string) {
+    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string, isTryOn = true) {
         const vw = img.naturalWidth;
         const vh = img.naturalHeight;
 
@@ -116,14 +116,16 @@ export class ThreeJsService {
         const lights = await this.createLights();
         lights.forEach(l => scene.add(l));
 
-        this.faceObj = await this.createDynamicFaceMesh();
-        this.faceObj.visible = false;
-        scene.add(this.faceObj);
+        if (isTryOn) {
+            this.faceObj = await this.createDynamicFaceMesh();
+            this.faceObj.visible = false;
+            scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel(frameGroupId);
-        this.normalizeModel(this.glassesObj);
-        this.glassesObj.visible = false;
-        scene.add(this.glassesObj);
+            this.glassesObj = await this.loadGlassesModel(frameGroupId);
+            this.normalizeModel(this.glassesObj);
+            this.glassesObj.visible = false;
+            scene.add(this.glassesObj);
+        }
 
         renderer.render(scene, camera);
     }

@@ -127,7 +127,6 @@ export const RecommendationSearchButton = ({ onSearchWithRec }: Props) => {
                     },
                 }}
             >
-                AI Recommend
             </Button>
 
             {/* Dialog */}

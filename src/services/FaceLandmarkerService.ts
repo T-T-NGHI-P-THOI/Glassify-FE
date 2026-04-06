@@ -152,10 +152,9 @@ export class FaceLandmarkerService {
         }
 
         const results = this.faceLandmarker.detectForVideo(video, performance.now());
-        console.log("Result: ", results)
 
         if (results.faceLandmarks && results.faceLandmarks.length > 0) {
-            if(this.glassesObj) this.glassesObj.visible = true;
+            if (this.glassesObj) this.glassesObj.visible = true;
             this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, CFG);
             this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
@@ -331,7 +330,7 @@ export class ImageFaceLandmarkerService {
             if (this.faceObj) this.faceObj.visible = false;
             return { found: false, landmarks: null };
         }
-        
+
         this.setVisibility(true, isTryOn);
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],
@@ -348,7 +347,7 @@ export class ImageFaceLandmarkerService {
             this.glassesObj.visible = visible;
         }
         if (this.faceObj) {
-            this.faceObj.visible = visible;
+            this.faceObj.visible = false;
         }
     }
 }

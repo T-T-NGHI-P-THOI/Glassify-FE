@@ -1,7 +1,7 @@
 import { Box, Typography, CircularProgress } from "@mui/material";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ImageFaceLandmarkerService } from "../../../services/FaceLandmarkerService";
-import { CANVAS_WIDTH, ThreeJsService } from "../../../services/ThreeJsService";
+import { CANVAS_HEIGHT, CANVAS_WIDTH, ThreeJsService } from "../../../services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
 import { T, type TextureVariant } from "./TryOnTypes";
@@ -45,7 +45,6 @@ const ImageTryOn = ({
     const [status, setStatus] = useState<Status>("idle");
     const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
     const [dragging, setDragging] = useState(false);
-    const [marginLeftCanvas, setMarginLeftCanvas] = useState(0);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,8 +112,8 @@ const ImageTryOn = ({
             });
 
             const canvas = canvasRef.current;
+
             if (!canvas) return;
-            if (img.width < img.height) setMarginLeftCanvas(canvas.width / 2);
 
             // ── 1. Init AI engine ──
             if (!faceEngineRef.current) {
@@ -161,13 +160,54 @@ const ImageTryOn = ({
                 // ════════════════════════════════════════════
 
                 // ── 2. Vẽ ảnh lên canvas để user thấy ──
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
+
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+                const vw = img.naturalWidth;
+                const vh = img.naturalHeight;
+
+                // 👇 size hiển thị (CSS)
+                const displayWidth = CANVAS_WIDTH;
+                const displayHeight = CANVAS_HEIGHT;
+
+                // 👇 set resolution thật (quan trọng)
+                canvas.width = displayWidth * dpr;
+                canvas.height = displayHeight * dpr;
+
+                // 👇 giữ size hiển thị
+                canvas.style.width = displayWidth + "px";
+                canvas.style.height = displayHeight + "px";
+
                 const ctx = canvas.getContext("2d");
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0);
+                if (!ctx) return;
+
+                // 👇 scale context theo DPR
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+                // ===== FIT IMAGE =====
+                const imgRatio = vw / vh;
+                const canvasRatio = displayWidth / displayHeight;
+
+                let drawWidth: number;
+                let drawHeight: number;
+
+                if (imgRatio > canvasRatio) {
+                    // ảnh rộng hơn
+                    drawWidth = displayWidth;
+                    drawHeight = displayWidth / imgRatio;
+                } else {
+                    // ảnh cao hơn (portrait)
+                    drawHeight = displayHeight;
+                    drawWidth = displayHeight * imgRatio;
                 }
 
+                // ===== CENTER =====
+                const offsetX = (displayWidth - drawWidth) / 2;
+                const offsetY = (displayHeight - drawHeight) / 2;
+
+                // ===== DRAW =====
+                ctx.clearRect(0, 0, displayWidth, displayHeight);
+                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
                 // ── 3. Detect landmarks ──
                 // Không gọi setThreeObjects nên detectAndApply chỉ detect, không drive glasses
                 setLoadingStep("detect_face");
@@ -212,7 +252,6 @@ const ImageTryOn = ({
         const file = e.target.files?.[0];
         if (file) processImage(file);
         e.target.value = "";
-        setMarginLeftCanvas(0);
     };
 
     const onDrop = (e: React.DragEvent) => {
@@ -274,7 +313,7 @@ const ImageTryOn = ({
             <canvas
                 ref={canvasRef}
                 style={{
-                    marginLeft: marginLeftCanvas,
+                    margin: '0 auto',
                     display: showDropZone ? "none" : "block",
                     width: "100%", height: "100%", objectFit: "cover",
                 }}
