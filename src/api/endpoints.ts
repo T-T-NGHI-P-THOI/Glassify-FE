@@ -171,9 +171,11 @@ export const API_ENDPOINTS = {
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
       DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivate-request`,
       CANCEL_DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivate/cancel`,
-      REACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/reactivate`,
+      REACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/reactivate-request`,
       CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close`,
       CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close/cancel`,
+      DEACTIVATION_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivation-status`,
+      CLOSURE_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/closure-status`,
     },
     USERS: {
       LIST: `${API_ENDPOINT}/admin/users`,

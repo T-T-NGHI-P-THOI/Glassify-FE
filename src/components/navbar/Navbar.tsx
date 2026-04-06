@@ -263,7 +263,7 @@ export const Navbar = () => {
                             <Store fontSize="small" sx={{ color: "#6b7280" }} />
                             <Typography variant="body2">View my shop</Typography>
                           </MenuItem>
-                        ) : !myShop ? (
+                        ) : (!myShop || myShop.status === 'CLOSED' || myShop.latestRequestStatus === 'EXPIRED') ? (
                           <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
                             <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
                             <Typography variant="body2">Become a shop owner</Typography>
