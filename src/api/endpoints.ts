@@ -196,9 +196,6 @@ export const API_ENDPOINTS = {
       LIST: `${API_ENDPOINT}/admin/warranties`,
       GET_BY_ID: (claimId: string) => `${API_ENDPOINT}/admin/warranties/${claimId}`,
     },
-<<<<<<< HEAD
-
-=======
     WALLET: {
       SUMMARY: `${API_ENDPOINT}/admin/wallet/summary`,
       USER_TRANSACTIONS: `${API_ENDPOINT}/admin/wallet/user-transactions`,
@@ -211,7 +208,6 @@ export const API_ENDPOINTS = {
       APPROVE_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/approve`,
       REJECT_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/reject`,
     },
->>>>>>> staging
   },
   USER_RECOMMENDATION: {
     GET_MY: `${API_BASE}/users/recommendation`,
