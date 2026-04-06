@@ -48,15 +48,16 @@ const formatDate = (dateString?: string) => {
 };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
-  PENDING:        'Pending',
-  CONFIRMED:      'Confirmed',
-  PROCESSING:     'Processing',
-  PICKED_UP:      'Picked Up',
-  SHIPPED:        'In Transit',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED:      'Delivered',
-  CANCELLED:      'Cancelled',
-  RETURNED:       'Returned',
+  PENDING:              'Pending',
+  CONFIRMED:            'Confirmed',
+  PROCESSING:           'Processing',
+  READY_TO_SHIP:        'Ready to Ship',
+  SHIPPED:              'Shipped',
+  TRANSPORTING:         'Transporting',
+  DELIVERED:            'Delivered',
+  CANCELLED:            'Cancelled',
+  RETURN_IN_TRANSIT:    'Return in Transit',
+  REJECTED_BY_CUSTOMER: 'Rejected by Customer',
 };
 
 const ShopOrdersPage = () => {
@@ -111,17 +112,18 @@ const ShopOrdersPage = () => {
         return { bg: theme.palette.warning.light, color: theme.palette.warning.main };
       case 'PROCESSING':
         return { bg: custom.status.indigo.light, color: custom.status.indigo.main };
-      case 'PICKED_UP':
+      case 'READY_TO_SHIP':
         return { bg: custom.status.purple.light, color: custom.status.purple.main };
       case 'SHIPPED':
         return { bg: theme.palette.info.light, color: theme.palette.info.main };
-      case 'OUT_FOR_DELIVERY':
+      case 'TRANSPORTING':
         return { bg: custom.status.pink.light, color: custom.status.pink.main };
       case 'DELIVERED':
         return { bg: theme.palette.success.light, color: theme.palette.success.main };
       case 'CANCELLED':
         return { bg: theme.palette.error.light, color: theme.palette.error.main };
-      case 'RETURNED':
+      case 'RETURN_IN_TRANSIT':
+      case 'REJECTED_BY_CUSTOMER':
         return { bg: custom.status.rose.light, color: custom.status.rose.main };
       default:
         return { bg: custom.neutral[100], color: custom.neutral[500] };
@@ -134,7 +136,7 @@ const ShopOrdersPage = () => {
 
   const totalOrders = orderList.length;
   const pendingCount = orderList.filter(o => o.status === 'PENDING' || o.status === 'CONFIRMED').length;
-  const processingCount = orderList.filter(o => o.status === 'PROCESSING' || o.status === 'SHIPPED').length;
+  const processingCount = orderList.filter(o => ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orderList.filter(o => o.status === 'DELIVERED').length;
 
   const stats = [

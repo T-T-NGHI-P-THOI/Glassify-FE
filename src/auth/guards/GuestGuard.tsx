@@ -5,7 +5,7 @@ import Loading from '../../layouts/Loading';
 import { PAGE_ENDPOINTS} from '../../api/endpoints';
 
 const GuestGuard: FC<PropsWithChildren> = ({ children }) => {
-    const { isInitialized, isAuthenticated } = useAuth();
+    const { isInitialized, isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -13,24 +13,25 @@ const GuestGuard: FC<PropsWithChildren> = ({ children }) => {
         console.log("Guest Guard →", { isInitialized, isAuthenticated });
 
         if (isInitialized && isAuthenticated) {
-            // If we're on login/register page with redirect state, 
+            // If we're on login/register page with redirect state,
             // let the login handler manage the redirect to avoid race conditions
             const from = location.state?.from;
-            const isAuthPage = location.pathname === PAGE_ENDPOINTS.AUTH.LOGIN || 
+            const isAuthPage = location.pathname === PAGE_ENDPOINTS.AUTH.LOGIN ||
                               location.pathname === PAGE_ENDPOINTS.AUTH.REGISTER;
-            
+
             // Don't redirect if we're on auth page with pending redirect - login page will handle it
             if (isAuthPage && from && from.pathname) {
                 return;
             }
-            
+
             // Otherwise, redirect authenticated users away from auth pages
             if (isAuthPage) {
-                navigate(PAGE_ENDPOINTS.HOME, { replace: true });
+                const isAdmin = user?.roles?.includes('ADMIN');
+                navigate(isAdmin ? PAGE_ENDPOINTS.DASHBOARD : PAGE_ENDPOINTS.HOME, { replace: true });
             }
             // If we're on other pages and authenticated, do nothing
         }
-    }, [isInitialized, isAuthenticated, navigate, location.state, location.pathname]);
+    }, [isInitialized, isAuthenticated, user, navigate, location.state, location.pathname]);
 
     if (!isInitialized) return <Loading />;
 

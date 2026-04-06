@@ -39,6 +39,8 @@ import AdminRefundsPage from "@/pages/Admin/AdminRefundsPage"
 import AdminRefundDetailPage from "@/pages/Admin/AdminRefundDetailPage"
 import AdminWarrantiesPage from "@/pages/Admin/AdminWarrantiesPage"
 import AdminWarrantyDetailPage from "@/pages/Admin/AdminWarrantyDetailPage"
+import AdminTransactionsPage from "@/pages/Admin/AdminTransactionsPage"
+import UserBankAccountPage from "@/pages/User/UserBankAccountPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
 
@@ -438,6 +440,28 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminWarrantyDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.TRANSACTIONS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminTransactionsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.USER.BANK_ACCOUNTS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
+                            <UserBankAccountPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

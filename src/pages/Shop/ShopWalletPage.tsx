@@ -38,8 +38,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopWalletApi } from '@/api/shop-wallet-api';
-import type { WalletResponse, WithdrawalResponse, TransactionResponse } from '@/api/shop-wallet-api';
-import type { ShopBankAccount } from '@/models/Shop';
+import type { WalletResponse, WithdrawalResponse, TransactionResponse, ShopBankAccountResponse } from '@/api/shop-wallet-api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
@@ -126,7 +125,7 @@ const ShopWalletPage = () => {
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
-  const [bankAccounts, setBankAccounts] = useState<ShopBankAccount[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<ShopBankAccountResponse[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Cancel Dialog
@@ -179,25 +178,20 @@ const ShopWalletPage = () => {
     }
   }, []);
 
-  // const fetchBankAccounts = useCallback(async () => {
-  //   try {
-  //     const response = await shopApi.getBankAccounts();
-  //     if (response.data) {
-  //       setBankAccounts(response.data);
-  //       const defaultAccount = response.data.find((a: ShopBankAccount) => a.isDefault);
-  //       if (defaultAccount) {
-  //         setSelectedBankAccountId(defaultAccount.id);
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error('Failed to fetch bank accounts:', error);
-  //   }
-  // }, []);
-
-  // useEffect(() => {
-  //   fetchWallet();
-  //   fetchBankAccounts();
-  // }, [fetchWallet, fetchBankAccounts]);
+  const fetchBankAccounts = useCallback(async () => {
+    try {
+      const response = await shopWalletApi.getBankAccounts();
+      if (response.data) {
+        setBankAccounts(response.data);
+        const defaultAccount = response.data.find((a) => a.isDefault);
+        if (defaultAccount) {
+          setSelectedBankAccountId(defaultAccount.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch bank accounts:', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchWallet();
@@ -316,7 +310,7 @@ const ShopWalletPage = () => {
           <Button
             variant="contained"
             startIcon={<MonetizationOn />}
-            onClick={() => setWithdrawDialogOpen(true)}
+            onClick={() => { setWithdrawDialogOpen(true); fetchBankAccounts(); }}
             disabled={!wallet || wallet.availableBalance < 10000}
             sx={{ height: 40, px: 3 }}
           >
