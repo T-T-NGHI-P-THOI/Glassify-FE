@@ -13,7 +13,7 @@ import axios from "axios";
  * Cấu hình base cho API
  */
 export const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8083',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081',
     // BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.13.237.100.130.nip.io',
     TIMEOUT: 30000, // 30 seconds
     RETRY_COUNT: 3,
@@ -133,7 +133,6 @@ const createAxiosInstance = (): AxiosInstance => {
         baseURL: API_CONFIG.BASE_URL,
         timeout: API_CONFIG.TIMEOUT,
         headers: {
-            'Content-Type': 'application/json',
             Accept: 'application/json',
         },
     });
@@ -143,6 +142,16 @@ const createAxiosInstance = (): AxiosInstance => {
         (config: InternalAxiosRequestConfig) => {
             // Thêm metadata để tracking thời gian
             config.metadata = { startTime: Date.now() };
+
+            // Let browser/axios set multipart boundary automatically for FormData payloads.
+            if (config.data instanceof FormData) {
+                if (config.headers) {
+                    delete config.headers['Content-Type'];
+                    delete config.headers['content-type'];
+                }
+            } else if (config.headers && !config.headers['Content-Type']) {
+                config.headers['Content-Type'] = 'application/json';
+            }
 
             // Thêm Authorization header nếu có token
             const token = TokenManager.getAccessToken();

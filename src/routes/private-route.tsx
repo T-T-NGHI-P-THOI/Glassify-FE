@@ -1,4 +1,4 @@
-import { Route } from "react-router-dom"
+import { Navigate, Route, useParams } from "react-router-dom"
 import AuthGuard from "../auth/guards/AuthGuard"
 import RoleBasedGuard from "../auth/guards/RoleBaseGuard"
 import { PAGE_ENDPOINTS } from "../api/endpoints"
@@ -43,6 +43,18 @@ import AdminTransactionsPage from "@/pages/Admin/AdminTransactionsPage"
 import UserBankAccountPage from "@/pages/User/UserBankAccountPage"
 import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
+import LensProductPage from "@/pages/Product/Lens/LensProductPage";
+import LensDetailPage from "@/pages/Product/Lens/LensDetailPage";
+
+const LensDetailRedirect = () => {
+    const { lensId } = useParams();
+
+    if (!lensId) {
+        return <Navigate to={PAGE_ENDPOINTS.SHOP.PRODUCT_LENS} replace />;
+    }
+
+    return <Navigate to={PAGE_ENDPOINTS.SHOP.LENS_DETAIL(lensId)} replace />;
+};
 
 const PrivateRoutesComponent = () => {
     return (
@@ -158,7 +170,51 @@ const PrivateRoutesComponent = () => {
             />
 
             <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_LENS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <LensProductPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.LENS_DETAIL(':lensId')}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <LensDetailPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path="/shop/products/lenses/:lensId"
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <LensDetailRedirect />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
                 path={PAGE_ENDPOINTS.SHOP.CREATE_LENS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <CreateLensPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.EDIT_LENS(':lensId')}
                 element={
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>

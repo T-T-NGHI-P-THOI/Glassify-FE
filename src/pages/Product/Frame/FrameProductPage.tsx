@@ -76,7 +76,8 @@ const FrameProductPage = () => {
         setShop(myShop);
         if (myShop?.id) {
           const data = await ProductAPI.getFrameGroupFromShopId(myShop.id);
-          setFrameGroups(data);
+          const normalizedFrameGroups: FrameGroup[] = (data ?? []) as unknown as FrameGroup[];
+          setFrameGroups(normalizedFrameGroups);
         }
       } catch (err) {
         console.error('Failed to load frame groups:', err);
@@ -198,9 +199,9 @@ const FrameProductPage = () => {
               variant="outlined"
               startIcon={<Add />}
               sx={{ textTransform: 'none', fontWeight: 600 }}
-              onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.CREATE_LENS); }}
+              onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_LENS); }}
             >
-              Add Lens
+              Lens List
             </CustomButton>
             <CustomButton
               variant="contained"

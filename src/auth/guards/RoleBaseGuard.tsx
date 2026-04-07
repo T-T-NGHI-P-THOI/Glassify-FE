@@ -1,6 +1,6 @@
-import { type FC, type ReactNode, useEffect } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '../../api/endpoints';
 
 export interface RoleBasedGuardProps {
@@ -13,7 +13,6 @@ const RoleBasedGuard: FC<RoleBasedGuardProps> = ({
   accessibleRoles,
 }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const hasPermission = user?.roles?.some((role: any) =>
     accessibleRoles.includes(role)
@@ -24,7 +23,7 @@ const RoleBasedGuard: FC<RoleBasedGuardProps> = ({
   }
 
   if (user && !hasPermission) {
-    navigate(PAGE_ENDPOINTS.PERMISSION_DENIED_ENDPOINT, { replace: true });
+    return <Navigate to={PAGE_ENDPOINTS.PERMISSION_DENIED_ENDPOINT} replace />;
   }
 
   return <>{children}</>;
