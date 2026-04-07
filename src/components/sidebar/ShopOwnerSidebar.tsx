@@ -23,10 +23,12 @@ import {
   HelpCenter,
   Store,
   ExpandMore,
+  ExpandLess,
   PeopleAlt,
   Build,
   Logout,
 } from '@mui/icons-material';
+import { Collapse } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -58,6 +60,11 @@ export const ShopOwnerSidebar = ({
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [shopName, setShopName] = useState(shopNameProp);
   const [shopLogo, setShopLogo] = useState(shopLogoProp);
+  const [productsOpen, setProductsOpen] = useState(
+    location.pathname.startsWith('/shop/products')
+      || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS
+      || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
+  );
 
   useEffect(() => {
     if (shopNameProp) {
@@ -90,10 +97,30 @@ export const ShopOwnerSidebar = ({
 
   const TRANSITION = 'background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease';
 
-  const menuItems = [
+  useEffect(() => {
+    if (location.pathname.startsWith('/shop/products')) {
+      setProductsOpen(true);
+    }
+  }, [location.pathname]);
+
+  interface SidebarMenuItem {
+    icon: React.ReactNode;
+    label: string;
+    path?: string;
+    children?: Array<{ label: string; path: string }>;
+  }
+
+  const menuItems: SidebarMenuItem[] = [
     { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.SHOP.DASHBOARD },
     { icon: <StorefrontOutlined />, label: 'Shop Profile', path: PAGE_ENDPOINTS.SHOP.EDIT_PROFILE },
-    { icon: <Inventory />, label: 'Products', path: '/shop/products' },
+    {
+      icon: <Inventory />,
+      label: 'Products',
+      children: [
+        { label: 'Frame List', path: PAGE_ENDPOINTS.SHOP.PRODUCTS },
+        { label: 'Lens List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_LENS },
+      ],
+    },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
     { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
@@ -105,6 +132,11 @@ export const ShopOwnerSidebar = ({
   const isActive = (path: string) => {
     return activeMenu === path || location.pathname === path;
   };
+
+  const isProductsActive =
+    isActive(PAGE_ENDPOINTS.SHOP.PRODUCTS)
+    || isActive(PAGE_ENDPOINTS.SHOP.PRODUCT_LENS)
+    || location.pathname.startsWith('/shop/products');
 
   const bottomMenuItems = [
     { icon: <Settings />, label: 'Settings', path: '/shop/settings' },
@@ -189,11 +221,88 @@ export const ShopOwnerSidebar = ({
       {/* Main Menu */}
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {menuItems.map((item) => {
-          const active = isActive(item.path);
+          if (item.children) {
+            return (
+              <Box key={item.label}>
+                <ListItemButton
+                  onClick={() => setProductsOpen((prev) => !prev)}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    transition: TRANSITION,
+                    backgroundColor: isProductsActive ? theme.palette.custom.neutral[100] : 'transparent',
+                    '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 36,
+                      transition: TRANSITION,
+                      color: isProductsActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: {
+                        style: {
+                          fontSize: 14,
+                          fontWeight: isProductsActive ? 600 : 500,
+                          color: isProductsActive ? theme.palette.primary.main : theme.palette.text.primary,
+                          transition: TRANSITION,
+                        },
+                      },
+                    }}
+                  />
+                  {productsOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                </ListItemButton>
+                <Collapse in={productsOpen} timeout="auto" unmountOnExit>
+                  <List disablePadding>
+                    {item.children.map((child) => {
+                      const childActive = isActive(child.path);
+                      return (
+                        <ListItemButton
+                          key={child.label}
+                          onClick={() => navigate(child.path)}
+                          sx={{
+                            borderRadius: 2,
+                            mb: 0.5,
+                            ml: 1,
+                            pl: 5,
+                            transition: TRANSITION,
+                            backgroundColor: childActive ? theme.palette.custom.neutral[100] : 'transparent',
+                            '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
+                          }}
+                        >
+                          <ListItemText
+                            primary={child.label}
+                            slotProps={{
+                              primary: {
+                                style: {
+                                  fontSize: 13,
+                                  fontWeight: childActive ? 600 : 500,
+                                  color: childActive ? theme.palette.primary.main : theme.palette.text.primary,
+                                  transition: TRANSITION,
+                                },
+                              },
+                            }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </Box>
+            );
+          }
+
+          const active = item.path ? isActive(item.path) : false;
           return (
             <ListItemButton
               key={item.label}
-              onClick={() => navigate(item.path)}
+              onClick={() => item.path && navigate(item.path)}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,
