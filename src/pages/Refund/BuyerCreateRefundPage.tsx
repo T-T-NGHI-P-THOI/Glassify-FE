@@ -41,6 +41,7 @@ import { toast } from 'react-toastify';
 import {
   checkReturnEligibility,
   createReturnRequest,
+  uploadRefundEvidenceImages,
 } from '@/api/refund-api';
 import type {
   CreateRefundRequestDto,
@@ -130,23 +131,21 @@ const BuyerCreateRefundPage = () => {
     setActiveStep((prev) => prev - 1);
   };
 
-  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
 
     const newFiles = Array.from(files);
-    
-    // Limit to 5 images
+
     if (imageFiles.length + newFiles.length > 5) {
       toast.error('Maximum 5 images can be uploaded');
       return;
     }
 
-    // TODO: Upload images to server and get URLs
-    // For now, create preview URLs
+    // Store File objects for later upload; create local preview URLs for display
     const previewUrls = newFiles.map((file) => URL.createObjectURL(file));
-    setImageFiles([...imageFiles, ...newFiles]);
-    setEvidenceImages([...evidenceImages, ...previewUrls]);
+    setImageFiles((prev) => [...prev, ...newFiles]);
+    setEvidenceImages((prev) => [...prev, ...previewUrls]);
   };
 
   const handleRemoveImage = (index: number) => {
@@ -163,19 +162,38 @@ const BuyerCreateRefundPage = () => {
 
     try {
       setLoading(true);
-      
+
+      // Step 1: Create the return request (without evidence images)
       const requestData: CreateRefundRequestDto = {
         orderItemId: orderItem.id,
         returnType,
         reason,
         reasonDetail: reasonDetail || undefined,
         quantity,
-        evidenceImages,
+        evidenceImages: [],
       };
 
       const response = await createReturnRequest(requestData);
+      const requestId = response.data?.id;
+
+      if (!requestId) {
+        toast.error('Failed to create return request');
+        return;
+      }
+
+      // Step 2: Upload evidence images if any were selected
+      if (imageFiles.length > 0) {
+        try {
+          await uploadRefundEvidenceImages(requestId, imageFiles);
+        } catch (uploadError: any) {
+          // Request was created — notify about image upload failure but still navigate
+          console.error('Evidence image upload failed:', uploadError);
+          toast.warning('Return request created but some images failed to upload. You can add them from the request detail page.');
+        }
+      }
+
       toast.success('Return request submitted successfully');
-      navigate(`/user/refunds/${response.data?.id || ''}`);
+      navigate(`/user/refunds/${requestId}`);
     } catch (error: any) {
       console.error('Failed to create return request:', error);
       toast.error(getApiErrorMessage(error, 'Unable to create return request'));

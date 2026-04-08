@@ -241,7 +241,7 @@ const SellerRefundListPage = () => {
       {!loading && requests.length > 0 && (
         <Grid container spacing={3}>
           {requests.map((request) => (
-            <Grid item xs={12} key={request.id}>
+            <Grid size={{ xs: 12 }} key={request.id}>
               <Card
                 elevation={needsAction(request) ? 4 : 2}
                 sx={{
@@ -285,7 +285,7 @@ const SellerRefundListPage = () => {
 
                   {/* Product info */}
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                       <Avatar
                         src={request.productImageUrl}
                         variant="rounded"
@@ -294,7 +294,7 @@ const SellerRefundListPage = () => {
                         <AssignmentReturn />
                       </Avatar>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
                         {request.productName}
                       </Typography>
@@ -314,7 +314,7 @@ const SellerRefundListPage = () => {
                         />
                       </Stack>
                     </Grid>
-                    <Grid item xs={12} sm={4} textAlign="right">
+                    <Grid size={{ xs: 12, sm: 4 }} textAlign="right">
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Refund Amount
                       </Typography>

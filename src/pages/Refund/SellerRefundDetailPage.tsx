@@ -418,7 +418,7 @@ const SellerRefundDetailPage = () => {
         <Box mb={4}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/shop/refunds/review')}
+          onClick={() => navigate('/shop/refunds')}
           sx={{ mb: 2 }}
         >
           Back to list
