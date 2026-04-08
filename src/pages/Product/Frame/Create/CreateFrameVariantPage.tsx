@@ -25,11 +25,8 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from '@/api/product-api';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
-<<<<<<< HEAD
-=======
 import { toast } from 'react-toastify';
 import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
->>>>>>> 115c7dc ([GLY-013] ref: fix number field input)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
