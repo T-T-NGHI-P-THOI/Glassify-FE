@@ -19,12 +19,20 @@ type LoadingStep =
 interface VideoTryOnProps {
     frameGroupId: string;
     activeTexture: TextureVariant | null;
+    isTryOn: boolean; // true = skip face analysis; false = skip Three.js/glasses
     onAnalysisReady: (result: FaceAnalysisResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
     onReload: () => void;
 }
 
-const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, onReload }: VideoTryOnProps) => {
+const VideoTryOn = ({
+    frameGroupId,
+    activeTexture,
+    isTryOn,
+    onAnalysisReady,
+    onAgeReady,
+    onReload,
+}: VideoTryOnProps) => {
     const webcamRef = useRef<Webcam>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -39,8 +47,9 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
     const [status, setStatus] = useState<Status>("idle");
     const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
 
-    // ── Age detection (throttled) ──
+    // ── Age detection throttled (chỉ khi recommend mode) ──
     const detectAge = useCallback(async (video: HTMLVideoElement) => {
+        if (isTryOn) return;
         const now = performance.now();
         if (now - ageThrottleRef.current < AGE_INTERVAL_MS) return;
         ageThrottleRef.current = now;
@@ -48,7 +57,7 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
         if (!svc) return;
         const result = await svc.detectFromVideo(video);
         if (result) onAgeReady(result);
-    }, [onAgeReady]);
+    }, [onAgeReady, isTryOn]);
 
     // ── Init ──
     useEffect(() => {
@@ -63,55 +72,83 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
             if (!video || !canvas) return;
 
             try {
-                // Age service — load in background
-                const ageSvc = new AgeDetectionService();
-                ageServiceRef.current = ageSvc;
-                ageSvc.loadModels().catch(console.error);
-
-                // Face engine & ThreeJS
-                const faceEngine = new FaceLandmarkerService();
-                faceEngineRef.current = faceEngine;
-
-                const threeJsService = new ThreeJsService();
-                threeRef.current = threeJsService;
-
-                // Chờ video sẵn sàng
+                // ── Chờ video sẵn sàng ──
                 await new Promise<void>((resolve) => {
                     if (video.readyState >= 2) return resolve();
                     video.onloadeddata = () => resolve();
                 });
                 if (cancelled) return;
 
-                // ── Init ThreeJS ──
-                setLoadingStep("init_three");
-                await threeJsService.initalizeThreeJs(video, canvas, frameGroupId);
+                // ── Face engine (luôn cần để positioning glasses hoặc analysis) ──
+                const faceEngine = new FaceLandmarkerService();
+                faceEngineRef.current = faceEngine;
 
-                // ── Apply initial texture ──
-                if (activeTexture?.url && threeJsService.glassesObj) {
-                    setLoadingStep("load_texture");
-                    await threeJsService.applyTextureFromUrl(threeJsService.glassesObj, activeTexture.url).catch(console.error);
+                if (isTryOn) {
+                    // ════════════════════════════════════════════
+                    // TRY-ON MODE: Three.js + glasses, skip analysis
+                    // ════════════════════════════════════════════
+
+                    const threeJsService = new ThreeJsService();
+                    threeRef.current = threeJsService;
+
+                    // ── Init ThreeJS ──
+                    setLoadingStep("init_three");
+                    await threeJsService.initalizeThreeJs(video, canvas, frameGroupId);
+
+                    // ── Apply initial texture ──
+                    if (activeTexture?.url && threeJsService.glassesObj) {
+                        setLoadingStep("load_texture");
+                        await threeJsService.applyTextureFromUrl(threeJsService.glassesObj, activeTexture.url).catch(console.error);
+                    }
+
+                    // ── Init Face Engine ──
+                    setLoadingStep("init_engine");
+                    await faceEngine.initializeEngine();
+                    if (threeJsService.glassesObj && threeJsService.faceObj) {
+                        faceEngine.setThreeObjects(threeJsService.glassesObj, threeJsService.faceObj);
+                    }
+
+                    // Landmark callback: chỉ dùng để drive glasses, skip analysis
+                    faceEngine.onLandmarksDetected = () => {
+                        // no-op: Three.js handles rendering internally
+                    };
+
+                } else {
+                    // ════════════════════════════════════════════
+                    // RECOMMEND MODE: face analysis only, skip Three.js
+                    // ════════════════════════════════════════════
+
+                    const threeJsService = new ThreeJsService();
+                    threeRef.current = threeJsService;
+
+                    // ── Init ThreeJS ──
+                    setLoadingStep("init_three");
+                    await threeJsService.initalizeThreeJs(video, canvas, frameGroupId, false);
+
+                    // Age service — load in background
+                    const ageSvc = new AgeDetectionService();
+                    ageServiceRef.current = ageSvc;
+                    ageSvc.loadModels().catch(console.error);
+
+                    // ── Init Face Engine ──
+                    setLoadingStep("init_engine");
+                    await faceEngine.initializeEngine();
+
+                    hasAnalyzedRef.current = false;
+
+                    faceEngine.onLandmarksDetected = (landmarks, width, height) => {
+                        console.log(landmarks, width, height)
+                        setLoadingStep("detect_face");
+                        detectAge(video);
+
+                        if (hasAnalyzedRef.current) return;
+                        hasAnalyzedRef.current = true;
+
+                        const result = analyzeFaceShape(landmarks, width, height);
+                        onAnalysisReady(result);
+                        setLoadingStep("detect_age");
+                    };
                 }
-
-                // ── Init Face Engine ──
-                setLoadingStep("init_engine");
-                await faceEngine.initializeEngine();
-                if (threeJsService.glassesObj && threeJsService.faceObj) {
-                    faceEngine.setThreeObjects(threeJsService.glassesObj, threeJsService.faceObj);
-                }
-
-                hasAnalyzedRef.current = false;
-
-                faceEngine.onLandmarksDetected = (landmarks, width, height) => {
-                    setLoadingStep("detect_face");
-                    detectAge(video);
-
-                    if (hasAnalyzedRef.current) return;
-                    hasAnalyzedRef.current = true;
-
-                    const result = analyzeFaceShape(landmarks, width, height);
-                    onAnalysisReady(result);
-                    setLoadingStep("detect_age");
-                };
 
                 faceEngine.scheduleNextPrediction(video);
                 setStatus("done");
@@ -129,10 +166,11 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
         return () => {
             cancelled = true;
         };
-    }, [activeTexture]);
+    }, [activeTexture, isTryOn]);
 
-    // ── Update texture dynamically ──
+    // ── Update texture dynamically (chỉ khi try-on mode) ──
     useEffect(() => {
+        if (!isTryOn) return;
         const updateTexture = async () => {
             const three = threeRef.current;
             if (!three || !three.glassesObj || !activeTexture?.url) return;
@@ -147,7 +185,7 @@ const VideoTryOn = ({ frameGroupId, activeTexture, onAnalysisReady, onAgeReady, 
         };
 
         updateTexture();
-    }, [activeTexture]);
+    }, [activeTexture, isTryOn]);
 
     // ── Reload ──
     const handleReload = useCallback(() => {

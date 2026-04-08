@@ -13,6 +13,7 @@ import {
   MenuItem,
   Typography,
   Divider,
+  Tooltip,
 } from "@mui/material";
 import {
   Search,
@@ -27,8 +28,8 @@ import {
   Receipt,
   VerifiedUser,
   AccountBalanceWallet,
+  CameraAlt,
   Dashboard,
-  AdminPanelSettings,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -40,11 +41,15 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import CartProvider from "@/contexts/CartProvider";
 import { useLayout } from '@/layouts/LayoutContext';
+import type { UserRecommendationResponse } from '@/models/Recommendation';
+import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import { RecommendationSearchButton } from "../custom/RecommendationSearchButton";
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [myShop, setMyShop] = useState<ShopDetailResponse | null>(null);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
   const navigate = useNavigate();
   const { itemCount, isAnimating } = useCart();
   const { isAuthenticated, user, dispatch } = useAuth();
@@ -144,7 +149,8 @@ export const Navbar = () => {
                 flexGrow: 1,
                 maxWidth: 500,
                 mx: 4,
-                display: { xs: "none", md: "block" },
+                display: { xs: 'none', md: 'flex' },
+                alignItems: 'center', gap: 1
               }}
             >
               <TextField
@@ -160,10 +166,21 @@ export const Navbar = () => {
                     </InputAdornment>
                   ),
                   endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton type="submit" sx={{ p: "6px" }}>
-                        <Search sx={{ color: "#6b7280", fontSize: 20 }} />
-                      </IconButton>
+                    <InputAdornment position="end" sx={{ gap: 0.5 }}>
+                      <Tooltip title="Try recommendation">
+                        <IconButton
+                          onClick={() => setTryOnOpen(true)}
+                          sx={{
+                            p: "6px",
+                            backgroundColor: "#000000",
+                            color: "#ffffff",
+                            borderRadius: "50%",
+                            "&:hover": { backgroundColor: "#1f2937" },
+                          }}
+                        >
+                          <CameraAlt sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     </InputAdornment>
                   ),
                 }}
@@ -184,6 +201,10 @@ export const Navbar = () => {
                   },
                 }}
               />
+
+              {isAuthenticated && (
+                <RecommendationSearchButton />
+              )}
             </Box>
 
             {/* Right Icons */}
@@ -442,6 +463,13 @@ export const Navbar = () => {
           </Box>
         </Container>
       </AppBar>
-    </CartProvider>
+
+      <GlassesTryOnPopup
+        frameGroupId=""
+        open={tryOnOpen}
+        onClose={() => setTryOnOpen(false)}
+        isTryOn={false}
+      />
+    </CartProvider >
   );
 };

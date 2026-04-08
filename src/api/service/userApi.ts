@@ -13,6 +13,7 @@ import type {
 } from "@/models/User.ts";
 import axiosInstance, { TokenManager } from "@/api/axios.config.ts";
 import type { ApiResponse } from "@/models/ApiResponse.ts";
+import { API_ENDPOINTS } from "../endpoints";
 
 /**
  * Base URL cho user endpoints
@@ -219,6 +220,39 @@ export const userApi = {
         const response = await axiosInstance.get(`${USER_BASE_URL}/me/export`, {
             responseType: 'blob',
         });
+        return response.data;
+    },
+
+    // ==================== USER RECOMMENDATION ====================
+
+    // getMyRecommendations: () => axios.get('/users/me/recommendations'),
+    // updateRecommendationName: (id: string, name: string) => axios.put(`/users/me/recommendations/${id}`, { name }),
+    // deleteRecommendation: (id: string) => axios.delete(`/users/me/recommendations/${id}`),
+    getMyRecommendations: async (): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.get(API_ENDPOINTS.USER_RECOMMENDATION.GET_MY);
+        return response.data;
+    },
+
+    createRecommendation: async (body: any): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.post(
+            API_ENDPOINTS.USER_RECOMMENDATION.CREATE,
+            body,
+        );
+        return response.data.data;
+    },
+
+    updateRecommendationName: async (id: string, name: string) => {
+        const response = await axiosInstance.put(
+            API_ENDPOINTS.USER_RECOMMENDATION.UPDATE_NAME(id),
+            { name }
+        );
+        return response.data;
+    },
+
+    deleteRecommendation: async (id: string) => {
+        const response = await axiosInstance.delete(
+            API_ENDPOINTS.USER_RECOMMENDATION.DELETE(id),
+        );
         return response.data;
     },
 };
