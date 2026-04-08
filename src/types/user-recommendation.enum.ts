@@ -1,5 +1,3 @@
-import { BrowseGallery } from "@mui/icons-material";
-
 export const Color = {
     BLACK: "BLACK",
     WHITE: "WHITE",

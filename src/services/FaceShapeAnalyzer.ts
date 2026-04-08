@@ -1,15 +1,13 @@
-// ─── FaceShapeAnalyzer.ts (nâng cấp) ─────────────────────────────────────────
-
 import * as THREE from 'three';
 
 export type FaceShape =
-    | 'oval' | 'round' | 'square'
-    | 'heart' | 'oblong' | 'diamond';
+    | 'OVAL' | 'ROUND' | 'SQUARE'
+    | 'HEART' | 'OBLONG' | 'DIAMOND';
 
 export interface GlassesRecommendation {
     style: string;
     reason: string;
-    shape: 'rectangle' | 'round' | 'aviator' | 'cat-eye' | 'wayfarers' | 'geometric';
+    shape: 'RECTANGLE' | 'ROUND' | 'AVIATOR' | 'CAT_EYE' | 'WAYFARERS' | 'GEOMETRIC';
     icon: string;
 }
 
@@ -34,17 +32,17 @@ export interface FaceAnalysisResult {
 // ─── Landmark indices (MediaPipe 478-point) ───────────────────────────────────
 
 const LM = {
-    foreheadLeft:  54,  foreheadRight: 284,
-    cheekLeft:    234,  cheekRight:    454,
-    jawLeft:      172,  jawRight:      397,
-    jawAngleLeft:  58,  jawAngleRight: 288,
-    templeLeft:   127,  templeRight:   356,  // thái dương
-    chin:         152,
-    forehead:      10,
+    foreheadLeft: 54, foreheadRight: 284,
+    cheekLeft: 234, cheekRight: 454,
+    jawLeft: 172, jawRight: 397,
+    jawAngleLeft: 58, jawAngleRight: 288,
+    templeLeft: 127, templeRight: 356,  // thái dương
+    chin: 152,
+    forehead: 10,
     // Thêm điểm kiểm tra đối xứng
-    eyeLeft:       33,  eyeRight:      263,
-    noseLeft:       4,  noseRight:       1,  // sống mũi
-    noseTip:        4,
+    eyeLeft: 33, eyeRight: 263,
+    noseLeft: 4, noseRight: 1,  // sống mũi
+    noseTip: 4,
 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,12 +68,12 @@ interface ShapeProfile {
 }
 
 const PROFILES: Record<FaceShape, ShapeProfile> = {
-    oval:    { ratioRange: [0.74, 0.86], fIdeal: 0.82, jIdeal: 0.75, tIdeal: 0.88, tolerance: 0.12 },
-    round:   { ratioRange: [0.88, 1.10], fIdeal: 0.85, jIdeal: 0.85, tIdeal: 0.90, tolerance: 0.10 },
-    square:  { ratioRange: [0.75, 0.92], fIdeal: 0.90, jIdeal: 0.92, tIdeal: 0.92, tolerance: 0.10 },
-    heart:   { ratioRange: [0.72, 0.90], fIdeal: 0.95, jIdeal: 0.68, tIdeal: 0.90, tolerance: 0.11 },
-    oblong:  { ratioRange: [0.55, 0.73], fIdeal: 0.80, jIdeal: 0.78, tIdeal: 0.84, tolerance: 0.13 },
-    diamond: { ratioRange: [0.72, 0.90], fIdeal: 0.72, jIdeal: 0.68, tIdeal: 0.82, tolerance: 0.11 },
+    OVAL: { ratioRange: [0.74, 0.86], fIdeal: 0.82, jIdeal: 0.75, tIdeal: 0.88, tolerance: 0.12 },
+    ROUND: { ratioRange: [0.88, 1.10], fIdeal: 0.85, jIdeal: 0.85, tIdeal: 0.90, tolerance: 0.10 },
+    SQUARE: { ratioRange: [0.75, 0.92], fIdeal: 0.90, jIdeal: 0.92, tIdeal: 0.92, tolerance: 0.10 },
+    HEART: { ratioRange: [0.72, 0.90], fIdeal: 0.95, jIdeal: 0.68, tIdeal: 0.90, tolerance: 0.11 },
+    OBLONG: { ratioRange: [0.55, 0.73], fIdeal: 0.80, jIdeal: 0.78, tIdeal: 0.84, tolerance: 0.13 },
+    DIAMOND: { ratioRange: [0.72, 0.90], fIdeal: 0.72, jIdeal: 0.68, tIdeal: 0.82, tolerance: 0.11 },
 };
 
 function scoreShape(
@@ -90,7 +88,7 @@ function scoreShape(
 
     // Penalty nếu ratio nằm ngoài khoảng lý tưởng
     const rPenalty = ratio < rMin ? rMin - ratio :
-                     ratio > rMax ? ratio - rMax : 0;
+        ratio > rMax ? ratio - rMax : 0;
 
     // Khoảng cách Euclidean từ bộ ba (f, j, t) tới ideal
     const featureDist = Math.sqrt(
@@ -107,50 +105,53 @@ function scoreShape(
 // ─── GLASSES_DB & meta (giữ nguyên từ file gốc) ───────────────────────────────
 
 const GLASSES_DB: Record<FaceShape, GlassesRecommendation[]> = {
-    oval: [
-        { style: 'Wayfarers',  reason: 'Oval faces suit almost any frame. Wayfarers add bold character.',                       shape: 'wayfarers',  icon: '🕶️' },
-        { style: 'Geometric',  reason: 'Angular geometric frames create an artistic contrast with soft oval features.',           shape: 'geometric',  icon: '🔷' },
-        { style: 'Aviator',    reason: 'Classic aviators elongate naturally and complement the balanced oval silhouette.',        shape: 'aviator',    icon: '✈️' },
+    OVAL: [
+        { style: 'Wayfarers', reason: 'Oval faces suit almost any frame. Wayfarers add bold character.', shape: 'WAYFARERS', icon: '🕶️' },
+        { style: 'Geometric', reason: 'Angular geometric frames create contrast with soft oval features.', shape: 'GEOMETRIC', icon: '🔷' },
+        { style: 'Aviator', reason: 'Classic aviators complement the balanced oval silhouette.', shape: 'AVIATOR', icon: '✈️' },
     ],
-    round: [
-        { style: 'Rectangle',  reason: 'Rectangular frames add definition and make a round face appear slimmer.',               shape: 'rectangle',  icon: '▬' },
-        { style: 'Wayfarers',  reason: 'The square corners of wayfarers balance soft, curved features beautifully.',            shape: 'wayfarers',  icon: '🕶️' },
-        { style: 'Geometric',  reason: 'Bold angular geometry creates eye-catching contrast with round softness.',              shape: 'geometric',  icon: '🔷' },
+    ROUND: [
+        { style: 'Rectangle', reason: 'Rectangular frames add definition and slim a round face.', shape: 'RECTANGLE', icon: '▬' },
+        { style: 'Wayfarers', reason: 'Square corners balance soft, curved features.', shape: 'WAYFARERS', icon: '🕶️' },
+        { style: 'Geometric', reason: 'Angular geometry contrasts round softness.', shape: 'GEOMETRIC', icon: '🔷' },
     ],
-    square: [
-        { style: 'Round',      reason: 'Round frames soften strong jawlines and add a touch of elegance.',                     shape: 'round',      icon: '⭕' },
-        { style: 'Aviator',    reason: 'Gently curved aviators contrast a square jaw without looking too playful.',             shape: 'aviator',    icon: '✈️' },
-        { style: 'Cat-Eye',    reason: 'Upswept cat-eye frames draw the eye upward, away from a strong jaw.',                  shape: 'cat-eye',    icon: '😸' },
+    SQUARE: [
+        { style: 'Round', reason: 'Round frames soften strong jawlines.', shape: 'ROUND', icon: '⭕' },
+        { style: 'Aviator', reason: 'Curved aviators contrast square jaws.', shape: 'AVIATOR', icon: '✈️' },
+        { style: 'Cat-Eye', reason: 'Cat-eye draws attention upward.', shape: 'CAT_EYE', icon: '😸' },
     ],
-    heart: [
-        { style: 'Aviator',    reason: 'Wider at the bottom, aviators balance a broad forehead with a narrow chin.',           shape: 'aviator',    icon: '✈️' },
-        { style: 'Round',      reason: 'Round frames soften the forehead and complement a pointed chin.',                      shape: 'round',      icon: '⭕' },
-        { style: 'Rectangle',  reason: 'Low-set rectangular frames add width to the lower half of the face.',                  shape: 'rectangle',  icon: '▬' },
+    HEART: [
+        { style: 'Aviator', reason: 'Balances wide forehead and narrow chin.', shape: 'AVIATOR', icon: '✈️' },
+        { style: 'Round', reason: 'Softens forehead and complements chin.', shape: 'ROUND', icon: '⭕' },
+        { style: 'Rectangle', reason: 'Adds width to lower face.', shape: 'RECTANGLE', icon: '▬' },
     ],
-    oblong: [
-        { style: 'Round',      reason: 'Round or oversized frames add width and break up a long face shape.',                  shape: 'round',      icon: '⭕' },
-        { style: 'Cat-Eye',    reason: 'Decorative cat-eye frames add width and lift at the temples.',                         shape: 'cat-eye',    icon: '😸' },
-        { style: 'Wayfarers',  reason: 'Bold wayfarers add horizontal emphasis to widen an oblong face.',                     shape: 'wayfarers',  icon: '🕶️' },
+    OBLONG: [
+        { style: 'Round', reason: 'Adds width and breaks face length.', shape: 'ROUND', icon: '⭕' },
+        { style: 'Cat-Eye', reason: 'Adds width and lift.', shape: 'CAT_EYE', icon: '😸' },
+        { style: 'Wayfarers', reason: 'Adds horizontal emphasis.', shape: 'WAYFARERS', icon: '🕶️' },
     ],
-    diamond: [
-        { style: 'Cat-Eye',    reason: "Cat-eye frames accentuate cheekbones — the diamond face's best feature.",              shape: 'cat-eye',    icon: '😸' },
-        { style: 'Oval',       reason: 'Rimless or oval frames soften angular cheekbones without adding width.',               shape: 'round',      icon: '⭕' },
-        { style: 'Rectangle',  reason: 'Broad rectangular frames add width at the forehead to balance narrow temples.',        shape: 'rectangle',  icon: '▬' },
+    DIAMOND: [
+        { style: 'Cat-Eye', reason: 'Highlights cheekbones.', shape: 'CAT_EYE', icon: '😸' },
+        { style: 'Oval', reason: 'Softens angular cheekbones.', shape: 'ROUND', icon: '⭕' },
+        { style: 'Rectangle', reason: 'Adds width at forehead.', shape: 'RECTANGLE', icon: '▬' },
     ],
 };
-
 const FACE_LABELS: Record<FaceShape, string> = {
-    oval: 'Oval', round: 'Round', square: 'Square',
-    heart: 'Heart', oblong: 'Oblong', diamond: 'Diamond',
+    OVAL: 'Oval',
+    ROUND: 'Round',
+    SQUARE: 'Square',
+    HEART: 'Heart',
+    OBLONG: 'Oblong',
+    DIAMOND: 'Diamond',
 };
 
 const FACE_DESCRIPTIONS: Record<FaceShape, string> = {
-    oval:    'Balanced proportions with a gently tapered jaw and slightly wider cheekbones.',
-    round:   'Similar width and height with soft, curved features and full cheeks.',
-    square:  'Strong jawline with roughly equal forehead, cheek, and jaw widths.',
-    heart:   'Wide forehead tapering to a narrow, pointed chin.',
-    oblong:  'Face length noticeably greater than width with a long, straight cheek line.',
-    diamond: 'Narrow forehead and jaw with wide, prominent cheekbones.',
+    OVAL:    'Balanced proportions with a gently tapered jaw and slightly wider cheekbones.',
+    ROUND:   'Similar width and height with soft, curved features and full cheeks.',
+    SQUARE:  'Strong jawline with roughly equal forehead, cheek, and jaw widths.',
+    HEART:   'Wide forehead tapering to a narrow, pointed chin.',
+    OBLONG:  'Face length greater than width with a long cheek line.',
+    DIAMOND: 'Narrow forehead and jaw with wide cheekbones.',
 };
 
 // ─── Main analyser ────────────────────────────────────────────────────────────
@@ -163,34 +164,34 @@ export function analyzeFaceShape(
     const w = imageWidth, h = imageHeight;
 
     // Key points
-    const fL  = lm2v(landmarks[LM.foreheadLeft],  w, h);
-    const fR  = lm2v(landmarks[LM.foreheadRight], w, h);
-    const cL  = lm2v(landmarks[LM.cheekLeft],     w, h);
-    const cR  = lm2v(landmarks[LM.cheekRight],    w, h);
-    const jL  = lm2v(landmarks[LM.jawAngleLeft],  w, h);
-    const jR  = lm2v(landmarks[LM.jawAngleRight], w, h);
-    const tL  = lm2v(landmarks[LM.templeLeft],    w, h);
-    const tR  = lm2v(landmarks[LM.templeRight],   w, h);
-    const eyeL = lm2v(landmarks[LM.eyeLeft],      w, h);
-    const eyeR = lm2v(landmarks[LM.eyeRight],     w, h);
-    const chin = lm2v(landmarks[LM.chin],         w, h);
-    const top  = lm2v(landmarks[LM.forehead],     w, h);
+    const fL = lm2v(landmarks[LM.foreheadLeft], w, h);
+    const fR = lm2v(landmarks[LM.foreheadRight], w, h);
+    const cL = lm2v(landmarks[LM.cheekLeft], w, h);
+    const cR = lm2v(landmarks[LM.cheekRight], w, h);
+    const jL = lm2v(landmarks[LM.jawAngleLeft], w, h);
+    const jR = lm2v(landmarks[LM.jawAngleRight], w, h);
+    const tL = lm2v(landmarks[LM.templeLeft], w, h);
+    const tR = lm2v(landmarks[LM.templeRight], w, h);
+    const eyeL = lm2v(landmarks[LM.eyeLeft], w, h);
+    const eyeR = lm2v(landmarks[LM.eyeRight], w, h);
+    const chin = lm2v(landmarks[LM.chin], w, h);
+    const top = lm2v(landmarks[LM.forehead], w, h);
 
     // Measurements
     const foreheadWidth = dist(fL, fR);
-    const cheekWidth    = dist(cL, cR);
-    const jawWidth      = dist(jL, jR);
-    const templeWidth   = dist(tL, tR);
-    const faceHeight    = dist(top, chin);
-    const ratio         = cheekWidth / faceHeight;
+    const cheekWidth = dist(cL, cR);
+    const jawWidth = dist(jL, jR);
+    const templeWidth = dist(tL, tR);
+    const faceHeight = dist(top, chin);
+    const ratio = cheekWidth / faceHeight;
 
     // Normalise (relative to cheek width)
     const fNorm = foreheadWidth / cheekWidth;
-    const jNorm = jawWidth      / cheekWidth;
-    const tNorm = templeWidth   / cheekWidth;
+    const jNorm = jawWidth / cheekWidth;
+    const tNorm = templeWidth / cheekWidth;
 
     // Symmetry score: so sánh khoảng cách mắt trái/phải từ midline
-    const midX    = (cL.x + cR.x) / 2;
+    const midX = (cL.x + cR.x) / 2;
     const eyeLDist = Math.abs(eyeL.x - midX);
     const eyeRDist = Math.abs(eyeR.x - midX);
     const symmetryScore = clamp(
@@ -213,7 +214,7 @@ export function analyzeFaceShape(
     }));
     scores.sort((a, b) => b.score - a.score);
 
-    const best     = scores[0];
+    const best = scores[0];
     const runnerUp = scores[1];
 
     // Confidence = khoảng cách giữa best và runner-up, chuẩn hoá
@@ -226,13 +227,13 @@ export function analyzeFaceShape(
         description: FACE_DESCRIPTIONS[best.shape],
         confidence,
         measurements: {
-            foreheadWidth:    Math.round(foreheadWidth),
-            cheekWidth:       Math.round(cheekWidth),
-            jawWidth:         Math.round(jawWidth),
-            templeWidth:      Math.round(templeWidth),
-            faceHeight:       Math.round(faceHeight),
-            ratio:            Math.round(ratio * 100) / 100,
-            symmetryScore:    Math.round(symmetryScore * 100) / 100,
+            foreheadWidth: Math.round(foreheadWidth),
+            cheekWidth: Math.round(cheekWidth),
+            jawWidth: Math.round(jawWidth),
+            templeWidth: Math.round(templeWidth),
+            faceHeight: Math.round(faceHeight),
+            ratio: Math.round(ratio * 100) / 100,
+            symmetryScore: Math.round(symmetryScore * 100) / 100,
             goldenRatioScore: Math.round(goldenRatioScore * 100) / 100,
         },
         recommendations: GLASSES_DB[best.shape],

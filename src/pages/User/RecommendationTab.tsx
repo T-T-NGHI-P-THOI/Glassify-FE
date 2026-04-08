@@ -25,24 +25,10 @@ import {
     Close,
     Face,
     Palette,
-    Star,
-    CheckCircle,
 } from '@mui/icons-material';
-
-// ── Định nghĩa kiểu (copy từ trên hoặc import) ──────────────────────────────
-interface Rec {
-    id: string;
-    name: string;
-    faceShape: string;
-    faceConfidence: number;
-    element: string;
-    yinYang: string;
-    overallScore: number;
-    luckyColors: string;
-    recommendedFrameStyles: string;
-    recommendedLens: string;
-    createdAt: string;
-}
+import type { Color, FrameShape } from '@/types/user-recommendation.enum';
+import type { UserRecommendationResponse } from '@/models/Recommendation';
+import { getHexColor } from '@/utils/color-helpers';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const faceShapeLabel: Record<string, string> = {
@@ -65,6 +51,7 @@ const elementColor: Record<string, { bg: string; text: string; label: string }> 
 const yinYangColor: Record<string, { bg: string; text: string }> = {
     YIN: { bg: '#EEEDFE', text: '#534AB7' },
     YANG: { bg: '#FAEEDA', text: '#854F0B' },
+    BALANCED: { bg: '#FAEEDA', text: '#854F0B' },
 };
 
 const formatDate = (ds: string) =>
@@ -82,7 +69,7 @@ const RecCard = ({
     onCancelEdit,
     saving,
 }: {
-    rec: Rec;
+    rec: UserRecommendationResponse;
     onEdit: () => void;
     onDelete: () => void;
     isEditing: boolean;
@@ -123,27 +110,6 @@ const RecCard = ({
             <Box sx={{ p: 2.5 }}>
                 {/* Header row */}
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                    {/* Score circle */}
-                    <Box
-                        sx={{
-                            minWidth: 56,
-                            height: 56,
-                            borderRadius: '50%',
-                            border: `2px solid ${theme.palette.primary.main}`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.primary.main, lineHeight: 1 }}>
-                            {rec.overallScore}
-                        </Typography>
-                        <Typography sx={{ fontSize: 10, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af' }}>
-                            /100
-                        </Typography>
-                    </Box>
-
                     {/* Name + badges */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         {isEditing ? (
@@ -215,60 +181,136 @@ const RecCard = ({
                 {/* Divider */}
                 <Box sx={{ my: 2, height: '1px', bgcolor: theme.palette.custom?.border?.light ?? '#f3f4f6' }} />
 
-                {/* Info grid */}
+                {/* Info grid — 2 columns */}
                 <Grid container spacing={2}>
-                    {/* Face confidence */}
+
+                    {/* ── Cột trái: Face confidence + Face shape | Frame styles | Lens ── */}
                     <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
-                            Face confidence
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LinearProgress
-                                variant="determinate"
-                                value={confidencePct}
-                                sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: `${theme.palette.primary.main}20`, '& .MuiLinearProgress-bar': { borderRadius: 3 } }}
-                            />
-                            <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 36 }}>
-                                {confidencePct}%
+                        {/* Row: Face confidence + Face shape */}
+                        <Grid container spacing={2} sx={{ mb: 2 }}>
+                            <Grid size={{ xs: 6 }}>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                    Face confidence
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <LinearProgress
+                                        variant="determinate"
+                                        value={confidencePct}
+                                        sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: `${theme.palette.primary.main}20`, '& .MuiLinearProgress-bar': { borderRadius: 3 } }}
+                                    />
+                                    <Typography sx={{ fontSize: 13, fontWeight: 600, minWidth: 36 }}>
+                                        {confidencePct}%
+                                    </Typography>
+                                </Box>
+                            </Grid>
+                            <Grid size={{ xs: 6 }}>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                    Face shape
+                                </Typography>
+                                <Chip
+                                    label={faceShapeLabel[rec.faceShape] ?? rec.faceShape}
+                                    size="small"
+                                    icon={<Face sx={{ fontSize: '14px !important' }} />}
+                                    sx={{ fontSize: 12, fontWeight: 500, bgcolor: '#F1EFE8', color: '#5F5E5A' }}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        {/* Frame styles */}
+                        <Box sx={{ mb: 2 }}>
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                Frame styles
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {rec.recommendedFrameStyles.map(s => s.trim()).filter(Boolean).map(style => (
+                                    <Chip key={style} label={style} size="small"
+                                        sx={{ fontSize: 12, bgcolor: '#E6F1FB', color: '#185FA5' }} />
+                                ))}
+                            </Box>
+                        </Box>
+
+                        {/* Lens */}
+                        <Box>
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                Lens
+                            </Typography>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom?.neutral?.[700] ?? '#374151' }}>
+                                {rec.recommendedLens}
                             </Typography>
                         </Box>
                     </Grid>
 
-                    {/* Lucky colors */}
+                    {/* ── Cột phải: Element + Yin Yang | Lucky colors ── */}
                     <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
-                            Lucky colors
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {rec.luckyColors.split(',').map(c => c.trim()).filter(Boolean).map(color => (
-                                <Chip key={color} label={color} size="small" icon={<Palette sx={{ fontSize: '14px !important' }} />}
-                                    sx={{ fontSize: 12, bgcolor: '#FBEAF0', color: '#993556' }} />
-                            ))}
+                        {/* Row: Element + Yin Yang */}
+                        <Grid container spacing={2} sx={{ mb: 2 }}>
+                            <Grid size={{ xs: 6 }}>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                    Element
+                                </Typography>
+                                <Chip
+                                    label={el.label}
+                                    size="small"
+                                    sx={{ fontSize: 12, fontWeight: 500, bgcolor: el.bg, color: el.text }}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 6 }}>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                                    Yin Yang
+                                </Typography>
+                                <Chip
+                                    label={rec.yinYang}
+                                    size="small"
+                                    sx={{ fontSize: 12, fontWeight: 500, bgcolor: yy.bg, color: yy.text }}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        {/* Lucky colors */}
+
+                        <Box>
+                            <Typography
+                                sx={{
+                                    fontSize: 11,
+                                    color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 0.5,
+                                    mb: 0.5
+                                }}
+                            >
+                                Lucky colors
+                            </Typography>
+
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
+                                {rec.luckyColors
+                                    .map(c => c.trim())
+                                    .filter(Boolean)
+                                    .map(color => {
+                                        const hex = getHexColor(color);
+
+                                        return (
+                                            <Tooltip key={color} title={color}>
+                                                <Box
+                                                    sx={{
+                                                        width: 20,
+                                                        height: 20,
+                                                        borderRadius: '50%',
+                                                        bgcolor: hex || '#000',
+                                                        border: '1px solid #e5e7eb',
+                                                        cursor: 'pointer',
+                                                        transition: 'transform 0.2s ease',
+                                                        '&:hover': {
+                                                            transform: 'scale(1.2)',
+                                                        }
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                        );
+                                    })}
+                            </Box>
                         </Box>
                     </Grid>
 
-                    {/* Frame styles */}
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
-                            Frame styles
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {rec.recommendedFrameStyles.split(',').map(s => s.trim()).filter(Boolean).map(style => (
-                                <Chip key={style} label={style} size="small"
-                                    sx={{ fontSize: 12, bgcolor: '#E6F1FB', color: '#185FA5' }} />
-                            ))}
-                        </Box>
-                    </Grid>
-
-                    {/* Lens */}
-                    <Grid size={{ xs: 12, sm: 6 }}>
-                        <Typography sx={{ fontSize: 11, color: theme.palette.custom?.neutral?.[400] ?? '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
-                            Lens
-                        </Typography>
-                        <Typography sx={{ fontSize: 13, color: theme.palette.custom?.neutral?.[700] ?? '#374151' }}>
-                            {rec.recommendedLens}
-                        </Typography>
-                    </Grid>
                 </Grid>
 
                 {/* Footer */}
@@ -283,17 +325,13 @@ const RecCard = ({
 };
 
 // ── MAIN TAB COMPONENT ───────────────────────────────────────────────────────
-// Dán component này vào bên trong UserProfilePage, ngay trước hoặc sau Tab 1 (Security)
-// Thay thế comment "/* ========== TAB 1: Security ========== */"
-// bằng cấu trúc: Tab 0 (Personal), Tab 1 (Recommendations) ← mới, Tab 2 (Security), Tab 3 (Settings)
-
 const RecommendationsTabContent = ({
     recommendations,
     loading,
     onDeleteRecommendation,
     onUpdateRecommendationName,
 }: {
-    recommendations: Rec[];
+    recommendations: UserRecommendationResponse[];
     loading: boolean;
     onDeleteRecommendation: (id: string) => Promise<void>;
     onUpdateRecommendationName: (id: string, name: string) => Promise<void>;
@@ -305,7 +343,7 @@ const RecommendationsTabContent = ({
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    const handleEdit = (rec: Rec) => {
+    const handleEdit = (rec: UserRecommendationResponse) => {
         setEditingId(rec.id);
         setEditName(rec.name);
     };
@@ -326,7 +364,6 @@ const RecommendationsTabContent = ({
         setDeleteConfirmId(null);
     };
 
-    // Loading skeleton
     if (loading) {
         return (
             <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -337,7 +374,6 @@ const RecommendationsTabContent = ({
         );
     }
 
-    // Empty state
     if (!loading && recommendations.length === 0) {
         return (
             <Box sx={{ p: 6, textAlign: 'center' }}>
@@ -436,4 +472,3 @@ const RecommendationsTabContent = ({
 };
 
 export { RecommendationsTabContent };
-export type { Rec as UserRecommendationResponse };

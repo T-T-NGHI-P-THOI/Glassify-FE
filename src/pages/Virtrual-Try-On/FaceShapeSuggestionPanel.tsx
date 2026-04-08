@@ -5,22 +5,27 @@ import { useEffect, useState } from "react";
 import type { FaceAnalysisResult, FaceShape } from "@/services/FaceShapeAnalyzer";
 import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
 import { FengShuiPanel } from "./FengShuiPanel";
-import userApi from "@/api/service/userApi";
-import { toast } from "react-toastify";
-import type { FrameShape } from "@/types/user-recommendation.enum";
+import type { Color, FrameShape } from "@/types/user-recommendation.enum";
+import { useNavigate } from "react-router-dom";
 
 // ─── Tokens ─────────────────────────────────────────────────────────────
 
 const TEAL = "#006470";
-const TEAL_LIGHT = "rgba(0,100,112,0.08)";
-const TEAL_BORDER = "rgba(0,100,112,0.2)";
-const TEXT = "#111";
 const TEXT_SEC = "#555";
 const TEXT_MUTED = "#888";
 const BORDER = "rgba(0,0,0,0.08)";
 const BG_SEC = "#f7f8f8";
 const fontSans = "'Inter', sans-serif";
 const fontSerif = "'Playfair Display', serif";
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+
+const buildSearchParams = (recommendedFrameStyles: FrameShape[], luckColors: string[]): URLSearchParams => {
+    const params = new URLSearchParams();
+    recommendedFrameStyles.forEach(style => params.append("frameShapes", style));
+    luckColors.forEach(color => params.append("colors", color));
+    return params;
+};
 
 // ─── Section Title ─────────────────────────────────────────────────────
 
@@ -40,7 +45,7 @@ const SectionTitle = ({ title }: { title: string }) => (
     </Typography>
 );
 
-// ─── Premium Card ──────────────────────────────────────────────────────
+// ─── Card ──────────────────────────────────────────────────────────────
 
 const Card = ({ children }: { children: React.ReactNode }) => (
     <Box sx={{
@@ -56,120 +61,117 @@ const Card = ({ children }: { children: React.ReactNode }) => (
     </Box>
 );
 
-// ─── Lens Recommendation ───────────────────────────────────────────────
+// ─── Divider ──────────────────────────────────────────────────────────
 
-function getLens(shape: FaceShape, feng?: FengShuiResult) {
-    let base = "";
-    switch (shape) {
-        case "round":
-            base = "Tròng mỏng + chống phản quang giúp gương mặt sắc nét hơn";
-            break;
-        case "square":
-            base = "Tròng bo nhẹ giúp giảm góc cạnh";
-            break;
-        case "oval":
-            base = "Phù hợp đa dạng, ưu tiên chống ánh sáng xanh";
-            break;
-        case "heart":
-            base = "Tròng nhẹ, gradient giúp cân bằng trán";
-            break;
-        case "oblong":
-            base = "Tròng cao + chống chói giúp cân đối chiều dài";
-            break;
-        case "diamond":
-            base = "Tròng sáng + chống phản xạ làm mềm nét";
-            break;
-    }
+const RowDivider = () => (
+    <Box sx={{ height: "0.5px", bgcolor: BORDER, my: 0.8 }} />
+);
 
-    if (feng?.element === "water") base += " • Nên thêm phủ xanh nhẹ";
-    if (feng?.element === "fire") base += " • Tròng chống UV mạnh";
+// ─── Frame shapes ─────────────────────────────────────────────────────
 
-    return base;
-}
-
-// ─── Frame Recommendation (🔥 combine AI + FengShui) ───────────────────
 function getFrameShapes(face: FaceShape): FrameShape[] {
     switch (face) {
-        case "round":
-            return ["RECTANGLE", "WAYFARER"];
-        case "square":
-            return ["ROUND", "AVIATOR"];
-        case "oval":
-            return ["WAYFARER", "GEOMETRIC"];
-        case "heart":
-            return ["AVIATOR", "ROUND"];
-        case "oblong":
-            return ["WAYFARER"];
-        case "diamond":
-            return ["CAT_EYE", "OVAL"];
-        default:
-            return [];
+        case "ROUND": return ["RECTANGLE", "WAYFARER"];
+        case "SQUARE": return ["ROUND", "AVIATOR"];
+        case "OVAL": return ["WAYFARER", "GEOMETRIC"];
+        case "HEART": return ["AVIATOR", "ROUND"];
+        case "OBLONG": return ["WAYFARER"];
+        case "DIAMOND": return ["CAT_EYE", "OVAL"];
+        default: return [];
     }
 }
 
+// ─── Frame label ─────────────────────────────────────────────────────
 
-function getFrameCombo(face: FaceShape, feng?: FengShuiResult) {
+function getFrameCombo(face: FaceShape, feng?: FengShuiResult): string {
     let frame = "";
     switch (face) {
-        case "round":
-            frame = "Rectangle / Wayfarer";
-            break;
-        case "square":
-            frame = "Round / Aviator";
-            break;
-        case "oval":
-            frame = "All styles (Wayfarer / Geometric)";
-            break;
-        case "heart":
-            frame = "Aviator / Round";
-            break;
-        case "oblong":
-            frame = "Oversized / Wayfarer";
-            break;
-        case "diamond":
-            frame = "Cat-eye / Oval";
-            break;
+        case "ROUND": frame = "Rectangle / Wayfarer"; break;
+        case "SQUARE": frame = "Round / Aviator"; break;
+        case "OVAL": frame = "All styles (Wayfarer / Geometric)"; break;
+        case "HEART": frame = "Aviator / Round"; break;
+        case "OBLONG": frame = "Oversized / Wayfarer"; break;
+        case "DIAMOND": frame = "Cat-eye / Oval"; break;
     }
 
-    let fengBoost = "";
     if (!feng) return frame;
 
     switch (feng.element) {
-        case "metal":
-            fengBoost = " → Gọng mảnh, kim loại";
-            break;
-        case "wood":
-            fengBoost = " → Gọng tự nhiên, màu xanh";
-            break;
-        case "water":
-            fengBoost = " → Gọng tối màu, trơn";
-            break;
-        case "fire":
-            fengBoost = " → Gọng nổi bật, đỏ/cam";
-            break;
-        case "earth":
-            fengBoost = " → Gọng dày, màu nâu/be";
-            break;
+        case "metal": return frame + " → Thin, metallic frame";
+        case "wood": return frame + " → Natural material, green tones";
+        case "water": return frame + " → Dark, smooth frame";
+        case "fire": return frame + " → Bold frame, red / orange";
+        case "earth": return frame + " → Thick frame, brown or beige";
     }
 
-    return frame + fengBoost;
+    return frame;
+}
+
+// ─── Lens label ─────────────────────────────────────────────────────
+
+function getLens(shape: FaceShape, feng?: FengShuiResult): string {
+    let base = "";
+    switch (shape) {
+        case "ROUND": base = "Thin lens + anti-reflective coating to sharpen features"; break;
+        case "SQUARE": base = "Slightly rounded lens to soften angular features"; break;
+        case "OVAL": base = "Versatile fit — prioritise blue-light blocking"; break;
+        case "HEART": base = "Light gradient lens to balance a wider forehead"; break;
+        case "OBLONG": base = "Tall lens + anti-glare to offset face length"; break;
+        case "DIAMOND": base = "Bright lens + anti-reflective to soften edges"; break;
+    }
+
+    if (feng?.element === "water") base += " • Add a subtle blue tint";
+    if (feng?.element === "fire") base += " • Strong UV protection";
+
+    return base;
 }
 
 // ─── Color Chips ──────────────────────────────────────────────────────
 
 const ColorChips = ({ colors }: { colors: string[] }) => (
-    <Box sx={{ display: "flex", gap: 0.8, flexWrap: "wrap", mt: 0.6 }}>
+    <Box sx={{ display: "flex", gap: 0.8, flexWrap: "wrap", mt: 0.6, pl: "22px" }}>
         {colors.map(c => (
             <Chip
                 key={c}
                 label={c}
                 size="small"
-                sx={{
-                    fontSize: "0.65rem",
-                    bgcolor: BG_SEC,
-                }}
+                sx={{ fontSize: "0.65rem", bgcolor: BG_SEC }}
             />
         ))}
+    </Box>
+);
+
+// ─── Suggest Row ─────────────────────────────────────────────────────
+
+const SuggestItem = ({
+    icon,
+    label,
+    value,
+    children,
+}: {
+    icon: string;
+    label: string;
+    value?: string;
+    children?: React.ReactNode;
+}) => (
+    <Box>
+        <Typography sx={{
+            fontWeight: 600,
+            fontSize: "0.76rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            mb: 0.3,
+        }}>
+            <span style={{ fontSize: "14px", lineHeight: 1 }}>{icon}</span>
+            {label}
+        </Typography>
+        {value && (
+            <Typography sx={{ fontSize: "0.73rem", color: TEXT_SEC, pl: "22px" }}>
+                {value}
+            </Typography>
+        )}
+        {children}
     </Box>
 );
 
@@ -188,27 +190,34 @@ export const FaceShapeSuggestionPanel = ({
     fengShuiResult,
     setSaveModalOpen,
     isAnalyzing = false,
-    onRecommendReady
+    onRecommendReady,
 }: Props) => {
-
+    const navigate = useNavigate();
     const [visible, setVisible] = useState(false);
-    
+
     useEffect(() => {
         if (result) {
             setVisible(false);
-            setTimeout(() => setVisible(true), 60);
+            const t = setTimeout(() => setVisible(true), 60);
+            return () => clearTimeout(t);
         }
     }, [result]);
 
     useEffect(() => {
         if (!result) return;
-
         const frames = getFrameShapes(result.shape);
         const lens = getLens(result.shape, fengShuiResult ?? undefined);
-
         onRecommendReady?.(frames, lens);
-
     }, [result, fengShuiResult]);
+
+    const handleFind = () => {
+        if (!result) return;
+        const params = buildSearchParams(
+            getFrameShapes(result.shape),
+            fengShuiResult?.luckyColors ?? [],
+        );
+        navigate(`/products?${params.toString()}`);
+    };
 
     if (!result && !isAnalyzing) return null;
 
@@ -216,51 +225,42 @@ export const FaceShapeSuggestionPanel = ({
         <Box sx={{
             opacity: visible ? 1 : 0,
             transform: visible ? "translateY(0)" : "translateY(10px)",
-            transition: "all 0.4s ease"
+            transition: "all 0.4s ease",
         }}>
+
             {/* LOADING */}
             {isAnalyzing && (
                 <Box sx={{ px: 2, py: 2 }}>
-                    <Typography sx={{ color: TEXT_MUTED }}>
-                        AI đang phân tích khuôn mặt...
+                    <Typography sx={{ color: TEXT_MUTED, fontFamily: fontSans, fontSize: "0.82rem" }}>
+                        AI is analysing your face…
                     </Typography>
                 </Box>
             )}
 
             {result && visible && (
                 <>
-                    {/* ───────── FACE SECTION ───────── */}
-                    <SectionTitle title="Phân tích khuôn mặt" />
-
+                    {/* ── FACE SHAPE ── */}
+                    <SectionTitle title="Face shape" />
                     <Card>
                         <Typography sx={{
                             fontFamily: fontSerif,
-                            fontSize: "1.1rem",
-                            fontWeight: 700
+                            fontSize: "1.05rem",
+                            fontWeight: 700,
+                            mb: 0.4,
                         }}>
-                            {result.label} Face
+                            {result.label} face
                         </Typography>
 
-                        <Typography sx={{
-                            fontSize: "0.78rem",
-                            color: TEXT_SEC,
-                            mt: 0.4
-                        }}>
+                        <Typography sx={{ fontSize: "0.76rem", color: TEXT_SEC, mb: 0.8 }}>
                             {result.description}
                         </Typography>
 
-                        <Typography sx={{
-                            fontSize: "0.7rem",
-                            mt: 0.8,
-                            color: TEAL,
-                            fontWeight: 600
-                        }}>
+                        <Typography sx={{ fontSize: "0.68rem", color: TEAL, fontWeight: 600 }}>
                             Accuracy: {Math.round(result.confidence * 100)}%
                         </Typography>
                     </Card>
 
-
-                    {/* ───────── FENG SHUI ───────── */}
+                    {/* ── FENG SHUI ── */}
                     {fengShuiResult && (
                         <>
                             <SectionTitle title="Feng shui" />
@@ -268,40 +268,63 @@ export const FaceShapeSuggestionPanel = ({
                         </>
                     )}
 
-                    {/* ───────── SMART COMBO ───────── */}
-                    <SectionTitle title="Gợi ý thông minh" />
-
+                    {/* ── SMART SUGGESTIONS ── */}
+                    <SectionTitle title="Smart suggestions" />
                     <Card>
-                        <Typography sx={{ fontWeight: 600 }}>
-                            👓 Frames
-                        </Typography>
+                        <SuggestItem
+                            icon="👓"
+                            label="Frames"
+                            value={getFrameCombo(result.shape, fengShuiResult ?? undefined)}
+                        />
 
-                        <Typography sx={{ fontSize: "0.75rem", color: TEXT_SEC }}>
-                            {getFrameCombo(result.shape, fengShuiResult ?? undefined)}
-                        </Typography>
+                        <RowDivider />
 
-                        <Typography sx={{ fontWeight: 600, mt: 1 }}>
-                            🔍 Lenses
-                        </Typography>
-
-                        <Typography sx={{ fontSize: "0.75rem", color: TEXT_SEC }}>
-                            {getLens(result.shape, fengShuiResult ?? undefined)}
-                        </Typography>
+                        <SuggestItem
+                            icon="🔍"
+                            label="Lenses"
+                            value={getLens(result.shape, fengShuiResult ?? undefined)}
+                        />
 
                         {fengShuiResult && (
                             <>
-                                <Typography sx={{ fontWeight: 600, mt: 1 }}>
-                                    🎨 Lucky Colors
-                                </Typography>
-                                <ColorChips colors={fengShuiResult.luckyColors} />
+                                <RowDivider />
+                                <SuggestItem icon="🎨" label="Lucky colors">
+                                    <ColorChips colors={fengShuiResult.luckyColors} />
+                                </SuggestItem>
                             </>
                         )}
                     </Card>
 
+                    {/* ── ACTIONS ── */}
+                    <Box sx={{ display: "flex", gap: 1, px: 1.5, pb: 1.5, pt: 0.5 }}>
+                        <Button
+                            onClick={handleFind}
+                            variant="outlined"
+                            sx={{
+                                flex: 1,
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                fontSize: "0.8rem",
+                                fontFamily: fontSans,
+                            }}
+                        >
+                            Find ↗
+                        </Button>
 
-                    <Button onClick={() => setSaveModalOpen(true)}>
-                        Save
-                    </Button>
+                        <Button
+                            onClick={() => setSaveModalOpen(true)}
+                            variant="contained"
+                            sx={{
+                                flex: 1,
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                fontSize: "0.8rem",
+                                fontFamily: fontSans,
+                            }}
+                        >
+                            Save
+                        </Button>
+                    </Box>
                 </>
             )}
         </Box>

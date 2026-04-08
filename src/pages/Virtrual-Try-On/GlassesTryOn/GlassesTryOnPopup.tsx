@@ -67,14 +67,14 @@ const SaveModal = ({ open, onClose, onSave, isSaving }: any) => {
                 }}
             >
                 <Typography sx={{ color: "#fff", mb: 2, fontWeight: 600 }}>
-                    Lưu kết quả phân tích
+                    Save analyzed result...
                 </Typography>
 
                 <input
                     autoFocus
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    placeholder="Nhập tên gợi nhớ..."
+                    placeholder="Enter recommendation name..."
                     style={{
                         width: "100%",
                         padding: "12px",
@@ -96,7 +96,7 @@ const SaveModal = ({ open, onClose, onSave, isSaving }: any) => {
                             cursor: "pointer", bgcolor: "transparent", color: "#aaa",
                         }}
                     >
-                        Hủy
+                        Cancel
                     </Box>
                     <Box
                         component="button"
@@ -109,7 +109,7 @@ const SaveModal = ({ open, onClose, onSave, isSaving }: any) => {
                             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
                         }}
                     >
-                        {isSaving ? "Đang lưu..." : "Lưu lại"}
+                        {isSaving ? "Saving..." : "Save"}
                     </Box>
                 </Box>
             </Box>
@@ -336,16 +336,15 @@ const GlassesTryOnPopup = ({
             setIsSaving(true);
 
             const payload = {
-                name: "string",
-                faceShape: "OVAL",
-                faceConfidence: 0,
-                element: "METAL",
-                yinYang: "YIN",
-                overallScore: 0,
+                name: nickname,
+                faceShape: analysisResult.shape.toUpperCase(),
+                faceConfidence: analysisResult.confidence,
+                element: fengShuiResult?.element.toUpperCase(),
+                yinYang: fengShuiResult?.yinYang.toUpperCase(),
+                overallScore: fengShuiResult?.overallScore,
                 luckyColors: (fengShuiResult?.luckyColors ?? [])
-                    .flat(Infinity)
-                    .map(c => String(c).toUpperCase().trim()),
-                recommendedFrameStyles: ["RECTANGLE"],
+                    .map(c => c.toUpperCase().trim()),
+                recommendedFrameStyles: recommendedFrameStyles,
                 recommendedLens: recommendedLens
             };
 

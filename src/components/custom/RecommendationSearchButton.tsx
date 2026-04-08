@@ -11,18 +11,20 @@ import {
     Chip,
     CircularProgress,
     LinearProgress,
+    Paper,
+    useTheme,
 } from '@mui/material';
 import {
     AutoAwesome,
-    Search,
     Close,
-    CheckCircle,
+    Face,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import userApi from '@/api/service/userApi';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
+import { getHexColor } from '@/utils/color-helpers';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 const elementColor: Record<string, { bg: string; text: string; label: string }> = {
     WOOD: { bg: '#EAF3DE', text: '#3B6D11', label: 'Wood' },
@@ -35,6 +37,7 @@ const elementColor: Record<string, { bg: string; text: string; label: string }> 
 const yinYangColor: Record<string, { bg: string; text: string }> = {
     YIN: { bg: '#EEEDFE', text: '#534AB7' },
     YANG: { bg: '#FAEEDA', text: '#854F0B' },
+    BALANCED: { bg: '#FAEEDA', text: '#854F0B' },
 };
 
 const faceShapeLabel: Record<string, string> = {
@@ -48,19 +51,15 @@ const faceShapeLabel: Record<string, string> = {
 
 const buildSearchParams = (rec: UserRecommendationResponse): URLSearchParams => {
     const params = new URLSearchParams();
-
     rec.recommendedFrameStyles?.forEach(style => params.append('frameShapes', style));
     rec.luckyColors?.forEach(color => params.append('colors', color));
-
     return params;
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ── Component ───────────────────────────────────────────────────────────────
 
-interface Props {
-}
-
-export const RecommendationSearchButton = ({  }: Props) => {
+export const RecommendationSearchButton = () => {
+    const theme = useTheme();
     const navigate = useNavigate();
 
     const [open, setOpen] = useState(false);
@@ -87,161 +86,170 @@ export const RecommendationSearchButton = ({  }: Props) => {
 
     const handleSearchNow = () => {
         if (!selectedRec) return;
-
         navigate(`/products?${buildSearchParams(selectedRec).toString()}`);
         handleClose();
     };
 
     return (
         <>
-            {/* Trigger button */}
             <Button
                 onClick={() => setOpen(true)}
                 variant="outlined"
-                size="small"
-                startIcon={<AutoAwesome sx={{ fontSize: '15px !important', color: '#7c3aed' }} />}
                 sx={{
-                    borderRadius: '24px',
+                    width: 45,
+                    height: 40,
+                    minWidth: 0, 
+                    borderRadius: '50%',
                     borderColor: '#e5e7eb',
                     color: '#1f2937',
-                    fontWeight: 500,
-                    fontSize: 13,
-                    px: 1.75,
-                    height: 38,
-                    whiteSpace: 'nowrap',
-                    textTransform: 'none',
-                    position: 'relative',
                     backgroundColor: '#fff',
-                    '&:hover': { borderColor: '#c4b5fd', backgroundColor: '#f5f3ff' },
-                    '&::after': {
-                        content: '""',
-                        width: 7,
-                        height: 7,
-                        borderRadius: '50%',
-                        background: '#7c3aed',
-                        position: 'absolute',
-                        top: 6,
-                        right: 6,
+                    p: 0, 
+                    '&:hover': {
+                        borderColor: theme.palette.custom.status.teal.light,
+                        backgroundColor: '#f5f3ff'
                     },
                 }}
             >
-                AI Recommend
+                <AutoAwesome sx={{ fontSize: '20px', color: theme.palette.custom.status.teal.main }} />
             </Button>
 
-            {/* Dialog */}
             <Dialog
                 open={open}
                 onClose={handleClose}
                 maxWidth="sm"
                 fullWidth
                 slotProps={{
-                    paper: {
-                        sx: { borderRadius: 3, overflow: 'hidden' }
-                    }
+                    paper: { sx: { borderRadius: 3, overflow: 'hidden' } }
                 }}
             >
                 <DialogTitle sx={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1.5,
-                    pb: 1.5,
                     borderBottom: '1px solid #f3f4f6',
                 }}>
                     <Box sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        bgcolor: '#f5f3ff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        width: 36, height: 36, borderRadius: 2, bgcolor: '#f5f3ff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                        <AutoAwesome sx={{ fontSize: 18, color: '#7c3aed' }} />
+                        <AutoAwesome sx={{ fontSize: 18, color: theme.palette.custom.status.teal.main }} />
                     </Box>
-
                     <Box sx={{ flex: 1 }}>
                         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#1f2937' }}>
                             AI Recommendations
                         </Typography>
                         <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>
-                            Chọn một profile để tìm kiếm kính phù hợp
+                            Choose a recommedation profile to find suitable products
                         </Typography>
                     </Box>
-
                     <IconButton size="small" onClick={handleClose}>
                         <Close sx={{ fontSize: 20 }} />
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent sx={{ p: 0 }}>
+                <DialogContent sx={{ p: 2, bgcolor: '#f9fafb' }}>
                     {loading ? (
                         <Box sx={{ py: 6, textAlign: 'center' }}>
-                            <CircularProgress />
-                            <Typography sx={{ mt: 1 }}>
-                                Đang tải...
-                            </Typography>
+                            <CircularProgress size={32} />
+                            <Typography sx={{ mt: 1, fontSize: 14, color: '#6b7280' }}>Đang tải...</Typography>
                         </Box>
                     ) : (
-                        <Box sx={{ py: 1 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             {recs.map(rec => {
                                 const isSelected = rec.id === selectedId;
-                                const el = elementColor[rec.element] ?? elementColor.METAL;
-                                const yy = yinYangColor[rec.yinYang] ?? yinYangColor.YIN;
-                                const confPct = Math.round((rec.faceConfidence ?? 0) * 100);
+                                const el = elementColor[rec.element] ?? { bg: '#F1EFE8', text: '#5F5E5A', label: rec.element };
+                                const yy = yinYangColor[rec.yinYang] ?? { bg: '#F1EFE8', text: '#5F5E5A' };
+                                const confidencePct = Math.round((rec.faceConfidence ?? 0) * 100);
 
                                 return (
-                                    <Box
+                                    <Paper
                                         key={rec.id}
+                                        elevation={0}
                                         onClick={() => setSelectedId(isSelected ? null : rec.id)}
                                         sx={{
-                                            mx: 2,
-                                            mb: 1.5,
-                                            p: 2,
-                                            border: isSelected ? '2px solid #7c3aed' : '1px solid #eee',
+                                            border: isSelected ? `2px solid ${theme.palette.custom.status.teal.main}` : '1px solid #e5e7eb',
                                             borderRadius: 2,
+                                            overflow: 'hidden',
                                             cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.05)' },
                                         }}
                                     >
-                                        <Typography fontWeight={600}>
-                                            {rec.name || 'Untitled'}
-                                        </Typography>
 
-                                        <Box sx={{ display: 'flex', gap: 0.5, my: 1 }}>
-                                            <Chip label={faceShapeLabel[rec.faceShape]} size="small" />
-                                            <Chip label={el.label} size="small" />
-                                            <Chip label={rec.yinYang} size="small" />
+                                        <Box sx={{ p: 2 }}>
+                                            <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 1 }}>
+                                                {rec.name || 'Untitled scan'}
+                                            </Typography>
+
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1.5 }}>
+                                                <Chip
+                                                    label={faceShapeLabel[rec.faceShape] || rec.faceShape}
+                                                    size="small"
+                                                    icon={<Face sx={{ fontSize: '14px !important' }} />}
+                                                    sx={{ fontSize: 11, fontWeight: 500, bgcolor: '#F1EFE8', color: '#5F5E5A' }}
+                                                />
+                                                <Chip
+                                                    label={el.label}
+                                                    size="small"
+                                                    sx={{ fontSize: 11, fontWeight: 500, bgcolor: el.bg, color: el.text }}
+                                                />
+                                                <Chip
+                                                    label={rec.yinYang}
+                                                    size="small"
+                                                    sx={{ fontSize: 11, fontWeight: 500, bgcolor: yy.bg, color: yy.text }}
+                                                />
+                                            </Box>
+
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography sx={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', mb: 0.5 }}>
+                                                        Frames
+                                                    </Typography>
+                                                    <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
+                                                        {rec.recommendedFrameStyles?.join(', ') || 'N/A'}
+                                                    </Typography>
+                                                </Box>
+
+                                                <Box>
+                                                    <Typography sx={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', mb: 0.5 }}>
+                                                        Colors
+                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                        {rec.luckyColors?.map(color => (
+                                                            <Box
+                                                                key={color}
+                                                                sx={{
+                                                                    width: 16, height: 16, borderRadius: '50%',
+                                                                    bgcolor: getHexColor(color) || '#000',
+                                                                    border: '1px solid #e5e7eb'
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </Box>
+                                                </Box>
+                                            </Box>
                                         </Box>
-
-                                        <Typography fontSize={12}>
-                                            Frames: <b>{rec.recommendedFrameStyles ?? []}</b>
-                                        </Typography>
-
-                                        <Box sx={{ display: 'flex', gap: 0.5, mt: 1 }}>
-                                            {rec.luckyColors?.map(color => (
-                                                <Chip key={color} label={color} size="small" />
-                                            ))}
-                                        </Box>
-
-                                        <LinearProgress
-                                            variant="determinate"
-                                            value={confPct}
-                                            sx={{ mt: 1 }}
-                                        />
-                                    </Box>
+                                    </Paper>
                                 );
                             })}
                         </Box>
                     )}
                 </DialogContent>
 
-                <DialogActions>
-                    <Button onClick={handleClose}>Huỷ</Button>
+                <DialogActions sx={{ p: 2, borderTop: '1px solid #f3f4f6' }}>
                     <Button
                         variant="contained"
-                        disabled={!selectedRec}
+                        disabled={!selectedId}
                         onClick={handleSearchNow}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: '8px',
+                            px: 3,
+                            bgcolor: theme.palette.custom.status.teal.main,
+                            '&:hover': { bgcolor: theme.palette.custom.status.teal.main }
+                        }}
                     >
-                        Tìm kiếm ngay
+                        Find Products
                     </Button>
                 </DialogActions>
             </Dialog>

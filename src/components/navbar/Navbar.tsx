@@ -41,9 +41,9 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import CartProvider from "@/contexts/CartProvider";
 import { useLayout } from '@/layouts/LayoutContext';
-import { RecommendationSearchButton } from '../custom/RecommendationSearchButton';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
 import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import { RecommendationSearchButton } from "../custom/RecommendationSearchButton";
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');

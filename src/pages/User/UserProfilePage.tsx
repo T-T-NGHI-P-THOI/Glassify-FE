@@ -1,8 +1,3 @@
-// ============================================
-// USER PROFILE PAGE - Trang hiển thị và chỉnh sửa thông tin User
-// Design đồng bộ với ShopProfilePage
-// ============================================
-
 import { useState, useRef, useEffect } from 'react';
 import {
     Box,
@@ -68,8 +63,9 @@ import userApi from "@/api/service/userApi.ts";
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
-import { AutoAwesome, Face, Palette, Crop169, Lens, ExpandMore } from '@mui/icons-material';
-import { RecommendationsTabContent, type UserRecommendationResponse } from './RecommendationTab';
+import { AutoAwesome } from '@mui/icons-material';
+import { RecommendationsTabContent } from './RecommendationTab';
+import type { UserRecommendationResponse } from '@/models/Recommendation';
 
 // ==================== COMPONENT ====================
 
@@ -110,9 +106,6 @@ const UserProfilePage = () => {
     // ========== RECOMMENDATIONS ==========
     const [recommendations, setRecommendations] = useState<UserRecommendationResponse[]>([]);
     const [loadingRecs, setLoadingRecs] = useState(false);
-    const [editingRecId, setEditingRecId] = useState<string | null>(null);
-    const [editingRecName, setEditingRecName] = useState('');
-    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
     const fetchRecommendations = async () => {
         setLoadingRecs(true);
