@@ -34,7 +34,7 @@ export interface WarrantyClaimResponse {
     productImageUrl?: string;
     shopId: string;
     shopName: string;
-    // Customer info (populated for shop-owner views)
+    // Customer info
     customerName?: string;
     customerEmail?: string;
     customerAvatarUrl?: string;
@@ -47,23 +47,36 @@ export interface WarrantyClaimResponse {
     issueImages: string[];
     // Customer logistics address
     customerAddress?: string;
-    // Resolution
+    // Resolution & fault
     resolutionType?: string;
+    faultType?: string;
+    inspectionNote?: string;
     repairCost?: number;
     customerPays?: number;
     returnTrackingNumber?: string;
-    returnDeliveredAt?: string;
     replacementTrackingNumber?: string;
-    replacementDeliveredAt?: string;
     // Shipping fee breakdown
     customerShippingFeeToShop?: number;
     platformSubsidyToShop?: number;
     customerShippingFeeToCustomer?: number;
     platformSubsidyToCustomer?: number;
+    // Escrow
+    escrowAmount?: number;
+    escrowHeldAt?: string;
+    escrowReleasedAt?: string;
+    // Payment
+    paymentStatus?: string;
+    paymentMethod?: string;
+    paidAt?: string;
+    // Actual delivery times (set by GHN webhook)
+    deliveredToShopAt?: string;
+    deliveredToCustomerAt?: string;
     // Status & dates
     status: string;
     submittedAt: string;
     approvedAt?: string;
+    itemReceivedAt?: string;
+    quotedAt?: string;
     rejectedAt?: string;
     rejectionReason?: string;
     completedAt?: string;
@@ -104,6 +117,17 @@ export const warrantyApi = {
         return response.data;
     },
 
+    uploadWarrantyImages: async (files: File[]): Promise<ApiResponse<string[]>> => {
+        const formData = new FormData();
+        files.forEach(file => formData.append('files', file));
+        const response = await axiosInstance.post<ApiResponse<string[]>>(
+            `${API_ENDPOINTS.WARRANTY.CLAIMS}/upload-images`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        return response.data;
+    },
+
     getMyClaims: async (params?: {
         page?: number;
         size?: number;
@@ -117,6 +141,41 @@ export const warrantyApi = {
     getClaimDetail: async (id: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.get<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.WARRANTY.CLAIM_BY_ID(id)
+        );
+        return response.data;
+    },
+
+    payClaimVnpay: async (claimId: string): Promise<ApiResponse<string>> => {
+        const response = await axiosInstance.post<ApiResponse<string>>(
+            API_ENDPOINTS.WARRANTY.PAY_VNPAY(claimId)
+        );
+        return response.data;
+    },
+
+    payClaimWallet: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.PAY_WALLET(claimId)
+        );
+        return response.data;
+    },
+
+    rejectQuote: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.REJECT_QUOTE(claimId)
+        );
+        return response.data;
+    },
+
+    markCustomerReceived: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.RECEIVE(claimId)
+        );
+        return response.data;
+    },
+
+    getWarrantyGhnStatus: async (claimId: string): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.get<ApiResponse<any>>(
+            API_ENDPOINTS.WARRANTY.GHN_STATUS(claimId)
         );
         return response.data;
     },
@@ -163,10 +222,17 @@ export const warrantyApi = {
         return response.data;
     },
 
-    approveShopClaim: async (claimId: string, resolutionType: string, repairCost?: number): Promise<ApiResponse<WarrantyClaimResponse>> => {
+    getShopClaimDetail: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.CLAIM_BY_ID(claimId)
+        );
+        return response.data;
+    },
+
+    approveShopClaim: async (claimId: string, resolutionType: string, faultType?: string, repairCost?: number): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.SHOP_WARRANTY.APPROVE(claimId),
-            { resolutionType, ...(repairCost != null ? { repairCost } : {}) }
+            { resolutionType, faultType, repairCost }
         );
         return response.data;
     },
@@ -178,23 +244,17 @@ export const warrantyApi = {
         return response.data;
     },
 
-    payClaimVnpay: async (claimId: string): Promise<ApiResponse<string>> => {
-        const response = await axiosInstance.post<ApiResponse<string>>(
-            API_ENDPOINTS.WARRANTY.PAY_VNPAY(claimId)
-        );
-        return response.data;
-    },
-
-    payClaimWallet: async (claimId: string): Promise<ApiResponse<string>> => {
-        const response = await axiosInstance.post<ApiResponse<string>>(
-            API_ENDPOINTS.WARRANTY.PAY_WALLET(claimId)
-        );
-        return response.data;
-    },
-
     markItemReceived: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.SHOP_WARRANTY.RECEIVE(claimId)
+        );
+        return response.data;
+    },
+
+    quoteShopClaim: async (claimId: string, resolutionType: string, faultType: string, repairCost: number, inspectionNote?: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.QUOTE(claimId),
+            { resolutionType, faultType, repairCost, inspectionNote }
         );
         return response.data;
     },

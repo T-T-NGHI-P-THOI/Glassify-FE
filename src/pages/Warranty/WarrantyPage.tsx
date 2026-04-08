@@ -49,6 +49,7 @@ import {
   Person,
   Payment,
   AccountBalanceWallet,
+  CheckCircle,
 } from '@mui/icons-material';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { warrantyApi } from '@/api/warranty-api';
@@ -67,7 +68,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== ENUMS (matching backend) ====================
-type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'COMPLETED' | 'DELIVERED';
+type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'ITEM_RECEIVED' | 'REJECTED' | 'QUOTED' | 'QUOTE_REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'RETURNING_TO_CUSTOMER' | 'COMPLETED' | 'DELIVERED';
 type WarrantyIssueType = 'BROKEN_FRAME' | 'BROKEN_LENS' | 'LOOSE_HINGE' | 'COATING_DAMAGE' | 'OTHER';
 
 // ==================== INTERFACES (matching backend models) ====================
@@ -99,6 +100,7 @@ interface WarrantyClaim {
   rejectedAt?: string;
   completedAt?: string;
   status: WarrantyStatus;
+  paymentStatus?: string;
   warrantyExpiresAt?: string;
 }
 
@@ -185,6 +187,89 @@ const getResolutionTypeLabel = (type?: string) => {
 };
 
 // ==================== MAIN PAGE ====================
+const CLAIM_STEPS = ['Submitted', 'Evaluating', 'Repairing', 'Returning', 'Completed'];
+
+const getClaimStepIndex = (status: WarrantyStatus): number => {
+  switch (status) {
+    case 'SUBMITTED':
+    case 'UNDER_REVIEW':
+      return 0;
+    case 'APPROVED':
+    case 'ITEM_RECEIVED':
+    case 'QUOTED':
+    case 'QUOTE_REJECTED':
+      return 1;
+    case 'IN_REPAIR':
+    case 'IN_PROGRESS':
+      return 2;
+    case 'RETURNING_TO_CUSTOMER':
+      return 3;
+    case 'COMPLETED':
+      return 4;
+    case 'REJECTED':
+      return -1;
+    default:
+      return 0;
+  }
+};
+
+const WarrantyStepper = ({ status }: { status: WarrantyStatus }) => {
+  const theme = useTheme();
+  const activeStep = getClaimStepIndex(status);
+
+  if (status === 'REJECTED') {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1.5, px: 2, borderRadius: 1.5, bgcolor: theme.palette.custom.status.error.light, mt: 2 }}>
+        <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.error.main }}>
+          Warranty claim was rejected
+        </Typography>
+      </Box>
+    );
+  }
+
+  const stepIcons = [
+    <Description key="0" sx={{ fontSize: 18 }} />,
+    <VerifiedUser key="1" sx={{ fontSize: 18 }} />,
+    <Build key="2" sx={{ fontSize: 18 }} />,
+    <LocalShipping key="3" sx={{ fontSize: 18 }} />,
+    <CheckCircle key="4" sx={{ fontSize: 18 }} />,
+  ];
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', py: 1, mt: 2 }}>
+      {CLAIM_STEPS.map((label, index) => {
+        const isCompleted = index <= activeStep;
+        const isActive = index === activeStep;
+
+        return (
+          <Box key={label} sx={{ display: 'flex', alignItems: 'center', flex: index < CLAIM_STEPS.length - 1 ? 1 : 'none' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
+              <Box
+                sx={{
+                  width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  bgcolor: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200],
+                  color: isCompleted ? '#fff' : theme.palette.custom.neutral[400],
+                  boxShadow: isActive ? `0 0 0 4px ${theme.palette.custom.status.success.light}` : 'none',
+                  transition: 'all 0.3s',
+                }}
+              >
+                {stepIcons[index]}
+              </Box>
+              <Typography sx={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[400], mt: 0.75, textAlign: 'center' }}>
+                {label}
+              </Typography>
+            </Box>
+            {index < CLAIM_STEPS.length - 1 && (
+              <Box sx={{ flex: 1, height: 3, bgcolor: index < activeStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200], mx: 0.5, mb: 2.5, borderRadius: 2 }} />
+            )}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
 const WarrantyPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
@@ -197,6 +282,8 @@ const WarrantyPage = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
+  const [fetchingGhn, setFetchingGhn] = useState(false);
 
   // Payment dialog
   const [payOpen, setPayOpen] = useState(false);
@@ -285,6 +372,43 @@ const WarrantyPage = () => {
     }
   };
 
+  const handleTrackGhnStatus = async () => {
+    if (!selectedClaim) return;
+    try {
+      setFetchingGhn(true);
+      const res = await warrantyApi.getWarrantyGhnStatus(selectedClaim.id);
+      setGhnStatusData(res.data);
+    } catch {
+      toast.error('Failed to fetch GHN tracking status.');
+    } finally {
+      setFetchingGhn(false);
+    }
+  };
+
+  const handleRejectQuote = async () => {
+    if (!selectedClaim) return;
+    try {
+      await warrantyApi.rejectQuote(selectedClaim.id);
+      toast.success('Quote rejected successfully. Please pay the return shipping fee to get your item back.');
+      setDetailDialogOpen(false);
+      fetchClaims();
+    } catch {
+      toast.error('Failed to reject quote. Please try again.');
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    if (!selectedClaim) return;
+    try {
+      await warrantyApi.markCustomerReceived(selectedClaim.id);
+      toast.success('Received item confirmed!');
+      setDetailDialogOpen(false);
+      fetchClaims();
+    } catch {
+      toast.error('Failed to confirm receipt. Please try again.');
+    }
+  };
+
   const fetchDeliveredOrders = useCallback(async () => {
     try {
       setLoadingOrders(true);
@@ -303,7 +427,7 @@ const WarrantyPage = () => {
   useEffect(() => {
     ghnApi.getProvinces().then((res) => {
       setProvinces(res.data || []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -311,7 +435,7 @@ const WarrantyPage = () => {
     ghnApi.getDistricts(selectedProvinceId).then((res) => {
       const list = res.data || [];
       setDistricts(list);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) { setSelectedDistrictId(''); setDistrictName(''); setSelectedWardCode(''); setWardName(''); }
     skipWardReset.current = false;
   }, [selectedProvinceId]);
@@ -320,7 +444,7 @@ const WarrantyPage = () => {
     if (!selectedDistrictId) { setWards([]); return; }
     ghnApi.getWards(selectedDistrictId as number).then((res) => {
       setWards(res.data || []);
-    }).catch(() => {});
+    }).catch(() => { });
     if (!skipWardReset.current) { setSelectedWardCode(''); setWardName(''); }
   }, [selectedDistrictId]);
 
@@ -384,10 +508,18 @@ const WarrantyPage = () => {
     }
     try {
       setSubmitting(true);
+
+      let imageUrls: string[] = [];
+      if (uploadedImages.length > 0) {
+        const uploadRes = await warrantyApi.uploadWarrantyImages(uploadedImages.map(img => img.file));
+        if (uploadRes.data) imageUrls = uploadRes.data;
+      }
+
       await warrantyApi.submitClaim({
         orderItemId: formData.orderItemId,
         issueType: formData.issueType,
         issueDescription: formData.issueDescription,
+        issueImages: imageUrls,
         customerName: pickupName,
         customerPhone: pickupPhone,
         customerAddress: pickupAddressLine,
@@ -408,20 +540,25 @@ const WarrantyPage = () => {
   const getStatusColor = (status: WarrantyStatus) => {
     switch (status) {
       case 'SUBMITTED':
-        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'UNDER_REVIEW':
         return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'APPROVED':
+      case 'ITEM_RECEIVED':
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
+      case 'QUOTED':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
+      case 'QUOTE_REJECTED':
+      case 'REJECTED':
+        return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       case 'IN_PROGRESS':
       case 'IN_REPAIR':
         return { bg: theme.palette.custom.status.purple.light, color: theme.palette.custom.status.purple.main };
+      case 'RETURNING_TO_CUSTOMER':
+        return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'COMPLETED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
       case 'DELIVERED':
         return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
-      case 'REJECTED':
-        return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
     }
@@ -432,8 +569,12 @@ const WarrantyPage = () => {
       case 'SUBMITTED': return 'Submitted';
       case 'UNDER_REVIEW': return 'Under Review';
       case 'APPROVED': return 'Approved';
+      case 'ITEM_RECEIVED': return 'Item Received at Shop';
+      case 'QUOTED': return 'Quoted';
+      case 'QUOTE_REJECTED': return 'Quote Rejected';
       case 'IN_PROGRESS': return 'In Progress';
       case 'IN_REPAIR': return 'In Repair';
+      case 'RETURNING_TO_CUSTOMER': return 'Returning';
       case 'COMPLETED': return 'Completed';
       case 'DELIVERED': return 'Awaiting Payment';
       case 'REJECTED': return 'Rejected';
@@ -470,14 +611,14 @@ const WarrantyPage = () => {
   const filteredClaims = claims.filter((claim) => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return claim.status === 'SUBMITTED' || claim.status === 'UNDER_REVIEW';
-    if (activeTab === 2) return claim.status === 'APPROVED' || claim.status === 'IN_PROGRESS' || claim.status === 'IN_REPAIR';
+    if (activeTab === 2) return claim.status === 'APPROVED' || claim.status === 'ITEM_RECEIVED' || claim.status === 'QUOTED' || claim.status === 'QUOTE_REJECTED' || claim.status === 'IN_PROGRESS' || claim.status === 'IN_REPAIR' || claim.status === 'RETURNING_TO_CUSTOMER';
     if (activeTab === 3) return claim.status === 'COMPLETED' || claim.status === 'DELIVERED';
     if (activeTab === 4) return claim.status === 'REJECTED';
     return true;
   });
 
   const submittedCount = claims.filter((c) => c.status === 'SUBMITTED' || c.status === 'UNDER_REVIEW').length;
-  const activeCount = claims.filter((c) => c.status === 'APPROVED' || c.status === 'IN_PROGRESS' || c.status === 'IN_REPAIR').length;
+  const activeCount = claims.filter((c) => c.status === 'APPROVED' || c.status === 'QUOTED' || c.status === 'QUOTE_REJECTED' || c.status === 'IN_PROGRESS' || c.status === 'IN_REPAIR' || c.status === 'RETURNING_TO_CUSTOMER').length;
   const completedCount = claims.filter((c) => c.status === 'COMPLETED' || c.status === 'DELIVERED').length;
   const rejectedCount = claims.filter((c) => c.status === 'REJECTED').length;
 
@@ -981,7 +1122,10 @@ const WarrantyPage = () => {
       {/* ==================== CLAIM DETAIL DIALOG ==================== */}
       <Dialog
         open={detailDialogOpen}
-        onClose={() => setDetailDialogOpen(false)}
+        onClose={() => {
+          setDetailDialogOpen(false);
+          setGhnStatusData(null);
+        }}
         maxWidth="md"
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
@@ -1056,6 +1200,7 @@ const WarrantyPage = () => {
                     </Typography>
                   </Box>
                 </Box>
+                <WarrantyStepper status={selectedClaim.status} />
               </Box>
             </DialogTitle>
 
@@ -1328,9 +1473,21 @@ const WarrantyPage = () => {
                   {/* ---- Tracking Numbers ---- */}
                   {(selectedClaim.returnTrackingNumber || selectedClaim.replacementTrackingNumber) && (
                     <Box>
-                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
-                        Tracking
-                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Live Tracking
+                        </Typography>
+                        <Button
+                          variant="text"
+                          size="small"
+                          startIcon={fetchingGhn ? <CircularProgress size={14} /> : <LocalShipping sx={{ fontSize: 14 }} />}
+                          onClick={handleTrackGhnStatus}
+                          disabled={fetchingGhn}
+                          sx={{ textTransform: 'none', fontSize: 12, fontWeight: 600, p: 0, minWidth: 'auto', '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}
+                        >
+                          {fetchingGhn ? 'Checking...' : 'Check GHN Status'}
+                        </Button>
+                      </Box>
                       <Box
                         sx={{
                           p: 2,
@@ -1361,6 +1518,35 @@ const WarrantyPage = () => {
                             <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.success.main, fontFamily: 'monospace' }}>
                               {selectedClaim.replacementTrackingNumber}
                             </Typography>
+                          </Box>
+                        )}
+
+                        {ghnStatusData && (
+                          <Box sx={{ mt: 1, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.neutral[50], border: `1px dashed ${theme.palette.custom.border.main}` }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Active Leg:</Typography>
+                                <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{ghnStatusData.activeLeg}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Tracking No:</Typography>
+                                <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{ghnStatusData.trackingCode || '—'}</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Status:</Typography>
+                                <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.primary.main, textTransform: 'capitalize' }}>
+                                  {ghnStatusData.status || 'UNKNOWN'}
+                                </Typography>
+                              </Box>
+                              {(ghnStatusData.message || ghnStatusData.ghnData?.Reason) && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Note:</Typography>
+                                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                                    {ghnStatusData.message || ghnStatusData.ghnData?.Reason}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
                           </Box>
                         )}
                       </Box>
@@ -1397,14 +1583,34 @@ const WarrantyPage = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1 }}>
-              {selectedClaim.status === 'COMPLETED' && selectedClaim.customerPays != null && (
+              {(selectedClaim.status === 'QUOTED' || selectedClaim.status === 'QUOTE_REJECTED') && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
                 <Button
                   variant="contained"
                   startIcon={<Payment />}
                   onClick={() => { setDetailDialogOpen(false); handleOpenPay(); }}
                   sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#b45309' } }}
                 >
-                  Pay Now — {selectedClaim.customerPays != null ? `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND` : '...'}
+                  Pay Now — {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
+                </Button>
+              )}
+              {selectedClaim.status === 'QUOTED' && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Cancel />}
+                  onClick={handleRejectQuote}
+                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', color: theme.palette.custom.status.error.main, borderColor: theme.palette.custom.status.error.main, '&:hover': { bgcolor: theme.palette.custom.status.error.light, borderColor: theme.palette.custom.status.error.main } }}
+                >
+                  Reject Quote
+                </Button>
+              )}
+              {selectedClaim.status === 'RETURNING_TO_CUSTOMER' && (
+                <Button
+                  variant="contained"
+                  startIcon={<AssignmentTurnedIn />}
+                  onClick={handleConfirmReceipt}
+                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.success.main, '&:hover': { bgcolor: '#15803d' } }}
+                >
+                  Confirm Receipt
                 </Button>
               )}
               <Box sx={{ flex: 1 }} />
