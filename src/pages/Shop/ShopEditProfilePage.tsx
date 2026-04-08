@@ -42,6 +42,7 @@ import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse, UpdateShopRequest, ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard, BusinessLicenseRequest } from '@/models/Shop';
+import type { DeactivationStatus } from '@/api/shopApi';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
@@ -77,7 +78,7 @@ const ShopEditProfilePage = () => {
   const [deactivateReason, setDeactivateReason] = useState('');
   const [deactivateEndDate, setDeactivateEndDate] = useState('');
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
-  const [pendingDeactivation, setPendingDeactivation] = useState(false);
+  const [deactivationInfo, setDeactivationInfo] = useState<DeactivationStatus | null>(null);
   const [closeShopDialogOpen, setCloseShopDialogOpen] = useState(false);
   const [closeShopReason, setCloseShopReason] = useState('');
   const [closeShopConfirm, setCloseShopConfirm] = useState(false);
@@ -183,7 +184,12 @@ const ShopEditProfilePage = () => {
             licenseImageUrl: shopData.businessLicense.licenseImageUrl || '',
           });
         }
-        setPendingDeactivation(shopData.status === 'PENDING_DEACTIVATION');
+        try {
+          const deactRes = await shopApi.getDeactivationStatus(shopData.id);
+          setDeactivationInfo(deactRes.data ?? null);
+        } catch {
+          setDeactivationInfo(null);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch shop:', error);
@@ -251,11 +257,6 @@ const ShopEditProfilePage = () => {
     }
   };
 
-  const handleToggleStatus = () => {
-    if (!shop) return;
-    if (shop.status === 'ACTIVE') setDeactivateDialogOpen(true);
-    else if (shop.status === 'INACTIVE') setReactivateDialogOpen(true);
-  };
 
   const handleDeactivate = async () => {
     if (!shop?.id) return;
@@ -266,11 +267,10 @@ const ShopEditProfilePage = () => {
       await shopApi.deactivateRequest(shop.id, deactivateReason, deactivateEndDate);
       toast.success('Deactivation request submitted successfully');
       setDeactivateDialogOpen(false); setDeactivateReason(''); setDeactivateEndDate('');
-      setPendingDeactivation(true);
-      fetchShop();
+      await fetchShop();
     } catch (error) {
       console.error('Failed to submit deactivation request:', error);
-      toast.error('Failed to submit deactivation request');
+      toast.error((error as any).message || 'Failed to submit deactivation request');
     } finally { setTogglingStatus(false); }
   };
 
@@ -279,12 +279,12 @@ const ShopEditProfilePage = () => {
     try {
       setTogglingStatus(true);
       await shopApi.reactivateRequest(shop.id);
-      toast.success('Reactivation request submitted successfully');
+      toast.success('Shop reactivated successfully');
       setReactivateDialogOpen(false);
-      fetchShop();
+      await fetchShop();
     } catch (error) {
-      console.error('Failed to submit reactivation request:', error);
-      toast.error('Failed to submit reactivation request');
+      console.error('Failed to reactivate shop:', error);
+      toast.error('Failed to reactivate shop');
     } finally { setTogglingStatus(false); }
   };
 
@@ -295,8 +295,8 @@ const ShopEditProfilePage = () => {
       setTogglingStatus(true);
       await shopApi.cancelDeactivate(shop.id);
       toast.success('Deactivation request cancelled');
-      setPendingDeactivation(false);
-      fetchShop();
+      setDeactivationInfo(null);
+      await fetchShop();
     } catch (error) {
       console.error('Failed to cancel deactivation:', error);
       toast.error('Failed to cancel deactivation request');
@@ -315,7 +315,7 @@ const ShopEditProfilePage = () => {
       fetchShop();
     } catch (error) {
       console.error('Failed to submit close shop request:', error);
-      toast.error('Failed to submit close shop request');
+      toast.error((error as any).message || 'Failed to submit close shop request');
     } finally { setTogglingStatus(false); }
   };
 
@@ -385,6 +385,18 @@ const ShopEditProfilePage = () => {
     }
   };
 
+  // Format ngày dd/MM/yyyy
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  // Tính số ngày còn lại đến closeAt
+  const getClosureDaysRemaining = (): number | null => {
+    if (!shop) return null;
+    // Lấy scheduledCloseAt nếu BE trả về, hoặc tính từ createdAt closing
+    // Dùng deactivationInfo nếu có, hoặc tính xấp xỉ
+    return 30; // mặc định 30 ngày theo backend CLOSURE_DELAY_DAYS
+  };
+
   const nameChangeable = canChangeShopName();
   const daysLeft = getDaysUntilNameChange();
   const isShopInactive = shop?.status === 'INACTIVE';
@@ -392,6 +404,12 @@ const ShopEditProfilePage = () => {
   const isPendingReview = shop?.status === 'PENDING' && shop?.latestRequestStatus !== 'REJECTED';
   const isRequestRejected = shop?.status === 'PENDING' && shop?.latestRequestStatus === 'REJECTED';
   const isShopDisabled = isShopInactive || isShopClosing || isPendingReview;
+
+  // Deactivation state derived from API
+  const isScheduledDeactivation = deactivationInfo?.status === 'SCHEDULED';
+  const withinDeactivationCancelWindow = isScheduledDeactivation &&
+    !!deactivationInfo?.canCancelBefore &&
+    new Date() < new Date(deactivationInfo.canCancelBefore);
 
   if (loading) {
     return (
@@ -528,7 +546,7 @@ const ShopEditProfilePage = () => {
                     label={`${shop.commissionRate}% commission`} size="small"
                     sx={{ bgcolor: '#f1f5f9', color: '#475569', fontWeight: 500, fontSize: 11, height: 22 }}
                   />
-                  {pendingDeactivation && (
+                  {isScheduledDeactivation && (
                     <Chip
                       label="Pending Deactivation" size="small"
                       sx={{ bgcolor: '#FEF3C7', color: '#D97706', fontWeight: 700, fontSize: 11, height: 22 }}
@@ -540,28 +558,32 @@ const ShopEditProfilePage = () => {
 
             {/* Right — action buttons */}
             <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {shop.status === 'ACTIVE' && !pendingDeactivation && (
-                <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={handleToggleStatus} disabled={togglingStatus}
+              {/* ACTIVE + no pending deactivation → Deactivate */}
+              {shop.status === 'ACTIVE' && !isScheduledDeactivation && (
+                <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={() => setDeactivateDialogOpen(true)} disabled={togglingStatus}
                   sx={{ borderColor: '#FCA5A5', color: '#FCA5A5', '&:hover': { borderColor: '#F87171', bgcolor: 'rgba(248,113,113,0.1)' } }}>
                   Deactivate
                 </Button>
               )}
-              {(shop.status === 'PENDING' || pendingDeactivation) && (
+              {/* Scheduled deactivation + within cancel window → Cancel Request */}
+              {isScheduledDeactivation && withinDeactivationCancelWindow && (
                 <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={handleCancelDeactivate} disabled={togglingStatus}
                   sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}>
                   Cancel Request
                 </Button>
               )}
+              {/* INACTIVE → Reactivate */}
+              {shop.status === 'INACTIVE' && (
+                <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={() => setReactivateDialogOpen(true)} disabled={togglingStatus}
+                  sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}>
+                  Reactivate
+                </Button>
+              )}
+              {/* CLOSING → Cancel Close */}
               {isShopClosing && (
                 <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={handleCancelCloseShop} disabled={togglingStatus}
                   sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}>
                   Cancel Close
-                </Button>
-              )}
-              {shop.status === 'INACTIVE' && (
-                <Button variant="outlined" startIcon={togglingStatus ? <CircularProgress size={15} /> : <PowerSettingsNew />} onClick={handleToggleStatus} disabled={togglingStatus}
-                  sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}>
-                  Reactivate
                 </Button>
               )}
               {isRequestRejected && (
@@ -591,29 +613,66 @@ const ShopEditProfilePage = () => {
 
         <Box sx={{ p: 4 }}>
 
-          {/* Alerts */}
+          {/* ── Alerts ── */}
+
           {isShopInactive && (
-            <Alert severity="warning" sx={{ mb: 3 }}>Your shop is currently <strong>inactive</strong>. Please activate your shop to make changes.</Alert>
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              Your shop is currently <strong>inactive</strong>. Please reactivate your shop to make changes or receive orders.
+            </Alert>
           )}
+
           {isShopClosing && (
-            <Alert severity="error" sx={{ mb: 3 }}>Your shop is scheduled to be <strong>permanently closed</strong> after 30 days. All fields are disabled during this period. If you do not wish to close your shop, please click the <strong>Cancel Close</strong> button to cancel.</Alert>
+            <Alert severity="error" sx={{ mb: 3 }}>
+              Your shop is in the <strong>closing process</strong>. It will be <strong>permanently closed after 30 days</strong> from the closure request date.
+              All fields are disabled during this period. If you wish to keep your shop, click <strong>Cancel Close</strong> before the deadline.
+            </Alert>
           )}
+
           {isPendingReview && (
             <Alert severity="warning" icon={<AccessTime />} sx={{ mb: 3, borderRadius: 2 }}>
               <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Pending Approval</Typography>
-              <Typography sx={{ fontSize: 14 }}>Your shop registration is currently being reviewed. All fields are disabled until the review is complete.</Typography>
+              <Typography sx={{ fontSize: 14 }}>Your shop registration is currently being reviewed by our team. All fields are disabled until the review is complete.</Typography>
             </Alert>
           )}
+
           {isRequestRejected && (
             <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
               <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Registration Rejected</Typography>
-              <Typography sx={{ fontSize: 14 }}>Your shop registration has been rejected. Please update your information and resubmit.</Typography>
+              <Typography sx={{ fontSize: 14 }}>Your shop registration has been rejected. Please update your information and resubmit for review.</Typography>
               {shop.rejectionReason && <Typography sx={{ fontSize: 14, mt: 1 }}><strong>Reason:</strong> {shop.rejectionReason}</Typography>}
               {shop.adminComment && <Typography sx={{ fontSize: 14, mt: 0.5 }}><strong>Admin comment:</strong> {shop.adminComment}</Typography>}
             </Alert>
           )}
-          {pendingDeactivation && (
-            <Alert severity="warning" sx={{ mb: 3 }}>Your shop has a pending deactivation request. You can cancel it before it takes effect.</Alert>
+
+          {/* Alert: in-transit orders warning (deactivation allowed but orders ongoing) */}
+          {shop.warning && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Orders Still in Transit</Typography>
+              <Typography sx={{ fontSize: 14 }}>{shop.warning}</Typography>
+            </Alert>
+          )}
+
+          {/* Alert: scheduled deactivation */}
+          {isScheduledDeactivation && deactivationInfo && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation Scheduled</Typography>
+              <Typography sx={{ fontSize: 14 }}>
+                Your shop is scheduled to be <strong>deactivated at 23:59:59 tomorrow</strong>.
+                {deactivationInfo.reactivateAt && (
+                  <> It will automatically reactivate on <strong>{formatDate(String(deactivationInfo.reactivateAt))}</strong>.</>
+                )}
+              </Typography>
+              {withinDeactivationCancelWindow && (
+                <Typography sx={{ fontSize: 13, mt: 0.75, color: 'inherit' }}>
+                  ⏱ You can still cancel this request before <strong>23:59:59 tomorrow</strong> using the <strong>Cancel Request</strong> button above.
+                </Typography>
+              )}
+              {!withinDeactivationCancelWindow && (
+                <Typography sx={{ fontSize: 13, mt: 0.75, color: 'inherit' }}>
+                  ⚠ The cancellation window has passed. Deactivation is now in effect.
+                </Typography>
+              )}
+            </Alert>
           )}
 
           {/* Shop Name */}
@@ -621,7 +680,7 @@ const ShopEditProfilePage = () => {
             <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>Shop Name</Typography>
             {!nameChangeable && !isRequestRejected && (
               <Alert severity="warning" icon={<Lock fontSize="small" />} sx={{ mb: 2, borderRadius: 1.5 }}>
-                Shop name can only be changed after 60 days from creation.
+                Shop name can only be changed after <strong>60 days</strong> from activation. Available in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong>.
               </Alert>
             )}
             <Tooltip title={!nameChangeable && !isRequestRejected ? `Available in ${daysLeft} days` : ''} placement="top">
@@ -826,18 +885,35 @@ const ShopEditProfilePage = () => {
 
       {/* ── DIALOGS ─────────────────────────────────────────────────────── */}
 
-      {/* Deactivate */}
+      {/* Deactivate Dialog */}
       <Dialog open={deactivateDialogOpen} onClose={() => !togglingStatus && setDeactivateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600 }}>Deactivate Shop</DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 3 }}>Are you sure you want to deactivate your shop? This will prevent customers from viewing and ordering from your shop.</Typography>
+          {/* === UPDATED MESSAGE === */}
+          <Alert severity="warning" sx={{ mb: 2.5 }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation takes effect at 23:59:59 tomorrow</Typography>
+            <Typography sx={{ fontSize: 13 }}>
+              Your shop will stop accepting orders from <strong>23:59:59 tomorrow</strong> until the end date you select.
+              You can cancel this request anytime <strong>before 23:59:59 tomorrow</strong>. After that, cancellation is no longer possible.
+            </Typography>
+          </Alert>
           <FormControl fullWidth required sx={{ mb: 2.5 }}>
             <InputLabel>Reason for deactivation</InputLabel>
             <Select label="Reason for deactivation" value={deactivateReason} onChange={(e) => setDeactivateReason(e.target.value)} disabled={togglingStatus}>
               {DEACTIVATE_REASONS.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
             </Select>
           </FormControl>
-          <TextField fullWidth type="date" label="End Date" value={deactivateEndDate} onChange={(e) => setDeactivateEndDate(e.target.value)} disabled={togglingStatus} required InputLabelProps={{ shrink: true }} inputProps={{ min: new Date().toISOString().split('T')[0] }} helperText="Select the date when the shop should be deactivated" />
+          <TextField
+            fullWidth type="date"
+            label="Reactivation Date"
+            value={deactivateEndDate}
+            onChange={(e) => setDeactivateEndDate(e.target.value)}
+            disabled={togglingStatus}
+            required
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: new Date(Date.now() + 86400000).toISOString().split('T')[0] }}
+            helperText="Your shop will automatically reactivate at 23:59:59 on this date"
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, pt: 0, flexDirection: 'column', alignItems: 'stretch', gap: 1 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -853,11 +929,18 @@ const ShopEditProfilePage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Close Shop */}
+      {/* Close Shop Dialog */}
       <Dialog open={closeShopDialogOpen} onClose={() => !togglingStatus && setCloseShopDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600, color: theme.palette.custom.status.error.main }}>Close Shop</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600, color: theme.palette.custom.status.error.main }}>Close Shop Permanently</DialogTitle>
         <DialogContent>
-          <Alert severity="error" sx={{ mb: 3 }}>This action will permanently close your shop after 30 days. All products will be removed and customers will no longer be able to access your shop. This cannot be undone after the 30-day period.</Alert>
+          {/* === UPDATED MESSAGE === */}
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>⚠ This action will permanently close your shop after 30 days</Typography>
+            <Typography sx={{ fontSize: 13 }}>
+              During this period, your shop remains visible but cannot accept new orders. You may cancel this request anytime within the 30-day window.
+              After the 30-day period, <strong>this action cannot be undone</strong>.
+            </Typography>
+          </Alert>
           <FormControl fullWidth required sx={{ mb: 2.5 }}>
             <InputLabel>Reason for closing</InputLabel>
             <Select label="Reason for closing" value={closeShopReason} onChange={(e) => setCloseShopReason(e.target.value)} disabled={togglingStatus}>
@@ -866,7 +949,11 @@ const ShopEditProfilePage = () => {
           </FormControl>
           <FormControlLabel
             control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
-            label={<Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>I understand that my shop will be permanently closed after 30 days and this action cannot be reversed after that period.</Typography>}
+            label={
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+                I understand that my shop will be <strong>permanently closed after 30 days</strong> and this action cannot be reversed after that period.
+              </Typography>
+            }
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -877,11 +964,13 @@ const ShopEditProfilePage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Reactivate */}
+      {/* Reactivate Dialog */}
       <Dialog open={reactivateDialogOpen} onClose={() => !togglingStatus && setReactivateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600 }}>Reactivate Shop</DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>Are you sure you want to reactivate your shop? This will allow customers to view and order from your shop again.</Typography>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+            Are you sure you want to reactivate your shop? Your shop will be <strong>immediately active</strong> and customers will be able to view and place orders again.
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setReactivateDialogOpen(false)} disabled={togglingStatus}>Cancel</Button>

@@ -613,6 +613,7 @@ const ShipmentDetailPage = () => {
               borderTop: `1px solid ${theme.palette.custom.border.light}`,
               display: 'flex',
               justifyContent: 'flex-end',
+              alignItems: 'center',
               gap: 4,
             }}
           >
@@ -623,76 +624,17 @@ const ShipmentDetailPage = () => {
               Discount: <strong>{formatCurrency(order.discountAmount)}</strong>
             </Typography>
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Total: <strong>{formatCurrency(order.totalAmount)}</strong>
+              Order price: <strong>{formatCurrency(order.totalAmount)}</strong>
             </Typography>
+            <Box sx={{ borderLeft: `1px solid ${theme.palette.custom.border.light}`, pl: 4 }}>
+              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>
+                Grand Total (incl. shipping)
+              </Typography>
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
+                {formatCurrency(order.totalAmount + order.shippingFee)}
+              </Typography>
+            </Box>
           </Box>
-        </Paper>
-
-        {/* Return & Refund */}
-        <Paper
-          elevation={0}
-          sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}
-        >
-          <Accordion defaultExpanded={['RETURN_IN_TRANSIT', 'REJECTED_BY_CUSTOMER'].includes(order.status) || !!order.returnReason}>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <ReportProblem
-                  sx={{ color: order.returnReason ? theme.palette.custom.status.warning.main : theme.palette.custom.neutral[500] }}
-                />
-                <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                  Return &amp; Refund Information
-                </Typography>
-                {order.returnReason && (
-                  <Chip
-                    label="Returned"
-                    size="small"
-                    sx={{
-                      backgroundColor: theme.palette.custom.status.error.light,
-                      color: theme.palette.custom.status.error.main,
-                      fontWeight: 600,
-                      fontSize: 12,
-                      height: 24,
-                    }}
-                  />
-                )}
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              {!order.returnReason ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <CheckCircle sx={{ fontSize: 48, color: theme.palette.custom.status.success.main, mb: 2 }} />
-                  <Typography sx={{ color: theme.palette.custom.neutral[500] }}>
-                    No return request for this order
-                  </Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, p: 1 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>RETURN REASON</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{order.returnReason}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>RETURNED AT</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formatDate(order.returnedAt)}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>REFUND AMOUNT</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.success.main }}>
-                      {order.refundAmount != null ? formatCurrency(order.refundAmount) : '—'}
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>REFUNDED AT</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formatDate(order.refundedAt)}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>RETURN IN TRANSIT AT</Typography>
-                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>{formatDate(order.returnInTransitAt)}</Typography>
-                  </Box>
-                </Box>
-              )}
-            </AccordionDetails>
-          </Accordion>
         </Paper>
       </Box>
     </Box>

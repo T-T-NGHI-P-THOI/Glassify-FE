@@ -38,6 +38,7 @@ import {
   ArrowBack,
   ReceiptLong,
   Info,
+  Description,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
@@ -54,8 +55,12 @@ const STATUS_LABEL: Record<string, string> = {
   SUBMITTED: 'Submitted',
   UNDER_REVIEW: 'Under Review',
   APPROVED: 'Approved',
+  ITEM_RECEIVED: 'Item Received',
+  QUOTED: 'Quoted',
+  QUOTE_REJECTED: 'Quote Rejected',
   IN_REPAIR: 'In Repair',
   IN_PROGRESS: 'In Progress',
+  RETURNING_TO_CUSTOMER: 'Returning',
   COMPLETED: 'Completed',
   REJECTED: 'Rejected',
 };
@@ -72,6 +77,11 @@ const RESOLUTION_OPTIONS = [
   { value: 'REPAIR', label: 'Repair', desc: 'Product is repaired and returned to customer' },
   { value: 'REPLACE', label: 'Replacement', desc: 'Product is replaced with a new unit' },
   { value: 'REFUND', label: 'Refund', desc: 'Customer is refunded for the product' },
+];
+
+const FAULT_TYPE_OPTIONS = [
+  { value: 'SHOP_FAULT', label: 'Shop/Manufacturer Fault', desc: 'Covered by warranty. Customer pays nothing.' },
+  { value: 'CUSTOMER_FAULT', label: 'Customer Fault', desc: 'Not covered by warranty. Customer pays for service and shipping.' },
 ];
 
 const formatDate = (dateString?: string) => {
@@ -97,13 +107,95 @@ const formatDateTime = (dateString?: string) => {
 const TABS = [
   { label: 'All', statuses: [] as string[] },
   { label: 'Pending Review', statuses: ['SUBMITTED', 'UNDER_REVIEW'] },
-  { label: 'In Progress', statuses: ['APPROVED', 'IN_REPAIR', 'IN_PROGRESS'] },
+  { label: 'In Progress', statuses: ['APPROVED', 'ITEM_RECEIVED', 'QUOTED', 'QUOTE_REJECTED', 'IN_REPAIR', 'IN_PROGRESS', 'RETURNING_TO_CUSTOMER'] },
   { label: 'Completed', statuses: ['COMPLETED'] },
   { label: 'Rejected', statuses: ['REJECTED'] },
 ];
 
 const isPendingReview = (status: string) => status === 'SUBMITTED' || status === 'UNDER_REVIEW';
-const isInProgress = (status: string) => status === 'APPROVED' || status === 'IN_REPAIR' || status === 'IN_PROGRESS';
+const isInProgress = (status: string) => status === 'APPROVED' || status === 'ITEM_RECEIVED' || status === 'QUOTED' || status === 'QUOTE_REJECTED' || status === 'IN_REPAIR' || status === 'IN_PROGRESS' || status === 'RETURNING_TO_CUSTOMER';
+
+const CLAIM_STEPS = ['Submitted', 'Evaluating', 'Repairing', 'Returning', 'Completed'];
+
+const getClaimStepIndex = (status: string): number => {
+  switch (status) {
+    case 'SUBMITTED':
+    case 'UNDER_REVIEW':
+      return 0; // Submitted
+    case 'APPROVED':
+    case 'QUOTED':
+    case 'QUOTE_REJECTED':
+      return 1; // Evaluating
+    case 'IN_REPAIR':
+    case 'IN_PROGRESS':
+      return 2; // Repairing
+    case 'RETURNING_TO_CUSTOMER':
+      return 3; // Returning
+    case 'COMPLETED':
+      return 4; // Completed
+    case 'REJECTED':
+      return -1; // Cancelled
+    default:
+      return 0;
+  }
+};
+
+const WarrantyStepper = ({ status }: { status: string }) => {
+  const theme = useTheme();
+  const activeStep = getClaimStepIndex(status);
+
+  if (status === 'REJECTED') {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1.5, px: 2, borderRadius: 1.5, bgcolor: theme.palette.custom.status.error.light, mt: 2 }}>
+        <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.error.main }}>
+          Warranty claim was rejected
+        </Typography>
+      </Box>
+    );
+  }
+
+  const stepIcons = [
+    <Description key="0" sx={{ fontSize: 18 }} />,
+    <VerifiedUser key="1" sx={{ fontSize: 18 }} />,
+    <Build key="2" sx={{ fontSize: 18 }} />,
+    <LocalShipping key="3" sx={{ fontSize: 18 }} />,
+    <CheckCircle key="4" sx={{ fontSize: 18 }} />,
+  ];
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', py: 1, mt: 2 }}>
+      {CLAIM_STEPS.map((label, index) => {
+        const isCompleted = index <= activeStep;
+        const isActive = index === activeStep;
+
+        return (
+          <Box key={label} sx={{ display: 'flex', alignItems: 'center', flex: index < CLAIM_STEPS.length - 1 ? 1 : 'none' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
+              <Box
+                sx={{
+                  width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  bgcolor: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200],
+                  color: isCompleted ? '#fff' : theme.palette.custom.neutral[400],
+                  boxShadow: isActive ? `0 0 0 4px ${theme.palette.custom.status.success.light}` : 'none',
+                  transition: 'all 0.3s',
+                }}
+              >
+                {stepIcons[index]}
+              </Box>
+              <Typography sx={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[400], mt: 0.75, textAlign: 'center' }}>
+                {label}
+              </Typography>
+            </Box>
+            {index < CLAIM_STEPS.length - 1 && (
+              <Box sx={{ flex: 1, height: 3, bgcolor: index < activeStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200], mx: 0.5, mb: 2.5, borderRadius: 2 }} />
+            )}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
 
 const ShopWarrantyPage = () => {
   const { setShowNavbar, setShowFooter } = useLayout();
@@ -124,17 +216,41 @@ const ShopWarrantyPage = () => {
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveStep, setApproveStep] = useState<1 | 2>(1);
   const [resolutionType, setResolutionType] = useState('REPAIR');
+  const [faultType, setFaultType] = useState('SHOP_FAULT');
   const [repairCostInput, setRepairCostInput] = useState('');
+  const [inspectionNote, setInspectionNote] = useState('');
   const [actioning, setActioning] = useState(false);
 
   const resetApproveDialog = () => {
     setApproveStep(1);
     setRepairCostInput('');
+    setInspectionNote('');
+    setFaultType('SHOP_FAULT');
+    setResolutionType('REPAIR');
+  };
+
+  const handleOpenApproveOrQuote = () => {
+    if (!selected) return;
+    setResolutionType(selected.resolutionType || 'REPAIR');
+    setFaultType(selected.faultType || 'SHOP_FAULT');
+    setRepairCostInput(selected.repairCost != null ? selected.repairCost.toString() : '');
+    setInspectionNote(selected.inspectionNote || '');
+
+    // When quoting a received item, default to Customer Fault if no fault set yet
+    // because Shops usually quote for non-warranty repairs.
+    if (selected.status === 'ITEM_RECEIVED' && !selected.faultType) {
+      setFaultType('CUSTOMER_FAULT');
+    }
+
+    setApproveOpen(true);
   };
 
   // Reject dialog
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+
+  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
+  const [fetchingGhn, setFetchingGhn] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -171,13 +287,15 @@ const ShopWarrantyPage = () => {
     switch (status) {
       case 'SUBMITTED': case 'UNDER_REVIEW':
         return { bg: custom.status.warning.light, color: custom.status.warning.main };
-      case 'APPROVED':
+      case 'APPROVED': case 'ITEM_RECEIVED': case 'RETURNING_TO_CUSTOMER':
         return { bg: custom.status.info.light, color: custom.status.info.main };
+      case 'QUOTED':
+        return { bg: custom.status.warning.light, color: custom.status.warning.main };
       case 'IN_REPAIR': case 'IN_PROGRESS':
         return { bg: custom.status.purple.light, color: custom.status.purple.main };
       case 'COMPLETED':
         return { bg: custom.status.success.light, color: custom.status.success.main };
-      case 'REJECTED':
+      case 'QUOTE_REJECTED': case 'REJECTED':
         return { bg: custom.status.error.light, color: custom.status.error.main };
       default:
         return { bg: custom.neutral[100], color: custom.neutral[500] };
@@ -192,16 +310,26 @@ const ShopWarrantyPage = () => {
     if (!selected) return;
     try {
       setActioning(true);
-      const res = await warrantyApi.approveShopClaim(selected.id, resolutionType, repairCostInput ? Number(repairCostInput) : undefined);
+      const repairCost = repairCostInput ? Number(repairCostInput) : undefined;
+
+      let res;
+      if (selected.status === 'ITEM_RECEIVED' || selected.status === 'QUOTED') {
+        res = await warrantyApi.quoteShopClaim(selected.id, resolutionType, faultType, repairCost || 0, inspectionNote);
+      } else {
+        res = await warrantyApi.approveShopClaim(selected.id, resolutionType, faultType, repairCost);
+      }
+
       if (res.data) {
         setClaims((prev) => prev.map((c) => c.id === selected.id ? res.data! : c));
         setSelected(res.data);
       }
-      toast.success('Warranty claim approved — customer will be notified to ship the product');
+      toast.success(res.data?.status === 'QUOTED'
+        ? 'Warranty claim quoted — customer will be notified to pay'
+        : 'Warranty claim approved — customer will be notified to ship');
       setApproveOpen(false);
       resetApproveDialog();
     } catch {
-      toast.error('Failed to approve claim');
+      toast.error('Failed to process claim');
     } finally {
       setActioning(false);
     }
@@ -257,6 +385,19 @@ const ShopWarrantyPage = () => {
       toast.error('Failed to complete claim');
     } finally {
       setActioning(false);
+    }
+  };
+
+  const handleTrackGhnStatus = async () => {
+    if (!selected) return;
+    try {
+      setFetchingGhn(true);
+      const res = await warrantyApi.getWarrantyGhnStatus(selected.id);
+      setGhnStatusData(res.data);
+    } catch {
+      toast.error('Failed to fetch GHN tracking status.');
+    } finally {
+      setFetchingGhn(false);
     }
   };
 
@@ -466,7 +607,7 @@ const ShopWarrantyPage = () => {
       </Dialog>
 
       {/* ==================== DETAIL DIALOG ==================== */}
-      <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px' } } }}>
+      <Dialog open={detailOpen} onClose={() => { setDetailOpen(false); setGhnStatusData(null); }} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px' } } }}>
         {selected && (
           <>
             {/* Header */}
@@ -536,6 +677,7 @@ const ShopWarrantyPage = () => {
                     )}
                   </Box>
                 </Box>
+                <WarrantyStepper status={selected.status} />
               </Box>
             </DialogTitle>
 
@@ -648,6 +790,18 @@ const ShopWarrantyPage = () => {
                   </Box>
                 )}
 
+                {selected.inspectionNote && (
+                  <Box sx={{ mt: 1.5, p: 2, borderRadius: '12px', bgcolor: theme.palette.custom.neutral[50], border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Info sx={{ fontSize: 16, color: theme.palette.custom.status.info.main }} />
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>Shop Inspection Note</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700], fontStyle: 'italic', lineHeight: 1.5 }}>
+                      "{selected.inspectionNote}"
+                    </Typography>
+                  </Box>
+                )}
+
                 {/* Cost Summary */}
                 {(selected.repairCost != null || selected.customerShippingFeeToShop != null || selected.customerPays != null) && (
                   <Box>
@@ -697,10 +851,22 @@ const ShopWarrantyPage = () => {
                   </Box>
                 )}
 
-                {/* Tracking */}
+                {/* Tracking Numbers */}
                 {(selected.returnTrackingNumber || selected.replacementTrackingNumber) && (
                   <Box>
-                    <SectionLabel>Tracking Numbers</SectionLabel>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: -0.5 }}>
+                      <SectionLabel>Live Tracking</SectionLabel>
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={fetchingGhn ? <CircularProgress size={14} /> : <LocalShipping sx={{ fontSize: 14 }} />}
+                        onClick={handleTrackGhnStatus}
+                        disabled={fetchingGhn}
+                        sx={{ textTransform: 'none', fontSize: 12, fontWeight: 600, p: 0, minWidth: 'auto', mb: 1, '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}
+                      >
+                        {fetchingGhn ? 'Checking...' : 'Check GHN Status'}
+                      </Button>
+                    </Box>
                     <Box sx={{ p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {selected.returnTrackingNumber && (
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -712,6 +878,35 @@ const ShopWarrantyPage = () => {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shop → Customer</Typography>
                           <Typography sx={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace', color: theme.palette.custom.status.success.main }}>{selected.replacementTrackingNumber}</Typography>
+                        </Box>
+                      )}
+
+                      {ghnStatusData && (
+                        <Box sx={{ mt: 1, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.neutral[50], border: `1px dashed ${theme.palette.custom.border.main}` }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Active Leg:</Typography>
+                              <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{ghnStatusData.activeLeg}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Tracking No:</Typography>
+                              <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{ghnStatusData.trackingCode || '—'}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Status:</Typography>
+                              <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.primary.main, textTransform: 'capitalize' }}>
+                                {ghnStatusData.status || 'UNKNOWN'}
+                              </Typography>
+                            </Box>
+                            {(ghnStatusData.message || ghnStatusData.ghnData?.Reason) && (
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Note:</Typography>
+                                <Typography sx={{ fontSize: 12, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                                  {ghnStatusData.message || ghnStatusData.ghnData?.Reason}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Box>
                       )}
                     </Box>
@@ -780,7 +975,7 @@ const ShopWarrantyPage = () => {
                   <Button
                     variant="contained"
                     startIcon={<CheckCircle />}
-                    onClick={() => { setDetailOpen(false); setApproveOpen(true); }}
+                    onClick={() => { setDetailOpen(false); handleOpenApproveOrQuote(); }}
                     sx={{
                       textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px',
                       bgcolor: theme.palette.custom.status.success.main,
@@ -810,7 +1005,17 @@ const ShopWarrantyPage = () => {
                   {actioning ? <CircularProgress size={18} color="inherit" /> : 'Mark Item Received'}
                 </Button>
               )}
-              {(selected.status === 'IN_REPAIR' || selected.status === 'IN_PROGRESS') && (
+              {(selected.status === 'ITEM_RECEIVED' || selected.status === 'QUOTED') && (
+                <Button
+                  variant="contained"
+                  startIcon={<Build />}
+                  onClick={() => { handleOpenApproveOrQuote(); }}
+                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#d97706' } }}
+                >
+                  {selected.status === 'ITEM_RECEIVED' ? 'Submit Inspection & Quote' : 'Edit Quote'}
+                </Button>
+              )}
+              {(selected.status === 'IN_REPAIR' || selected.status === 'IN_PROGRESS' || selected.status === 'QUOTE_REJECTED') && (
                 <Button
                   variant="contained"
                   startIcon={<AssignmentTurnedIn />}
@@ -818,7 +1023,7 @@ const ShopWarrantyPage = () => {
                   onClick={handleComplete}
                   sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
                 >
-                  {actioning ? <CircularProgress size={18} color="inherit" /> : 'Complete Repair'}
+                  {actioning ? <CircularProgress size={18} color="inherit" /> : 'Complete & Return'}
                 </Button>
               )}
               <Box sx={{ flex: 1 }} />
@@ -838,260 +1043,394 @@ const ShopWarrantyPage = () => {
         fullWidth
         slotProps={{ paper: { sx: { borderRadius: '16px' } } }}
       >
-        {/* ---- Header ---- */}
-        <DialogTitle sx={{ pb: 1.5, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: theme.palette.custom.status.success.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
-                  {approveStep === 1 ? 'Approve Warranty Claim' : 'Review & Confirm'}
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected?.claimNumber}</Typography>
-              </Box>
-            </Box>
-            {/* Step indicator */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              {([1, 2] as const).map((s) => (
-                <Box key={s} sx={{ width: s === approveStep ? 20 : 8, height: 8, borderRadius: 4, transition: 'all 0.2s', bgcolor: s === approveStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200] }} />
-              ))}
-            </Box>
-          </Box>
-        </DialogTitle>
-
-        {/* ---- STEP 1: Resolution + Fees ---- */}
-        {approveStep === 1 && (
+        {selected && (
           <>
-            <DialogContent sx={{ pt: 2.5 }}>
-              <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
-                Choose resolution type and enter the estimated fees. The customer will review before work begins.
-              </Typography>
+            {/* ---- Header ---- */}
+            <DialogTitle sx={{ pb: 1.5, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: theme.palette.custom.status.success.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
+                      {approveStep === 2
+                        ? (selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED' ? 'Review Quote' : 'Confirm Approval')
+                        : (selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED' ? 'Submit Inspection & Quote' : 'Approve Warranty Claim')}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected?.claimNumber}</Typography>
+                  </Box>
+                </Box>
+                {/* Step indicator */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  {([1, 2] as const).map((s) => (
+                    <Box key={s} sx={{ width: s === approveStep ? 20 : 8, height: 8, borderRadius: 4, transition: 'all 0.2s', bgcolor: s === approveStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200] }} />
+                  ))}
+                </Box>
+              </Box>
+            </DialogTitle>
 
-              {/* Resolution options */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
-                {RESOLUTION_OPTIONS.map((opt) => {
-                  const isSelected = resolutionType === opt.value;
-                  return (
-                    <Box
-                      key={opt.value}
-                      onClick={() => setResolutionType(opt.value)}
-                      sx={{
-                        borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s', overflow: 'hidden',
-                        border: `2px solid ${isSelected ? theme.palette.custom.status.success.main : theme.palette.custom.border.light}`,
-                        bgcolor: 'white',
-                        '&:hover': { borderColor: theme.palette.custom.status.success.main },
-                      }}
-                    >
-                      <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{opt.label}</Typography>
-                          {isSelected && <CheckCircle sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />}
-                        </Box>
-                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.25 }}>{opt.desc}</Typography>
-                      </Box>
+            {/* ---- STEP 1: Resolution + Fees ---- */}
+            {approveStep === 1 && (
+              <>
+                <DialogContent sx={{ pt: 2.5 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
+                    {selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED'
+                      ? 'Choose resolution type and enter the estimated fees. The customer will review before work begins.'
+                      : 'Review the customer warranty request details below and approve to create a shipping label.'}
+                  </Typography>
 
-                      {/* Service fee input — expands when selected */}
-                      {isSelected && (
-                        <Box
-                          onClick={(e) => e.stopPropagation()}
-                          sx={{ px: 2, pb: 2, pt: 0.5, borderTop: `1px solid ${theme.palette.custom.border.light}` }}
-                        >
-                          <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>
-                            Service Fee (VND)
-                          </Typography>
-                          <TextField
+                  {/* Customer Request Review — Only during initial approval */}
+                  {selected && isPendingReview(selected.status) && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1.5 }}>
+                        Client Request Details
+                      </Typography>
+                      <Box sx={{ p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: theme.palette.custom.neutral[50] }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[500] }}>Issue Type</Typography>
+                          <Chip
+                            label={selected?.issueType ? (ISSUE_TYPE_LABEL[selected.issueType] || selected.issueType) : ''}
                             size="small"
-                            fullWidth
-                            placeholder="e.g. 150000"
-                            value={repairCostInput}
-                            onChange={(e) => setRepairCostInput(e.target.value.replace(/\D/g, ''))}
-                            slotProps={{
-                              htmlInput: { inputMode: 'numeric' },
-                              input: {
-                                endAdornment: repairCostInput ? (
-                                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], whiteSpace: 'nowrap', ml: 1 }}>
-                                    {Number(repairCostInput).toLocaleString('vi-VN')} VND
-                                  </Typography>
-                                ) : undefined,
-                              },
-                            }}
-                            sx={{ bgcolor: 'white', borderRadius: '8px' }}
-                            helperText="Leave blank to notify customer later"
+                            sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }}
                           />
                         </Box>
-                      )}
+                        <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[800], mb: 2, lineHeight: 1.5 }}>{selected?.issueDescription}</Typography>
+
+                        {selected?.issueImages && selected.issueImages.length > 0 && (
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {selected.issueImages.map((img, i) => (
+                              <Avatar
+                                key={i}
+                                src={img}
+                                variant="rounded"
+                                sx={{ width: 64, height: 64, cursor: 'pointer', borderRadius: '6px', border: `1px solid ${theme.palette.custom.border.light}` }}
+                                onClick={() => setPreviewImage(img)}
+                              />
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
                     </Box>
-                  );
-                })}
-              </Box>
+                  )}
 
-              {/* Shipping fee — auto */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.status.info.light, border: `1px solid ${theme.palette.custom.status.info.main}20` }}>
-                <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.status.info.main, flexShrink: 0 }} />
-                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.5 }}>
-                  <strong>Shipping fee (2-way)</strong> is calculated automatically via GHN when you submit — leg 1 (customer → shop) is created immediately, leg 2 (shop → customer) is estimated and confirmed on completion.
-                </Typography>
-              </Box>
-            </DialogContent>
+                  {/* Resolution options — Only during Quoting phase */}
+                  {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                    <>
+                      <SectionLabel>Resolution Type</SectionLabel>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+                        {RESOLUTION_OPTIONS.map((opt) => {
+                          const isSelected = resolutionType === opt.value;
+                          return (
+                            <Box
+                              key={opt.value}
+                              onClick={() => setResolutionType(opt.value)}
+                              sx={{
+                                borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s', overflow: 'hidden',
+                                border: `2px solid ${isSelected ? theme.palette.custom.status.success.main : theme.palette.custom.border.light}`,
+                                bgcolor: 'white',
+                                '&:hover': { borderColor: theme.palette.custom.status.success.main },
+                              }}
+                            >
+                              <Box sx={{ p: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{opt.label}</Typography>
+                                  {isSelected && <CheckCircle sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />}
+                                </Box>
+                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.25 }}>{opt.desc}</Typography>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </>
+                  )}
 
-            <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-              <Button onClick={() => { setApproveOpen(false); resetApproveDialog(); }} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
-                onClick={() => setApproveStep(2)}
-                sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: '#111', '&:hover': { bgcolor: '#333' } }}
-              >
-                Next: Review
-              </Button>
-            </DialogActions>
-          </>
-        )}
+                  {/* Only show fault type and fees during Quoting phase */}
+                  {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                    <>
+                      <SectionLabel>Fault Type</SectionLabel>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 1.5 }}>
+                        Determines who pays for shipping and service fees.
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+                        {FAULT_TYPE_OPTIONS.map((opt) => {
+                          const isSelected = faultType === opt.value;
+                          return (
+                            <Box
+                              key={opt.value}
+                              onClick={() => {
+                                setFaultType(opt.value);
+                                if (opt.value === 'SHOP_FAULT') setRepairCostInput('0');
+                              }}
+                              sx={{
+                                borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s', overflow: 'hidden',
+                                border: `2px solid ${isSelected ? theme.palette.custom.status.success.main : theme.palette.custom.border.light}`,
+                                bgcolor: 'white',
+                                '&:hover': { borderColor: theme.palette.custom.status.success.main },
+                              }}
+                            >
+                              <Box sx={{ p: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{opt.label}</Typography>
+                                  {isSelected && <CheckCircle sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />}
+                                </Box>
+                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.25 }}>{opt.desc}</Typography>
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </>
+                  )}
 
-        {/* ---- STEP 2: Summary ---- */}
-        {approveStep === 2 && (() => {
-          const repair = repairCostInput ? Number(repairCostInput) : null;
-          const resolution = RESOLUTION_OPTIONS.find((r) => r.value === resolutionType);
-          return (
-            <>
-              <DialogContent sx={{ pt: 2.5 }}>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2.5 }}>
-                  Review the details below before sending to the customer.
-                </Typography>
-
-                {/* Product + claim summary */}
-                <Box sx={{ p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: theme.palette.custom.neutral[50], mb: 2.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar variant="rounded" src={selected?.productImageUrl} sx={{ width: 44, height: 44, borderRadius: '8px', bgcolor: theme.palette.custom.neutral[200] }}>
-                      <ShoppingBag sx={{ fontSize: 20 }} />
-                    </Avatar>
-                    <Box>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{selected?.productName}</Typography>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected?.customerName ?? '—'}</Typography>
+                  {/* Service fee input — Only during Quoting phase */}
+                  {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                    <Box sx={{ mb: 3, p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: 'white' }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>
+                        Repair / Service Fee (VND) {faultType === 'SHOP_FAULT' && '(Shop Fault: Internal use only)'}
+                      </Typography>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="e.g. 150000"
+                        value={repairCostInput}
+                        onChange={(e) => setRepairCostInput(e.target.value.replace(/\D/g, ''))}
+                        slotProps={{
+                          htmlInput: { inputMode: 'numeric' },
+                          input: {
+                            endAdornment: repairCostInput ? (
+                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], whiteSpace: 'nowrap', ml: 1 }}>
+                                {Number(repairCostInput).toLocaleString('vi-VN')} VND
+                              </Typography>
+                            ) : undefined,
+                          },
+                        }}
+                        helperText={faultType === 'SHOP_FAULT' ? "Since it is Shop Fault, customer will NOT be charged this fee." : "Estimated cost for parts and labor"}
+                      />
                     </Box>
-                  </Box>
-                </Box>
+                  )}
 
-                {/* Resolution */}
-                <Box sx={{ mb: 2.5 }}>
-                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
-                    Resolution
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.custom.status.success.main}50`, bgcolor: theme.palette.custom.status.success.light }}>
-                    <AssignmentTurnedIn sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />
-                    <Box>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{resolution?.label}</Typography>
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{resolution?.desc}</Typography>
+                  {/* Inspection Note */}
+                  {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                    <Box sx={{ mb: 3, p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: 'white' }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>
+                        Inspection Note / Fault Details
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={2}
+                        size="small"
+                        placeholder="Describe your findings after inspecting the item..."
+                        value={inspectionNote}
+                        onChange={(e) => setInspectionNote(e.target.value)}
+                      />
                     </Box>
-                  </Box>
-                </Box>
+                  )}
 
-                {/* Cost breakdown */}
-                <Box sx={{ borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden', mb: 2.5 }}>
-                  <Box sx={{ px: 2, py: 1.25, bgcolor: theme.palette.custom.neutral[50], borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ReceiptLong sx={{ fontSize: 15, color: theme.palette.custom.neutral[600] }} />
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[700], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Cost Breakdown
+                  {/* Shipping fee — auto */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.status.info.light, border: `1px solid ${theme.palette.custom.status.info.main}20` }}>
+                    <LocalShipping sx={{ fontSize: 16, color: theme.palette.custom.status.info.main, flexShrink: 0 }} />
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.5 }}>
+                      <strong>Shipping fee (2-way)</strong> is calculated automatically via GHN when you submit — leg 1 (customer → shop) is created immediately, leg 2 (shop → customer) is estimated and confirmed on completion.
                     </Typography>
                   </Box>
-                  <Box sx={{ px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Service Fee</Typography>
-                      {repair != null ? (
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                          {repair.toLocaleString('vi-VN')} VND
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                  <Button onClick={() => { setApproveOpen(false); resetApproveDialog(); }} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
+                    onClick={() => setApproveStep(2)}
+                    sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: '#111', '&:hover': { bgcolor: '#333' } }}
+                  >
+                    Next: Review
+                  </Button>
+                </DialogActions>
+              </>
+            )}
+
+            {/* ---- STEP 2: Summary ---- */}
+            {approveStep === 2 && (() => {
+              const repair = repairCostInput ? Number(repairCostInput) : null;
+              const resolution = RESOLUTION_OPTIONS.find((r) => r.value === resolutionType);
+              return (
+                <>
+                  <DialogContent sx={{ pt: 2.5 }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2.5 }}>
+                      Review the details below before sending to the customer.
+                    </Typography>
+
+                    {/* Product + claim summary */}
+                    <Box sx={{ p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: theme.palette.custom.neutral[50], mb: 2.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar variant="rounded" src={selected?.productImageUrl} sx={{ width: 44, height: 44, borderRadius: '8px', bgcolor: theme.palette.custom.neutral[200] }}>
+                          <ShoppingBag sx={{ fontSize: 20 }} />
+                        </Avatar>
+                        <Box>
+                          <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{selected?.productName}</Typography>
+                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected?.customerName ?? '—'}</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Resolution — Only during Quoting phase */}
+                    {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                      <Box sx={{ mb: 2.5 }}>
+                        <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                          Resolution
                         </Typography>
-                      ) : (
-                        <Chip label="TBD" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 20, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
-                      )}
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping Fee (2-way)</Typography>
-                      <Chip label="Auto-calculated on approval" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 20, bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main }} />
-                    </Box>
-                    <Box sx={{ height: 1, bgcolor: theme.palette.custom.border.light }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>Total</Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
-                        Confirmed after approval
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.custom.status.success.main}50`, bgcolor: theme.palette.custom.status.success.light }}>
+                          <AssignmentTurnedIn sx={{ fontSize: 18, color: theme.palette.custom.status.success.main }} />
+                          <Box>
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{resolution?.label}</Typography>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{resolution?.desc}</Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Fault Type */}
+                    {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                      <Box sx={{ mb: 2.5 }}>
+                        <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', letterSpacing: '0.08em', mb: 1 }}>
+                          Fault Assessment
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: 'white' }}>
+                          <Info sx={{ fontSize: 18, color: theme.palette.custom.status.info.main }} />
+                          <Box>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                              {FAULT_TYPE_OPTIONS.find(f => f.value === faultType)?.label}
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                              {faultType === 'SHOP_FAULT' ? 'Shop covers all costs' : 'Customer responsible for fees'}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {inspectionNote && (
+                          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', bgcolor: theme.palette.custom.neutral[50], border: `1px dashed ${theme.palette.custom.border.light}` }}>
+                            <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[400], textTransform: 'uppercase', mb: 0.5 }}>Note</Typography>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], fontStyle: 'italic' }}>"{inspectionNote}"</Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* Cost breakdown */}
+                    {(selected?.status === 'ITEM_RECEIVED' || selected?.status === 'QUOTED') && (
+                      <Box sx={{ borderRadius: '8px', border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden', mb: 2.5 }}>
+                        <Box sx={{ px: 2, py: 1.25, bgcolor: theme.palette.custom.neutral[50], borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <ReceiptLong sx={{ fontSize: 15, color: theme.palette.custom.neutral[600] }} />
+                          <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[700], textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Cost Breakdown
+                          </Typography>
+                        </Box>
+                        <Box sx={{ px: 2.5, py: 2, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Service Fee</Typography>
+                            {repair != null ? (
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                {repair.toLocaleString('vi-VN')} VND
+                              </Typography>
+                            ) : (
+                              <Chip label="TBD" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 20, bgcolor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
+                            )}
+                          </Box>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>Shipping Fee (2-way)</Typography>
+                            <Chip label="Auto-calculated on approval" size="small" sx={{ fontSize: 11, fontWeight: 600, height: 20, bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main }} />
+                          </Box>
+                          <Box sx={{ height: 1, bgcolor: theme.palette.custom.border.light }} />
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>Total</Typography>
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+                              Confirmed after approval
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* What happens next */}
+                    <Box sx={{ p: 1.75, borderRadius: '8px', bgcolor: theme.palette.custom.status.info.light, border: `1px solid ${theme.palette.custom.status.info.main}30`, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <Info sx={{ fontSize: 15, color: theme.palette.custom.status.info.main, mt: 0.1, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.6 }}>
+                        After submitting, the customer will be notified to drop off the product at the nearest GHN point. Tracking numbers will be generated automatically for both legs of the shipment.
                       </Typography>
                     </Box>
-                  </Box>
-                </Box>
+                  </DialogContent>
 
-                {/* What happens next */}
-                <Box sx={{ p: 1.75, borderRadius: '8px', bgcolor: theme.palette.custom.status.info.light, border: `1px solid ${theme.palette.custom.status.info.main}30`, display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Info sx={{ fontSize: 15, color: theme.palette.custom.status.info.main, mt: 0.1, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], lineHeight: 1.6 }}>
-                    After submitting, the customer will be notified to drop off the product at the nearest GHN point. Tracking numbers will be generated automatically for both legs of the shipment.
-                  </Typography>
-                </Box>
-              </DialogContent>
-
-              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-                <Button startIcon={<ArrowBack sx={{ fontSize: 16 }} />} onClick={() => setApproveStep(1)} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
-                  Back
-                </Button>
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  variant="contained"
-                  disabled={actioning}
-                  onClick={handleApprove}
-                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.success.main, '&:hover': { bgcolor: '#15803d' } }}
-                >
-                  {actioning ? <CircularProgress size={18} color="inherit" /> : 'Submit Approval'}
-                </Button>
-              </DialogActions>
-            </>
-          );
-        })()}
+                  <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                    <Button startIcon={<ArrowBack sx={{ fontSize: 16 }} />} onClick={() => setApproveStep(1)} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+                      Back
+                    </Button>
+                    <Box sx={{ flex: 1 }} />
+                    <Button
+                      variant="contained"
+                      disabled={actioning}
+                      onClick={handleApprove}
+                      sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.success.main, '&:hover': { bgcolor: '#15803d' } }}
+                    >
+                      {actioning ? <CircularProgress size={18} color="inherit" /> : 'Submit Approval'}
+                    </Button>
+                  </DialogActions>
+                </>
+              );
+            })()}
+          </>
+        )}
       </Dialog>
 
       {/* ==================== REJECT DIALOG ==================== */}
       <Dialog open={rejectOpen} onClose={() => { setRejectOpen(false); setRejectReason(''); }} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px' } } }}>
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: theme.palette.custom.status.error.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: 17, fontWeight: 700 }}>Reject Warranty Claim</Typography>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected?.claimNumber}</Typography>
-            </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2 }}>
-            Please provide a clear reason. The customer will see this message.
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            size="small"
-            placeholder="e.g. The damage is not covered under warranty as it appears to be caused by physical impact..."
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button onClick={() => { setRejectOpen(false); setRejectReason(''); }} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            disabled={actioning || !rejectReason.trim()}
-            onClick={handleReject}
-            sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
-          >
-            {actioning ? <CircularProgress size={18} color="inherit" /> : 'Confirm Reject'}
-          </Button>
-        </DialogActions>
+        {selected && (
+          <>
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: theme.palette.custom.status.error.light, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 17, fontWeight: 700 }}>Reject Warranty Claim</Typography>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selected.claimNumber}</Typography>
+                </Box>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2 }}>
+                Please provide a clear reason. The customer will see this message.
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                size="small"
+                placeholder="e.g. The damage is not covered under warranty as it appears to be caused by physical impact..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+              />
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+              <Button onClick={() => { setRejectOpen(false); setRejectReason(''); }} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                disabled={actioning || !rejectReason.trim()}
+                onClick={handleReject}
+                sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
+              >
+                {actioning ? <CircularProgress size={18} color="inherit" /> : 'Confirm Reject'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Box>
   );
