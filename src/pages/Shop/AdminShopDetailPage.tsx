@@ -64,6 +64,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
+import type { DeactivationStatus } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
@@ -88,6 +89,7 @@ const AdminShopDetailPage = () => {
   const [deactivateEndDate, setDeactivateEndDate] = useState('');
   const [closeShopConfirm, setCloseShopConfirm] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+  const [deactivationInfo, setDeactivationInfo] = useState<DeactivationStatus | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -101,6 +103,12 @@ const AdminShopDetailPage = () => {
       const response = await adminApi.getShopById(id);
       if (response.data) {
         setShop(response.data);
+        try {
+          const deactRes = await adminApi.getDeactivationStatus(id);
+          setDeactivationInfo(deactRes.data ?? null);
+        } catch {
+          setDeactivationInfo(null);
+        }
       } else {
         toast.error('Shop not found');
         navigate(PAGE_ENDPOINTS.TRACKING.SHOPS, { replace: true });
@@ -167,11 +175,6 @@ const AdminShopDetailPage = () => {
     'Other',
   ];
 
-  const isWithinCancelWindow = () => {
-    if (!shop?.updatedAt) return false;
-    return Date.now() - new Date(shop.updatedAt).getTime() < 60 * 60 * 1000;
-  };
-
   const resetActionDialog = () => {
     setActionDialogOpen(false);
     setActionReason('');
@@ -194,26 +197,37 @@ const AdminShopDetailPage = () => {
       }
       resetActionDialog();
       void fetchShop();
-    } catch {
-      toast.error('Failed to perform action');
+    } catch (error) {
+      toast.error((error as any).message || 'Failed to perform action');
     } finally {
       setTogglingStatus(false);
     }
   };
 
-  const handleCancelAction = async () => {
+  const handleCancelDeactivate = async () => {
     if (!shop) return;
     try {
       setTogglingStatus(true);
-      if (shop.status === 'PENDING') {
-        await adminApi.cancelDeactivateShop(shop.id);
-      } else {
-        await adminApi.cancelCloseShop(shop.id);
-      }
-      toast.success('Action cancelled successfully');
+      await adminApi.cancelDeactivateShop(shop.id);
+      toast.success('Deactivation cancelled successfully');
+      setDeactivationInfo(null);
       void fetchShop();
     } catch {
-      toast.error('Failed to cancel action');
+      toast.error('Failed to cancel deactivation');
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
+  const handleCancelClose = async () => {
+    if (!shop) return;
+    try {
+      setTogglingStatus(true);
+      await adminApi.cancelCloseShop(shop.id);
+      toast.success('Shop closure cancelled successfully');
+      void fetchShop();
+    } catch {
+      toast.error('Failed to cancel closure');
     } finally {
       setTogglingStatus(false);
     }
@@ -226,6 +240,7 @@ const AdminShopDetailPage = () => {
       await adminApi.reactivateShop(shop.id);
       toast.success('Shop reactivated successfully');
       setReactivateDialogOpen(false);
+      setDeactivationInfo(null);
       void fetchShop();
     } catch {
       toast.error('Failed to reactivate shop');
@@ -285,6 +300,12 @@ const AdminShopDetailPage = () => {
   const tierCfg = getTierConfig(shop.tier);
   const mockRevenue = (shop.totalOrders ?? 0) * 285000;
   const mockCommissionEarned = mockRevenue * (shop.commissionRate / 100);
+
+  // Check if within cancel window for deactivation (scheduled by owner, not admin-forced)
+  const isScheduledDeactivation = deactivationInfo?.status === 'SCHEDULED';
+  const withinDeactivationCancelWindow = isScheduledDeactivation &&
+    !!deactivationInfo?.canCancelBefore &&
+    new Date() < new Date(deactivationInfo.canCancelBefore);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -378,30 +399,44 @@ const AdminShopDetailPage = () => {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0, pb: 3 }}>
-              {(shop.status === 'PENDING' || shop.status === 'CLOSING') && (
-                isWithinCancelWindow() ? (
-                  <Button
-                    variant="outlined"
-                    startIcon={togglingStatus ? <CircularProgress size={15} /> : <Close />}
-                    onClick={handleCancelAction}
-                    disabled={togglingStatus}
-                    sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}
-                  >
-                    Cancel
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    startIcon={togglingStatus ? <CircularProgress size={15} /> : <CheckCircle />}
-                    onClick={() => setReactivateDialogOpen(true)}
-                    disabled={togglingStatus}
-                    sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}
-                  >
-                    Reactivate
-                  </Button>
-                )
+              {/* Scheduled deactivation (owner-initiated) + within cancel window → Cancel Deactivation */}
+              {withinDeactivationCancelWindow && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={15} /> : <Close />}
+                  onClick={handleCancelDeactivate}
+                  disabled={togglingStatus}
+                  sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}
+                >
+                  Cancel Deactivation
+                </Button>
               )}
-              {shop.status === 'ACTIVE' && (
+              {/* INACTIVE → Reactivate */}
+              {shop.status === 'INACTIVE' && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={15} /> : <CheckCircle />}
+                  onClick={() => setReactivateDialogOpen(true)}
+                  disabled={togglingStatus}
+                  sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}
+                >
+                  Reactivate
+                </Button>
+              )}
+              {/* CLOSING → Cancel Close */}
+              {shop.status === 'CLOSING' && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={15} /> : <Close />}
+                  onClick={handleCancelClose}
+                  disabled={togglingStatus}
+                  sx={{ borderColor: '#FCD34D', color: '#FCD34D', '&:hover': { borderColor: '#F59E0B', bgcolor: 'rgba(245,158,11,0.1)' } }}
+                >
+                  Cancel Close
+                </Button>
+              )}
+              {/* ACTIVE + no scheduled deactivation → Deactivate + Close Shop */}
+              {shop.status === 'ACTIVE' && !isScheduledDeactivation && (
                 <>
                   <Button
                     variant="outlined"
@@ -466,6 +501,14 @@ const AdminShopDetailPage = () => {
 
         {/* Tab Content */}
         <Box sx={{ p: 4 }}>
+
+          {/* Alert: in-transit orders warning (deactivation allowed but orders ongoing) */}
+          {shop.warning && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Orders Still in Transit</Typography>
+              <Typography sx={{ fontSize: 14 }}>{shop.warning}</Typography>
+            </Alert>
+          )}
 
           {/* OVERVIEW TAB */}
           {activeTab === 0 && (
@@ -703,7 +746,7 @@ const AdminShopDetailPage = () => {
         />
       )}
 
-      {/* Unified Deactivate / Close Shop Dialog */}
+      {/* ── Unified Deactivate / Close Shop Dialog ── */}
       <Dialog open={actionDialogOpen} onClose={() => !togglingStatus && resetActionDialog()} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>
           {actionType === 'deactivate' ? 'Deactivate Shop' : 'Close Shop Permanently'}
@@ -725,13 +768,22 @@ const AdminShopDetailPage = () => {
             </ToggleButton>
           </ToggleButtonGroup>
 
+          {/* === UPDATED MESSAGES FOR ADMIN === */}
           {actionType === 'deactivate' ? (
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600], mb: 2.5 }}>
-              Shop <strong>{shop.shopName}</strong> sẽ chuyển sang trạng thái <strong>Pending</strong>. Bạn có thể huỷ trong vòng <strong>1 giờ</strong>.
-            </Typography>
+            <Alert severity="warning" sx={{ mb: 2.5 }}>
+              <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Deactivation takes effect immediately</Typography>
+              <Typography sx={{ fontSize: 13 }}>
+                Shop <strong>{shop.shopName}</strong> will be set to <strong>INACTIVE</strong> status right away.
+                The shop will stop accepting orders immediately. You can reactivate it at any time from this page.
+              </Typography>
+            </Alert>
           ) : (
             <Alert severity="error" sx={{ mb: 2.5 }}>
-              Shop <strong>{shop.shopName}</strong> sẽ chuyển sang trạng thái <strong>Closing</strong>. Bạn có thể huỷ trong vòng <strong>1 giờ</strong>, sau đó shop sẽ bị đóng vĩnh viễn.
+              <Typography sx={{ fontWeight: 600, mb: 0.5 }}>⚠ Permanent closure — takes effect immediately</Typography>
+              <Typography sx={{ fontSize: 13 }}>
+                Shop <strong>{shop.shopName}</strong> will be set to <strong>CLOSED</strong> status right away.
+                This action is <strong>immediate and irreversible</strong>. The shop owner will be notified by email.
+              </Typography>
             </Alert>
           )}
 
@@ -752,13 +804,13 @@ const AdminShopDetailPage = () => {
           {actionType === 'deactivate' && (
             <TextField
               fullWidth type="date"
-              label="End Date"
+              label="Suggested Reactivation Date (optional)"
               value={deactivateEndDate}
               onChange={(e) => setDeactivateEndDate(e.target.value)}
               disabled={togglingStatus}
               required
               slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date().toISOString().split('T')[0] } }}
-              helperText="Ngày hết hiệu lực tạm ngưng"
+              helperText="Reference date for when the shop should be reviewed for reactivation"
             />
           )}
 
@@ -767,7 +819,7 @@ const AdminShopDetailPage = () => {
               control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
               label={
                 <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
-                  Tôi hiểu rằng shop sẽ bị đóng vĩnh viễn sau khi hết thời gian huỷ.
+                  I confirm that this shop will be <strong>permanently and immediately closed</strong>. This action cannot be undone.
                 </Typography>
               }
             />
@@ -785,7 +837,7 @@ const AdminShopDetailPage = () => {
             }
             startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}
           >
-            {togglingStatus ? 'Processing...' : actionType === 'deactivate' ? 'Confirm Deactivate' : 'Close Shop'}
+            {togglingStatus ? 'Processing...' : actionType === 'deactivate' ? 'Confirm Deactivate' : 'Close Shop Now'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -794,8 +846,16 @@ const AdminShopDetailPage = () => {
       <Dialog open={reactivateDialogOpen} onClose={() => !togglingStatus && setReactivateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 600 }}>Reactivate Shop</DialogTitle>
         <DialogContent>
+          {/* === UPDATED MESSAGE === */}
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Reactivation takes effect immediately</Typography>
+            <Typography sx={{ fontSize: 13 }}>
+              Shop <strong>{shop.shopName}</strong> will be set back to <strong>ACTIVE</strong> status right away.
+              Customers will be able to view and place orders again immediately.
+            </Typography>
+          </Alert>
           <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
-            Are you sure you want to reactivate <strong>{shop.shopName}</strong>? Customers will be able to view and order from this shop again.
+            Are you sure you want to reactivate this shop?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -806,7 +866,7 @@ const AdminShopDetailPage = () => {
             disabled={togglingStatus}
             startIcon={togglingStatus ? <CircularProgress size={16} /> : <CheckCircle />}
           >
-            {togglingStatus ? 'Reactivating...' : 'Reactivate Shop'}
+            {togglingStatus ? 'Reactivating...' : 'Reactivate Now'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1082,7 +1142,6 @@ const InfoRow = ({ label, value, icon }: { label: string; value: string; icon?: 
   );
 };
 
-/** Compact 2-line cell used inside grid layouts in the right column */
 const CompactInfoCell = ({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) => {
   const theme = useTheme();
   return (

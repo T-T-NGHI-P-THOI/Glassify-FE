@@ -357,7 +357,7 @@ export default function FrameVariantDetailDialog({
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Low Stock Threshold" value={variant.lowStockThreshold != null ? `${variant.lowStockThreshold} units` : '—'} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Warranty" value={variant.warrantyMonths ? `${variant.warrantyMonths} months` : '—'} />
+                                <InfoRow label="Warranty" value={variant.productResponse.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
                             </Paper>
 
                             {/* Pricing */}

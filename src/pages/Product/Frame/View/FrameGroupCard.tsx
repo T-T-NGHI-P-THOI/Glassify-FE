@@ -112,29 +112,6 @@ const statusConfig = {
     out_of_stock: { label: 'Out of Stock', bg: '#fee2e2', color: '#dc2626' },
 };
 
-function mapToFormData(v: FrameVariantResponse): CreateFrameVariantFormData {
-    return {
-        colorName: v.colorName,
-        colorHex: v.colorHex,
-        size: v.size as 'SMALL' | 'MEDIUM' | 'LARGE' | '',
-        frameWidthMm: String(v.frameWidthMm ?? ''),
-        lensWidthMm: String(v.lensWidthMm ?? ''),
-        lensHeightMm: String(v.lensHeightMm ?? ''),
-        bridgeWidthMm: String(v.bridgeWidthMm ?? ''),
-        templeLengthMm: String(v.templeLengthMm ?? ''),
-        stock: String(v.stock ?? ''),
-        stockThreshold: '',
-        warrantyMonths: '',
-        costPrice: String(v.costPrice ?? ''),
-        basePrice: String(v.basePrice ?? ''),
-        compareAtPrice: String(v.compareAtPrice ?? ''),
-        isReturnable: false,
-        isFeatured: false,
-        images: [],
-        textureFile: null,
-    };
-}
-
 // ─── Variant Panel (expanded) ─────────────────────────────────────────────────
 
 interface VariantPanelProps {

@@ -59,7 +59,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
     maxQuantity,
 }) => {
     const isSmall = size === 'small';
-    const atMax = maxQuantity !== undefined && quantity >= maxQuantity;
+    const atMax = maxQuantity != null && quantity >= maxQuantity;
 
     return (
         <Box sx={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
@@ -342,7 +342,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
                             size="small"
                             disabled={loading}
-                            maxQuantity={item.stock_quantity}
+                            maxQuantity={item.stock_quantity != null ? item.quantity + item.stock_quantity : undefined}
                         />
                     ) : (
                         <Typography sx={{ fontSize: '0.75rem', color: '#999', fontStyle: 'italic' }}>
@@ -582,7 +582,7 @@ const CartItemRow: React.FC<CartItemRowProps> = ({
                         onIncrease={() => onQuantityChange(item.id, item.quantity + 1)}
                         onDecrease={() => onQuantityChange(item.id, item.quantity - 1)}
                         disabled={loading}
-                        maxQuantity={item.stock_quantity}
+                        maxQuantity={item.stock_quantity != null ? item.quantity + item.stock_quantity : undefined}
                     />
                 </Box>
 

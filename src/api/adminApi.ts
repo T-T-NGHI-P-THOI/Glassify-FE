@@ -1,6 +1,7 @@
 import type { ShopRequestsResponse, ShopRequest, ReviewShopRequest, AdminShopItem, ShopDetailResponse } from '@/models/Shop';
 import type { ApiResponse } from '@/models/ApiResponse';
 import type { UserResponse, AdminUserListResponse } from '@/models/User';
+import type { DeactivationStatus, ClosureStatus } from '@/api/shopApi';
 import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 
@@ -106,11 +107,29 @@ export interface AdminWarrantyResponse {
   issueImages: string[];
   customerAddress?: string;
   resolutionType?: string;
+  faultType?: string;
+  inspectionNote?: string;
   repairCost?: number;
   customerPays?: number;
+  returnTrackingNumber?: string;
+  replacementTrackingNumber?: string;
+  customerShippingFeeToShop?: number;
+  platformSubsidyToShop?: number;
+  customerShippingFeeToCustomer?: number;
+  platformSubsidyToCustomer?: number;
+  escrowAmount?: number;
+  escrowHeldAt?: string;
+  escrowReleasedAt?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  paidAt?: string;
+  deliveredToShopAt?: string;
+  deliveredToCustomerAt?: string;
   status: string;
   submittedAt: string;
   approvedAt?: string;
+  itemReceivedAt?: string;
+  quotedAt?: string;
   rejectedAt?: string;
   rejectionReason?: string;
   completedAt?: string;
@@ -263,6 +282,20 @@ export const adminApi = {
   cancelCloseShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
     const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
       API_ENDPOINTS.ADMIN.SHOPS.CANCEL_CLOSE(shopId),
+    );
+    return response.data;
+  },
+
+  getDeactivationStatus: async (shopId: string): Promise<ApiResponse<DeactivationStatus>> => {
+    const response = await axiosInstance.get<ApiResponse<DeactivationStatus>>(
+      API_ENDPOINTS.ADMIN.SHOPS.DEACTIVATION_STATUS(shopId),
+    );
+    return response.data;
+  },
+
+  getClosureStatus: async (shopId: string): Promise<ApiResponse<ClosureStatus>> => {
+    const response = await axiosInstance.get<ApiResponse<ClosureStatus>>(
+      API_ENDPOINTS.ADMIN.SHOPS.CLOSURE_STATUS(shopId),
     );
     return response.data;
   },

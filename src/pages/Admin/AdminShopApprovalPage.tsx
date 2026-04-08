@@ -674,59 +674,30 @@ const AdminShopApprovalPage = () => {
                     {selectedRegistration.businessLicense?.licenseImageUrl && (
                       <Grid size={{ xs: 12 }}>
                         <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 1 }}>License Document</Typography>
-                        {/\.(png|jpg|jpeg|webp)(\?|$)/i.test(selectedRegistration.businessLicense.licenseImageUrl) ? (
+                        <Box
+                          component="a"
+                          href={selectedRegistration.businessLicense.licenseImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{ display: 'inline-block' }}
+                        >
                           <Box
-                            component="a"
-                            href={selectedRegistration.businessLicense.licenseImageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ display: 'inline-block' }}
-                          >
-                            <Box
-                              component="img"
-                              src={selectedRegistration.businessLicense.licenseImageUrl}
-                              alt="Business License"
-                              sx={{
-                                maxWidth: '100%',
-                                maxHeight: 360,
-                                objectFit: 'contain',
-                                borderRadius: 2,
-                                border: `1px solid ${theme.palette.custom.border.light}`,
-                                display: 'block',
-                              }}
-                            />
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mt: 0.5 }}>
-                              Click to open full size
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Box>
-                            <Box
-                              component="a"
-                              href={selectedRegistration.businessLicense.licenseImageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 1,
-                                px: 2,
-                                py: 1,
-                                borderRadius: 2,
-                                bgcolor: theme.palette.custom.neutral[100],
-                                border: `1px solid ${theme.palette.custom.border.light}`,
-                                textDecoration: 'none',
-                                color: theme.palette.primary.main,
-                                fontSize: 14,
-                                fontWeight: 500,
-                                '&:hover': { bgcolor: theme.palette.custom.neutral[200] },
-                              }}
-                            >
-                              <Description sx={{ fontSize: 18 }} />
-                              View License Document (PDF)
-                            </Box>
-                          </Box>
-                        )}
+                            component="img"
+                            src={selectedRegistration.businessLicense.licenseImageUrl}
+                            alt="Business License"
+                            sx={{
+                              maxWidth: '100%',
+                              maxHeight: 360,
+                              objectFit: 'contain',
+                              borderRadius: 2,
+                              border: `1px solid ${theme.palette.custom.border.light}`,
+                              display: 'block',
+                            }}
+                          />
+                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mt: 0.5 }}>
+                            Click to open full size
+                          </Typography>
+                        </Box>
                       </Grid>
                     )}
                   </Grid>
