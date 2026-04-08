@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
+    GET_COLORS: `${API_ENDPOINT}/product/frame-variant/colors`,
     GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
   CATEGORIES: {

@@ -474,6 +474,14 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async getColors() {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_COLORS,
+    );
+
+    return response.data;
+  }
+
   static async getModel3D(frameGroupId: string) {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_MODEL_3D,

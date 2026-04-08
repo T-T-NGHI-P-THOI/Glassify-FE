@@ -25,6 +25,7 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from '@/api/product-api';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
+import { toast } from 'react-toastify';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,12 +129,26 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
         const [errors, setErrors] = useState<Partial<Record<keyof CreateFrameVariantFormData, string>>>({});
         const [loading, setLoading] = useState(false);
+        const [colors, setColors] = useState<{ name: string; hex: string }[]>([]);
 
         // ── Local Three.js viewer ─────────────────────────────────────────────
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const containerRef = useRef<HTMLDivElement>(null);
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
+
+        useEffect(() => {
+            const fetchColors = async () => {
+                try {
+                    const response = await ProductAPI.getColors();
+                    console.log(response)
+                    setColors(response);
+                } catch (error) {
+                    toast.error("Cannot load color!")
+                }
+            };
+            fetchColors();
+        }, []);
 
         useEffect(() => {
             if (!modelFile?.file) return;
@@ -274,7 +289,15 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, response.productId, formData);
-            } finally {
+                toast.success("Save frame variant success!");
+            }
+            catch (error: any) {
+                error?.errors.map((err: any) => {
+                    toast.error(err);
+                })
+                throw new Error("Cannot save frame variant!")
+            }
+            finally {
                 setLoading(false);
             }
         };
@@ -369,15 +392,43 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
+                            select
                             fullWidth
                             required
                             label="Color Name"
-                            placeholder="Black / Silver"
                             value={formData.colorName}
-                            onChange={e => setField('colorName', e.target.value)}
+                            onChange={(e) => {
+                                const selectedName = e.target.value;
+                                const selectedColor = colors.find(c => c.name === selectedName);
+
+                                setField("colorName", selectedName);
+
+                                // auto set hex khi chọn
+                                if (selectedColor) {
+                                    setField("colorHex", selectedColor.hex);
+                                }
+                            }}
                             error={!!errors.colorName}
                             helperText={errors.colorName}
-                        />
+                        >
+                            {colors?.map((color) => (
+                                <MenuItem key={color.name} value={color.name}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        {/* preview màu */}
+                                        <Box
+                                            sx={{
+                                                width: 14,
+                                                height: 14,
+                                                borderRadius: "50%",
+                                                backgroundColor: color.hex,
+                                                border: "1px solid #ccc"
+                                            }}
+                                        />
+                                        {color.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </TextField>
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -388,26 +439,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             onChange={e => setField('colorHex', e.target.value)}
                             placeholder="#000000"
                             InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <input
-                                            type="color"
-                                            value={formData.colorHex}
+                                endAdornment:
+                                    (<InputAdornment position="end">
+                                        <input type="color" value={formData.colorHex}
                                             onChange={e => setField('colorHex', e.target.value)}
-                                            style={{
-                                                width: 28,
-                                                height: 28,
-                                                border: 'none',
-                                                borderRadius: 100,
-                                                padding: 0,
-                                                cursor: 'pointer',
-                                                background: 'none',
-                                            }}
-                                        />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
+                                            style={{ width: 28, height: 28, border: 'none', borderRadius: 100, padding: 0, cursor: 'pointer', background: 'none', }} />
+                                    </InputAdornment>),
+                            }} />
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -430,7 +468,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         </FormControl>
                     </Grid>
 
-                     <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <FormControlLabel
                             control={
                                 <Switch
