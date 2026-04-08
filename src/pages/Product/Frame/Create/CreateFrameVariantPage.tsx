@@ -25,6 +25,11 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from '@/api/product-api';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
+<<<<<<< HEAD
+=======
+import { toast } from 'react-toastify';
+import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
+>>>>>>> 115c7dc ([GLY-013] ref: fix number field input)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,17 +52,17 @@ export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
     size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
-    frameWidthMm: string;
-    lensWidthMm: string;
-    lensHeightMm: string;
-    bridgeWidthMm: string;
-    templeLengthMm: string;
-    stock: string;
-    stockThreshold: string;
-    warrantyMonths: string;
-    costPrice: string;
-    basePrice: string;
-    compareAtPrice: string;
+    frameWidthMm: number;
+    lensWidthMm: number;
+    lensHeightMm: number;
+    bridgeWidthMm: number;
+    templeLengthMm: number;
+    stock: number;
+    stockThreshold: number;
+    warrantyMonths: number;
+    costPrice: number;
+    basePrice: number;
+    compareAtPrice: number;
     isReturnable: boolean;
     isFeatured: boolean;
     images: ProductImage[];
@@ -98,17 +103,17 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     colorName: '',
     colorHex: '#000000',
     size: '',
-    frameWidthMm: '',
-    lensWidthMm: '',
-    lensHeightMm: '',
-    bridgeWidthMm: '',
-    templeLengthMm: '',
-    stock: '',
-    stockThreshold: '',
-    warrantyMonths: '',
-    costPrice: '',
-    basePrice: '',
-    compareAtPrice: '',
+    frameWidthMm: 0,
+    lensWidthMm: 0,
+    lensHeightMm: 0,
+    bridgeWidthMm: 0,
+    templeLengthMm: 0,
+    stock: 0,
+    stockThreshold: 0,
+    warrantyMonths: 0,
+    costPrice: 0,
+    basePrice: 0,
+    compareAtPrice: 0,
     isFeatured: false,
     isReturnable: false,
     images: [],
@@ -247,19 +252,20 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 payload.append('colorHex', formData.colorHex);
                 payload.append('size', formData.size);
 
-                if (formData.frameWidthMm) payload.append('frameWidthMm', formData.frameWidthMm);
-                if (formData.lensWidthMm) payload.append('lensWidthMm', formData.lensWidthMm);
-                if (formData.lensHeightMm) payload.append('lensHeightMm', formData.lensHeightMm);
-                if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', formData.bridgeWidthMm);
-                if (formData.templeLengthMm) payload.append('templeLengthMm', formData.templeLengthMm);
+                if (formData.frameWidthMm) payload.append('frameWidthMm', String(formData.frameWidthMm));
+                if (formData.lensWidthMm) payload.append('lensWidthMm', String(formData.lensWidthMm));
+                if (formData.lensHeightMm) payload.append('lensHeightMm', String(formData.lensHeightMm));
+                if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', String(formData.bridgeWidthMm));
+                if (formData.templeLengthMm) payload.append('templeLengthMm', String(formData.templeLengthMm));
 
-                if (formData.stock) payload.append('stock', formData.stock);
-                if (formData.stockThreshold) payload.append('stockThreshold', formData.stockThreshold);
-                if (formData.warrantyMonths) payload.append('warrantyMonths', formData.warrantyMonths);
+                if (formData.stock) payload.append('stock', String(formData.stock));
+                if (formData.stockThreshold) payload.append('stockThreshold', String(formData.stockThreshold));
+                if (formData.warrantyMonths) payload.append('warrantyMonths', String(formData.warrantyMonths));
 
-                if (formData.costPrice) payload.append('costPrice', formData.costPrice);
-                if (formData.basePrice) payload.append('basePrice', formData.basePrice);
-                if (formData.compareAtPrice) payload.append('compareAtPrice', formData.compareAtPrice);
+                if (formData.costPrice) payload.append('costPrice', String(formData.costPrice));
+                if (formData.basePrice) payload.append('basePrice', String(formData.basePrice));
+
+                if (formData.compareAtPrice) payload.append('compareAtPrice', String(formData.compareAtPrice));
 
                 payload.append('isReturnable', String(formData.isReturnable));
                 payload.append('isFeatured', String(formData.isFeatured));
@@ -465,8 +471,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 fullWidth
                                 label={label}
                                 type="number"
-                                value={formData[field] as string}
-                                onChange={e => setField(field, e.target.value)}
+                                value={formData[field] as number}
+                                onChange={e => {
+                                    const raw = parseNumber(e.target.value);
+                                    setField(field, raw);
+                                }}
                                 inputProps={{ min: 0 }}
                             />
                         </Grid>
@@ -489,7 +498,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="0"
                             value={formData.stock}
-                            onChange={e => setField('stock', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('stock', raw);
+                            }}
                             error={!!errors.stock}
                             helperText={errors.stock}
                             inputProps={{ min: 0 }}
@@ -502,7 +514,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="10"
                             value={formData.stockThreshold}
-                            onChange={e => setField('stockThreshold', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('stockThreshold', raw);
+                            }}
                             helperText="Alert when stock falls below this value"
                             inputProps={{ min: 0 }}
                         />
@@ -514,7 +529,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="12"
                             value={formData.warrantyMonths}
-                            onChange={e => setField('warrantyMonths', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('warrantyMonths', raw);
+                            }}
                             inputProps={{ min: 0 }}
                         />
                     </Grid>
@@ -525,8 +543,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             label="Cost Price"
                             type="number"
                             placeholder="0.00"
-                            value={formData.costPrice}
-                            onChange={e => setField('costPrice', e.target.value)}
+                            value={formatNumber(formData.costPrice)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('costPrice', raw);
+                            }}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
@@ -536,18 +557,16 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                     <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                             fullWidth
-                            required
                             label="Base Price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.basePrice}
-                            onChange={e => setField('basePrice', e.target.value)}
-                            error={!!errors.basePrice}
-                            helperText={errors.basePrice}
+                            type="text"
+                            value={formatNumber(formData.basePrice)}
+                            onChange={(e) => {
+                                const raw = parseNumber(e.target.value);
+                                setField('basePrice', raw);
+                            }}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
-                            inputProps={{ min: 0 }}
                         />
                     </Grid>
                     <Grid size={{ xs: 12, md: 4 }}>
@@ -556,8 +575,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             label="Compare At Price"
                             type="number"
                             placeholder="0.00"
-                            value={formData.compareAtPrice}
-                            onChange={e => setField('compareAtPrice', e.target.value)}
+                            value={formatNumber(formData.compareAtPrice)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('compareAtPrice', raw);
+                            }}
                             helperText="Original price shown as strikethrough"
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
