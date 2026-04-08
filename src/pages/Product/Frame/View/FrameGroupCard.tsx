@@ -46,8 +46,12 @@ export interface FrameVariantResponse {
     costPrice: number;
     compareAtPrice: number;
     stock: number;
-    stockThreshold: string;
-    warrantyMonths: string;
+    stockThreshold: number;
+    qtyOnHand: number;
+    qtyReserved: number;
+    qtyAvailable: number;
+    lowStockThreshold: number;
+    warrantyMonths: number;
     isReturnable: boolean;
     isFeatured: boolean;
     productResponse: ProductResponse;
