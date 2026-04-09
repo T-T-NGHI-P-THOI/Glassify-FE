@@ -24,6 +24,7 @@ import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPag
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
 import ProductAPI from '@/api/product-api';
+import EditFrameVariantDialog from '../Edit/EditFrameVariantDialog';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -129,6 +130,8 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
         FrameVariantResponse | null
     >(null);
     const [addVariantOpen, setAddVariantOpen] = useState(false);
+    const [updateVaraintOpen, setUpdateVaraintOpen] = useState(false);
+    const [editingVariant, setEditingVariant] = useState<FrameVariantResponse | null>(null);
 
     if (variants.length === 0) {
         return (
@@ -336,6 +339,10 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                                     <Tooltip title="Edit variant">
                                         <IconButton
                                             size="small"
+                                            onClick={() => {
+                                                setEditingVariant(v);
+                                                setUpdateVaraintOpen(true);
+                                            }}
                                             sx={{
                                                 width: 22, height: 22, borderRadius: 0.75,
                                                 bgcolor: theme.palette.custom.neutral[100],
@@ -407,7 +414,24 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                     frameGroupId={frameGroupId}
                     shopId={shopId}
                     onClose={() => setAddVariantOpen(false)}
-                // có thể truyền thêm props cần thiết như productImages, frameGroupId...
+                />
+            )}
+
+            {updateVaraintOpen && editingVariant && (
+                <EditFrameVariantDialog
+                    open={updateVaraintOpen}
+                    productImages={productImages}
+                    variant={editingVariant}
+                    frameGroupId={frameGroupId}
+                    shopId={shopId}
+                    onClose={() => {
+                        setUpdateVaraintOpen(false);
+                        setEditingVariant(null);
+                    }}
+                    onSaved={() => {
+                        setUpdateVaraintOpen(false);
+                        setEditingVariant(null);
+                    }}
                 />
             )}
         </>
