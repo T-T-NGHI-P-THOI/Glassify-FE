@@ -96,7 +96,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
 
       {product.colors && product.colors.length > 0 && (
         <div className="color-selector">
-          <p className="color-label">Color</p>
+          <p className="color-label">Variant(s)</p>
           <div className="color-options">
             {product.colors.map((color, index) => {
               const isActive = Boolean(activeVariantId) && color.variantId === activeVariantId;
