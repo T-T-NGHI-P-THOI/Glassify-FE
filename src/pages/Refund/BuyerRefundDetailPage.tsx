@@ -43,6 +43,7 @@ import {
   getReturnRequestDetail,
   updateReturnTracking,
   cancelReturnRequest,
+  getReturnGhnStatus,
 } from '@/api/refund-api';
 import type {
   RefundRequest,
@@ -66,7 +67,9 @@ const getStatusSteps = (request: RefundRequest) => {
   const baseSteps: RefundStep[] = [
     { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
     { label: 'Approved', statuses: [ReturnStatus.APPROVED] },
-    { label: 'Return Shipping', statuses: [ReturnStatus.RETURN_SHIPPING] },
+    // { label: 'Ready to Pick', statuses: [ReturnStatus.RETURN_READY_TO_PICK] },
+    { label: 'Transporting', statuses: [ReturnStatus.RETURN_SHIPPING] },
+    { label: 'Delivered', statuses: [ReturnStatus.RETURN_DELIVERED] },
     { label: 'Item Received', statuses: [ReturnStatus.ITEM_RECEIVED] },
     { label: 'Completed', statuses: [ReturnStatus.COMPLETED] },
   ];
@@ -102,6 +105,10 @@ const BuyerRefundDetailPage = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // GHN Status
+  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
+  const [fetchingGhn, setFetchingGhn] = useState(false);
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -162,6 +169,20 @@ const BuyerRefundDetailPage = () => {
       toast.error(getApiErrorMessage(error, 'Unable to cancel request'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleTrackGhnStatus = async () => {
+    if (!requestId) return;
+    try {
+      setFetchingGhn(true);
+      const res = await getReturnGhnStatus(requestId);
+      setGhnStatusData(res.data);
+    } catch (error: any) {
+      console.error('Failed to fetch GHN tracking status:', error);
+      toast.error('Failed to fetch GHN tracking status.');
+    } finally {
+      setFetchingGhn(false);
     }
   };
 
@@ -421,6 +442,47 @@ const BuyerRefundDetailPage = () => {
                         </Typography>
                       </Grid>
                     )}
+                    <Grid size={{ xs: 12 }}>
+                      <Box sx={{ mt: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary" fontWeight="bold">
+                            Live Tracking
+                          </Typography>
+                          <Button
+                            variant="text"
+                            size="small"
+                            startIcon={fetchingGhn ? <CircularProgress size={14} /> : <LocalShipping sx={{ fontSize: 14 }} />}
+                            onClick={handleTrackGhnStatus}
+                            disabled={fetchingGhn}
+                            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 600, p: 0, minWidth: 'auto' }}
+                          >
+                            {fetchingGhn ? 'Checking...' : 'Check GHN Status'}
+                          </Button>
+                        </Box>
+                        {ghnStatusData && (
+                          <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'grey.50', border: '1px dashed grey.400' }}>
+                            <Stack spacing={0.5}>
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="caption" color="text.secondary">Tracking No:</Typography>
+                                <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>{ghnStatusData.trackingCode}</Typography>
+                              </Box>
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="caption" color="text.secondary">Status:</Typography>
+                                <Typography variant="caption" fontWeight="bold" color="primary" sx={{ textTransform: 'capitalize' }}>
+                                  {ghnStatusData.status || 'UNKNOWN'}
+                                </Typography>
+                              </Box>
+                              {(ghnStatusData.message || ghnStatusData.ghnData?.Reason) && (
+                                <Box display="flex" justifyContent="space-between">
+                                  <Typography variant="caption" color="text.secondary">Note:</Typography>
+                                  <Typography variant="caption">{ghnStatusData.message || ghnStatusData.ghnData?.Reason}</Typography>
+                                </Box>
+                              )}
+                            </Stack>
+                          </Box>
+                        )}
+                      </Box>
+                    </Grid>
                   </>
                 )}
               </Grid>

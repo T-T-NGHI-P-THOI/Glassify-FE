@@ -26,8 +26,6 @@ import {
   Stepper,
   Step,
   StepLabel,
-  ImageList,
-  ImageListItem,
   Checkbox,
   FormGroup,
 } from '@mui/material';
@@ -35,16 +33,15 @@ import { useTheme } from '@mui/material/styles';
 import {
   AssignmentReturn,
   CheckCircle,
-  Cancel,
   ArrowBack,
   ThumbUp,
   ThumbDown,
   LocalShipping,
   Inventory,
-  Info,
   Image as ImageIcon,
   Videocam,
   VerifiedUser,
+  AttachFile,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -58,11 +55,10 @@ import {
   reviewReturnRequest,
   confirmItemReceived,
   processRefund,
+  getReturnGhnStatus,
 } from '@/api/refund-api';
 import { userApi } from '@/api/service/userApi';
-import type {
-  RefundRequest,
-} from '@/models/Refund';
+import type { RefundRequest } from '@/models/Refund';
 import {
   ReturnStatus,
   RETURN_STATUS_LABELS,
@@ -85,7 +81,9 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   const normalSteps: StepItem[] = [
     { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
     { label: 'Approved', status: ReturnStatus.APPROVED },
-    { label: 'Customer Returning Item', status: ReturnStatus.RETURN_SHIPPING },
+    // { label: 'Ready to Pick', status: ReturnStatus.RETURN_READY_TO_PICK },
+    { label: 'Transporting', status: ReturnStatus.RETURN_SHIPPING },
+    { label: 'Delivered', status: ReturnStatus.RETURN_DELIVERED },
     { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
     { label: 'Completed', status: ReturnStatus.COMPLETED },
   ];
@@ -119,7 +117,6 @@ const SellerRefundDetailPage = () => {
   const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
   const [buyerLoading, setBuyerLoading] = useState(false);
   
-  // Review dialog
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -127,11 +124,13 @@ const SellerRefundDetailPage = () => {
   const [sellerPaysShipping, setSellerPaysShipping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Confirm received dialog
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [itemCondition, setItemCondition] = useState<ItemCondition>(ItemCondition.GOOD);
   const [conditionNotes, setConditionNotes] = useState('');
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  
+  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
+  const [fetchingGhn, setFetchingGhn] = useState(false);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -144,7 +143,6 @@ const SellerRefundDetailPage = () => {
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
-    
     try {
       setLoading(true);
       const response = await getReturnRequestDetail(requestId);
@@ -153,7 +151,7 @@ const SellerRefundDetailPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch request detail:', error);
-      toast.error(getApiErrorMessage(error, 'Unable to load return request information'));
+      toast.error(getApiErrorMessage(error, 'Unable to load information'));
       navigate('/shop/refunds');
     } finally {
       setLoading(false);
@@ -166,23 +164,18 @@ const SellerRefundDetailPage = () => {
 
   useEffect(() => {
     const fetchBuyerInfo = async () => {
-      if (!request?.userId) {
-        return;
-      }
-
+      if (!request?.userId) return;
       try {
         setBuyerLoading(true);
         const response = await userApi.getUserByIdentifier(request.userId);
         const rawData = response.data as any;
-        const user = rawData?.user ?? rawData;
-
+        const u = rawData?.user ?? rawData;
         setBuyerInfo({
-          name: user?.fullName || request.buyerName || 'N/A',
-          email: user?.email || request.buyerEmail || 'N/A',
-          phone: user?.phone || user?.phoneNumber || request.buyerPhone || 'N/A',
+          name: u?.fullName || request.buyerName || 'N/A',
+          email: u?.email || request.buyerEmail || 'N/A',
+          phone: u?.phone || u?.phoneNumber || request.buyerPhone || 'N/A',
         });
       } catch (error) {
-        console.error('Failed to fetch buyer info:', error);
         setBuyerInfo({
           name: request.buyerName || 'N/A',
           email: request.buyerEmail || 'N/A',
@@ -192,7 +185,6 @@ const SellerRefundDetailPage = () => {
         setBuyerLoading(false);
       }
     };
-
     fetchBuyerInfo();
   }, [request]);
 
@@ -210,17 +202,14 @@ const SellerRefundDetailPage = () => {
 
   const handleSubmitReview = async () => {
     if (!requestId) return;
-    
     if (reviewAction === 'reject' && !rejectionReason.trim()) {
-      toast.error('Please enter rejection reason');
+      toast.error('Reason required');
       return;
     }
-    
     if (reviewAction === 'approve' && !returnInstructions.trim()) {
-      toast.error('Please enter return instructions for the customer');
+      toast.error('Instructions required');
       return;
     }
-    
     try {
       setSubmitting(true);
       await reviewReturnRequest(requestId, {
@@ -229,175 +218,87 @@ const SellerRefundDetailPage = () => {
         returnInstruction: reviewAction === 'approve' ? returnInstructions : undefined,
         shopCoverShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
       });
-      
-      toast.success(
-        reviewAction === 'approve'
-          ? 'Return request approved'
-          : 'Return request rejected'
-      );
+      toast.success('Action successful');
       handleCloseReviewDialog();
       await fetchRequestDetail();
     } catch (error: any) {
-      console.error('Failed to review request:', error);
-      toast.error(getApiErrorMessage(error, 'Unable to process request'));
+      toast.error(getApiErrorMessage(error, 'Error processing request'));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleOpenConfirmDialog = () => {
-    setConfirmDialogOpen(true);
-  };
-
-  const handleCloseConfirmDialog = () => {
-    setConfirmDialogOpen(false);
-    setItemCondition(ItemCondition.GOOD);
-    setConditionNotes('');
   };
 
   const handleConfirmReceived = async () => {
     if (!requestId) return;
-    
-    if (!conditionNotes.trim()) {
-      toast.error('Please describe the condition of the returned item');
-      return;
-    }
-    
     try {
       setSubmitting(true);
-      const response = await confirmItemReceived(requestId, {
+      await confirmItemReceived(requestId, {
         itemCondition,
         itemConditionNote: conditionNotes,
-        meetsReturnCriteria: true, // Seller confirms item meets return criteria
+        meetsReturnCriteria: true,
       });
-
-      if (response.data) {
-        setRequest({
-          ...response.data,
-          status: ReturnStatus.ITEM_RECEIVED,
-          statusDisplay: RETURN_STATUS_LABELS[ReturnStatus.ITEM_RECEIVED],
-          completedAt: undefined,
-          itemReceivedAt: response.data.itemReceivedAt || new Date().toISOString(),
-        });
-      }
-      
-      toast.success('Return item confirmed. You can now process the refund.');
-      handleCloseConfirmDialog();
+      toast.success('Received confirmed');
+      setConfirmDialogOpen(false);
+      await fetchRequestDetail();
     } catch (error: any) {
-      console.error('Failed to confirm received:', error);
-      toast.error(getApiErrorMessage(error, 'Unable to confirm item receipt'));
+      toast.error(getApiErrorMessage(error, 'Error confirming receipt'));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleOpenRefundDialog = () => {
-    const hasReceivedReturnedItem =
-      request?.status === ReturnStatus.ITEM_RECEIVED && Boolean(request?.itemReceivedAt);
-
-    if (!hasReceivedReturnedItem) {
-      toast.error('You can only process refund after confirming item received');
-      return;
-    }
-
-    setRefundDialogOpen(true);
-  };
-
-  const handleCloseRefundDialog = () => {
-    setRefundDialogOpen(false);
   };
 
   const handleProcessRefund = async () => {
     if (!requestId) return;
-
-    const hasReceivedReturnedItem =
-      request?.status === ReturnStatus.ITEM_RECEIVED && Boolean(request?.itemReceivedAt);
-
-    if (!hasReceivedReturnedItem) {
-      toast.error('You can only process refund after confirming item received');
-      return;
-    }
-
     try {
       setSubmitting(true);
       await processRefund(requestId);
-      toast.success('Refund processed successfully');
-      handleCloseRefundDialog();
+      toast.success('Refund completed');
+      setRefundDialogOpen(false);
       await fetchRequestDetail();
     } catch (error: any) {
-      console.error('Failed to process refund:', error);
-      toast.error(getApiErrorMessage(error, 'Unable to process refund'));
+      toast.error(getApiErrorMessage(error, 'Error processing refund'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const handleTrackGhnStatus = async () => {
+    if (!requestId) return;
+    try {
+      setFetchingGhn(true);
+      const res = await getReturnGhnStatus(requestId);
+      setGhnStatusData(res.data);
+    } catch (error) {
+      toast.error('Tracking failed');
+    } finally {
+      setFetchingGhn(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-        <ShopOwnerSidebar
-          activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
-          shopName={user?.shop?.shopName}
-          shopLogo={user?.shop?.logoUrl}
-          ownerName={user?.fullName}
-          ownerEmail={user?.email}
-          ownerAvatar={user?.avatarUrl}
-        />
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <CircularProgress />
-        </Box>
-      </Box>
-    );
-  }
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  };
 
-  if (!request) {
-    return (
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
-        <ShopOwnerSidebar
-          activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
-          shopName={user?.shop?.shopName}
-          shopLogo={user?.shop?.logoUrl}
-          ownerName={user?.fullName}
-          ownerEmail={user?.email}
-          ownerAvatar={user?.avatarUrl}
-        />
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <Typography color="text.secondary">Refund request not found.</Typography>
-        </Box>
-      </Box>
-    );
-  }
+  const isVideoFile = (url: string) => /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(url.toLowerCase()) || url.includes('/video/');
+
+  if (loading) return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
+      <ShopOwnerSidebar activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW} shopName={user?.shop?.shopName} />
+      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}><CircularProgress /></Box>
+    </Box>
+  );
+
+  if (!request) return <Typography>Not Found</Typography>;
 
   const canReview = request.status === ReturnStatus.REQUESTED;
-  const canConfirmReceived = request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber;
-  const canProcessRefund =
-    request.status === ReturnStatus.ITEM_RECEIVED && Boolean(request.itemReceivedAt);
-  const showReceivedAlert =
-    request.status === ReturnStatus.ITEM_RECEIVED && Boolean(request.itemReceivedAt);
+  const canConfirmReceived = request.status === ReturnStatus.RETURN_DELIVERED;
+  const canProcessRefund = request.status === ReturnStatus.ITEM_RECEIVED && !!request.itemReceivedAt;
   const steps = getStatusSteps(request.status);
   const activeStep = getActiveStep(request.status, steps);
   const evidenceFiles = request.evidenceImages || [];
-  const isVideoFile = (url: string) => {
-    const lowerUrl = url.toLowerCase();
-    return /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(lowerUrl)
-      || lowerUrl.includes('/video/')
-      || lowerUrl.includes('resource_type/video');
-  };
-  const videoFiles = evidenceFiles.filter((fileUrl) => isVideoFile(fileUrl));
-  const imageFiles = evidenceFiles.filter((fileUrl) => !isVideoFile(fileUrl));
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
       <ShopOwnerSidebar
         activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
         shopName={user?.shop?.shopName}
@@ -407,534 +308,226 @@ const SellerRefundDetailPage = () => {
         ownerAvatar={user?.avatarUrl}
       />
 
-      <Box
-        sx={{
-          flex: 1,
-          px: { xs: 2, md: 4, xl: 6 },
-          py: 4,
-        }}
-      >
+      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 4, maxWidth: 1400, mx: 'auto' }}>
         {/* Header */}
-        <Box mb={4}>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate('/shop/refunds/review')}
-          sx={{ mb: 2 }}
-        >
-          Back to list
-        </Button>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Refund Request Details
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Request ID: <strong>#{request.requestNumber}</strong>
-        </Typography>
-      </Box>
-
-      {/* Progress Stepper */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Stepper activeStep={activeStep} alternativeLabel>
-          {steps.map((step) => (
-            <Step key={step.status}>
-              <StepLabel>{step.label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Current Status Alert */}
-      {canReview && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight="medium">
-            This request requires your review and decision
-          </Typography>
-        </Alert>
-      )}
-
-      {canConfirmReceived && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight="medium">
-            Customer has shipped the return. Please verify and confirm when received.
-          </Typography>
-        </Alert>
-      )}
-
-      {showReceivedAlert && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight="medium">
-            Returned item has been received. Please process the refund for the customer.
-          </Typography>
-        </Alert>
-      )}
-
-      {request.status === ReturnStatus.REJECTED && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <Typography variant="body2" fontWeight="medium">
-            This request was rejected
-          </Typography>
-          {request.rejectionReason && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Reason: {request.rejectionReason}
-            </Typography>
-          )}
-        </Alert>
-      )}
-
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: { xs: 'flex-start', md: 'center' },
-              justifyContent: 'space-between',
-              gap: 2,
-              flexDirection: { xs: 'column', md: 'row' },
-              mb: 2,
-            }}
-          >
-            <Typography variant="h6" fontWeight="bold">
-              <Inventory sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Request Information
-            </Typography>
-
-            {(canReview || canConfirmReceived || canProcessRefund) && (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                {canReview && (
-                  <>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<ThumbUp />}
-                      onClick={() => handleOpenReviewDialog('approve')}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<ThumbDown />}
-                      onClick={() => handleOpenReviewDialog('reject')}
-                    >
-                      Reject
-                    </Button>
-                  </>
-                )}
-
-                {canConfirmReceived && (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<VerifiedUser />}
-                    onClick={handleOpenConfirmDialog}
-                  >
-                    Confirm Received
-                  </Button>
-                )}
-
-                {canProcessRefund && (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    onClick={handleOpenRefundDialog}
-                  >
-                    Process Refund
-                  </Button>
-                )}
-              </Stack>
-            )}
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Button startIcon={<ArrowBack />} onClick={() => navigate('/shop/refunds/review')} sx={{ mb: 1, textTransform: 'none' }}>Back</Button>
+            <Typography variant="h4" fontWeight={800}>Refund Request</Typography>
+            <Typography variant="body2" color="text.secondary">Order: <b>#{request.orderNumber}</b> • ID: {request.requestNumber}</Typography>
           </Box>
+          <Stack direction="row" spacing={2}>
+            {canReview && (
+              <>
+                <Button variant="outlined" color="error" onClick={() => handleOpenReviewDialog('reject')}>Reject</Button>
+                <Button variant="contained" onClick={() => handleOpenReviewDialog('approve')}>Approve</Button>
+              </>
+            )}
+            {canConfirmReceived && (
+              <Button variant="contained" onClick={() => setConfirmDialogOpen(true)}>Confirm Received</Button>
+            )}
+            {canProcessRefund && (
+              <Button variant="contained" color="success" onClick={() => setRefundDialogOpen(true)}>Process Refund</Button>
+            )}
+          </Stack>
+        </Box>
 
-          <Divider sx={{ my: 2 }} />
+        {/* Stepper */}
+        <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, border: '1px solid #e2e8f0' }}>
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {steps.map((s) => (
+              <Step key={s.status}>
+                <StepLabel><Typography variant="caption" fontWeight={600}>{s.label}</Typography></StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Paper>
 
-          <Grid container spacing={5} alignItems="flex-start">
-            <Grid size={{ xs: 12, md: 7 }}>
-              <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <Avatar
-                    src={request.productImageUrl}
-                    variant="rounded"
-                    sx={{ width: '100%', height: 'auto', aspectRatio: '1' }}
-                  >
-                    <AssignmentReturn />
-                  </Avatar>
-                </Grid>
-                <Grid size={{ xs: 12, sm: 8 }}>
-                  <Typography variant="h6" fontWeight="medium" gutterBottom>
-                    {request.productName}
+        <Grid container spacing={4}>
+          {/* Main Info */}
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Stack spacing={4}>
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Inventory fontSize="small" color="primary" /> Refund Item
                   </Typography>
-                  <Stack spacing={1}>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Order Number:</Typography>
-                      <Typography variant="body2" fontWeight="medium">{request.orderNumber}</Typography>
+                  <Box sx={{ display: 'flex', gap: 3 }}>
+                    <Avatar src={request.productImageUrl} variant="rounded" sx={{ width: 100, height: 100 }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight={700}>{request.productName}</Typography>
+                      <Typography variant="body2" color="text.secondary">SKU: {request.productSku}</Typography>
+                      <Box sx={{ mt: 2, display: 'flex', gap: 4 }}>
+                        <Box><Typography variant="caption" color="text.secondary">Qty</Typography><Typography variant="body2" fontWeight={600}>{request.quantity}</Typography></Box>
+                        <Box><Typography variant="caption" color="text.secondary">Type</Typography><Chip label={request.returnType} size="small" variant="outlined" /></Box>
+                      </Box>
                     </Box>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Quantity:</Typography>
-                      <Typography variant="body2" fontWeight="medium">{request.quantity}</Typography>
+                  </Box>
+                </CardContent>
+              </Card>
+
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Reason & Evidence</Typography>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="caption" color="text.secondary">Reason</Typography>
+                    <Typography variant="body2" fontWeight={600}>{RETURN_REASON_LABELS[request.reason]}</Typography>
+                  </Box>
+                  {request.reasonDetail && (
+                    <Box sx={{ mb: 3 }}><Typography variant="caption" color="text.secondary">Details</Typography><Paper sx={{ p: 2, bgcolor: '#f8fafc' }}>{request.reasonDetail}</Paper></Box>
+                  )}
+                  {evidenceFiles.length > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Evidence Preview</Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1, overflowX: 'auto', pb: 1 }}>
+                        {evidenceFiles.map((url, i) => (
+                          <Avatar
+                            key={i}
+                            src={isVideoFile(url) ? undefined : url}
+                            variant="rounded"
+                            sx={{ width: 56, height: 56, cursor: 'pointer', border: '1px solid #e2e8f0', bgcolor: isVideoFile(url) ? 'black' : 'grey.100' }}
+                            onClick={() => window.open(url, '_blank')}
+                          >
+                            {isVideoFile(url) && <Videocam fontSize="small" />}
+                          </Avatar>
+                        ))}
+                      </Box>
+                      <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 600 }} onClick={() => {
+                        const el = document.getElementById('evidence-gallery');
+                        el?.scrollIntoView({ behavior: 'smooth' });
+                      }}>
+                        View all evidence below
+                      </Typography>
                     </Box>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2" color="text.secondary">Request Type:</Typography>
-                      <Chip
-                        label={request.returnType === 'REFUND' ? 'Refund' : 'Exchange'}
-                        color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
-                        size="small"
-                      />
-                    </Box>
-                  </Stack>
-                </Grid>
-              </Grid>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Stack spacing={1.5}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Status:</Typography>
-                  <Chip
-                    label={RETURN_STATUS_LABELS[request.status]}
-                    color={
-                      [ReturnStatus.COMPLETED].includes(request.status)
-                        ? 'success'
-                        : [ReturnStatus.REJECTED, ReturnStatus.CANCELLED].includes(request.status)
-                        ? 'error'
-                        : 'warning'
-                    }
-                    size="small"
-                  />
-                </Box>
-
-                <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Refund Amount:</Typography>
-                  <Typography variant="body2" fontWeight="bold" color="primary.main">
-                    {formatCurrency(request.refundAmount)}
-                  </Typography>
-                </Box>
-
-                {(request.shopCoverShipping ?? request.sellerPaysShipping) && (
-                  <Alert severity="info">
-                    <Typography variant="caption">You cover the return shipping fee</Typography>
-                  </Alert>
-                )}
-
-                <Divider sx={{ my: 1 }} />
-
-                <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Name:</Typography>
-                  {buyerLoading ? <Skeleton width={120} /> : (
-                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.name}</Typography>
                   )}
-                </Box>
-                <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Email:</Typography>
-                  {buyerLoading ? <Skeleton width={160} /> : (
-                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.email}</Typography>
-                  )}
-                </Box>
-                <Box display="flex" justifyContent="space-between" gap={2}>
-                  <Typography variant="body2" color="text.secondary">Phone:</Typography>
-                  {buyerLoading ? <Skeleton width={100} /> : (
-                    <Typography variant="body2" fontWeight="medium" textAlign="right">{buyerInfo.phone}</Typography>
-                  )}
-                </Box>
-              </Stack>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 5 }}>
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                <Info sx={{ verticalAlign: 'middle', mr: 1 }} />
-                Request Details
-              </Typography>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Return Reason:
-                  </Typography>
-                  <Chip label={RETURN_REASON_LABELS[request.reason]} variant="outlined" color="primary" />
-                </Box>
-
-                {request.reasonDetail && (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Details:
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Typography variant="body2">{request.reasonDetail}</Typography>
-                    </Paper>
-                  </Box>
-                )}
-
-                <Box display="flex" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">Submitted At:</Typography>
-                  <Typography variant="body2" fontWeight="medium">{formatDate(request.requestedAt)}</Typography>
-                </Box>
-
-                {request.returnTrackingNumber && (
-                  <Box display="flex" justifyContent="space-between" alignItems="center" gap={1}>
-                    <Typography variant="body2" color="text.secondary">Return Tracking Number:</Typography>
-                    <Chip label={request.returnTrackingNumber} size="small" icon={<LocalShipping />} color="info" />
-                  </Box>
-                )}
-
-                {(request.returnInstruction || request.returnInstructions) && (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Return Instructions:
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'info.50' }}>
-                      <Typography variant="body2">{request.returnInstruction || request.returnInstructions}</Typography>
-                    </Paper>
-                  </Box>
-                )}
-              </Stack>
-            </Grid>
+                </CardContent>
+              </Card>
+            </Stack>
           </Grid>
-        </CardContent>
-      </Card>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            <ImageIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-            Attached Images/Videos ({evidenceFiles.length})
-          </Typography>
-          <Divider sx={{ my: 2 }} />
+          {/* Sidebar */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Stack spacing={3}>
+              <Card elevation={0} sx={{ borderRadius: 3, bgcolor: '#0f172a', color: 'white' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="caption" sx={{ opacity: 0.7 }}>Amount to Refund</Typography>
+                  <Typography variant="h3" fontWeight={800} sx={{ my: 1 }}>{formatCurrency(request.refundAmount)}</Typography>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" sx={{ opacity: 0.7 }}>Status</Typography>
+                    <Chip label={RETURN_STATUS_LABELS[request.status]} size="small" sx={{ bgcolor: 'white', fontWeight: 700 }} />
+                  </Box>
+                </CardContent>
+              </Card>
 
-          {evidenceFiles.length === 0 && <Alert severity="info">No images/videos attached</Alert>}
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Logistics</Typography>
+                  {request.returnTrackingNumber ? (
+                    <Stack spacing={2}>
+                      <Box><Typography variant="caption" color="text.secondary">GHN Tracking</Typography><Typography variant="body2" fontWeight={700} color="primary">{request.returnTrackingNumber}</Typography></Box>
+                      <Button fullWidth size="small" variant="outlined" onClick={handleTrackGhnStatus} loading={fetchingGhn}>Refresh Status</Button>
+                      {ghnStatusData && <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}><Typography variant="caption" fontWeight={700}>{ghnStatusData.status?.toUpperCase()}</Typography></Box>}
+                    </Stack>
+                  ) : <Typography variant="caption">Pending buyer tracking info</Typography>}
+                </CardContent>
+              </Card>
 
-          {imageFiles.length > 0 && (
-            <Box sx={{ mb: videoFiles.length > 0 ? 2 : 0 }}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                Evidence Images ({imageFiles.length})
-              </Typography>
-              <ImageList cols={3} gap={8}>
-                {imageFiles.map((image, index) => (
-                  <ImageListItem key={`${image}-${index}`}>
-                    <img
-                      src={image}
-                      alt={`Evidence image ${index + 1}`}
-                      loading="lazy"
-                      style={{ borderRadius: 8, cursor: 'pointer' }}
-                      onClick={() => window.open(image, '_blank')}
-                    />
-                  </ImageListItem>
-                ))}
-              </ImageList>
-            </Box>
-          )}
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Customer</Typography>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Avatar sx={{ bgcolor: 'secondary.main' }}>{buyerInfo.name[0]}</Avatar>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700}>{buyerLoading ? '...' : buyerInfo.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{buyerInfo.email}</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2 }}><Typography variant="caption">Phone: <b>{buyerInfo.phone}</b></Typography></Box>
+                </CardContent>
+              </Card>
+            </Stack>
+          </Grid>
+        </Grid>
 
-          {videoFiles.length > 0 && (
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                <Videocam sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />
-                Evidence Videos ({videoFiles.length})
+        {/* Full Gallery Section */}
+        {evidenceFiles.length > 0 && (
+          <Card id="evidence-gallery" elevation={0} sx={{ mt: 4, borderRadius: 3, border: '1px solid #e2e8f0' }}>
+            <CardContent sx={{ p: 4 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AttachFile color="primary" />
+                Detailed Evidence Gallery ({evidenceFiles.length})
               </Typography>
               <Grid container spacing={2}>
-                {videoFiles.map((video, index) => (
-                  <Grid size={{ xs: 12, md: 6, lg: 4 }} key={`${video}-${index}`}>
-                    <video
-                      src={video}
-                      controls
-                      style={{ width: '100%', borderRadius: 8, backgroundColor: '#000' }}
-                    />
+                {evidenceFiles.map((url, i) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
+                    <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', bgcolor: isVideoFile(url) ? 'black' : 'white' }}>
+                      {isVideoFile(url) ? (
+                        <video src={url} controls style={{ width: '100%', aspectRatio: '16/9', display: 'block' }} />
+                      ) : (
+                        <Box
+                          component="img"
+                          src={url}
+                          sx={{ width: '100%', aspectRatio: '4/3', objectFit: 'contain', cursor: 'pointer', display: 'block' }}
+                          onClick={() => window.open(url, '_blank')}
+                        />
+                      )}
+                      <Box sx={{ p: 1, textAlign: 'center', bgcolor: 'grey.50' }}>
+                        <Typography variant="caption" color="text.secondary">Evidence #{i + 1}</Typography>
+                      </Box>
+                    </Box>
                   </Grid>
                 ))}
               </Grid>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Review Dialog */}
-      <Dialog
-        open={reviewDialogOpen}
-        onClose={handleCloseReviewDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {reviewAction === 'approve' ? (
-            <>
-              <ThumbUp color="success" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Approve Refund Request
-            </>
-          ) : (
-            <>
-              <ThumbDown color="error" sx={{ verticalAlign: 'middle', mr: 1 }} />
-              Reject Refund Request
-            </>
-          )}
-        </DialogTitle>
-        <DialogContent>
-          {reviewAction === 'approve' ? (
-            <>
-              <Alert severity="info" sx={{ mb: 3 }}>
-                Please provide clear return instructions for the customer
-              </Alert>
-              
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Return Instructions *"
-                placeholder="Example: Please ship the item to 123 ABC Street, XYZ District, Ho Chi Minh City. Pack carefully and write order number #12345 on the package..."
-                value={returnInstructions}
-                onChange={(e) => setReturnInstructions(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              
-              <FormGroup>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={sellerPaysShipping}
-                      onChange={(e) => setSellerPaysShipping(e.target.checked)}
-                    />
-                  }
-                  label="I will cover return shipping"
-                />
-              </FormGroup>
-            </>
-          ) : (
-            <>
-              <Alert severity="warning" sx={{ mb: 3 }}>
-                Please provide the customer with a clear rejection reason
-              </Alert>
-              
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Rejection Reason *"
-                placeholder="Example: The item is outside the return window, or does not meet return eligibility conditions..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-              />
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseReviewDialog} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmitReview}
-            variant="contained"
-            color={reviewAction === 'approve' ? 'success' : 'error'}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <CircularProgress size={24} />
-            ) : reviewAction === 'approve' ? (
-              'Confirm Approval'
-            ) : (
-              'Confirm Rejection'
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Confirm Received Dialog */}
-      <Dialog
-        open={confirmDialogOpen}
-        onClose={handleCloseConfirmDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <VerifiedUser color="primary" sx={{ verticalAlign: 'middle', mr: 1 }} />
-          Confirm Returned Item
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mb: 3 }}>
-            Please check the item condition carefully before confirming
-          </Alert>
-          
-          <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
-            <FormLabel component="legend">Received Item Condition:</FormLabel>
-            <RadioGroup
-              value={itemCondition}
-              onChange={(e) => setItemCondition(e.target.value as ItemCondition)}
-            >
-              <FormControlLabel
-                value={ItemCondition.GOOD}
-                control={<Radio />}
-                label={ITEM_CONDITION_LABELS[ItemCondition.GOOD]}
-              />
-              <FormControlLabel
-                value={ItemCondition.ACCEPTABLE}
-                control={<Radio />}
-                label={ITEM_CONDITION_LABELS[ItemCondition.ACCEPTABLE]}
-              />
-              <FormControlLabel
-                value={ItemCondition.DAMAGED}
-                control={<Radio />}
-                label={ITEM_CONDITION_LABELS[ItemCondition.DAMAGED]}
-              />
-              <FormControlLabel
-                value={ItemCondition.NOT_MATCH}
-                control={<Radio />}
-                label={ITEM_CONDITION_LABELS[ItemCondition.NOT_MATCH]}
-              />
-            </RadioGroup>
-          </FormControl>
-          
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Condition Notes *"
-            placeholder="Example: Item is intact and includes all accessories..."
-            value={conditionNotes}
-            onChange={(e) => setConditionNotes(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseConfirmDialog} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmReceived}
-            variant="contained"
-            color="primary"
-            disabled={submitting}
-          >
-            {submitting ? <CircularProgress size={24} /> : 'Confirm Receipt'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={refundDialogOpen}
-        onClose={handleCloseRefundDialog}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Process Refund</DialogTitle>
-        <DialogContent>
-          <Alert severity="success" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              Refund Amount: <strong>{formatCurrency(request.refundAmount)}</strong>
-            </Typography>
-          </Alert>
-          <Typography variant="body2" color="text.secondary">
-            This action will complete the refund for the customer.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRefundDialog} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleProcessRefund}
-            variant="contained"
-            color="success"
-            disabled={submitting}
-          >
-            {submitting ? <CircularProgress size={24} /> : 'Confirm Refund'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            </CardContent>
+          </Card>
+        )}
       </Box>
+
+      {/* Dialogs */}
+      <Dialog open={reviewDialogOpen} onClose={handleCloseReviewDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>{reviewAction === 'approve' ? 'Approve' : 'Reject'}</DialogTitle>
+        <DialogContent dividers>
+          {reviewAction === 'approve' ? (
+            <Stack spacing={3} sx={{ py: 1 }}>
+              <TextField label="Instructions" multiline rows={4} fullWidth value={returnInstructions} onChange={(e) => setReturnInstructions(e.target.value)} />
+              <FormControlLabel control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} label="Shop covers shipping" />
+            </Stack>
+          ) : (
+            <TextField label="Rejection Reason" multiline rows={4} fullWidth value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} sx={{ mt: 2 }} />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseReviewDialog}>Cancel</Button>
+          <Button variant="contained" color={reviewAction === 'approve' ? 'primary' : 'error'} onClick={handleSubmitReview} disabled={submitting}>Confirm</Button>
+        </DialogActions>
+      </Dialog>
+      
+      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Inspect Item Condition</DialogTitle>
+        <DialogContent dividers>
+          <RadioGroup value={itemCondition} onChange={(e) => setItemCondition(e.target.value as ItemCondition)}>
+            <FormControlLabel value={ItemCondition.GOOD} control={<Radio />} label="Good" />
+            <FormControlLabel value={ItemCondition.DAMAGED} control={<Radio />} label="Damaged" />
+          </RadioGroup>
+          <TextField label="Notes" multiline rows={3} fullWidth sx={{ mt: 2 }} value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleConfirmReceived} disabled={submitting}>Confirm Receipt</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={refundDialogOpen} onClose={() => setRefundDialogOpen(false)}>
+        <DialogTitle>Finalize Refund</DialogTitle>
+        <DialogContent sx={{ py: 2 }}>
+          <Typography variant="body2">Issue refund of <b>{formatCurrency(request?.refundAmount || 0)}</b>?</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setRefundDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={handleProcessRefund} disabled={submitting}>Issue Refund</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
