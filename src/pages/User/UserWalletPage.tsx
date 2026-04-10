@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -106,6 +106,7 @@ const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'defa
 const UserWalletPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [tab, setTab] = useState(0);
   const [wallet, setWallet] = useState<UserWalletResponse | null>(null);
@@ -192,6 +193,15 @@ const UserWalletPage = () => {
   useEffect(() => { fetchTransactions(txPage); }, [txPage, fetchTransactions]);
   useEffect(() => { if (tab === 1) { fetchWithdrawals(wdPage); fetchBankAccounts(); } }, [tab, wdPage, fetchWithdrawals, fetchBankAccounts]);
 
+  // Auto-open top-up dialog when redirected from checkout with insufficient wallet funds
+  useEffect(() => {
+    const topUpAmount = searchParams.get('topUpAmount');
+    if (topUpAmount) {
+      setTopUpAmount(topUpAmount);
+      setTopUpDialogOpen(true);
+    }
+  }, [searchParams]);
+
   const handleWithdrawRequest = async () => {
     const amount = parseInt(withdrawAmount, 10);
     if (isNaN(amount) || amount < 50000) {
@@ -243,6 +253,11 @@ const UserWalletPage = () => {
       const res = await paymentApi.topUpWallet({ amount });
       const paymentUrl = res.data;
       if (paymentUrl) {
+        // Persist returnTo so PaymentResultPage can redirect back after VNPay completes
+        const returnTo = searchParams.get('returnTo') || sessionStorage.getItem('topup_return_to');
+        if (returnTo) {
+          sessionStorage.setItem('topup_return_to', returnTo);
+        }
         window.location.href = paymentUrl;
       } else {
         toast.error('Failed to create top-up payment URL');
