@@ -155,6 +155,14 @@ export const API_ENDPOINTS = {
     QUOTE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/quote`,
     REJECT: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/reject`,
     COMPLETE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/complete`,
+    SERVICE_PRICES: `${API_ENDPOINT}/shop/warranty-service-prices`,
+    SERVICE_PRICE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-service-prices/${id}`,
+    POLICIES: `${API_ENDPOINT}/shop/warranty-policies`,
+    POLICY_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-policies/${id}`,
+  },
+  WARRANTY_PUBLIC: {
+    SERVICE_PRICES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-service-prices`,
+    POLICIES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-policies`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
@@ -281,6 +289,7 @@ export const PAGE_ENDPOINTS = {
     REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
     WARRANTY: `/shop/warranty`,
+    WARRANTY_POLICIES: `/shop/warranty/policies`,
   },
 
   ADMIN: {

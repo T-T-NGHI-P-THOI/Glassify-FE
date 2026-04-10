@@ -145,7 +145,15 @@ export const getReturnStatistics = async (
 ): Promise<ApiResponse<any>> => {
   const response = await axios.get<ApiResponse<any>>(
     `${REFUND_BASE_URL}/statistics`,
-    { params: { shopId } }
+    );
+  return response.data;
+};
+
+export const getReturnGhnStatus = async (
+  requestId: string
+): Promise<ApiResponse<any>> => {
+  const response = await axios.get<ApiResponse<any>>(
+    `${REFUND_BASE_URL}/ghn/status/${requestId}`
   );
   return response.data;
 };
