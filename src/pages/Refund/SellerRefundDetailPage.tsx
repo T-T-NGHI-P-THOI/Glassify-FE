@@ -42,6 +42,7 @@ import {
   Videocam,
   VerifiedUser,
   AttachFile,
+  Person,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -104,6 +105,26 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
 const getActiveStep = (status: ReturnStatus, steps: StepItem[]) => {
   const index = steps.findIndex((step) => step.status === status);
   return index >= 0 ? index : 0;
+};
+
+const getStatusColor = (status: ReturnStatus): 'warning' | 'success' | 'info' | 'error' | 'info' => {
+  switch (status) {
+    case ReturnStatus.REQUESTED:
+      return 'warning';
+    case ReturnStatus.APPROVED:
+    case ReturnStatus.RETURN_READY_TO_PICK:
+    case ReturnStatus.RETURN_SHIPPING:
+      return 'info';
+    case ReturnStatus.RETURN_DELIVERED:
+    case ReturnStatus.ITEM_RECEIVED:
+    case ReturnStatus.COMPLETED:
+      return 'success';
+    case ReturnStatus.REJECTED:
+    case ReturnStatus.CANCELLED:
+      return 'error';
+    default:
+      return 'info';
+  }
 };
 
 const SellerRefundDetailPage = () => {
@@ -308,224 +329,455 @@ const SellerRefundDetailPage = () => {
         ownerAvatar={user?.avatarUrl}
       />
 
-      <Box sx={{ flex: 1, px: { xs: 2, md: 5 }, py: 4, maxWidth: 1400, mx: 'auto' }}>
-        {/* Header */}
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Button startIcon={<ArrowBack />} onClick={() => navigate('/shop/refunds/review')} sx={{ mb: 1, textTransform: 'none' }}>Back</Button>
-            <Typography variant="h4" fontWeight={800}>Refund Request</Typography>
-            <Typography variant="body2" color="text.secondary">Order: <b>#{request.orderNumber}</b> • ID: {request.requestNumber}</Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            {canReview && (
-              <>
-                <Button variant="outlined" color="error" onClick={() => handleOpenReviewDialog('reject')}>Reject</Button>
-                <Button variant="contained" onClick={() => handleOpenReviewDialog('approve')}>Approve</Button>
-              </>
-            )}
-            {canConfirmReceived && (
-              <Button variant="contained" onClick={() => setConfirmDialogOpen(true)}>Confirm Received</Button>
-            )}
-            {canProcessRefund && (
-              <Button variant="contained" color="success" onClick={() => setRefundDialogOpen(true)}>Process Refund</Button>
-            )}
-          </Stack>
-        </Box>
-
-        {/* Stepper */}
-        <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, border: '1px solid #e2e8f0' }}>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((s) => (
-              <Step key={s.status}>
-                <StepLabel><Typography variant="caption" fontWeight={600}>{s.label}</Typography></StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </Paper>
-
-        <Grid container spacing={4}>
-          {/* Main Info */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <Stack spacing={4}>
-              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Inventory fontSize="small" color="primary" /> Refund Item
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 3 }}>
-                    <Avatar src={request.productImageUrl} variant="rounded" sx={{ width: 100, height: 100 }} />
-                    <Box>
-                      <Typography variant="h6" fontWeight={700}>{request.productName}</Typography>
-                      <Typography variant="body2" color="text.secondary">SKU: {request.productSku}</Typography>
-                      <Box sx={{ mt: 2, display: 'flex', gap: 4 }}>
-                        <Box><Typography variant="caption" color="text.secondary">Qty</Typography><Typography variant="body2" fontWeight={600}>{request.quantity}</Typography></Box>
-                        <Box><Typography variant="caption" color="text.secondary">Type</Typography><Chip label={request.returnType} size="small" variant="outlined" /></Box>
-                      </Box>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-
-              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>Reason & Evidence</Typography>
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="caption" color="text.secondary">Reason</Typography>
-                    <Typography variant="body2" fontWeight={600}>{RETURN_REASON_LABELS[request.reason]}</Typography>
-                  </Box>
-                  {request.reasonDetail && (
-                    <Box sx={{ mb: 3 }}><Typography variant="caption" color="text.secondary">Details</Typography><Paper sx={{ p: 2, bgcolor: '#f8fafc' }}>{request.reasonDetail}</Paper></Box>
-                  )}
-                  {evidenceFiles.length > 0 && (
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">Evidence Preview</Typography>
-                      <Box sx={{ display: 'flex', gap: 1, mt: 1, overflowX: 'auto', pb: 1 }}>
-                        {evidenceFiles.map((url, i) => (
-                          <Avatar
-                            key={i}
-                            src={isVideoFile(url) ? undefined : url}
-                            variant="rounded"
-                            sx={{ width: 56, height: 56, cursor: 'pointer', border: '1px solid #e2e8f0', bgcolor: isVideoFile(url) ? 'black' : 'grey.100' }}
-                            onClick={() => window.open(url, '_blank')}
-                          >
-                            {isVideoFile(url) && <Videocam fontSize="small" />}
-                          </Avatar>
-                        ))}
-                      </Box>
-                      <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 600 }} onClick={() => {
-                        const el = document.getElementById('evidence-gallery');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                      }}>
-                        View all evidence below
-                      </Typography>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            </Stack>
-          </Grid>
-
-          {/* Sidebar */}
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Stack spacing={3}>
-              <Card elevation={0} sx={{ borderRadius: 3, bgcolor: '#0f172a', color: 'white' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.7 }}>Amount to Refund</Typography>
-                  <Typography variant="h3" fontWeight={800} sx={{ my: 1 }}>{formatCurrency(request.refundAmount)}</Typography>
-                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>Status</Typography>
-                    <Chip label={RETURN_STATUS_LABELS[request.status]} size="small" sx={{ bgcolor: 'white', fontWeight: 700 }} />
-                  </Box>
-                </CardContent>
-              </Card>
-
-              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Logistics</Typography>
-                  {request.returnTrackingNumber ? (
-                    <Stack spacing={2}>
-                      <Box><Typography variant="caption" color="text.secondary">GHN Tracking</Typography><Typography variant="body2" fontWeight={700} color="primary">{request.returnTrackingNumber}</Typography></Box>
-                      <Button fullWidth size="small" variant="outlined" onClick={handleTrackGhnStatus} loading={fetchingGhn}>Refresh Status</Button>
-                      {ghnStatusData && <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}><Typography variant="caption" fontWeight={700}>{ghnStatusData.status?.toUpperCase()}</Typography></Box>}
-                    </Stack>
-                  ) : <Typography variant="caption">Pending buyer tracking info</Typography>}
-                </CardContent>
-              </Card>
-
-              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>Customer</Typography>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <Avatar sx={{ bgcolor: 'secondary.main' }}>{buyerInfo.name[0]}</Avatar>
-                    <Box>
-                      <Typography variant="body2" fontWeight={700}>{buyerLoading ? '...' : buyerInfo.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">{buyerInfo.email}</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2 }}><Typography variant="caption">Phone: <b>{buyerInfo.phone}</b></Typography></Box>
-                </CardContent>
-              </Card>
-            </Stack>
-          </Grid>
-        </Grid>
-
-        {/* Full Gallery Section */}
-        {evidenceFiles.length > 0 && (
-          <Card id="evidence-gallery" elevation={0} sx={{ mt: 4, borderRadius: 3, border: '1px solid #e2e8f0' }}>
-            <CardContent sx={{ p: 4 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AttachFile color="primary" />
-                Detailed Evidence Gallery ({evidenceFiles.length})
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        <Box sx={{ 
+          maxWidth: 1600, 
+          mx: 'auto', 
+          px: { xs: 3, md: 6 }, 
+          py: 4 
+        }}>
+          {/* Header Area */}
+          <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 3 }}>
+            <Box>
+              <Button 
+                startIcon={<ArrowBack />} 
+                onClick={() => navigate('/shop/refunds/review')} 
+                sx={{ mb: 1.5, color: theme.palette.custom.neutral[500], '&:hover': { bgcolor: 'transparent', color: theme.palette.custom.neutral[800] } }}
+              >
+                Back to List
+              </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.custom.neutral[900] }}>
+                  Request #{request.requestNumber}
+                </Typography>
+                <Chip 
+                  label={RETURN_STATUS_LABELS[request.status]} 
+                  sx={{ 
+                    bgcolor: (theme.palette as any)[getStatusColor(request.status)].light, 
+                    color: (theme.palette as any)[getStatusColor(request.status)].main,
+                    fontWeight: 700,
+                    borderRadius: 1.5
+                  }} 
+                />
+              </Box>
+              <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500], mt: 1 }}>
+                Submitted on {formatDate(request.requestedAt)} • Order <b>#{request.orderNumber}</b>
               </Typography>
-              <Grid container spacing={2}>
-                {evidenceFiles.map((url, i) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
-                    <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0', bgcolor: isVideoFile(url) ? 'black' : 'white' }}>
-                      {isVideoFile(url) ? (
-                        <video src={url} controls style={{ width: '100%', aspectRatio: '16/9', display: 'block' }} />
-                      ) : (
-                        <Box
-                          component="img"
-                          src={url}
-                          sx={{ width: '100%', aspectRatio: '4/3', objectFit: 'contain', cursor: 'pointer', display: 'block' }}
-                          onClick={() => window.open(url, '_blank')}
-                        />
-                      )}
-                      <Box sx={{ p: 1, textAlign: 'center', bgcolor: 'grey.50' }}>
-                        <Typography variant="caption" color="text.secondary">Evidence #{i + 1}</Typography>
+            </Box>
+
+            <Stack direction="row" spacing={2}>
+              {canReview && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="error" 
+                    onClick={() => handleOpenReviewDialog('reject')}
+                    sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Reject Request
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => handleOpenReviewDialog('approve')}
+                    sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600, bgcolor: theme.palette.custom.neutral[900] }}
+                  >
+                    Approve & Instructions
+                  </Button>
+                </>
+              )}
+              {canConfirmReceived && (
+                <Button 
+                  variant="contained" 
+                  onClick={() => setConfirmDialogOpen(true)}
+                  sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}
+                >
+                  Confirm Item Received
+                </Button>
+              )}
+              {canProcessRefund && (
+                <Button 
+                  variant="contained" 
+                  color="success" 
+                  onClick={() => setRefundDialogOpen(true)}
+                  sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}
+                >
+                  Confirm Refund
+                </Button>
+              )}
+            </Stack>
+          </Box>
+
+          {/* Stepper Progress */}
+          <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, bgcolor: 'white' }}>
+            <Stepper activeStep={activeStep} alternativeLabel>
+              {steps.map((s) => (
+                <Step key={s.status}>
+                  <StepLabel>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[700] }}>
+                      {s.label}
+                    </Typography>
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Paper>
+
+          <Grid container spacing={4}>
+            {/* Left Content */}
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <Stack spacing={4}>
+                {/* Product Detail Card */}
+                <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                  <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.custom.border.light}`, bgcolor: theme.palette.custom.neutral[50] }}>
+                    <Typography sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800], fontSize: 16 }}>
+                      Product Information
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 3, display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+                    <Avatar 
+                      src={request.productImageUrl} 
+                      variant="rounded" 
+                      sx={{ width: 120, height: 120, borderRadius: 3, border: `1px solid ${theme.palette.custom.border.light}` }} 
+                    />
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Box>
+                          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{request.productName}</Typography>
+                          <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500], fontFamily: 'monospace' }}>
+                            SKU: {request.productSku}
+                          </Typography>
+                        </Box>
+                        <Chip label={request.returnType} color="primary" variant="outlined" sx={{ fontWeight: 700, borderRadius: 1 }} />
                       </Box>
+                      
+                      <Grid container spacing={3} sx={{ mt: 2 }}>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[400], display: 'block' }}>Quantity</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>{request.quantity}</Typography>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[400], display: 'block' }}>Reason</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>{RETURN_REASON_LABELS[request.reason]}</Typography>
+                        </Grid>
+                        {request.exchangeVariantInfo && (
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[400], display: 'block' }}>Exchange For</Typography>
+                            <Typography sx={{ fontWeight: 700 }}>{request.exchangeVariantInfo}</Typography>
+                          </Grid>
+                        )}
+                      </Grid>
                     </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+                  </Box>
+                </Paper>
+
+                {/* Evidence Section - Higher Up and More Prominent */}
+                <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                  <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.custom.border.light}`, bgcolor: theme.palette.custom.neutral[50] }}>
+                    <Typography sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800], fontSize: 16 }}>
+                      Customer Evidence & Notes
+                    </Typography>
+                  </Box>
+                  <Box sx={{ p: 3 }}>
+                    {request.reasonDetail && (
+                      <Box sx={{ mb: 4 }}>
+                        <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                          Customer Note
+                        </Typography>
+                        <Paper elevation={0} sx={{ p: 2.5, bgcolor: '#f1f5f9', borderRadius: 3, border: '1px solid #e2e8f0' }}>
+                          <Typography sx={{ fontSize: 15, color: '#334155', lineHeight: 1.6 }}>{request.reasonDetail}</Typography>
+                        </Paper>
+                      </Box>
+                    )}
+
+                    <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase', mb: 2, display: 'block' }}>
+                      Visual Evidence ({evidenceFiles.length})
+                    </Typography>
+                    
+                    {evidenceFiles.length > 0 ? (
+                      <Grid container spacing={2}>
+                        {evidenceFiles.map((url, i) => (
+                          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+                            <Box 
+                              sx={{ 
+                                borderRadius: 3, 
+                                overflow: 'hidden', 
+                                border: `1px solid ${theme.palette.custom.border.light}`,
+                                position: 'relative',
+                                transition: 'transform 0.2s',
+                                '&:hover': { transform: 'scale(1.02)' }
+                              }}
+                            >
+                              {isVideoFile(url) ? (
+                                <video src={url} controls style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover' }} />
+                              ) : (
+                                <Box 
+                                  component="img" 
+                                  src={url} 
+                                  sx={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', cursor: 'zoom-in' }} 
+                                  onClick={() => window.open(url, '_blank')}
+                                />
+                              )}
+                              <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
+                                <Chip 
+                                  icon={isVideoFile(url) ? <Videocam sx={{ fontSize: '14px !important' }} /> : <ImageIcon sx={{ fontSize: '14px !important' }} />}
+                                  label={isVideoFile(url) ? 'Video' : 'Image'} 
+                                  size="small" 
+                                  sx={{ bgcolor: 'rgba(255,255,255,0.9)', fontWeight: 700, fontSize: 10, height: 20 }} 
+                                />
+                              </Box>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    ) : (
+                      <Box sx={{ p: 4, textAlign: 'center', border: '1px dashed #e2e8f0', borderRadius: 3 }}>
+                        <Typography color="text.secondary">No visual evidence provided</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              </Stack>
+            </Grid>
+
+            {/* Right Sidebar */}
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <Stack spacing={3}>
+                {/* Financial Card */}
+                <Paper 
+                  elevation={0} 
+                  sx={{ 
+                    borderRadius: 4, 
+                    bgcolor: '#1e293b', 
+                    color: 'white', 
+                    p: 3,
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <Box sx={{ position: 'relative', zIndex: 1 }}>
+                    <Typography sx={{ opacity: 0.6, fontSize: 13, fontWeight: 600 }}>Refund Amount</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 800, mt: 1, mb: 2 }}>{formatCurrency(request.refundAmount)}</Typography>
+                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ opacity: 0.6, fontSize: 13 }}>Auto Approval</Typography>
+                      <Chip 
+                        label={request.autoApprovalEligible ? 'Eligible' : 'Not Eligible'} 
+                        size="small" 
+                        sx={{ bgcolor: request.autoApprovalEligible ? '#22c55e' : '#64748b', color: 'white', fontWeight: 700, fontSize: 10 }} 
+                      />
+                    </Box>
+                  </Box>
+                  {/* Decorative background circle */}
+                  <Box sx={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.03)' }} />
+                </Paper>
+
+                {/* Logistics Info */}
+                <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
+                  <Typography sx={{ fontWeight: 700, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalShipping sx={{ color: theme.palette.primary.main }} /> Logistics Details
+                  </Typography>
+                  {request.returnTrackingNumber ? (
+                    <Stack spacing={2.5}>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[400], fontWeight: 700 }}>Tracking ID</Typography>
+                        <Typography sx={{ fontWeight: 800, color: theme.palette.primary.main, fontSize: 18, mt: 0.5 }}>
+                          {request.returnTrackingNumber}
+                        </Typography>
+                      </Box>
+                      <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={handleTrackGhnStatus} 
+                        disabled={fetchingGhn}
+                        sx={{ borderRadius: 1.5, textTransform: 'none' }}
+                      >
+                        {fetchingGhn ? <CircularProgress size={20} /> : 'Track Package Status'}
+                      </Button>
+                      {ghnStatusData && (
+                        <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.primary.main, display: 'block', mb: 0.5 }}>
+                            {ghnStatusData.status?.toUpperCase()}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: 12 }}>{ghnStatusData.location || 'Status updated from carrier'}</Typography>
+                        </Box>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Waiting for buyer to return item...</Typography>
+                  )}
+                </Paper>
+
+                {/* Customer Info Card */}
+                <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
+                  <Typography sx={{ fontWeight: 700, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Person sx={{ color: theme.palette.secondary.main }} /> Buyer Information
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 3 }}>
+                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.light', color: 'secondary.main', fontWeight: 800 }}>
+                      {buyerInfo.name[0]}
+                    </Avatar>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{buyerLoading ? <Skeleton width={100} /> : buyerInfo.name}</Typography>
+                      <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500] }}>{buyerInfo.email}</Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ bgcolor: '#f1f5f9', p: 2, borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase', mb: 0.5, display: 'block' }}>
+                      Primary Phone
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700, color: '#0f172a', fontSize: 16 }}>
+                      {buyerLoading ? 'Loading...' : buyerInfo.phone || '—'}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
       </Box>
 
-      {/* Dialogs */}
-      <Dialog open={reviewDialogOpen} onClose={handleCloseReviewDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>{reviewAction === 'approve' ? 'Approve' : 'Reject'}</DialogTitle>
-        <DialogContent dividers>
+      {/* Dialogs... same logic but restyle headers */}
+      <Dialog 
+        open={reviewDialogOpen} 
+        onClose={handleCloseReviewDialog} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, px: 3, pt: 3 }}>
+          {reviewAction === 'approve' ? 'Approve Refund Request' : 'Reject Refund Request'}
+        </DialogTitle>
+        <DialogContent sx={{ px: 3 }}>
           {reviewAction === 'approve' ? (
-            <Stack spacing={3} sx={{ py: 1 }}>
-              <TextField label="Instructions" multiline rows={4} fullWidth value={returnInstructions} onChange={(e) => setReturnInstructions(e.target.value)} />
-              <FormControlLabel control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} label="Shop covers shipping" />
+            <Stack spacing={3} sx={{ py: 2 }}>
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                Approve this request if the item is eligible for return. Provide clear instructions for the customer.
+              </Alert>
+              <TextField 
+                label="Return Instructions" 
+                multiline 
+                rows={4} 
+                fullWidth 
+                placeholder="Where should the customer send the item? What items should be included in the package?"
+                value={returnInstructions} 
+                onChange={(e) => setReturnInstructions(e.target.value)} 
+              />
+              <FormControlLabel 
+                control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} 
+                label={<Typography sx={{ fontSize: 14, fontWeight: 600 }}>Shop will cover the return shipping fee</Typography>} 
+              />
             </Stack>
           ) : (
-            <TextField label="Rejection Reason" multiline rows={4} fullWidth value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} sx={{ mt: 2 }} />
+            <Stack spacing={3} sx={{ py: 2 }}>
+              <Alert severity="error" sx={{ borderRadius: 2 }}>
+                Rejecting a request should be based on valid policy reasons.
+              </Alert>
+              <TextField 
+                label="Rejection Reason" 
+                multiline 
+                rows={4} 
+                fullWidth 
+                placeholder="Explain why this request is being rejected..."
+                value={rejectionReason} 
+                onChange={(e) => setRejectionReason(e.target.value)} 
+              />
+            </Stack>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseReviewDialog}>Cancel</Button>
-          <Button variant="contained" color={reviewAction === 'approve' ? 'primary' : 'error'} onClick={handleSubmitReview} disabled={submitting}>Confirm</Button>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={handleCloseReviewDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color={reviewAction === 'approve' ? 'primary' : 'error'} 
+            onClick={handleSubmitReview} 
+            disabled={submitting}
+            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
+          >
+            {submitting ? <CircularProgress size={20} /> : 'Submit Review'}
+          </Button>
         </DialogActions>
       </Dialog>
       
-      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Inspect Item Condition</DialogTitle>
-        <DialogContent dividers>
-          <RadioGroup value={itemCondition} onChange={(e) => setItemCondition(e.target.value as ItemCondition)}>
-            <FormControlLabel value={ItemCondition.GOOD} control={<Radio />} label="Good" />
-            <FormControlLabel value={ItemCondition.DAMAGED} control={<Radio />} label="Damaged" />
-          </RadioGroup>
-          <TextField label="Notes" multiline rows={3} fullWidth sx={{ mt: 2 }} value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} />
+      {/* Confirm Received Dialog */}
+      <Dialog 
+        open={confirmDialogOpen} 
+        onClose={() => setConfirmDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, px: 3, pt: 3 }}>Inspect Returned Item</DialogTitle>
+        <DialogContent sx={{ px: 3 }}>
+          <Box sx={{ py: 2 }}>
+            <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2, display: 'block' }}>Rate Item Condition</FormLabel>
+            <RadioGroup value={itemCondition} onChange={(e) => setItemCondition(e.target.value as ItemCondition)}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6 }}>
+                  <Paper variant="outlined" sx={{ p: 1, borderRadius: 2, bgcolor: itemCondition === ItemCondition.GOOD ? '#eff6ff' : 'transparent', borderColor: itemCondition === ItemCondition.GOOD ? 'primary.main' : 'divider' }}>
+                    <FormControlLabel value={ItemCondition.GOOD} control={<Radio size="small" />} label="Good / Resalable" />
+                  </Paper>
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Paper variant="outlined" sx={{ p: 1, borderRadius: 2, bgcolor: itemCondition === ItemCondition.DAMAGED ? '#fef2f2' : 'transparent', borderColor: itemCondition === ItemCondition.DAMAGED ? 'error.main' : 'divider' }}>
+                    <FormControlLabel value={ItemCondition.DAMAGED} control={<Radio size="small" />} label="Damaged" />
+                  </Paper>
+                </Grid>
+              </Grid>
+            </RadioGroup>
+            
+            <TextField 
+              label="Inspection Notes" 
+              multiline 
+              rows={3} 
+              fullWidth 
+              sx={{ mt: 3 }} 
+              placeholder="Describe any damage or issues found during inspection..."
+              value={conditionNotes} 
+              onChange={(e) => setConditionNotes(e.target.value)} 
+            />
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleConfirmReceived} disabled={submitting}>Confirm Receipt</Button>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setConfirmDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={handleConfirmReceived} 
+            disabled={submitting}
+            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
+          >
+            {submitting ? <CircularProgress size={20} /> : 'Complete Inspection'}
+          </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={refundDialogOpen} onClose={() => setRefundDialogOpen(false)}>
-        <DialogTitle>Finalize Refund</DialogTitle>
+      {/* Process Refund Dialog */}
+      <Dialog 
+        open={refundDialogOpen} 
+        onClose={() => setRefundDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Finalize Refund</DialogTitle>
         <DialogContent sx={{ py: 2 }}>
-          <Typography variant="body2">Issue refund of <b>{formatCurrency(request?.refundAmount || 0)}</b>?</Typography>
+          <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+            You are about to release the refund to the customer. This action is permanent.
+          </Typography>
+          <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase' }}>Refund Amount</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#22c55e' }}>{formatCurrency(request?.refundAmount || 0)}</Typography>
+          </Paper>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setRefundDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="success" onClick={handleProcessRefund} disabled={submitting}>Issue Refund</Button>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={() => setRefundDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color="success" 
+            onClick={handleProcessRefund} 
+            disabled={submitting}
+            sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
+          >
+            Confirm & Issue Refund
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

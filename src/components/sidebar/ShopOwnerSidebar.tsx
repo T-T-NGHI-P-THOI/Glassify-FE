@@ -60,11 +60,10 @@ export const ShopOwnerSidebar = ({
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [shopName, setShopName] = useState(shopNameProp);
   const [shopLogo, setShopLogo] = useState(shopLogoProp);
-  const [productsOpen, setProductsOpen] = useState(
-    location.pathname.startsWith('/shop/products')
-      || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS
-      || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
-  );
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    Products: location.pathname.startsWith('/shop/products') || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
+    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES,
+  });
 
   useEffect(() => {
     if (shopNameProp) {
@@ -99,7 +98,10 @@ export const ShopOwnerSidebar = ({
 
   useEffect(() => {
     if (location.pathname.startsWith('/shop/products')) {
-      setProductsOpen(true);
+      setExpandedGroups(prev => ({ ...prev, Products: true }));
+    }
+    if (location.pathname.startsWith('/shop/warranty')) {
+      setExpandedGroups(prev => ({ ...prev, Warranty: true }));
     }
   }, [location.pathname]);
 
@@ -126,17 +128,26 @@ export const ShopOwnerSidebar = ({
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
     { icon: <PeopleAlt />, label: 'Staff', path: PAGE_ENDPOINTS.SHOP.STAFF },
-    { icon: <Build />, label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
+    {
+      icon: <Build />,
+      label: 'Warranty',
+      children: [
+        { label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
+        { label: 'Policies & Pricing', path: PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES },
+      ],
+    },
   ];
 
   const isActive = (path: string) => {
     return activeMenu === path || location.pathname === path;
   };
 
-  const isProductsActive =
-    isActive(PAGE_ENDPOINTS.SHOP.PRODUCTS)
-    || isActive(PAGE_ENDPOINTS.SHOP.PRODUCT_LENS)
-    || location.pathname.startsWith('/shop/products');
+  const isGroupActive = (item: SidebarMenuItem) => {
+    if (item.children) {
+      return item.children.some(child => isActive(child.path));
+    }
+    return item.path ? isActive(item.path) : false;
+  };
 
   const bottomMenuItems = [
     { icon: <Settings />, label: 'Settings', path: '/shop/settings' },
@@ -222,15 +233,18 @@ export const ShopOwnerSidebar = ({
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {menuItems.map((item) => {
           if (item.children) {
+            const groupActive = isGroupActive(item);
+            const isOpen = expandedGroups[item.label] || false;
+
             return (
               <Box key={item.label}>
                 <ListItemButton
-                  onClick={() => setProductsOpen((prev) => !prev)}
+                  onClick={() => setExpandedGroups(prev => ({ ...prev, [item.label]: !isOpen }))}
                   sx={{
                     borderRadius: 2,
                     mb: 0.5,
                     transition: TRANSITION,
-                    backgroundColor: isProductsActive ? theme.palette.custom.neutral[100] : 'transparent',
+                    backgroundColor: groupActive ? theme.palette.custom.neutral[100] : 'transparent',
                     '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
                   }}
                 >
@@ -238,7 +252,7 @@ export const ShopOwnerSidebar = ({
                     sx={{
                       minWidth: 36,
                       transition: TRANSITION,
-                      color: isProductsActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                      color: groupActive ? theme.palette.primary.main : theme.palette.text.secondary,
                     }}
                   >
                     {item.icon}
@@ -249,16 +263,16 @@ export const ShopOwnerSidebar = ({
                       primary: {
                         style: {
                           fontSize: 14,
-                          fontWeight: isProductsActive ? 600 : 500,
-                          color: isProductsActive ? theme.palette.primary.main : theme.palette.text.primary,
+                          fontWeight: groupActive ? 600 : 500,
+                          color: groupActive ? theme.palette.primary.main : theme.palette.text.primary,
                           transition: TRANSITION,
                         },
                       },
                     }}
                   />
-                  {productsOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                  {isOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
                 </ListItemButton>
-                <Collapse in={productsOpen} timeout="auto" unmountOnExit>
+                <Collapse in={isOpen} timeout="auto" unmountOnExit>
                   <List disablePadding>
                     {item.children.map((child) => {
                       const childActive = isActive(child.path);
