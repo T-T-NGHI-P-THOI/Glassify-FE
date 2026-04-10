@@ -291,6 +291,7 @@ const FrameProductPage = () => {
                     onEdit={() => setEditTarget(fg)}
                     onDelete={() => setDeleteTarget(fg)}
                     onPreview={() => {setViewTarget(fg) }}
+                    setFrameGroups={setFrameGroups}
                     onViewAnalytics={() => { }}
                   />
                 </Box>

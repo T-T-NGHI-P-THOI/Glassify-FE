@@ -85,8 +85,6 @@ interface EditFrameVariantDialogProps {
     /** Called after a successful save */
     onSaved?: (variantId: string, data: EditFrameVariantFormData) => void;
     variant: FrameVariantResponse;
-    /** Existing product image URLs */
-    productImages: string[];
     /** 3D model file (if VR enabled) */
     modelFile?: Model3DFile | null;
     shopId: string;
@@ -118,7 +116,6 @@ const formatFileSize = (bytes: number) => {
 
 const buildDefaultForm = (
     variant: FrameVariantResponse,
-    productImages: string[]
 ): EditFrameVariantFormData => ({
     colorName: variant.colorName ?? '',
     colorHex: variant.colorHex ?? '#000000',
@@ -134,9 +131,9 @@ const buildDefaultForm = (
     costPrice: variant.costPrice ? Number(variant.costPrice) : 0,
     basePrice: variant.basePrice ? Number(variant.basePrice) : 0,
     isReturnable: variant.isReturnable ?? false,
-    isFeatured: variant.isFeatured ?? false,
+    isFeatured: variant.productResponse.isFeatured ?? false,
     newImages: [],
-    keepImageUrls: [...productImages],
+    keepImageUrls: [...variant.productResponse.productImages],
     newTextureFile: null,
     keepTextureUrl: variant.textureFile ?? null,
 });
@@ -148,7 +145,6 @@ const EditFrameVariantDialog = ({
     onClose,
     onSaved,
     variant,
-    productImages,
     modelFile,
     shopId,
     frameGroupId
@@ -156,7 +152,7 @@ const EditFrameVariantDialog = ({
     const theme = useTheme();
 
     const [formData, setFormData] = useState<EditFrameVariantFormData>(() =>
-        buildDefaultForm(variant, productImages)
+        buildDefaultForm(variant)
     );
     const [errors, setErrors] = useState<Partial<Record<keyof EditFrameVariantFormData, string>>>({});
     const [loading, setLoading] = useState(false);
@@ -171,10 +167,10 @@ const EditFrameVariantDialog = ({
     // ── Init form when variant changes ────────────────────────────────────────
     useEffect(() => {
         if (open) {
-            setFormData(buildDefaultForm(variant, productImages));
+            setFormData(buildDefaultForm(variant));
             setErrors({});
         }
-    }, [open, variant, productImages]);
+    }, [open, variant]);
 
     // ── Fetch colors ──────────────────────────────────────────────────────────
     useEffect(() => {

@@ -24,7 +24,7 @@ import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPag
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
 import ProductAPI from '@/api/product-api';
-import EditFrameVariantDialog from '../Edit/EditFrameVariantDialog';
+import EditFrameVariantDialog, { type EditFrameVariantFormData } from '../Edit/EditFrameVariantDialog';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -45,7 +45,6 @@ export interface FrameVariantResponse {
     slug: string | null;
     basePrice: number;
     costPrice: number;
-    compareAtPrice: number;
     stock: number;
     stockThreshold: number;
     qtyOnHand: number;
@@ -63,7 +62,6 @@ export interface ProductResponse {
     id: string;
     basePrice: number;
     costPrice: number;
-    compareAtPrice: number;
     stockQuantity: number;
     isActive: boolean;
     isFeatured: boolean;
@@ -121,9 +119,10 @@ interface VariantPanelProps {
     variants: FrameVariantResponse[];
     vrEnabled?: boolean;
     productImages: string[];
+    setFrameGroups: React.Dispatch<React.SetStateAction<FrameGroup[]>>;
 }
 
-const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages }: VariantPanelProps) => {
+const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages, setFrameGroups }: VariantPanelProps) => {
     const theme = useTheme();
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedVariant, setSelectedVariant] = useState<
@@ -152,6 +151,24 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
             </Box>
         );
     }
+
+    const handleVariantUpdated = (variantId: string, data: EditFrameVariantFormData) => {
+        setFrameGroups(prev =>
+            prev.map(group => ({
+                ...group,
+                frameVariantResponses: group.frameVariantResponses.map(v =>
+                    v.id === variantId
+                        ? {
+                            ...v,
+                            ...data, // update field
+                            qtyOnHand: data.stock, // map lại field BE
+                            lowStockThreshold: data.stockThreshold,
+                        }
+                        : v
+                )
+            }))
+        );
+    };
 
     return (
         <>
@@ -268,11 +285,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                                     <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
                                         {v.basePrice.toLocaleString('vi-VN')}₫
                                     </Typography>
-                                    {v.compareAtPrice > v.basePrice && (
-                                        <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
-                                            {v.compareAtPrice.toLocaleString('vi-VN')}₫
-                                        </Typography>
-                                    )}
                                 </Box>
 
                                 {/* Stock */}
@@ -402,7 +414,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                 <FrameVariantDetailDialog
                     open={detailOpen}
                     onClose={() => { setDetailOpen(false); setSelectedVariant(null); }}
-                    productImages={productImages}
                     variant={selectedVariant}
                     modelFile={null}
                     vrEnabled={vrEnabled}
@@ -420,7 +431,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
             {updateVaraintOpen && editingVariant && (
                 <EditFrameVariantDialog
                     open={updateVaraintOpen}
-                    productImages={productImages}
                     variant={editingVariant}
                     frameGroupId={frameGroupId}
                     shopId={shopId}
@@ -428,9 +438,10 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                         setUpdateVaraintOpen(false);
                         setEditingVariant(null);
                     }}
-                    onSaved={() => {
+                    onSaved={(variantId, formData) => {
                         setUpdateVaraintOpen(false);
                         setEditingVariant(null);
+                        handleVariantUpdated(variantId, formData);
                     }}
                 />
             )}
@@ -449,6 +460,7 @@ export interface FrameGroupCardProps {
     onDelete: () => void;
     onViewAnalytics?: () => void;
     onPreview?: () => void;
+    setFrameGroups: React.Dispatch<React.SetStateAction<FrameGroup[]>>;
 }
 
 const FrameGroupCard = ({
@@ -460,6 +472,7 @@ const FrameGroupCard = ({
     onDelete,
     onViewAnalytics,
     onPreview,
+    setFrameGroups
 }: FrameGroupCardProps) => {
     const theme = useTheme();
 
@@ -480,9 +493,9 @@ const FrameGroupCard = ({
 
     const price = (() => {
         const p = featuredFrameVariant?.productResponse;
-        if (p) return { base: p.basePrice, compare: p.compareAtPrice, cost: p.costPrice };
+        if (p) return { base: p.basePrice, cost: p.costPrice };
         const v = variants[0];
-        if (v) return { base: v.basePrice, compare: v.compareAtPrice, cost: v.costPrice };
+        if (v) return { base: v.basePrice, cost: v.costPrice };
         return null;
     })();
 
@@ -740,11 +753,6 @@ const FrameGroupCard = ({
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
                                 {price.base.toLocaleString('vi-VN')}₫
                             </Typography>
-                            {price.compare > price.base && (
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], textDecoration: 'line-through' }}>
-                                    {price.compare.toLocaleString('vi-VN')}₫
-                                </Typography>
-                            )}
                             <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], ml: 'auto' }}>
                                 Cost: {price.cost.toLocaleString('vi-VN')}₫
                             </Typography>
@@ -861,7 +869,10 @@ const FrameGroupCard = ({
                 <VariantPanel
                     frameGroupId={fg.id}
                     shopId={shopId}
-                    variants={variants} vrEnabled={fg.vrEnabled} productImages={featuredFrameVariant?.productResponse.productImages || []} />
+                    variants={variants} 
+                    vrEnabled={fg.vrEnabled} 
+                    productImages={featuredFrameVariant?.productResponse.productImages || []} 
+                    setFrameGroups={setFrameGroups}/>
             )}
         </Paper>
     );
