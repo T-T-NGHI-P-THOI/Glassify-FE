@@ -113,6 +113,7 @@ interface FrameVariantLite {
   id: string;
   colorName: string;
   size: string;
+  productId?: string | null;
 }
 
 interface FrameGroupLite {
@@ -258,6 +259,8 @@ const formatScopeLabel = (scope: LensScope) => {
   return 'Global';
 };
 
+const isCatalogableFrameVariant = (variant: FrameVariantLite) => Boolean(variant.id && variant.productId);
+
 const DECIMAL_INPUT_REGEX = /^\d*(\.\d*)?$/;
 const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
 
@@ -270,8 +273,18 @@ const sanitizeDecimalInput = (value: string) => {
 
 const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
 
-const isDecimal10_2InRange = (value: number): boolean =>
-  Number.isFinite(value) && value > 0 && value <= DECIMAL_10_2_MAX_ABS;
+const getBasePriceError = (value: string): string | undefined => {
+  const parsedValue = parseDecimalInput(value);
+  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return 'Base price must be greater than 0';
+  }
+
+  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
+    return 'Base price must be <= 99,999,999.99';
+  }
+
+  return undefined;
+};
 
 const shouldBlockNonNumericKey = (event: KeyboardEvent<HTMLElement>) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
@@ -691,6 +704,7 @@ const CreateLensPage = () => {
           new Set(
             frameGroups
               .flatMap((group) => group.frameVariantResponses ?? [])
+              .filter(isCatalogableFrameVariant)
               .map((variant) => variant.id)
               .filter(Boolean),
           ),
@@ -789,25 +803,36 @@ const CreateLensPage = () => {
   const variantOptions = useMemo(
     () =>
       frameGroups.flatMap((group) =>
-        (group.frameVariantResponses ?? []).map((variant) => ({
-          id: variant.id,
-          label: `${group.frameName} - ${variant.colorName || 'Color'} ${variant.size ? `(${variant.size})` : ''}`,
-        })),
+        (group.frameVariantResponses ?? [])
+          .filter(isCatalogableFrameVariant)
+          .map((variant) => ({
+            id: variant.id,
+            label: `${group.frameName} - ${variant.colorName || 'Color'} ${variant.size ? `(${variant.size})` : ''}`,
+          })),
       ),
     [frameGroups],
   );
 
+  const catalogableFrameVariantIds = useMemo(
+    () => new Set(variantOptions.map((variant) => variant.id)),
+    [variantOptions],
+  );
+
   const selectedCatalogFrameVariantId = useMemo(() => {
-    if (form.scope === 'FRAME_VARIANT') return form.frameVariantId;
+    if (form.scope === 'FRAME_VARIANT') {
+      return catalogableFrameVariantIds.has(form.frameVariantId) ? form.frameVariantId : '';
+    }
     if (form.scope === 'FRAME_GROUP') {
       const group = frameGroups.find((item) => item.id === form.frameGroupId);
-      return group?.frameVariantResponses?.[0]?.id ?? '';
+      const selectedVariantId = group?.frameVariantResponses?.find(isCatalogableFrameVariant)?.id ?? '';
+      return catalogableFrameVariantIds.has(selectedVariantId) ? selectedVariantId : '';
     }
     if (isEditMode) {
-      return frameGroups[0]?.frameVariantResponses?.[0]?.id ?? '';
+      const selectedVariantId = frameGroups[0]?.frameVariantResponses?.find(isCatalogableFrameVariant)?.id ?? '';
+      return catalogableFrameVariantIds.has(selectedVariantId) ? selectedVariantId : '';
     }
     return '';
-  }, [form.scope, form.frameVariantId, form.frameGroupId, frameGroups, isEditMode]);
+  }, [catalogableFrameVariantIds, form.scope, form.frameVariantId, form.frameGroupId, frameGroups, isEditMode]);
 
   useEffect(() => {
     let active = true;
@@ -818,6 +843,8 @@ const CreateLensPage = () => {
           setExistingFeatures([]);
           setExistingTints([]);
           setExistingCompatibilities([]);
+        } else if (form.scope !== 'GLOBAL') {
+          toast.error('This shop does not have this frame');
         }
         return;
       }
@@ -1016,6 +1043,16 @@ const CreateLensPage = () => {
     const sanitized = sanitizeDecimalInput(value);
     if (!DECIMAL_INPUT_REGEX.test(sanitized)) return;
     handleFieldChange(key, sanitized);
+    const error = getBasePriceError(sanitized);
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (error) {
+        next[key] = error;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
   };
 
   const validateStep = (step: number): boolean => {
@@ -1024,11 +1061,9 @@ const CreateLensPage = () => {
     if (step === 0) {
       if (!form.sku.trim()) nextErrors.sku = 'SKU is required';
       if (!form.name.trim()) nextErrors.name = 'Lens name is required';
-      const parsedBasePrice = parseDecimalInput(form.basePrice);
-      if (!form.basePrice || !Number.isFinite(parsedBasePrice) || parsedBasePrice <= 0) {
-        nextErrors.basePrice = 'Base price must be greater than 0';
-      } else if (parsedBasePrice > DECIMAL_10_2_MAX_ABS) {
-        nextErrors.basePrice = 'Base price must be <= 99,999,999.99';
+      const basePriceError = getBasePriceError(form.basePrice);
+      if (basePriceError) {
+        nextErrors.basePrice = basePriceError;
       }
 
       if (!isEditMode && form.scope === 'FRAME_VARIANT' && !form.frameVariantId) {
@@ -1088,10 +1123,11 @@ const CreateLensPage = () => {
   };
 
   const buildPayload = (): CreateLensRequest => {
-    const parsedBasePrice = parseDecimalInput(form.basePrice);
-    if (!isDecimal10_2InRange(parsedBasePrice)) {
-      throw new Error('Base price must be greater than 0 and <= 99,999,999.99');
+    const basePriceError = getBasePriceError(form.basePrice);
+    if (basePriceError) {
+      throw new Error(basePriceError);
     }
+    const parsedBasePrice = parseDecimalInput(form.basePrice);
 
     const featureIds = form.featureIds.length ? form.featureIds : undefined;
     const tintIds = form.tintIds.length ? form.tintIds : undefined;
@@ -1405,7 +1441,11 @@ const CreateLensPage = () => {
           progressiveType: payload.progressiveType,
         });
       } else if (form.scope === 'FRAME_VARIANT') {
-        response = await lensApi.createForFrame(form.frameVariantId, payload);
+        if (!selectedCatalogFrameVariantId) {
+          toast.error('This shop does not have this frame');
+          return;
+        }
+        response = await lensApi.createForFrame(selectedCatalogFrameVariantId, payload);
       } else if (form.scope === 'FRAME_GROUP') {
         response = await lensApi.createForFrameGroup(form.frameGroupId, payload);
       } else {
