@@ -66,6 +66,7 @@ import {
   RETURN_REASON_LABELS,
   ItemCondition,
   ITEM_CONDITION_LABELS,
+  RefundProcessType,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -77,6 +78,76 @@ type BuyerInfo = {
 };
 
 type StepItem = { label: string; status: ReturnStatus };
+
+const toNumberIfValid = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const findMinRequiredAmount = (value: unknown): number | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value !== 'object') {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct =
+    toNumberIfValid(record.minRequiredAmount) ??
+    toNumberIfValid(record.min_required_amount) ??
+    toNumberIfValid(record.minimumRequiredAmount);
+
+  if (direct !== null) {
+    return direct;
+  }
+
+  for (const nestedValue of Object.values(record)) {
+    if (Array.isArray(nestedValue)) {
+      for (const item of nestedValue) {
+        const found = findMinRequiredAmount(item);
+        if (found !== null) {
+          return found;
+        }
+      }
+      continue;
+    }
+
+    const found = findMinRequiredAmount(nestedValue);
+    if (found !== null) {
+      return found;
+    }
+  }
+
+  return null;
+};
+
+const getMinRequiredAmountFromError = (error: unknown): number | null => {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const err = error as {
+    response?: { data?: unknown };
+    originalError?: { response?: { data?: unknown } };
+    errors?: unknown;
+  };
+
+  return (
+    findMinRequiredAmount(err.response?.data) ??
+    findMinRequiredAmount(err.originalError?.response?.data) ??
+    findMinRequiredAmount(err.errors)
+  );
+};
 
 const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   const normalSteps: StepItem[] = [
@@ -149,6 +220,9 @@ const SellerRefundDetailPage = () => {
   const [itemCondition, setItemCondition] = useState<ItemCondition>(ItemCondition.GOOD);
   const [conditionNotes, setConditionNotes] = useState('');
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundType, setRefundType] = useState<RefundProcessType>(RefundProcessType.FULL);
+  const [partialAmount, setPartialAmount] = useState('');
+  const [minRequiredAmount, setMinRequiredAmount] = useState<number | null>(null);
   
   const [ghnStatusData, setGhnStatusData] = useState<any>(null);
   const [fetchingGhn, setFetchingGhn] = useState(false);
@@ -270,13 +344,50 @@ const SellerRefundDetailPage = () => {
 
   const handleProcessRefund = async () => {
     if (!requestId) return;
+    
+    // Validation for partial refund
+    if (refundType === RefundProcessType.PARTIAL) {
+      if (!partialAmount.trim()) {
+        toast.error('Please enter partial refund amount');
+        return;
+      }
+      const amount = parseFloat(partialAmount);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Partial amount must be greater than 0');
+        return;
+      }
+      if (amount > (request?.refundAmount || 0)) {
+        toast.error(`Partial amount cannot exceed refund amount of ${formatCurrency(request?.refundAmount || 0)}`);
+        return;
+      }
+      if (amount < 0.01) {
+        toast.error('Partial amount must be at least 0.01');
+        return;
+      }
+    }
+    
     try {
       setSubmitting(true);
-      await processRefund(requestId);
+      await processRefund(requestId, {
+        refundType,
+        partialAmount: refundType === RefundProcessType.PARTIAL ? parseFloat(partialAmount) : undefined,
+      });
       toast.success('Refund completed');
       setRefundDialogOpen(false);
+      setRefundType(RefundProcessType.FULL);
+      setPartialAmount('');
+      setMinRequiredAmount(null);
       await fetchRequestDetail();
     } catch (error: any) {
+      const extractedMinRequiredAmount = getMinRequiredAmountFromError(error);
+      if (extractedMinRequiredAmount !== null) {
+        setMinRequiredAmount(extractedMinRequiredAmount);
+        toast.error(
+          `Partial refund amount is too low. Minimum required amount is ${formatCurrency(extractedMinRequiredAmount)}.`
+        );
+        return;
+      }
+
       toast.error(getApiErrorMessage(error, 'Error processing refund'));
     } finally {
       setSubmitting(false);
@@ -754,26 +865,145 @@ const SellerRefundDetailPage = () => {
       {/* Process Refund Dialog */}
       <Dialog 
         open={refundDialogOpen} 
-        onClose={() => setRefundDialogOpen(false)}
+        onClose={() => {
+          setRefundDialogOpen(false);
+          setRefundType(RefundProcessType.FULL);
+          setPartialAmount('');
+          setMinRequiredAmount(null);
+        }}
         PaperProps={{ sx: { borderRadius: 4 } }}
       >
         <DialogTitle sx={{ fontWeight: 800 }}>Finalize Refund</DialogTitle>
         <DialogContent sx={{ py: 2 }}>
-          <Typography sx={{ color: 'text.secondary', mb: 2 }}>
-            You are about to release the refund to the customer. This action is permanent.
+          <Typography sx={{ color: 'text.secondary', mb: 3 }}>
+            Select the refund type and complete the refund process.
           </Typography>
+          
+          {/* Refund Type Selection */}
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>Refund Type</FormLabel>
+            <RadioGroup 
+              value={refundType} 
+              onChange={(e) => {
+                setRefundType(e.target.value as RefundProcessType);
+                setPartialAmount('');
+                setMinRequiredAmount(null);
+              }}
+            >
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: refundType === RefundProcessType.FULL ? '#eff6ff' : 'transparent',
+                    borderColor: refundType === RefundProcessType.FULL ? 'primary.main' : 'divider',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': { borderColor: 'primary.main' }
+                  }}
+                >
+                  <FormControlLabel 
+                    value={RefundProcessType.FULL} 
+                    control={<Radio />} 
+                    label={
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Full Refund</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {formatCurrency(request?.refundAmount || 0)}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: refundType === RefundProcessType.PARTIAL ? '#fef3f2' : 'transparent',
+                    borderColor: refundType === RefundProcessType.PARTIAL ? 'warning.main' : 'divider',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': { borderColor: 'warning.main' }
+                  }}
+                >
+                  <FormControlLabel 
+                    value={RefundProcessType.PARTIAL} 
+                    control={<Radio />} 
+                    label={
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Partial Refund</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Custom amount
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+              </Box>
+            </RadioGroup>
+          </FormControl>
+
+          {/* Conditional Partial Amount Input */}
+          {refundType === RefundProcessType.PARTIAL && (
+            <TextField 
+              label="Refund Amount" 
+              type="number"
+              inputProps={{
+                step: '0.01',
+                min: '0.01',
+                max: request?.refundAmount || 0,
+              }}
+              fullWidth 
+              value={partialAmount} 
+              onChange={(e) => {
+                setPartialAmount(e.target.value);
+                setMinRequiredAmount(null);
+              }}
+              placeholder="Enter amount to refund"
+              helperText={
+                minRequiredAmount !== null
+                  ? `Minimum required: ${formatCurrency(minRequiredAmount)}. Max: ${formatCurrency(request?.refundAmount || 0)}`
+                  : `Max: ${formatCurrency(request?.refundAmount || 0)}`
+              }
+              error={minRequiredAmount !== null}
+              sx={{ mb: 2 }}
+            />
+          )}
+
+          {/* Refund Amount Display */}
           <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-            <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase' }}>Refund Amount</Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#22c55e' }}>{formatCurrency(request?.refundAmount || 0)}</Typography>
+            <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase' }}>
+              {refundType === RefundProcessType.FULL ? 'Full Refund Amount' : 'Partial Refund Amount'}
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: refundType === RefundProcessType.FULL ? '#22c55e' : '#f59e0b', mt: 1 }}>
+              {refundType === RefundProcessType.FULL 
+                ? formatCurrency(request?.refundAmount || 0)
+                : partialAmount 
+                  ? formatCurrency(parseFloat(partialAmount))
+                  : '—'
+              }
+            </Typography>
           </Paper>
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button onClick={() => setRefundDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+          <Button 
+            onClick={() => {
+              setRefundDialogOpen(false);
+              setRefundType(RefundProcessType.FULL);
+              setPartialAmount('');
+              setMinRequiredAmount(null);
+            }} 
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Cancel
+          </Button>
           <Button 
             variant="contained" 
             color="success" 
             onClick={handleProcessRefund} 
-            disabled={submitting}
+            disabled={submitting || (refundType === RefundProcessType.PARTIAL && !partialAmount)}
             sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
           >
             Confirm & Issue Refund

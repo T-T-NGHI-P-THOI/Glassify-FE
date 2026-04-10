@@ -42,6 +42,11 @@ export enum ItemCondition {
   NOT_MATCH = 'NOT_MATCH',
 }
 
+export enum RefundProcessType {
+  FULL = 'FULL',
+  PARTIAL = 'PARTIAL',
+}
+
 export interface RefundRequest {
   id: string;
   requestNumber: string;
@@ -139,8 +144,8 @@ export interface ConfirmItemReceivedDto {
 }
 
 export interface ProcessRefundDto {
-  refundMethod: string;
-  refundNotes?: string;
+  refundType: RefundProcessType;
+  partialAmount?: number;
 }
 
 export interface RefundRequestFilter {

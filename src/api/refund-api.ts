@@ -7,6 +7,7 @@ import type {
   UpdateReturnTrackingDto,
   ReviewRefundRequestDto,
   ConfirmItemReceivedDto,
+  ProcessRefundDto,
   RefundRequestFilter,
 } from '../models/Refund';
 
@@ -110,10 +111,12 @@ export const confirmItemReceived = async (
 
 // Seller refund payout API
 export const processRefund = async (
-  requestId: string
+  requestId: string,
+  data: ProcessRefundDto
 ): Promise<ApiResponse<RefundRequest>> => {
   const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/process-refund`
+    `${REFUND_BASE_URL}/${requestId}/process-refund`,
+    data
   );
   return response.data;
 };
