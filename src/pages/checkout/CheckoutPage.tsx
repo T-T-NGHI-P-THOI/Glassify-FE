@@ -732,6 +732,9 @@ const CheckoutPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // The real order total the user will pay (items + shipping fee buyer portion)
+  const orderTotal = summary.total_amount + (shippingFeeData?.buyerFee ?? 0);
+
   const handlePlaceOrder = async () => {
     if (!validate()) return;
     if (!cartId) {
@@ -741,6 +744,18 @@ const CheckoutPage = () => {
     if (items.length === 0) {
       toast.error('Your cart is empty.');
       return;
+    }
+
+    // Guard: pre-check wallet balance BEFORE creating the order.
+    // This prevents creating a PENDING/UNPAID order when funds are insufficient.
+    if (paymentMethod === 'E_WALLET') {
+      const balance = wallet?.availableBalance ?? 0;
+      if (balance < orderTotal) {
+        const deficit = orderTotal - balance;
+        sessionStorage.setItem('topup_return_to', '/checkout');
+        navigate(`/wallet?topUpAmount=${Math.ceil(deficit)}&returnTo=/checkout`);
+        return;
+      }
     }
 
     try {
@@ -1248,9 +1263,9 @@ const CheckoutPage = () => {
                           ? `Balance: ${formatCurrency(wallet.availableBalance)}`
                           : 'Loading balance...'}
                       </Typography>
-                      {wallet && wallet.availableBalance < (summary?.total_amount ?? 0) && (
+                      {wallet && wallet.availableBalance < orderTotal && (
                         <Typography sx={{ fontSize: 11, color: '#d32f2f' }}>
-                          Insufficient balance
+                          Insufficient balance (need {formatCurrency(orderTotal - wallet.availableBalance)} more)
                         </Typography>
                       )}
                     </Box>
@@ -1300,9 +1315,26 @@ const CheckoutPage = () => {
               You will be redirected to VNPay to complete payment after placing the order.
             </Alert>
           )}
-          {paymentMethod === 'E_WALLET' && wallet && wallet.availableBalance < (summary?.total_amount ?? 0) && (
-            <Alert severity="warning" sx={{ mt: 2, fontSize: 12 }}>
-              Your wallet balance is insufficient. Please top up first.
+          {paymentMethod === 'E_WALLET' && wallet && wallet.availableBalance < orderTotal && (
+            <Alert
+              severity="warning"
+              sx={{ mt: 2, fontSize: 12 }}
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    const deficit = Math.ceil(orderTotal - (wallet?.availableBalance ?? 0));
+                    sessionStorage.setItem('topup_return_to', '/checkout');
+                    navigate(`/wallet?topUpAmount=${deficit}&returnTo=/checkout`);
+                  }}
+                >
+                  Top Up
+                </Button>
+              }
+            >
+              Insufficient balance — need {formatCurrency(orderTotal - wallet.availableBalance)} more.
             </Alert>
           )}
 
