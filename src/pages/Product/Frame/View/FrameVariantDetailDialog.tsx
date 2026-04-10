@@ -335,12 +335,12 @@ export default function FrameVariantDetailDialog({
                             {/* Inventory */}
                             <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
                             <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
-                                {/* <InfoRow
+                                <InfoRow
                                     label="Available"
                                     value={
                                         <Typography sx={{
                                             fontSize: 13, fontWeight: 700,
-                                            color: (variant. ?? 0) === 0
+                                            color: (variant.qtyAvailable ?? 0) === 0
                                                 ? theme.palette.error.main
                                                 : (variant.qtyAvailable ?? 0) <= (variant.lowStockThreshold ?? 10)
                                                     ? '#ca8a04'
@@ -357,7 +357,7 @@ export default function FrameVariantDetailDialog({
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Low Stock Threshold" value={variant.lowStockThreshold != null ? `${variant.lowStockThreshold} units` : '—'} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Warranty" value={variant.warrantyMonths ? `${variant.warrantyMonths} months` : '—'} /> */}
+                                <InfoRow label="Warranty" value={variant.productResponse.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
                             </Paper>
 
                             {/* Pricing */}

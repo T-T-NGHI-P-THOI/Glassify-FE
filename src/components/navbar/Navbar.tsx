@@ -257,46 +257,54 @@ export const Navbar = () => {
                       <Typography variant="body2">View my profile</Typography>
                     </MenuItem>
 
-                    {isAdmin ? (
+                    {isAdmin && (
                       <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
                         <Dashboard fontSize="small" sx={{ color: "#2563eb" }} />
                         <Typography variant="body2" sx={{ color: "#2563eb", fontWeight: 600 }}>Admin Dashboard</Typography>
                       </MenuItem>
-                    ) : [
-                        <MenuItem key="orders" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">View my orders</Typography>
-                        </MenuItem>,
+                    )}
 
-                        <MenuItem key="warranty" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">My warranty</Typography>
-                        </MenuItem>,
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my orders</Typography>
+                      </MenuItem>
+                    )}
 
-                        <MenuItem key="wallet" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">View my wallet</Typography>
-                        </MenuItem>,
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">My warranty</Typography>
+                      </MenuItem>
+                    )}
 
-                        user?.roles?.includes('SHOP_OWNER') ? (
-                          <MenuItem key="shop" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <Store fontSize="small" sx={{ color: "#6b7280" }} />
-                            <Typography variant="body2">View my shop</Typography>
-                          </MenuItem>
-                        ) : (!myShop || myShop.status === 'CLOSED' || myShop.latestRequestStatus === 'EXPIRED') ? (
-                          <MenuItem key="register-shop" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
-                            <Typography variant="body2">Become a shop owner</Typography>
-                          </MenuItem>
-                        ) : null,
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my wallet</Typography>
+                      </MenuItem>
+                    )}
 
-                        myShop?.latestRequestStatus === 'REJECTED' ? (
-                          <MenuItem key="resubmit" onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
-                            <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
-                          </MenuItem>
-                        ) : null,
-                    ]}
+                    {!isAdmin && user?.roles?.includes('SHOP_OWNER') && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Store fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my shop</Typography>
+                      </MenuItem>
+                    )}
+
+                    {!isAdmin && (!myShop || myShop.status === 'CLOSED' || myShop.latestRequestStatus === 'EXPIRED') && !user?.roles?.includes('SHOP_OWNER') && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">Become a shop owner</Typography>
+                      </MenuItem>
+                    )}
+
+                    {!isAdmin && myShop?.latestRequestStatus === 'REJECTED' && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
+                        <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
+                      </MenuItem>
+                    )}
 
                     <Divider />
 

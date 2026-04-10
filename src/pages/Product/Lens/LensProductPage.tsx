@@ -145,7 +145,7 @@ const LensProductPage = () => {
     setUsageMenuAnchorEl(null);
   };
 
-  const loadUsages = async (shopId?: string) => {
+  const loadUsages = async (shopId: string) => {
     try {
       const data = await lensApi.getUsages({
         page: 1,
@@ -215,7 +215,16 @@ const LensProductPage = () => {
 
     try {
       setUpdatingId(lens.id);
-      const res = await lensApi.update(lens.id, { isActive: !lens.isActive });
+      const res = await lensApi.update(lens.id, {
+        shopId: lens.shopId,
+        sku: lens.sku,
+        name: lens.name,
+        basePrice: lens.basePrice,
+        isProgressive: lens.isProgressive,
+        category: lens.category,
+        progressiveType: lens.progressiveType,
+        isActive: !lens.isActive,
+      });
       const updatedLens = res.data;
 
       if (updatedLens) {
@@ -250,9 +259,10 @@ const LensProductPage = () => {
             sortDirection: 'DESC',
           });
           setLenses(data);
+          await loadUsages(myShop.id);
+        } else {
+          setUsages([]);
         }
-
-        await loadUsages(myShop?.id ?? undefined);
       } catch (error) {
         console.error('Failed to load lenses:', error);
       } finally {
@@ -395,7 +405,7 @@ const LensProductPage = () => {
       }
 
       toast.success(usage.isActive ? 'Usage deactivated' : 'Usage activated');
-      await loadUsages(shop?.id ?? undefined);
+      await loadUsages(shop.id);
     } catch (error) {
       console.error('Failed to toggle usage status:', error);
       toast.error(getApiErrorMessage(error, 'Failed to update usage'));

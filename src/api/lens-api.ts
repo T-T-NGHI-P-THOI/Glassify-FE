@@ -86,7 +86,17 @@ export interface CreateLensDetailDataInput {
   progressiveOptions?: LensProgressiveOptionCreateInput[];
 }
 
-export interface CreateLensRequest {
+interface LensDetailFields {
+  featureIds?: string[];
+  tintIds?: string[];
+  usageIds?: string[];
+  featuresToCreate?: LensFeatureCreateInput[];
+  tintsToCreate?: LensTintCreateInput[];
+  usagesToCreate?: LensUsageCreateInput[];
+  progressiveOptions?: LensProgressiveOptionCreateInput[];
+}
+
+export interface CreateLensRequest extends LensDetailFields {
   shopId: string;
   sku: string;
   name: string;
@@ -96,7 +106,6 @@ export interface CreateLensRequest {
   isActive: boolean;
   category: LensCategory;
   progressiveType?: LensProgressiveType;
-  lensDetailData?: CreateLensDetailDataInput;
 }
 
 export interface LensFeatureFrameCompatibility {
@@ -251,7 +260,8 @@ export interface LensFilterRequest {
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
 }
 
-export interface UpdateLensRequest {
+export interface UpdateLensRequest extends LensDetailFields {
+  shopId?: string;
   sku?: string;
   name?: string;
   imageFile?: File;
@@ -262,17 +272,48 @@ export interface UpdateLensRequest {
   progressiveType?: LensProgressiveType;
 }
 
+const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
+
+const assertDecimal10_2 = (value: number, fieldName: string, allowZero = false) => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${fieldName} must be a finite number`);
+  }
+  if ((allowZero && value < 0) || (!allowZero && value <= 0)) {
+    throw new Error(`${fieldName} must be ${allowZero ? '>= 0' : '> 0'}`);
+  }
+  if (Math.abs(value) > DECIMAL_10_2_MAX_ABS) {
+    throw new Error(`${fieldName} must be <= ${DECIMAL_10_2_MAX_ABS}`);
+  }
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !(value instanceof Blob);
+};
+
+const compactRequestObject = <T extends Record<string, unknown>>(payload: T): T => {
+  const result = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
+  );
+  return result as T;
+};
+
+const appendLensMultipartRequest = (
+  formData: FormData,
+  requestPayload: Record<string, unknown>,
+  imageFile?: File,
+) => {
+  // Backend expects @RequestPart("request") + optional @RequestPart("imageFile").
+  formData.append('request', new Blob([JSON.stringify(requestPayload)], { type: 'application/json' }));
+  if (imageFile) {
+    formData.append('imageFile', imageFile);
+  }
+};
+
 const buildUpdateLensFormData = (payload: UpdateLensRequest): FormData => {
   const formData = new FormData();
 
-  if (payload.sku !== undefined) formData.append('sku', payload.sku);
-  if (payload.name !== undefined) formData.append('name', payload.name);
-  if (payload.imageFile !== undefined) formData.append('imageFile', payload.imageFile);
-  if (payload.basePrice !== undefined) formData.append('basePrice', String(payload.basePrice));
-  if (payload.isProgressive !== undefined) formData.append('isProgressive', String(payload.isProgressive));
-  if (payload.isActive !== undefined) formData.append('isActive', String(payload.isActive));
-  if (payload.category !== undefined) formData.append('category', payload.category);
-  if (payload.progressiveType !== undefined) formData.append('progressiveType', payload.progressiveType);
+  const { imageFile, ...requestPayload } = payload;
+  appendLensMultipartRequest(formData, compactRequestObject(requestPayload), imageFile);
 
   return formData;
 };
@@ -280,18 +321,8 @@ const buildUpdateLensFormData = (payload: UpdateLensRequest): FormData => {
 const buildCreateLensFormData = (payload: CreateLensRequest): FormData => {
   const formData = new FormData();
 
-  formData.append('shopId', payload.shopId);
-  formData.append('sku', payload.sku);
-  formData.append('name', payload.name);
-  if (payload.imageFile !== undefined) formData.append('imageFile', payload.imageFile);
-  formData.append('basePrice', String(payload.basePrice));
-  formData.append('isProgressive', String(payload.isProgressive));
-  formData.append('isActive', String(payload.isActive));
-  formData.append('category', payload.category);
-  if (payload.progressiveType !== undefined) formData.append('progressiveType', payload.progressiveType);
-  if (payload.lensDetailData !== undefined) {
-    formData.append('lensDetailData', JSON.stringify(payload.lensDetailData));
-  }
+  const { imageFile, ...requestPayload } = payload;
+  appendLensMultipartRequest(formData, compactRequestObject(requestPayload), imageFile);
 
   return formData;
 };
@@ -470,29 +501,24 @@ const toNonEmptyArray = <T>(items?: T[]): T[] | undefined => {
   return items;
 };
 
-const sanitizeLensDetailData = (
-  lensDetailData?: CreateLensDetailDataInput,
-): CreateLensDetailDataInput | undefined => {
-  if (!lensDetailData) return undefined;
-
-  const sanitized: CreateLensDetailDataInput = {
-    featureIds: toNonEmptyArray(lensDetailData.featureIds),
-    tintIds: toNonEmptyArray(lensDetailData.tintIds),
-    usageIds: toNonEmptyArray(lensDetailData.usageIds),
-    featuresToCreate: toNonEmptyArray(lensDetailData.featuresToCreate),
-    tintsToCreate: toNonEmptyArray(lensDetailData.tintsToCreate),
-    usagesToCreate: toNonEmptyArray(lensDetailData.usagesToCreate),
-    progressiveOptions: toNonEmptyArray(lensDetailData.progressiveOptions),
+const sanitizeLensDetailFields = (payload: LensDetailFields): LensDetailFields => {
+  const sanitized: LensDetailFields = {
+    featureIds: toNonEmptyArray(payload.featureIds),
+    tintIds: toNonEmptyArray(payload.tintIds),
+    usageIds: toNonEmptyArray(payload.usageIds),
+    featuresToCreate: toNonEmptyArray(payload.featuresToCreate),
+    tintsToCreate: toNonEmptyArray(payload.tintsToCreate),
+    usagesToCreate: toNonEmptyArray(payload.usagesToCreate),
+    progressiveOptions: toNonEmptyArray(payload.progressiveOptions),
   };
 
-  const hasAnyDetail = Object.values(sanitized).some((value) => value !== undefined);
-  return hasAnyDetail ? sanitized : undefined;
+  return sanitized;
 };
 
 export const sanitizeCreateLensPayload = (payload: CreateLensRequest): CreateLensRequest => ({
   ...payload,
   progressiveType: payload.isProgressive ? payload.progressiveType : undefined,
-  lensDetailData: sanitizeLensDetailData(payload.lensDetailData),
+  ...sanitizeLensDetailFields(payload),
 });
 
 export const lensApi = {
@@ -522,6 +548,7 @@ export const lensApi = {
   },
 
   create: async (payload: CreateLensRequest): Promise<ApiResponse<LensResponse>> => {
+    assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
@@ -535,6 +562,7 @@ export const lensApi = {
     frameVariantId: string,
     payload: CreateLensRequest,
   ): Promise<ApiResponse<LensResponse>> => {
+    assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
@@ -548,6 +576,7 @@ export const lensApi = {
     frameGroupId: string,
     payload: CreateLensRequest,
   ): Promise<ApiResponse<LensResponse>> => {
+    assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
     const response = await axiosInstance.post<ApiResponse<LensResponse>>(
@@ -558,6 +587,9 @@ export const lensApi = {
   },
 
   update: async (id: string, payload: UpdateLensRequest): Promise<ApiResponse<LensResponse>> => {
+    if (typeof payload.basePrice === 'number') {
+      assertDecimal10_2(payload.basePrice, 'basePrice');
+    }
     const formData = buildUpdateLensFormData(payload);
     const response = await axiosInstance.put<ApiResponse<LensResponse>>(
       API_ENDPOINTS.LENS.UPDATE(id),
@@ -602,8 +634,18 @@ export const lensApi = {
       { params: filter },
     );
     const payload = response.data?.data;
-    if (Array.isArray(payload)) return payload;
-    if (payload && typeof payload === 'object') return [payload];
+    if (Array.isArray(payload)) {
+      if (filter.shopId) {
+        return payload.filter((item) => !item?.shopId || item.shopId === filter.shopId);
+      }
+      return payload;
+    }
+    if (payload && typeof payload === 'object') {
+      if (filter.shopId && payload.shopId && payload.shopId !== filter.shopId) {
+        return [];
+      }
+      return [payload];
+    }
     return [];
   },
 

@@ -113,6 +113,7 @@ interface FrameVariantLite {
   id: string;
   colorName: string;
   size: string;
+  productId?: string | null;
 }
 
 interface FrameGroupLite {
@@ -258,13 +259,31 @@ const formatScopeLabel = (scope: LensScope) => {
   return 'Global';
 };
 
+const isCatalogableFrameVariant = (variant: FrameVariantLite) => Boolean(variant.id && variant.productId);
+
 const DECIMAL_INPUT_REGEX = /^\d*(\.\d*)?$/;
+const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
 
 const sanitizeDecimalInput = (value: string) => {
   const normalized = value.replace(',', '.').replace(/[^\d.]/g, '');
   const firstDot = normalized.indexOf('.');
   if (firstDot === -1) return normalized;
   return `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, '')}`;
+};
+
+const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
+
+const getBasePriceError = (value: string): string | undefined => {
+  const parsedValue = parseDecimalInput(value);
+  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return 'Base price must be greater than 0';
+  }
+
+  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
+    return 'Base price must be <= 99,999,999.99';
+  }
+
+  return undefined;
 };
 
 const shouldBlockNonNumericKey = (event: KeyboardEvent<HTMLElement>) => {
@@ -685,6 +704,7 @@ const CreateLensPage = () => {
           new Set(
             frameGroups
               .flatMap((group) => group.frameVariantResponses ?? [])
+              .filter(isCatalogableFrameVariant)
               .map((variant) => variant.id)
               .filter(Boolean),
           ),
@@ -783,25 +803,36 @@ const CreateLensPage = () => {
   const variantOptions = useMemo(
     () =>
       frameGroups.flatMap((group) =>
-        (group.frameVariantResponses ?? []).map((variant) => ({
-          id: variant.id,
-          label: `${group.frameName} - ${variant.colorName || 'Color'} ${variant.size ? `(${variant.size})` : ''}`,
-        })),
+        (group.frameVariantResponses ?? [])
+          .filter(isCatalogableFrameVariant)
+          .map((variant) => ({
+            id: variant.id,
+            label: `${group.frameName} - ${variant.colorName || 'Color'} ${variant.size ? `(${variant.size})` : ''}`,
+          })),
       ),
     [frameGroups],
   );
 
+  const catalogableFrameVariantIds = useMemo(
+    () => new Set(variantOptions.map((variant) => variant.id)),
+    [variantOptions],
+  );
+
   const selectedCatalogFrameVariantId = useMemo(() => {
-    if (form.scope === 'FRAME_VARIANT') return form.frameVariantId;
+    if (form.scope === 'FRAME_VARIANT') {
+      return catalogableFrameVariantIds.has(form.frameVariantId) ? form.frameVariantId : '';
+    }
     if (form.scope === 'FRAME_GROUP') {
       const group = frameGroups.find((item) => item.id === form.frameGroupId);
-      return group?.frameVariantResponses?.[0]?.id ?? '';
+      const selectedVariantId = group?.frameVariantResponses?.find(isCatalogableFrameVariant)?.id ?? '';
+      return catalogableFrameVariantIds.has(selectedVariantId) ? selectedVariantId : '';
     }
     if (isEditMode) {
-      return frameGroups[0]?.frameVariantResponses?.[0]?.id ?? '';
+      const selectedVariantId = frameGroups[0]?.frameVariantResponses?.find(isCatalogableFrameVariant)?.id ?? '';
+      return catalogableFrameVariantIds.has(selectedVariantId) ? selectedVariantId : '';
     }
     return '';
-  }, [form.scope, form.frameVariantId, form.frameGroupId, frameGroups, isEditMode]);
+  }, [catalogableFrameVariantIds, form.scope, form.frameVariantId, form.frameGroupId, frameGroups, isEditMode]);
 
   useEffect(() => {
     let active = true;
@@ -812,6 +843,8 @@ const CreateLensPage = () => {
           setExistingFeatures([]);
           setExistingTints([]);
           setExistingCompatibilities([]);
+        } else if (form.scope !== 'GLOBAL') {
+          toast.error('This shop does not have this frame');
         }
         return;
       }
@@ -910,6 +943,8 @@ const CreateLensPage = () => {
   }, [selectedCatalogFrameVariantId, isEditMode, shop?.id]);
 
   useEffect(() => {
+    if (!shop?.id) return;
+
     let active = true;
 
     (async () => {
@@ -917,6 +952,7 @@ const CreateLensPage = () => {
         const usageObjects = await lensApi.getUsages({
           page: 1,
           unitPerPage: 200,
+          shopId: shop.id,
           isActive: true,
           sortBy: 'name',
           sortDirection: 'ASC',
@@ -942,7 +978,7 @@ const CreateLensPage = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [shop?.id]);
 
   useEffect(() => {
     console.log('Filtering selected IDs', {
@@ -1007,6 +1043,16 @@ const CreateLensPage = () => {
     const sanitized = sanitizeDecimalInput(value);
     if (!DECIMAL_INPUT_REGEX.test(sanitized)) return;
     handleFieldChange(key, sanitized);
+    const error = getBasePriceError(sanitized);
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (error) {
+        next[key] = error;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
   };
 
   const validateStep = (step: number): boolean => {
@@ -1015,7 +1061,10 @@ const CreateLensPage = () => {
     if (step === 0) {
       if (!form.sku.trim()) nextErrors.sku = 'SKU is required';
       if (!form.name.trim()) nextErrors.name = 'Lens name is required';
-      if (!form.basePrice || Number(form.basePrice) <= 0) nextErrors.basePrice = 'Base price must be greater than 0';
+      const basePriceError = getBasePriceError(form.basePrice);
+      if (basePriceError) {
+        nextErrors.basePrice = basePriceError;
+      }
 
       if (!isEditMode && form.scope === 'FRAME_VARIANT' && !form.frameVariantId) {
         nextErrors.frameVariantId = 'Please select a frame variant';
@@ -1074,56 +1123,60 @@ const CreateLensPage = () => {
   };
 
   const buildPayload = (): CreateLensRequest => {
-    const lensDetailData = {
-      featureIds: form.featureIds.length ? form.featureIds : undefined,
-      tintIds: form.tintIds.length ? form.tintIds : undefined,
-      usageIds: form.usageIds.length ? form.usageIds : undefined,
-      featuresToCreate: form.featuresToCreate
-        .filter((x) => x.sku.trim() && x.name.trim())
-        .map((x) => ({ sku: x.sku.trim(), name: x.name.trim(), description: x.description.trim() })),
-      tintsToCreate: form.tintsToCreate
-        .filter((x) => x.code.trim() && x.name.trim())
-        .map((x) => ({
-          code: x.code.trim(),
-          name: x.name.trim(),
-          cssValue: x.cssValue.trim(),
-          opacity: Number(x.opacity || 0),
-          basePrice: Number(x.basePrice || 0),
-          isActive: x.isActive,
-          behavior: x.behavior,
-        })),
-      progressiveOptions: form.isProgressive
-        ? form.progressiveOptions
-            .filter((x) => x.name.trim())
-            .map((x) => ({
-              shopId: shop?.id ?? '',
-              name: x.name.trim(),
-              description: x.description.trim(),
-              maxViewDistanceFt: Number(x.maxViewDistanceFt || 0),
-              extraPrice: Number(x.extraPrice || 0),
-              isRecommended: x.isRecommended,
-              isActive: x.isActive,
-              progressiveType: x.progressiveType,
-            }))
-        : undefined,
-    };
+    const basePriceError = getBasePriceError(form.basePrice);
+    if (basePriceError) {
+      throw new Error(basePriceError);
+    }
+    const parsedBasePrice = parseDecimalInput(form.basePrice);
 
-    const hasLensDetailData = Object.values(lensDetailData).some((value) => {
-      if (Array.isArray(value)) return value.length > 0;
-      return value !== undefined;
-    });
+    const featureIds = form.featureIds.length ? form.featureIds : undefined;
+    const tintIds = form.tintIds.length ? form.tintIds : undefined;
+    const usageIds = form.usageIds.length ? form.usageIds : undefined;
+    const featuresToCreate = form.featuresToCreate
+      .filter((x) => x.sku.trim() && x.name.trim())
+      .map((x) => ({ sku: x.sku.trim(), name: x.name.trim(), description: x.description.trim() }));
+    const tintsToCreate = form.tintsToCreate
+      .filter((x) => x.code.trim() && x.name.trim())
+      .map((x) => ({
+        code: x.code.trim(),
+        name: x.name.trim(),
+        cssValue: x.cssValue.trim(),
+        opacity: Number(x.opacity || 0),
+        basePrice: Number(x.basePrice || 0),
+        isActive: x.isActive,
+        behavior: x.behavior,
+      }));
+    const progressiveOptions = form.isProgressive
+      ? form.progressiveOptions
+          .filter((x) => x.name.trim())
+          .map((x) => ({
+            shopId: shop?.id ?? '',
+            name: x.name.trim(),
+            description: x.description.trim(),
+            maxViewDistanceFt: Number(x.maxViewDistanceFt || 0),
+            extraPrice: Number(x.extraPrice || 0),
+            isRecommended: x.isRecommended,
+            isActive: x.isActive,
+            progressiveType: x.progressiveType,
+          }))
+      : undefined;
 
     return {
       shopId: shop?.id ?? '',
       sku: form.sku.trim(),
       name: form.name.trim(),
       imageFile: selectedLensImageFile ?? undefined,
-      basePrice: Number(form.basePrice),
+      basePrice: parsedBasePrice,
       isProgressive: form.isProgressive,
       isActive: form.isActive,
       category: form.category,
       progressiveType: form.isProgressive ? form.progressiveType : undefined,
-      lensDetailData: hasLensDetailData ? lensDetailData : undefined,
+      featureIds,
+      tintIds,
+      usageIds,
+      featuresToCreate: featuresToCreate.length ? featuresToCreate : undefined,
+      tintsToCreate: tintsToCreate.length ? tintsToCreate : undefined,
+      progressiveOptions: progressiveOptions?.length ? progressiveOptions : undefined,
     };
   };
 
@@ -1133,14 +1186,13 @@ const CreateLensPage = () => {
     usageRulesByUsageId: Record<string, UsageRuleDraft>,
     onProgress?: (message: string) => void,
   ) => {
-    const detail = payload.lensDetailData;
-    if (!detail || !shop?.id) return;
+    if (!shop?.id) return;
 
-    const featureIds = [...(detail.featureIds ?? [])];
-    const tintIds = [...(detail.tintIds ?? [])];
-    const usageIds = [...(detail.usageIds ?? [])];
+    const featureIds = [...(payload.featureIds ?? [])];
+    const tintIds = [...(payload.tintIds ?? [])];
+    const usageIds = [...(payload.usageIds ?? [])];
 
-    const featuresToCreate = detail.featuresToCreate ?? [];
+    const featuresToCreate = payload.featuresToCreate ?? [];
     for (let i = 0; i < featuresToCreate.length; i += 1) {
       const feature = featuresToCreate[i];
       onProgress?.(`Creating feature ${i + 1}/${featuresToCreate.length}...`);
@@ -1163,7 +1215,7 @@ const CreateLensPage = () => {
       assertApiSuccess(featureRes, 'Failed to create lens feature');
     }
 
-    const tintsToCreate = detail.tintsToCreate ?? [];
+    const tintsToCreate = payload.tintsToCreate ?? [];
     for (let i = 0; i < tintsToCreate.length; i += 1) {
       const tint = tintsToCreate[i];
       onProgress?.(`Creating tint ${i + 1}/${tintsToCreate.length}...`);
@@ -1258,7 +1310,7 @@ const CreateLensPage = () => {
     }
 
     if (payload.isProgressive) {
-      const progressiveOptions = detail.progressiveOptions ?? [];
+      const progressiveOptions = payload.progressiveOptions ?? [];
       for (let i = 0; i < progressiveOptions.length; i += 1) {
         const option = progressiveOptions[i];
         onProgress?.(`Creating progressive option ${i + 1}/${progressiveOptions.length}...`);
@@ -1285,25 +1337,19 @@ const CreateLensPage = () => {
   };
 
   const toEditDeltaPayload = (payload: CreateLensRequest): CreateLensRequest => {
-    const detail = payload.lensDetailData;
-    if (!detail) return payload;
-
-    const nextFeatureIds = (detail.featureIds ?? []).filter(
+    const nextFeatureIds = (payload.featureIds ?? []).filter(
       (id) => !initialLinkedDetails.featureIds.includes(id),
     );
-    const nextTintIds = (detail.tintIds ?? []).filter((id) => !initialLinkedDetails.tintIds.includes(id));
-    const nextUsageIds = (detail.usageIds ?? []).filter(
+    const nextTintIds = (payload.tintIds ?? []).filter((id) => !initialLinkedDetails.tintIds.includes(id));
+    const nextUsageIds = (payload.usageIds ?? []).filter(
       (id) => !initialLinkedDetails.usageIds.includes(id),
     );
 
     return {
       ...payload,
-      lensDetailData: {
-        ...detail,
-        featureIds: nextFeatureIds,
-        tintIds: nextTintIds,
-        usageIds: nextUsageIds,
-      },
+      featureIds: nextFeatureIds,
+      tintIds: nextTintIds,
+      usageIds: nextUsageIds,
     };
   };
 
@@ -1384,6 +1430,7 @@ const CreateLensPage = () => {
       let response;
       if (isEditMode && lensId) {
         response = await lensApi.update(lensId, {
+          shopId: payload.shopId,
           sku: payload.sku,
           name: payload.name,
           imageFile: selectedLensImageFile ?? undefined,
@@ -1394,7 +1441,11 @@ const CreateLensPage = () => {
           progressiveType: payload.progressiveType,
         });
       } else if (form.scope === 'FRAME_VARIANT') {
-        response = await lensApi.createForFrame(form.frameVariantId, payload);
+        if (!selectedCatalogFrameVariantId) {
+          toast.error('This shop does not have this frame');
+          return;
+        }
+        response = await lensApi.createForFrame(selectedCatalogFrameVariantId, payload);
       } else if (form.scope === 'FRAME_GROUP') {
         response = await lensApi.createForFrameGroup(form.frameGroupId, payload);
       } else {
@@ -1683,10 +1734,10 @@ const CreateLensPage = () => {
           </IconButton>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-              {isEditMode ? 'Edit Lens' : 'Add New Lens'}
+              {isEditMode ? 'Edit Lens' : 'Create Lens'}
             </Typography>
             <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-              Multi-step flow for {isEditMode ? 'editing' : 'creating'} lens catalog data in shop management
+              Multi-step lens management flow for shop catalog data.
             </Typography>
           </Box>
         </Box>
@@ -1746,24 +1797,37 @@ const CreateLensPage = () => {
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pr: 0.5 }}>
           {activeStep === 0 && (
             <Grid container spacing={2.5} alignItems="stretch" sx={{ pt: 0.5 }}>
-              <Grid size={{ xs: 12, lg: isEditMode ? 7 : 12 }}>
+              <Grid size={{ xs: 12, lg: 7 }}>
                 <Grid container spacing={2.5}>
-                  {!isEditMode && (
-                    <Grid size={{ xs: 12 }}>
-                      <FormControl>
-                        <FormLabel>Apply Scope</FormLabel>
-                        <RadioGroup
-                          row
-                          value={form.scope}
-                          onChange={(e) => handleFieldChange('scope', e.target.value as LensScope)}
-                        >
-                          <FormControlLabel value="GLOBAL" control={<Radio />} label="Global" />
-                          <FormControlLabel value="FRAME_VARIANT" control={<Radio />} label="For Frame Variant" />
-                          <FormControlLabel value="FRAME_GROUP" control={<Radio />} label="For Frame Group" />
-                        </RadioGroup>
-                      </FormControl>
-                    </Grid>
-                  )}
+                  <Grid size={{ xs: 12 }}>
+                    <FormControl>
+                      <FormLabel>Apply Scope</FormLabel>
+                      <RadioGroup
+                        row
+                        value={form.scope}
+                        onChange={(e) => handleFieldChange('scope', e.target.value as LensScope)}
+                      >
+                        <FormControlLabel
+                          value="GLOBAL"
+                          control={<Radio />}
+                          label="Global"
+                          disabled={isEditMode}
+                        />
+                        <FormControlLabel
+                          value="FRAME_VARIANT"
+                          control={<Radio />}
+                          label="For Frame Variant"
+                          disabled={isEditMode}
+                        />
+                        <FormControlLabel
+                          value="FRAME_GROUP"
+                          control={<Radio />}
+                          label="For Frame Group"
+                          disabled={isEditMode}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Grid>
 
                   {form.scope === 'FRAME_VARIANT' && (
                     <Grid size={{ xs: 12, md: 8 }}>
@@ -1896,7 +1960,7 @@ const CreateLensPage = () => {
                 </Grid>
               </Grid>
 
-              <Grid size={{ xs: 12, lg: isEditMode ? 5 : 12 }} sx={{ display: 'flex' }}>
+              <Grid size={{ xs: 12, lg: 5 }} sx={{ display: 'flex' }}>
                 <Paper
                   variant="outlined"
                   sx={{
@@ -1910,67 +1974,63 @@ const CreateLensPage = () => {
                 >
                   <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1 }}>Lens Image</Typography>
 
-                  {isEditMode ? (
-                    <>
-                      <Box
-                        sx={{
-                          width: 'min(100%, 180px)',
-                          flex: '0 0 auto',
-                          aspectRatio: '1 / 1',
-                          borderRadius: 1.5,
-                          overflow: 'hidden',
-                          border: `1px solid ${theme.palette.custom.border.light}`,
-                          bgcolor: theme.palette.custom.neutral[100],
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          mx: 'auto',
-                        }}
+                  <>
+                    <Box
+                      sx={{
+                        width: 'min(100%, 180px)',
+                        flex: '0 0 auto',
+                        aspectRatio: '1 / 1',
+                        borderRadius: 1.5,
+                        overflow: 'hidden',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                        bgcolor: theme.palette.custom.neutral[100],
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mx: 'auto',
+                      }}
+                    >
+                      {previewLensImageUrl ? (
+                        <Box
+                          component="img"
+                          src={previewLensImageUrl}
+                          alt="Lens preview"
+                          sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        <Typography sx={{ px: 2, textAlign: 'center', fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                          Upload a lens image to preview it before saving.
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<CloudUpload />}
                       >
-                        {previewLensImageUrl ? (
-                          <Box
-                            component="img"
-                            src={previewLensImageUrl}
-                            alt="Lens preview"
-                            sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
-                        ) : (
-                          <Typography sx={{ px: 2, textAlign: 'center', fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                            This lens has no image yet. Upload a file to preview it here before saving.
-                          </Typography>
-                        )}
-                      </Box>
-
-                      <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
-                        <Button
-                          variant="outlined"
-                          component="label"
-                          startIcon={<CloudUpload />}
-                        >
-                          Choose New Image
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={handleLensImageChange}
-                          />
+                        Choose Image
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={handleLensImageChange}
+                        />
+                      </Button>
+                      {selectedLensImageFile && (
+                        <Button color="error" variant="text" onClick={clearSelectedLensImage}>
+                          Remove Selected File
                         </Button>
-                        {selectedLensImageFile && (
-                          <Button color="error" variant="text" onClick={clearSelectedLensImage}>
-                            Remove Selected File
-                          </Button>
-                        )}
-                      </Box>
+                      )}
+                    </Box>
 
-                      <Typography sx={{ mt: 1, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                        {selectedLensImageFile ? selectedLensImageFile.name : 'Keep current image if no new file selected'}
-                      </Typography>
-                    </>
-                  ) : (
-                    <Alert severity="info" sx={{ mt: 1 }}>
-                      Upload image will be available when editing an existing lens.
-                    </Alert>
-                  )}
+                    <Typography sx={{ mt: 1, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                      {selectedLensImageFile
+                        ? selectedLensImageFile.name
+                        : 'No file selected (image is optional)'}
+                    </Typography>
+                  </>
                 </Paper>
               </Grid>
             </Grid>
@@ -1980,9 +2040,7 @@ const CreateLensPage = () => {
             <Box>
               <Typography sx={{ fontWeight: 700, mb: 0.5 }}>Lens Detail Objects</Typography>
               <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
-                {isEditMode
-                  ? 'Manage mapped lens detail objects for this lens. Edit mode focuses on updating existing mappings and rules.'
-                  : 'Manage lens details by object type. In each section, you can select existing objects or create new ones.'}
+                Manage mapped lens detail objects for this lens, including existing relations and new objects.
               </Typography>
 
               {!selectedCatalogFrameVariantId && (
@@ -2055,7 +2113,7 @@ const CreateLensPage = () => {
                     <>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
                         <Typography sx={{ fontWeight: 600 }}>
-                          {isEditMode ? 'Mapped Features' : 'Select Existing Features'}
+                          Mapped Features
                         </Typography>
                         <Tooltip title="Choose existing features from your catalog or create new feature objects below.">
                           <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
@@ -2374,7 +2432,7 @@ const CreateLensPage = () => {
                     <>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
                         <Typography sx={{ fontWeight: 600 }}>
-                          {isEditMode ? 'Mapped Tints' : 'Select Existing Tints'}
+                          Mapped Tints
                         </Typography>
                         <Tooltip title="Choose existing tint objects or create new tint objects with color, behavior, and price.">
                           <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
@@ -2843,7 +2901,7 @@ const CreateLensPage = () => {
                     <>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
                         <Typography sx={{ fontWeight: 600 }}>
-                          {isEditMode ? 'Mapped Usages' : 'Select Existing Usages'}
+                          Mapped Usages
                         </Typography>
                         <Tooltip title="Usage rules control where this lens can be applied and pricing behavior for each usage type.">
                           <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
@@ -3358,7 +3416,7 @@ const CreateLensPage = () => {
                       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                           <Typography sx={{ fontWeight: 600 }}>
-                            {isEditMode ? 'Progressive Options' : 'Create Progressive Options'}
+                            Progressive Options
                           </Typography>
                           <Tooltip title="Configure option tiers for progressive lenses, including distance range, type, and extra price.">
                             <InfoOutlined sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
@@ -3574,7 +3632,7 @@ const CreateLensPage = () => {
                       }
                     }}
                   >
-                    {isEditMode ? 'Dismiss' : 'Create Another'}
+                    {isEditMode ? 'Dismiss' : 'Create Another Lens'}
                   </Button>
                 )
               )}
@@ -3583,7 +3641,7 @@ const CreateLensPage = () => {
               ) : (
                 !saveCompleted && (
                   <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? submitProgress || 'Submitting...' : isEditMode ? 'Save Lens' : 'Submit Lens'}
+                    {submitting ? submitProgress || 'Submitting...' : isEditMode ? 'Save Lens' : 'Create Lens'}
                   </Button>
                 )
               )}

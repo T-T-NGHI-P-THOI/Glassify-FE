@@ -38,6 +38,7 @@ export interface WarrantyClaimResponse {
     customerName?: string;
     customerEmail?: string;
     customerAvatarUrl?: string;
+    customerPhone?: string;
     // Order info
     purchasedAt?: string;
     warrantyExpiresAt?: string;
@@ -106,6 +107,21 @@ export interface ReturnRequestResponse {
     rejectedAt?: string;
     rejectionReason?: string;
     completedAt?: string;
+}
+
+export interface WarrantyServicePriceResponse {
+    id: string;
+    serviceName: string;
+    price: number;
+    description?: string;
+    isActive: boolean;
+}
+
+export interface UpdateWarrantyServicePriceRequest {
+    serviceName: string;
+    price: number;
+    description?: string;
+    isActive?: boolean;
 }
 
 // ==================== API ====================
@@ -265,4 +281,95 @@ export const warrantyApi = {
         );
         return response.data;
     },
+
+    // --- Warranty Service Prices ---
+    getShopServicePrices: async (shopId: string): Promise<ApiResponse<WarrantyServicePriceResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyServicePriceResponse[]>>(
+            API_ENDPOINTS.WARRANTY_PUBLIC.SERVICE_PRICES_BY_SHOP(shopId)
+        );
+        return response.data;
+    },
+
+    getMyServicePrices: async (): Promise<ApiResponse<WarrantyServicePriceResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyServicePriceResponse[]>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICES
+        );
+        return response.data;
+    },
+
+    createServicePrice: async (request: UpdateWarrantyServicePriceRequest): Promise<ApiResponse<WarrantyServicePriceResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<WarrantyServicePriceResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICES, request
+        );
+        return response.data;
+    },
+
+    updateServicePrice: async (id: string, request: UpdateWarrantyServicePriceRequest): Promise<ApiResponse<WarrantyServicePriceResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyServicePriceResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICE_BY_ID(id), request
+        );
+        return response.data;
+    },
+
+    deleteServicePrice: async (id: string): Promise<ApiResponse<void>> => {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICE_BY_ID(id)
+        );
+        return response.data;
+    },
+
+    // --- Warranty Policies ---
+    getShopPolicies: async (shopId: string): Promise<ApiResponse<WarrantyPolicyResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyPolicyResponse[]>>(
+            API_ENDPOINTS.WARRANTY_PUBLIC.POLICIES_BY_SHOP(shopId)
+        );
+        return response.data;
+    },
+
+    getMyPolicies: async (): Promise<ApiResponse<WarrantyPolicyResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyPolicyResponse[]>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICIES
+        );
+        return response.data;
+    },
+
+    createPolicy: async (request: UpdateWarrantyPolicyRequest): Promise<ApiResponse<WarrantyPolicyResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<WarrantyPolicyResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICIES, request
+        );
+        return response.data;
+    },
+
+    updatePolicy: async (id: string, request: UpdateWarrantyPolicyRequest): Promise<ApiResponse<WarrantyPolicyResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyPolicyResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICY_BY_ID(id), request
+        );
+        return response.data;
+    },
+
+    deletePolicy: async (id: string): Promise<ApiResponse<void>> => {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICY_BY_ID(id)
+        );
+        return response.data;
+    },
 };
+
+export interface WarrantyPolicyResponse {
+    id: string;
+    name: string;
+    durationMonths: number;
+    coverageDescription?: string;
+    excludedIssues: string[];
+    isDefault: boolean;
+    isActive: boolean;
+}
+
+export interface UpdateWarrantyPolicyRequest {
+    name: string;
+    durationMonths: number;
+    coverageDescription?: string;
+    excludedIssues: string[];
+    isDefault?: boolean;
+    isActive?: boolean;
+}
