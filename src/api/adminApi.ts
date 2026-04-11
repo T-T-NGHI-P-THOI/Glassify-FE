@@ -2,6 +2,7 @@ import type { ShopRequestsResponse, ShopRequest, ReviewShopRequest, AdminShopIte
 import type { ApiResponse } from '@/models/ApiResponse';
 import type { UserResponse, AdminUserListResponse } from '@/models/User';
 import type { DeactivationStatus, ClosureStatus } from '@/api/shopApi';
+import type { ReviewShopAppealDto, ShopAppealReason, ShopAppealStatus } from '@/models/Refund';
 import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 
@@ -87,6 +88,16 @@ export interface AdminRefundResponse {
   rejectedAt?: string;
   rejectionReason?: string;
   completedAt?: string;
+  adminDirectRefund?: boolean;
+  shopAppealStatus?: ShopAppealStatus;
+  shopAppealReason?: ShopAppealReason;
+  shopAppealDetail?: string;
+  shopAppealEvidenceImages?: string[];
+  shopAppealedAt?: string;
+  adminAppealReviewedAt?: string;
+  adminAppealReviewNote?: string;
+  shopCompensationAmount?: number;
+  shopCompensatedAt?: string;
 }
 
 export interface AdminWarrantyResponse {
@@ -364,6 +375,17 @@ export const adminApi = {
   getRefundById: async (refundId: string): Promise<ApiResponse<AdminRefundResponse>> => {
     const response = await axiosInstance.get<ApiResponse<AdminRefundResponse>>(
       API_ENDPOINTS.ADMIN.REFUNDS.GET_BY_ID(refundId),
+    );
+    return response.data;
+  },
+
+  reviewShopAppeal: async (
+    refundId: string,
+    data: ReviewShopAppealDto,
+  ): Promise<ApiResponse<AdminRefundResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<AdminRefundResponse>>(
+      API_ENDPOINTS.ADMIN.REFUNDS.REVIEW_APPEAL(refundId),
+      data,
     );
     return response.data;
   },

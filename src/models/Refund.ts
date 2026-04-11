@@ -47,6 +47,20 @@ export enum RefundProcessType {
   PARTIAL = 'PARTIAL',
 }
 
+export enum ShopAppealStatus {
+  NONE = 'NONE',
+  SUBMITTED = 'SUBMITTED',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum ShopAppealReason {
+  DISAGREE_ADMIN_DECISION = 'DISAGREE_ADMIN_DECISION',
+  RETURN_ITEM_PROBLEM = 'RETURN_ITEM_PROBLEM',
+  NOT_RECEIVED_RETURN_ITEM = 'NOT_RECEIVED_RETURN_ITEM',
+}
+
 export interface RefundRequest {
   id: string;
   requestNumber: string;
@@ -90,6 +104,16 @@ export interface RefundRequest {
   returnWindowRemaining?: number;
   hasDispute?: boolean;
   adminNotes?: string;
+  adminDirectRefund?: boolean;
+  shopAppealStatus?: ShopAppealStatus;
+  shopAppealReason?: ShopAppealReason;
+  shopAppealDetail?: string;
+  shopAppealEvidenceImages?: string[];
+  shopAppealedAt?: string;
+  adminAppealReviewedAt?: string;
+  adminAppealReviewNote?: string;
+  shopCompensationAmount?: number;
+  shopCompensatedAt?: string;
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
@@ -146,6 +170,18 @@ export interface ConfirmItemReceivedDto {
 export interface ProcessRefundDto {
   refundType: RefundProcessType;
   partialAmount?: number;
+}
+
+export interface SubmitShopAppealDto {
+  appealReason: ShopAppealReason;
+  appealDetail?: string;
+  evidenceImages?: string[];
+}
+
+export interface ReviewShopAppealDto {
+  approved: boolean;
+  reviewNote?: string;
+  compensationAmount?: number;
 }
 
 export interface RefundRequestFilter {
@@ -213,4 +249,18 @@ export const ITEM_CONDITION_LABELS: Record<ItemCondition, string> = {
   [ItemCondition.DAMAGED]: 'Damaged',
   [ItemCondition.NOT_AS_RETURNED]: 'Not As Returned',
   [ItemCondition.NOT_MATCH]: 'Does Not Match Purchase',
+};
+
+export const SHOP_APPEAL_REASON_LABELS: Record<ShopAppealReason, string> = {
+  [ShopAppealReason.DISAGREE_ADMIN_DECISION]: 'Disagree With Admin Decision',
+  [ShopAppealReason.RETURN_ITEM_PROBLEM]: 'Returned Item Has Issues',
+  [ShopAppealReason.NOT_RECEIVED_RETURN_ITEM]: 'Not Received Returned Item',
+};
+
+export const SHOP_APPEAL_STATUS_LABELS: Record<ShopAppealStatus, string> = {
+  [ShopAppealStatus.NONE]: 'No Appeal',
+  [ShopAppealStatus.SUBMITTED]: 'Appeal Submitted',
+  [ShopAppealStatus.APPROVED]: 'Appeal Approved',
+  [ShopAppealStatus.REJECTED]: 'Appeal Rejected',
+  [ShopAppealStatus.EXPIRED]: 'Appeal Expired',
 };

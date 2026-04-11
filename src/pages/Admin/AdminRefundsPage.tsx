@@ -26,6 +26,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus } from '@/models/Refund';
 
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested',
@@ -154,7 +155,7 @@ const AdminRefundsPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: theme.palette.custom.neutral[50] }}>
-                      {['Request', 'Product', 'Shop', 'Customer', 'Amount', 'Type', 'Status', 'Requested At', ''].map((h) => (
+                      {['Request', 'Product', 'Shop', 'Customer', 'Amount', 'Type', 'Status', 'Appeal', 'Requested At', ''].map((h) => (
                         <TableCell key={h} sx={{ fontWeight: 600, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
                           {h}
                         </TableCell>
@@ -198,6 +199,22 @@ const AdminRefundsPage = () => {
                             size="small"
                             label={REFUND_STATUS_LABEL[r.status] ?? r.status}
                             color={getStatusColor(r.status)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={SHOP_APPEAL_STATUS_LABELS[r.shopAppealStatus ?? ShopAppealStatus.NONE]}
+                            color={
+                              r.shopAppealStatus === ShopAppealStatus.SUBMITTED
+                                ? 'warning'
+                                : r.shopAppealStatus === ShopAppealStatus.APPROVED
+                                  ? 'success'
+                                  : r.shopAppealStatus === ShopAppealStatus.REJECTED || r.shopAppealStatus === ShopAppealStatus.EXPIRED
+                                    ? 'error'
+                                    : 'default'
+                            }
+                            variant={r.shopAppealStatus ? 'filled' : 'outlined'}
                           />
                         </TableCell>
                         <TableCell>

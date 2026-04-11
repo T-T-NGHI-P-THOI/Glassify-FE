@@ -1,11 +1,22 @@
 import {
+  Alert,
   Box,
   Chip,
   CircularProgress,
   Divider,
   IconButton,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -19,6 +30,8 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { getApiErrorMessage } from '@/utils/api-error';
+import { SHOP_APPEAL_REASON_LABELS, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus } from '@/models/Refund';
 
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested', APPROVED: 'Approved', REJECTED: 'Rejected',
@@ -74,15 +87,59 @@ const AdminRefundDetailPage = () => {
 
   const [refund, setRefund] = useState<AdminRefundResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewApproved, setReviewApproved] = useState(true);
+  const [reviewNote, setReviewNote] = useState('');
+  const [compensationAmount, setCompensationAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
+  const fetchRefundDetail = async () => {
     if (!refundId) return;
     setLoading(true);
-    adminApi.getRefundById(refundId)
-      .then((res) => { if (res.data) setRefund(res.data); })
-      .catch(() => toast.error('Failed to load refund request'))
-      .finally(() => setLoading(false));
+    try {
+      const res = await adminApi.getRefundById(refundId);
+      if (res.data) setRefund(res.data);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to load refund request'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRefundDetail();
   }, [refundId]);
+
+  const handleReviewAppeal = async () => {
+    if (!refundId) return;
+
+    const amountValue = compensationAmount.trim() ? Number(compensationAmount) : undefined;
+    if (reviewApproved && (amountValue === undefined || Number.isNaN(amountValue) || amountValue < 0)) {
+      toast.error('Please enter a valid compensation amount');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await adminApi.reviewShopAppeal(refundId, {
+        approved: reviewApproved,
+        reviewNote: reviewNote.trim() || undefined,
+        compensationAmount: reviewApproved ? amountValue : undefined,
+      });
+      toast.success('Appeal reviewed successfully');
+      setReviewDialogOpen(false);
+      setReviewApproved(true);
+      setReviewNote('');
+      setCompensationAmount('');
+      await fetchRefundDetail();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to review appeal'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canReviewAppeal = refund?.shopAppealStatus === ShopAppealStatus.SUBMITTED;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -161,10 +218,99 @@ const AdminRefundDetailPage = () => {
                   <FieldRow label="Completed at" value={formatDate(refund.completedAt)} />
                 </Box>
               </Box>
+
+              <Divider />
+
+              {/* Row 3: Appeal */}
+              <Box sx={{ p: 3 }}>
+                <SectionLabel>Shop Appeal</SectionLabel>
+                <FieldRow
+                  label="Appeal status"
+                  value={
+                    <Chip
+                      size="small"
+                      color={
+                        refund.shopAppealStatus === ShopAppealStatus.APPROVED
+                          ? 'success'
+                          : refund.shopAppealStatus === ShopAppealStatus.SUBMITTED
+                            ? 'warning'
+                            : refund.shopAppealStatus === ShopAppealStatus.REJECTED || refund.shopAppealStatus === ShopAppealStatus.EXPIRED
+                              ? 'error'
+                              : 'default'
+                      }
+                      label={SHOP_APPEAL_STATUS_LABELS[refund.shopAppealStatus ?? ShopAppealStatus.NONE]}
+                    />
+                  }
+                />
+                <FieldRow label="Appealed at" value={formatDate(refund.shopAppealedAt)} />
+                <FieldRow
+                  label="Appeal reason"
+                  value={refund.shopAppealReason ? SHOP_APPEAL_REASON_LABELS[refund.shopAppealReason] : '—'}
+                />
+                <FieldRow label="Appeal detail" value={refund.shopAppealDetail || '—'} />
+                <FieldRow label="Appeal evidence" value={`${refund.shopAppealEvidenceImages?.length ?? 0} file(s)`} />
+                <FieldRow label="Admin review note" value={refund.adminAppealReviewNote || '—'} />
+                <FieldRow
+                  label="Compensation"
+                  value={typeof refund.shopCompensationAmount === 'number' ? formatCurrency(refund.shopCompensationAmount) : '—'}
+                />
+                <FieldRow label="Compensated at" value={formatDate(refund.shopCompensatedAt)} />
+
+                {canReviewAppeal && (
+                  <Box sx={{ mt: 2 }}>
+                    <Alert severity="warning" sx={{ mb: 2 }}>Shop appeal is waiting for admin review.</Alert>
+                    <Button variant="contained" onClick={() => setReviewDialogOpen(true)}>
+                      Review Appeal
+                    </Button>
+                  </Box>
+                )}
+              </Box>
             </Paper>
           </Stack>
         )}
       </Box>
+
+      <Dialog open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Review Shop Appeal</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControl>
+              <RadioGroup
+                value={reviewApproved ? 'approve' : 'reject'}
+                onChange={(e) => setReviewApproved(e.target.value === 'approve')}
+              >
+                <FormControlLabel value="approve" control={<Radio />} label="Approve appeal and compensate shop" />
+                <FormControlLabel value="reject" control={<Radio />} label="Reject appeal" />
+              </RadioGroup>
+            </FormControl>
+
+            {reviewApproved && (
+              <TextField
+                label="Compensation Amount"
+                type="number"
+                inputProps={{ min: '0', step: '1000' }}
+                value={compensationAmount}
+                onChange={(e) => setCompensationAmount(e.target.value)}
+              />
+            )}
+
+            <TextField
+              label="Review Note"
+              multiline
+              rows={3}
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              placeholder="Explain your decision"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleReviewAppeal} disabled={submitting}>
+            Submit Review
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

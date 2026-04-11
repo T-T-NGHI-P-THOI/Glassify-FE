@@ -21,6 +21,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Select,
+  MenuItem,
   FormControl,
   FormLabel,
   Stepper,
@@ -56,6 +58,7 @@ import {
   reviewReturnRequest,
   confirmItemReceived,
   processRefund,
+  submitShopAppeal,
   getReturnGhnStatus,
 } from '@/api/refund-api';
 import { userApi } from '@/api/service/userApi';
@@ -67,6 +70,10 @@ import {
   ItemCondition,
   ITEM_CONDITION_LABELS,
   RefundProcessType,
+  ShopAppealReason,
+  ShopAppealStatus,
+  SHOP_APPEAL_REASON_LABELS,
+  SHOP_APPEAL_STATUS_LABELS,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -78,6 +85,31 @@ type BuyerInfo = {
 };
 
 type StepItem = { label: string; status: ReturnStatus };
+
+const APPEAL_WINDOW_HOURS = 48;
+
+const getAppealStatusColor = (
+  status: ShopAppealStatus | undefined
+): 'default' | 'warning' | 'success' | 'error' => {
+  switch (status) {
+    case ShopAppealStatus.SUBMITTED:
+      return 'warning';
+    case ShopAppealStatus.APPROVED:
+      return 'success';
+    case ShopAppealStatus.REJECTED:
+    case ShopAppealStatus.EXPIRED:
+      return 'error';
+    default:
+      return 'default';
+  }
+};
+
+const parseEvidenceUrls = (value: string): string[] => {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
 
 const toNumberIfValid = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -223,6 +255,10 @@ const SellerRefundDetailPage = () => {
   const [refundType, setRefundType] = useState<RefundProcessType>(RefundProcessType.FULL);
   const [partialAmount, setPartialAmount] = useState('');
   const [minRequiredAmount, setMinRequiredAmount] = useState<number | null>(null);
+  const [appealDialogOpen, setAppealDialogOpen] = useState(false);
+  const [appealReason, setAppealReason] = useState<ShopAppealReason>(ShopAppealReason.DISAGREE_ADMIN_DECISION);
+  const [appealDetail, setAppealDetail] = useState('');
+  const [appealEvidenceInput, setAppealEvidenceInput] = useState('');
   
   const [ghnStatusData, setGhnStatusData] = useState<any>(null);
   const [fetchingGhn, setFetchingGhn] = useState(false);
@@ -407,6 +443,39 @@ const SellerRefundDetailPage = () => {
     }
   };
 
+  const handleSubmitAppeal = async () => {
+    if (!requestId || !request) return;
+
+    const evidenceImages = parseEvidenceUrls(appealEvidenceInput);
+    if (!appealDetail.trim()) {
+      toast.error('Please provide appeal details');
+      return;
+    }
+    if (evidenceImages.length === 0) {
+      toast.error('Please provide at least one evidence URL');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await submitShopAppeal(requestId, {
+        appealReason,
+        appealDetail: appealDetail.trim(),
+        evidenceImages,
+      });
+      toast.success('Appeal submitted successfully');
+      setAppealDialogOpen(false);
+      setAppealReason(ShopAppealReason.DISAGREE_ADMIN_DECISION);
+      setAppealDetail('');
+      setAppealEvidenceInput('');
+      await fetchRequestDetail();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to submit appeal'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
   };
@@ -425,6 +494,19 @@ const SellerRefundDetailPage = () => {
   const canReview = request.status === ReturnStatus.REQUESTED;
   const canConfirmReceived = request.status === ReturnStatus.RETURN_DELIVERED;
   const canProcessRefund = request.status === ReturnStatus.ITEM_RECEIVED && !!request.itemReceivedAt;
+  const isAdminDirectRefund = !!request.adminDirectRefund;
+  const appealStatus = request.shopAppealStatus;
+  const appealStartTime = request.completedAt ? new Date(request.completedAt).getTime() : null;
+  const appealDeadlineTime =
+    appealStartTime !== null ? appealStartTime + APPEAL_WINDOW_HOURS * 60 * 60 * 1000 : null;
+  const nowTime = Date.now();
+  const isAppealWindowOpen =
+    appealDeadlineTime !== null && nowTime <= appealDeadlineTime;
+  const canSubmitAppeal =
+    isAdminDirectRefund &&
+    request.status === ReturnStatus.COMPLETED &&
+    (appealStatus === undefined || appealStatus === ShopAppealStatus.NONE) &&
+    isAppealWindowOpen;
   const steps = getStatusSteps(request.status);
   const activeStep = getActiveStep(request.status, steps);
   const evidenceFiles = request.evidenceImages || [];
@@ -513,6 +595,16 @@ const SellerRefundDetailPage = () => {
                   sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}
                 >
                   Confirm Refund
+                </Button>
+              )}
+              {canSubmitAppeal && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => setAppealDialogOpen(true)}
+                  sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
+                >
+                  Submit Appeal
                 </Button>
               )}
             </Stack>
@@ -718,6 +810,48 @@ const SellerRefundDetailPage = () => {
                   )}
                 </Paper>
 
+                {isAdminDirectRefund && (
+                  <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
+                    <Typography sx={{ fontWeight: 700, mb: 2.5 }}>Admin Direct-Refund Appeal</Typography>
+                    <Stack spacing={1.2}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Appeal status</Typography>
+                        <Chip
+                          size="small"
+                          color={getAppealStatusColor(appealStatus)}
+                          label={SHOP_APPEAL_STATUS_LABELS[appealStatus ?? ShopAppealStatus.NONE]}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Appeal deadline</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {appealDeadlineTime
+                            ? formatDate(new Date(appealDeadlineTime).toISOString())
+                            : '—'}
+                        </Typography>
+                      </Box>
+                      {request.shopAppealReason && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">Appeal reason</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {SHOP_APPEAL_REASON_LABELS[request.shopAppealReason]}
+                          </Typography>
+                        </Box>
+                      )}
+                      {request.adminAppealReviewNote && (
+                        <Alert severity={request.shopAppealStatus === ShopAppealStatus.APPROVED ? 'success' : 'info'} sx={{ borderRadius: 2 }}>
+                          {request.adminAppealReviewNote}
+                        </Alert>
+                      )}
+                      {typeof request.shopCompensationAmount === 'number' && (
+                        <Alert severity="success" sx={{ borderRadius: 2 }}>
+                          Compensation amount: {formatCurrency(request.shopCompensationAmount)}
+                        </Alert>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
+
                 {/* Customer Info Card */}
                 <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
                   <Typography sx={{ fontWeight: 700, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -806,6 +940,74 @@ const SellerRefundDetailPage = () => {
             sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
           >
             {submitting ? <CircularProgress size={20} /> : 'Submit Review'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={appealDialogOpen}
+        onClose={() => setAppealDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Submit Refund Appeal</DialogTitle>
+        <DialogContent sx={{ py: 2 }}>
+          <Stack spacing={2.5}>
+            <Alert severity="warning" sx={{ borderRadius: 2 }}>
+              Submit your appeal within {APPEAL_WINDOW_HOURS} hours after admin direct refund decision.
+            </Alert>
+
+            <FormControl fullWidth>
+              <FormLabel sx={{ mb: 1 }}>Appeal reason</FormLabel>
+              <Select
+                size="small"
+                value={appealReason}
+                onChange={(e) => setAppealReason(e.target.value as ShopAppealReason)}
+              >
+                {Object.values(ShopAppealReason).map((reason) => (
+                  <MenuItem key={reason} value={reason}>
+                    {SHOP_APPEAL_REASON_LABELS[reason]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Appeal detail"
+              multiline
+              rows={4}
+              value={appealDetail}
+              onChange={(e) => setAppealDetail(e.target.value)}
+              placeholder="Explain why admin decision should be reviewed"
+            />
+
+            <TextField
+              label="Evidence URLs"
+              multiline
+              rows={4}
+              value={appealEvidenceInput}
+              onChange={(e) => setAppealEvidenceInput(e.target.value)}
+              placeholder="Paste one or many URLs, separated by new line or comma"
+              helperText="At least one evidence URL is required"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button
+            onClick={() => setAppealDialogOpen(false)}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleSubmitAppeal}
+            disabled={submitting}
+            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
+          >
+            Submit Appeal
           </Button>
         </DialogActions>
       </Dialog>

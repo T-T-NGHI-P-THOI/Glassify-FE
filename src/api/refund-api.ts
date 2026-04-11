@@ -8,6 +8,7 @@ import type {
   ReviewRefundRequestDto,
   ConfirmItemReceivedDto,
   ProcessRefundDto,
+  SubmitShopAppealDto,
   RefundRequestFilter,
 } from '../models/Refund';
 
@@ -116,6 +117,17 @@ export const processRefund = async (
 ): Promise<ApiResponse<RefundRequest>> => {
   const response = await axios.post<ApiResponse<RefundRequest>>(
     `${REFUND_BASE_URL}/${requestId}/process-refund`,
+    data
+  );
+  return response.data;
+};
+
+export const submitShopAppeal = async (
+  requestId: string,
+  data: SubmitShopAppealDto
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/shop-appeal`,
     data
   );
   return response.data;
