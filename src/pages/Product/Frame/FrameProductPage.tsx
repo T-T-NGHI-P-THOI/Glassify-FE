@@ -131,7 +131,7 @@ const FrameProductPage = () => {
         item.id === id
           ? {
             ...item,
-            ...data, // update field
+            ...data,
           }
           : item
       )
@@ -343,7 +343,7 @@ const FrameProductPage = () => {
       <EditFrameGroupDialog
         open={!!editTarget}
         onClose={() => setEditTarget(null)}
-        onSave={handleEditSave}
+        onSaved={handleEditSave}
         frameGroup={editTarget}
         loading={editLoading}
       />
