@@ -36,6 +36,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
+import { toast } from 'react-toastify';
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ const CreateFramePage = () => {
                 await variantRef.current?.submit();
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
-        } catch {
+        } catch (error: any) {
             // validation failed or API error → stay on current step
         }
     };
