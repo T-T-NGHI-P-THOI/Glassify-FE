@@ -45,6 +45,8 @@ import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
 import LensProductPage from "@/pages/Product/Lens/LensProductPage";
 import LensDetailPage from "@/pages/Product/Lens/LensDetailPage";
 import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
+import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage";
+import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -99,6 +101,28 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <CreateFramePage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <AccessoryProductPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_ACCESSORY}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <CreateAccessoryPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

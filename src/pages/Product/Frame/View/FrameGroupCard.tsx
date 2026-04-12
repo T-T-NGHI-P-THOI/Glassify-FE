@@ -25,6 +25,7 @@ import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
 import ProductAPI from '@/api/product-api';
 import EditFrameVariantDialog, { type EditFrameVariantFormData } from '../Edit/EditFrameVariantDialog';
+import type { EditFrameGroupFormData } from '../Edit/EditFrameGroupDialog';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -527,17 +528,6 @@ const FrameGroupCard = ({
     const colorSwatches = Array.from(
         new Map(variants.map((v) => [v.colorHex, v.colorName])).entries()
     );
-
-
-    // Overall stock status for the group
-    const findFrameVariantFeatured = () => {
-        for (const fv of fg.frameVariantResponses) {
-            if (fv.productResponse?.isFeatured) {
-                return fv;
-            }
-        }
-        return null;
-    };
 
     return (
         <Paper

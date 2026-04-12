@@ -1,0 +1,304 @@
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    Box,
+    Typography,
+    Grid,
+    Chip,
+    Divider,
+    IconButton,
+    Paper,
+    Backdrop,
+} from '@mui/material';
+import {
+    Close,
+    ViewModule as ViewModuleIcon,
+    Palette as PaletteIcon,
+    Inventory as InventoryIcon,
+    LocalAtm as PriceIcon,
+    Collections as CollectionsIcon,
+    CheckCircle,
+    Cancel,
+} from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { useState, useEffect } from 'react';
+import type { AccessoryVariantResponse } from './AccessoryCard';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const formatPrice = (val: string | number) => {
+    const n = Number(val);
+    if (!n) return '—';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionTitle({ icon, label }: { icon: React.ReactNode; label: string }) {
+    const theme = useTheme();
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Box sx={{ color: theme.palette.primary.main, display: 'flex' }}>{icon}</Box>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                {label}
+            </Typography>
+        </Box>
+    );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+    const theme = useTheme();
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.75 }}>
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], minWidth: 140 }}>
+                {label}
+            </Typography>
+            <Box sx={{ textAlign: 'right' }}>
+                {typeof value === 'string' || typeof value === 'number' ? (
+                    <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                        {value || '—'}
+                    </Typography>
+                ) : (
+                    value
+                )}
+            </Box>
+        </Box>
+    );
+}
+
+function BoolBadge({ value }: { value: boolean }) {
+    const theme = useTheme();
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {value
+                ? <CheckCircle sx={{ fontSize: 16, color: theme.palette.success.main }} />
+                : <Cancel sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} />}
+            <Typography sx={{ fontSize: 13, fontWeight: 500, color: value ? theme.palette.success.main : theme.palette.custom.neutral[400] }}>
+                {value ? 'Yes' : 'No'}
+            </Typography>
+        </Box>
+    );
+}
+
+// ─── Image lightbox ───────────────────────────────────────────────────────────
+
+function ImageLightbox({ images, open, initialIndex = 0, onClose }: {
+    images: string[];
+    open: boolean;
+    initialIndex?: number;
+    onClose: () => void;
+}) {
+    const [current, setCurrent] = useState(initialIndex);
+
+    useEffect(() => { if (open) setCurrent(initialIndex); }, [open, initialIndex]);
+
+    useEffect(() => {
+        if (!open) return;
+        const fn = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') setCurrent(i => (i - 1 + images.length) % images.length);
+            else if (e.key === 'ArrowRight') setCurrent(i => (i + 1) % images.length);
+            else if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', fn);
+        return () => window.removeEventListener('keydown', fn);
+    }, [open, images.length, onClose]);
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth={false}
+            slots={{ backdrop: Backdrop }}
+            slotProps={{ backdrop: { sx: { bgcolor: 'rgba(0,0,0,0.9)' } } }}
+            PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible', m: 0 } }}
+        >
+            <DialogContent sx={{ p: 0, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <IconButton onClick={onClose} sx={{ position: 'fixed', top: 16, right: 16, color: '#fff', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }, zIndex: 10 }}>
+                    <Close />
+                </IconButton>
+                <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    {images.length > 1 && (
+                        <IconButton onClick={() => setCurrent(i => (i - 1 + images.length) % images.length)}
+                            sx={{ position: 'absolute', left: -56, color: '#fff', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+                            ‹
+                        </IconButton>
+                    )}
+                    <Box component="img" src={images[current]} alt={`Image ${current}`}
+                        sx={{ maxWidth: '80vw', maxHeight: '80vh', borderRadius: 2, objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }} />
+                    {images.length > 1 && (
+                        <IconButton onClick={() => setCurrent(i => (i + 1) % images.length)}
+                            sx={{ position: 'absolute', right: -56, color: '#fff', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+                            ›
+                        </IconButton>
+                    )}
+                </Box>
+                {images.length > 1 && (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        {images.map((_, i) => (
+                            <Box key={i} onClick={() => setCurrent(i)}
+                                sx={{ width: i === current ? 20 : 8, height: 8, borderRadius: 4, bgcolor: i === current ? '#fff' : 'rgba(255,255,255,0.35)', cursor: 'pointer', transition: 'all 0.2s' }} />
+                        ))}
+                    </Box>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ─── Main Dialog ──────────────────────────────────────────────────────────────
+
+interface AccessoryVariantDetailDialogProps {
+    open: boolean;
+    onClose: () => void;
+    variant: AccessoryVariantResponse;
+}
+
+export default function AccessoryVariantDetailDialog({ open, onClose, variant }: AccessoryVariantDetailDialogProps) {
+    const theme = useTheme();
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+
+    const openLightbox = (index: number) => { setLightboxIndex(index); setLightboxOpen(true); };
+
+    return (
+        <>
+            <Dialog
+                open={open}
+                onClose={onClose}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 3, maxHeight: '90vh' } }}
+            >
+                <DialogTitle
+                    sx={{
+                        px: 3, py: 2.5,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <ViewModuleIcon sx={{ color: theme.palette.primary.main }} />
+                        <Box>
+                            <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.custom.neutral[900] }}>
+                                {variant.color || 'Variant Detail'}
+                            </Typography>
+                            {variant.id && (
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], fontFamily: 'monospace' }}>
+                                    ID: {variant.id}
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+                    <IconButton size="small" onClick={onClose} sx={{ color: theme.palette.custom.neutral[500] }}>
+                        <Close fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+
+                <DialogContent sx={{ px: 3, py: 3 }}>
+                    <Grid container spacing={3}>
+                        {/* Left */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <SectionTitle icon={<PaletteIcon fontSize="small" />} label="Color & Identity" />
+                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
+                                <InfoRow label="Color" value={variant.color ?? '—'} />
+                                <Divider sx={{ my: 0.5 }} />
+                                <InfoRow label="Size" value={variant.size ?? '—'} />
+                                <Divider sx={{ my: 0.5 }} />
+                                <InfoRow label="Featured" value={<BoolBadge value={variant.productResponse?.isFeatured ?? false} />} />
+                                <Divider sx={{ my: 0.5 }} />
+                                <InfoRow label="Returnable" value={<BoolBadge value={variant.productResponse?.isReturnable ?? false} />} />
+                            </Paper>
+
+                            <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
+                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
+                                <InfoRow
+                                    label="Stock"
+                                    value={
+                                        <Typography sx={{
+                                            fontSize: 13, fontWeight: 700,
+                                            color: (variant.productResponse?.stockQuantity ?? 0) === 0
+                                                ? theme.palette.error.main
+                                                : theme.palette.success.main,
+                                        }}>
+                                            {variant.productResponse?.stockQuantity ?? variant.stock ?? '—'} units
+                                        </Typography>
+                                    }
+                                />
+                                <Divider sx={{ my: 0.5 }} />
+                                <InfoRow label="Warranty" value={variant.productResponse?.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
+                            </Paper>
+
+                            <SectionTitle icon={<PriceIcon fontSize="small" />} label="Pricing" />
+                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                                <InfoRow label="Cost Price" value={formatPrice(variant.costPrice ?? variant.productResponse?.costPrice ?? 0)} />
+                                <Divider sx={{ my: 0.5 }} />
+                                <InfoRow
+                                    label="Base Price"
+                                    value={
+                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.primary.main }}>
+                                            {formatPrice(variant.basePrice ?? variant.productResponse?.basePrice ?? 0)}
+                                        </Typography>
+                                    }
+                                />
+                            </Paper>
+                        </Grid>
+
+                        {/* Right */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <SectionTitle icon={<CollectionsIcon fontSize="small" />} label="Product Images" />
+                            {(variant.productResponse?.productImages?.length ?? 0) === 0 ? (
+                                <Box sx={{ py: 4, textAlign: 'center', color: theme.palette.custom.neutral[400], border: `1px dashed ${theme.palette.custom.border.light}`, borderRadius: 2 }}>
+                                    <CollectionsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.4 }} />
+                                    <Typography sx={{ fontSize: 13 }}>No images uploaded</Typography>
+                                </Box>
+                            ) : (
+                                <Box>
+                                    <Box
+                                        onClick={() => openLightbox(0)}
+                                        sx={{
+                                            borderRadius: 2, overflow: 'hidden', cursor: 'pointer', mb: 1.5,
+                                            border: `1px solid ${theme.palette.custom.border.light}`,
+                                            height: 200, position: 'relative',
+                                            '&:hover .overlay': { opacity: 1 },
+                                        }}
+                                    >
+                                        <Box component="img" src={variant.productResponse!.productImages[0]}
+                                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <Box className="overlay" sx={{
+                                            position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)',
+                                            opacity: 0, transition: 'opacity 0.2s',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        }}>
+                                            <Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>View</Typography>
+                                        </Box>
+                                    </Box>
+                                    {variant.productResponse!.productImages.length > 1 && (
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            {variant.productResponse!.productImages.slice(1).map((img, i) => (
+                                                <Box key={i} onClick={() => openLightbox(i + 1)}
+                                                    sx={{
+                                                        flex: 1, height: 64, borderRadius: 1.5, overflow: 'hidden',
+                                                        cursor: 'pointer', border: `1px solid ${theme.palette.custom.border.light}`,
+                                                        position: 'relative', '&:hover .overlay': { opacity: 1 },
+                                                    }}
+                                                >
+                                                    <Box component="img" src={img} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <Box className="overlay" sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)', opacity: 0, transition: 'opacity 0.2s' }} />
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    )}
+                                </Box>
+                            )}
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+            </Dialog>
+
+            <ImageLightbox
+                images={variant.productResponse?.productImages ?? []}
+                open={lightboxOpen}
+                initialIndex={lightboxIndex}
+                onClose={() => setLightboxOpen(false)}
+            />
+        </>
+    );
+}

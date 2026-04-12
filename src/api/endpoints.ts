@@ -286,6 +286,11 @@ export const PAGE_ENDPOINTS = {
     PRODUCT_LENS: `/shop/products/lenses`,
     LENS_DETAIL: (lensId: string) => `/shop/products/lenses/detail/${lensId}`,
     EDIT_LENS: (lensId: string) => `/shop/products/lenses/${lensId}/edit`,
+
+    // Product Accessory
+    PRODUCT_ACCESSORY: `/shop/product/accessory`,
+    CREATE_ACCESSORY: `/shop/product/accessory/create`,
+    
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
     REFUND_REVIEW: `/shop/refunds/review`,
