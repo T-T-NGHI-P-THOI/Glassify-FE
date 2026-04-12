@@ -314,7 +314,7 @@ const SellerRefundListPage = () => {
                           color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
                           size="small"
                         />
-                        {request.adminDirectRefund && (
+                        {request.shopAppealStatus && request.shopAppealStatus !== ShopAppealStatus.NONE && (
                           <Chip
                             label={SHOP_APPEAL_STATUS_LABELS[request.shopAppealStatus ?? ShopAppealStatus.NONE]}
                             color={

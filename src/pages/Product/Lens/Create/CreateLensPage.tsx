@@ -3000,11 +3000,6 @@ const CreateLensPage = () => {
                                 <AccordionDetails sx={{ pt: 2 }}>
                                   {isEditing && editingData ? (
                                     <Grid container spacing={2}>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <Alert severity="info" sx={{ py: 0.5 }}>
-                                          Usage object (type/name) is managed by admin. Shop can edit usage rules only.
-                                        </Alert>
-                                      </Grid>
                                       <Grid size={{ xs: 12, md: 2.5 }}>
                                         <FormControlLabel
                                           control={

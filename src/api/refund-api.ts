@@ -5,7 +5,6 @@ import type {
   ReturnEligibility,
   CreateRefundRequestDto,
   UpdateReturnTrackingDto,
-  ReviewRefundRequestDto,
   ConfirmItemReceivedDto,
   ProcessRefundDto,
   SubmitShopAppealDto,
@@ -87,18 +86,7 @@ export const cancelReturnRequest = async (
   return response.data;
 };
 
-// Seller APIs
-export const reviewReturnRequest = async (
-  requestId: string,
-  data: ReviewRefundRequestDto
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/review`,
-    data
-  );
-  return response.data;
-};
-
+// Shop APIs (post-admin decision actions)
 export const confirmItemReceived = async (
   requestId: string,
   data: ConfirmItemReceivedDto
@@ -160,6 +148,7 @@ export const getReturnStatistics = async (
 ): Promise<ApiResponse<any>> => {
   const response = await axios.get<ApiResponse<any>>(
     `${REFUND_BASE_URL}/statistics`,
+    { params: shopId ? { shopId } : undefined }
     );
   return response.data;
 };

@@ -47,6 +47,13 @@ export enum RefundProcessType {
   PARTIAL = 'PARTIAL',
 }
 
+export enum RefundDecision {
+  REFUND_WITHOUT_RETURN = 'REFUND_WITHOUT_RETURN',
+  RETURN_AND_REFUND = 'RETURN_AND_REFUND',
+  PARTIAL_REFUND = 'PARTIAL_REFUND',
+  REJECT = 'REJECT',
+}
+
 export enum ShopAppealStatus {
   NONE = 'NONE',
   SUBMITTED = 'SUBMITTED',
@@ -102,9 +109,10 @@ export interface RefundRequest {
   sellerResponsible: boolean;
   autoApprovalEligible: boolean;
   returnWindowRemaining?: number;
+  adminDirectRefund?: boolean;
+  adminRefundDecision?: RefundDecision;
   hasDispute?: boolean;
   adminNotes?: string;
-  adminDirectRefund?: boolean;
   shopAppealStatus?: ShopAppealStatus;
   shopAppealReason?: ShopAppealReason;
   shopAppealDetail?: string;
@@ -150,12 +158,14 @@ export interface UpdateReturnTrackingDto {
 
 export interface ReviewRefundRequestDto {
   approved: boolean;
+  refundDecision: RefundDecision;
   rejectionReason?: string;
-  returnInstruction?: string;
-  shopCoverShipping?: boolean;
-  // Backward compatibility for older APIs
   returnInstructions?: string;
   sellerPaysShipping?: boolean;
+  // Backward compatibility for older APIs
+  decision?: RefundDecision;
+  returnInstruction?: string;
+  shopCoverShipping?: boolean;
 }
 
 export interface ConfirmItemReceivedDto {

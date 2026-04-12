@@ -96,7 +96,7 @@ const ShopRefundReviewPage = () => {
   }, [pendingRequests, requests, returnShippingRequests, selectedTab]);
 
   const formatDateTime = (value: string) =>
-    new Date(value).toLocaleDateString('vi-VN', {
+    new Date(value).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -136,17 +136,17 @@ const ShopRefundReviewPage = () => {
       <Box sx={{ flex: 1, p: 4 }}>
         <Box sx={{ mb: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-            Refund Review
+              Refund Tracking
           </Typography>
           <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-            Review customer refund requests and take action quickly.
+              Track refund requests after admin review and follow the next required step.
           </Typography>
         </Box>
 
         {pendingRequests.length > 0 && (
           <Alert severity="warning" sx={{ mb: 3 }}>
             <Typography variant="body2">
-              There are <strong>{pendingRequests.length}</strong> requests waiting for your review.
+                There are <strong>{pendingRequests.length}</strong> refund requests waiting for admin decision.
             </Typography>
           </Alert>
         )}
@@ -169,7 +169,7 @@ const ShopRefundReviewPage = () => {
             }}
           >
             <Tab label={`All (${requests.length})`} />
-            <Tab label={`Need Review (${pendingRequests.length})`} />
+            <Tab label={`Waiting for Admin Decision (${pendingRequests.length})`} />
             <Tab label={`Return Shipping (${returnShippingRequests.length})`} />
           </Tabs>
 
@@ -184,7 +184,7 @@ const ShopRefundReviewPage = () => {
                 No matching refund requests
               </Typography>
               <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-                Requests will appear here when customers submit refund tickets.
+                Requests will appear here when customers submit refund requests.
               </Typography>
             </Box>
           ) : (
@@ -227,18 +227,6 @@ const ShopRefundReviewPage = () => {
                       </Box>
 
                       <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
-                        {isPendingReview && (
-                          <Button
-                            variant="contained"
-                            color="warning"
-                            startIcon={<Gavel />}
-                            onClick={() =>
-                              navigate(PAGE_ENDPOINTS.REFUND.SELLER_DETAIL.replace(':requestId', request.id))
-                            }
-                          >
-                            Review Now
-                          </Button>
-                        )}
                         <Button
                           variant="outlined"
                           startIcon={<Visibility />}

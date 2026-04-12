@@ -28,22 +28,16 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Checkbox,
-  FormGroup,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   AssignmentReturn,
   CheckCircle,
   ArrowBack,
-  ThumbUp,
-  ThumbDown,
   LocalShipping,
   Inventory,
   Image as ImageIcon,
   Videocam,
-  VerifiedUser,
-  AttachFile,
   Person,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
@@ -55,7 +49,6 @@ import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
   getReturnRequestDetail,
-  reviewReturnRequest,
   confirmItemReceived,
   processRefund,
   submitShopAppeal,
@@ -241,11 +234,6 @@ const SellerRefundDetailPage = () => {
   const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
   const [buyerLoading, setBuyerLoading] = useState(false);
   
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [returnInstructions, setReturnInstructions] = useState('');
-  const [sellerPaysShipping, setSellerPaysShipping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -262,6 +250,7 @@ const SellerRefundDetailPage = () => {
   
   const [ghnStatusData, setGhnStatusData] = useState<any>(null);
   const [fetchingGhn, setFetchingGhn] = useState(false);
+  
 
   useEffect(() => {
     setShowNavbar(false);
@@ -318,46 +307,6 @@ const SellerRefundDetailPage = () => {
     };
     fetchBuyerInfo();
   }, [request]);
-
-  const handleOpenReviewDialog = (action: 'approve' | 'reject') => {
-    setReviewAction(action);
-    setReviewDialogOpen(true);
-  };
-
-  const handleCloseReviewDialog = () => {
-    setReviewDialogOpen(false);
-    setRejectionReason('');
-    setReturnInstructions('');
-    setSellerPaysShipping(false);
-  };
-
-  const handleSubmitReview = async () => {
-    if (!requestId) return;
-    if (reviewAction === 'reject' && !rejectionReason.trim()) {
-      toast.error('Reason required');
-      return;
-    }
-    if (reviewAction === 'approve' && !returnInstructions.trim()) {
-      toast.error('Instructions required');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await reviewReturnRequest(requestId, {
-        approved: reviewAction === 'approve',
-        rejectionReason: reviewAction === 'reject' ? rejectionReason : undefined,
-        returnInstruction: reviewAction === 'approve' ? returnInstructions : undefined,
-        shopCoverShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
-      });
-      toast.success('Action successful');
-      handleCloseReviewDialog();
-      await fetchRequestDetail();
-    } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Error processing request'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleConfirmReceived = async () => {
     if (!requestId) return;
@@ -491,21 +440,30 @@ const SellerRefundDetailPage = () => {
 
   if (!request) return <Typography>Not Found</Typography>;
 
-  const canReview = request.status === ReturnStatus.REQUESTED;
+  const waitingForAdminDecision = request.status === ReturnStatus.REQUESTED;
   const canConfirmReceived = request.status === ReturnStatus.RETURN_DELIVERED;
-  const canProcessRefund = request.status === ReturnStatus.ITEM_RECEIVED && !!request.itemReceivedAt;
-  const isAdminDirectRefund = !!request.adminDirectRefund;
   const appealStatus = request.shopAppealStatus;
-  const appealStartTime = request.completedAt ? new Date(request.completedAt).getTime() : null;
+  const hasNoAppeal = appealStatus === undefined || appealStatus === ShopAppealStatus.NONE;
+  const appealStartAt = request.itemReceivedAt ?? request.completedAt ?? request.approvedAt ?? request.requestedAt;
+  const appealStartTime = appealStartAt ? new Date(appealStartAt).getTime() : null;
   const appealDeadlineTime =
     appealStartTime !== null ? appealStartTime + APPEAL_WINDOW_HOURS * 60 * 60 * 1000 : null;
   const nowTime = Date.now();
   const isAppealWindowOpen =
-    appealDeadlineTime !== null && nowTime <= appealDeadlineTime;
+    appealDeadlineTime === null || nowTime <= appealDeadlineTime;
+  const isAppealWindowExpired =
+    appealDeadlineTime !== null && nowTime > appealDeadlineTime;
+  const canProcessRefund =
+    request.status === ReturnStatus.ITEM_RECEIVED &&
+    !!request.itemReceivedAt;
+  const isAppealEligibleStatus =
+    request.status === ReturnStatus.RETURN_SHIPPING
+    || request.status === ReturnStatus.RETURN_DELIVERED
+    || request.status === ReturnStatus.ITEM_RECEIVED
+    || request.status === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
-    isAdminDirectRefund &&
-    request.status === ReturnStatus.COMPLETED &&
-    (appealStatus === undefined || appealStatus === ShopAppealStatus.NONE) &&
+    isAppealEligibleStatus &&
+    hasNoAppeal &&
     isAppealWindowOpen;
   const steps = getStatusSteps(request.status);
   const activeStep = getActiveStep(request.status, steps);
@@ -556,28 +514,14 @@ const SellerRefundDetailPage = () => {
               <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500], mt: 1 }}>
                 Submitted on {formatDate(request.requestedAt)} • Order <b>#{request.orderNumber}</b>
               </Typography>
+              {waitingForAdminDecision && (
+                <Alert severity="info" sx={{ mt: 1.5, borderRadius: 2 }}>
+                  Waiting for admin decision. Shop actions are disabled until admin reviews this refund request.
+                </Alert>
+              )}
             </Box>
 
             <Stack direction="row" spacing={2}>
-              {canReview && (
-                <>
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
-                    onClick={() => handleOpenReviewDialog('reject')}
-                    sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 600 }}
-                  >
-                    Reject Request
-                  </Button>
-                  <Button 
-                    variant="contained" 
-                    onClick={() => handleOpenReviewDialog('approve')}
-                    sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600, bgcolor: theme.palette.custom.neutral[900] }}
-                  >
-                    Approve & Instructions
-                  </Button>
-                </>
-              )}
               {canConfirmReceived && (
                 <Button 
                   variant="contained" 
@@ -806,13 +750,17 @@ const SellerRefundDetailPage = () => {
                       )}
                     </Stack>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">Waiting for buyer to return item...</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {waitingForAdminDecision
+                            ? 'Waiting for admin decision before return logistics starts.'
+                            : 'Waiting for buyer to return item...'}
+                        </Typography>
                   )}
                 </Paper>
 
-                {isAdminDirectRefund && (
+                {(isAppealEligibleStatus || (appealStatus && appealStatus !== ShopAppealStatus.NONE)) && (
                   <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
-                    <Typography sx={{ fontWeight: 700, mb: 2.5 }}>Admin Direct-Refund Appeal</Typography>
+                    <Typography sx={{ fontWeight: 700, mb: 2.5 }}>Shop Appeal</Typography>
                     <Stack spacing={1.2}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Typography variant="body2" color="text.secondary">Appeal status</Typography>
@@ -846,6 +794,11 @@ const SellerRefundDetailPage = () => {
                       {typeof request.shopCompensationAmount === 'number' && (
                         <Alert severity="success" sx={{ borderRadius: 2 }}>
                           Compensation amount: {formatCurrency(request.shopCompensationAmount)}
+                        </Alert>
+                      )}
+                      {hasNoAppeal && !isAppealWindowExpired && (
+                        <Alert severity="info" sx={{ borderRadius: 2 }}>
+                          You can submit an appeal within the current appeal window.
                         </Alert>
                       )}
                     </Stack>
@@ -882,68 +835,6 @@ const SellerRefundDetailPage = () => {
         </Box>
       </Box>
 
-      {/* Dialogs... same logic but restyle headers */}
-      <Dialog 
-        open={reviewDialogOpen} 
-        onClose={handleCloseReviewDialog} 
-        maxWidth="sm" 
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 4 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, px: 3, pt: 3 }}>
-          {reviewAction === 'approve' ? 'Approve Refund Request' : 'Reject Refund Request'}
-        </DialogTitle>
-        <DialogContent sx={{ px: 3 }}>
-          {reviewAction === 'approve' ? (
-            <Stack spacing={3} sx={{ py: 2 }}>
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                Approve this request if the item is eligible for return. Provide clear instructions for the customer.
-              </Alert>
-              <TextField 
-                label="Return Instructions" 
-                multiline 
-                rows={4} 
-                fullWidth 
-                placeholder="Where should the customer send the item? What items should be included in the package?"
-                value={returnInstructions} 
-                onChange={(e) => setReturnInstructions(e.target.value)} 
-              />
-              <FormControlLabel 
-                control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} 
-                label={<Typography sx={{ fontSize: 14, fontWeight: 600 }}>Shop will cover the return shipping fee</Typography>} 
-              />
-            </Stack>
-          ) : (
-            <Stack spacing={3} sx={{ py: 2 }}>
-              <Alert severity="error" sx={{ borderRadius: 2 }}>
-                Rejecting a request should be based on valid policy reasons.
-              </Alert>
-              <TextField 
-                label="Rejection Reason" 
-                multiline 
-                rows={4} 
-                fullWidth 
-                placeholder="Explain why this request is being rejected..."
-                value={rejectionReason} 
-                onChange={(e) => setRejectionReason(e.target.value)} 
-              />
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button onClick={handleCloseReviewDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color={reviewAction === 'approve' ? 'primary' : 'error'} 
-            onClick={handleSubmitReview} 
-            disabled={submitting}
-            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
-          >
-            {submitting ? <CircularProgress size={20} /> : 'Submit Review'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       <Dialog
         open={appealDialogOpen}
         onClose={() => setAppealDialogOpen(false)}
@@ -955,7 +846,7 @@ const SellerRefundDetailPage = () => {
         <DialogContent sx={{ py: 2 }}>
           <Stack spacing={2.5}>
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
-              Submit your appeal within {APPEAL_WINDOW_HOURS} hours after admin direct refund decision.
+              Submit your appeal within {APPEAL_WINDOW_HOURS} hours after the returned item is received.
             </Alert>
 
             <FormControl fullWidth>

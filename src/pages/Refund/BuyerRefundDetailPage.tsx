@@ -217,7 +217,7 @@ const BuyerRefundDetailPage = () => {
   const activeStep = getActiveStep(request.status, steps);
   const canCancel = request.status === ReturnStatus.REQUESTED;
   const isApproved = request.status === ReturnStatus.APPROVED;
-  const waitingForShopReview =
+  const waitingForAdminReview =
     request.status === ReturnStatus.REQUESTED;
   const canUpdateTracking = isApproved && !request.returnTrackingNumber;
   const evidenceFiles = request.evidenceImages || [];
@@ -298,13 +298,13 @@ const BuyerRefundDetailPage = () => {
       </Paper>
 
       {/* Alert messages based on status */}
-      {waitingForShopReview && (
+      {waitingForAdminReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Waiting for shop review
+            Waiting for Glassify review
           </Typography>
           <Typography variant="body2">
-            Once approved by the shop, you can ship the item back and update tracking details.
+            Your request is under Glassify review. After approval, follow return instructions and update tracking details.
           </Typography>
         </Alert>
       )}
@@ -312,10 +312,10 @@ const BuyerRefundDetailPage = () => {
       {isApproved && !request.returnTrackingNumber && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Shop approved your request!
+            Your request was approved by Glassify
           </Typography>
           <Typography variant="body2">
-            Please ship the item back and update tracking number
+            Please ship the item back and update your tracking number.
           </Typography>
           <Button
             variant="outlined"
@@ -670,7 +670,7 @@ const BuyerRefundDetailPage = () => {
                       {formatDate(request.approvedAt)}
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
-                      Approved
+                      Approved by Glassify
                     </Typography>
                   </Box>
                 )}

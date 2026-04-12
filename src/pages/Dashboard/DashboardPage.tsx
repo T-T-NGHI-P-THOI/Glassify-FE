@@ -29,6 +29,7 @@ import {
   Schedule,
   Store,
   TrendingUp,
+  AssignmentReturn,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -47,9 +48,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { adminApi, type AdminOverviewStats } from '@/api/adminApi';
+import { adminApi, type AdminOverviewStats, type AdminRefundResponse } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
+import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';
 
 const recentOrders = [
   { orderId: 'ORD-2024-001', customer: 'Nguyễn Văn Minh', customerAvatar: '/avatars/c1.jpg', shop: 'Optical Vision Store', amount: 7500000, status: 'DELIVERED', date: '2024-01-20T10:30:00' },
@@ -77,17 +79,20 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [shops, setShops] = useState<AdminShopItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<ShopRequest[]>([]);
+  const [refundRequests, setRefundRequests] = useState<AdminRefundResponse[]>([]);
   const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
 
   useEffect(() => {
     adminApi.getShops().then((res) => { if (res.data) setShops(res.data); }).catch(() => {});
     adminApi.getShopRequests('PENDING').then((res) => { if (res.data) setPendingRequests(res.data.requests); }).catch(() => {});
+    adminApi.getRefunds('REQUESTED', 0, 3).then((res) => { if (res.data) setRefundRequests(res.data.content); }).catch(() => {});
     adminApi.getOverviewStats().then((res) => { if (res.data) setOverviewStats(res.data); }).catch(() => {});
   }, []);
 
   const totalShops = shops.length;
   const activeShops = shops.filter((s) => s.status === 'ACTIVE').length;
   const topShops = [...shops].sort((a, b) => (b.totalOrders ?? 0) - (a.totalOrders ?? 0)).slice(0, 5);
+  const pendingRefundCount = refundRequests.length;
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -319,6 +324,42 @@ const DashboardPage = () => {
                               <Schedule sx={{ fontSize: 14, color: theme.palette.custom.neutral[400] }} />
                               <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>{formatDate(req.submittedAt)}</Typography>
                             </Box>
+                          </Box>
+                        ))
+                      )}
+                    </Box>
+                  </Paper>
+
+                  {/* Refund Requests */}
+                  <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                    <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AssignmentReturn sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
+                        <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>Refund Requests</Typography>
+                        <Chip label={pendingRefundCount} size="small" sx={{ height: 20, fontSize: 11, fontWeight: 600, backgroundColor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
+                      </Box>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.info.main, cursor: 'pointer', fontWeight: 500 }} onClick={() => navigate(PAGE_ENDPOINTS.ADMIN.REFUNDS)}>View All</Typography>
+                    </Box>
+                    <Box sx={{ p: 2 }}>
+                      {refundRequests.length === 0 ? (
+                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], textAlign: 'center', py: 2 }}>No pending refund requests</Typography>
+                      ) : (
+                        refundRequests.map((request, index) => (
+                          <Box
+                            key={request.id}
+                            onClick={() => navigate(PAGE_ENDPOINTS.ADMIN.REFUND_DETAIL.replace(':id', request.id))}
+                            sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: index < refundRequests.length - 1 ? 1.5 : 0, '&:hover': { bgcolor: theme.palette.custom.neutral[50] }, cursor: 'pointer' }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{request.productName}</Typography>
+                              <Chip label={request.statusDisplay || 'Requested'} size="small" sx={{ height: 20, fontSize: 10, backgroundColor: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main }} />
+                            </Box>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 0.75 }}>Request #{request.requestNumber}</Typography>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 0.75 }}>Shop: {request.shopName}</Typography>
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600], mb: 0.75 }}>
+                              Reason: {RETURN_REASON_LABELS[request.reason as ReturnReason] ?? request.reason}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>Requested: {formatDate(request.requestedAt)}</Typography>
                           </Box>
                         ))
                       )}
