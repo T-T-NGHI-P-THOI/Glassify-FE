@@ -75,7 +75,7 @@ export interface ProductResponse {
     metaDescription: string;
     productType: string;
     productImages: string[];
-    fileResponses: { publicUrl?: string; url?: string; isPrimary?: boolean | null }[] | null;
+    fileResponses: FileResponse[];
 }
 
 export interface FrameGroup {
@@ -93,6 +93,22 @@ export interface FrameGroup {
     suitableFaceShapes: string[] | null;
     createdAt: string;
     frameVariantResponses: FrameVariantResponse[];
+}
+
+export interface FileResponse {
+    id: string;
+    productId: string;
+    originalName: string;
+    storedName: string;
+    publicUrl: string;
+    filePath: string | null;
+    fileSize: number;
+    mimeType: string;
+    storageProvider: string;
+    isPrimary: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -160,9 +176,17 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                     v.id === variantId
                         ? {
                             ...v,
-                            ...data, // update field
-                            qtyOnHand: data.stock, // map lại field BE
+                            ...data,
+                            qtyOnHand: data.stock,
                             lowStockThreshold: data.stockThreshold,
+                            textureFile: data.newTextureFile?.preview ?? v.textureFile,
+                            productResponse: {
+                                ...v.productResponse,
+                                productImages:
+                                    data.newImages && data.newImages.length > 0
+                                        ? data.newImages.map(file => file.preview)
+                                        : v.productResponse.productImages,
+                            }
                         }
                         : v
                 )
@@ -869,10 +893,10 @@ const FrameGroupCard = ({
                 <VariantPanel
                     frameGroupId={fg.id}
                     shopId={shopId}
-                    variants={variants} 
-                    vrEnabled={fg.vrEnabled} 
-                    productImages={featuredFrameVariant?.productResponse.productImages || []} 
-                    setFrameGroups={setFrameGroups}/>
+                    variants={variants}
+                    vrEnabled={fg.vrEnabled}
+                    productImages={featuredFrameVariant?.productResponse.productImages || []}
+                    setFrameGroups={setFrameGroups} />
             )}
         </Paper>
     );

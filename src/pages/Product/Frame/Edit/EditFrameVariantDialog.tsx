@@ -54,13 +54,11 @@ export interface EditFrameVariantFormData {
     basePrice: number;
     isReturnable: boolean;
     isFeatured: boolean;
-    /** New images to upload */
+
     newImages: ProductImageFile[];
-    /** Existing image URLs to keep */
     keepImageUrls: string[];
-    /** New texture file (replaces existing) */
+    
     newTextureFile: TextureFileLocal | null;
-    /** Existing texture URL (null = remove) */
     keepTextureUrl: string | null;
 }
 
@@ -336,6 +334,7 @@ const EditFrameVariantDialog = ({
             toast.success('Frame variant updated successfully!');
             onSaved?.(variant.id, formData);
             onClose();
+            
         } catch (error: any) {
             const msgs: string[] = error?.errors ?? [];
             if (msgs.length) msgs.forEach(m => toast.error(m));
