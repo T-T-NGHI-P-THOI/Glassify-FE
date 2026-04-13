@@ -1040,10 +1040,15 @@ const ShopWarrantyPage = () => {
           <TextField
             fullWidth
             label="Price (VND)"
-            type="number"
-            value={serviceFormData.price}
-            onChange={(e) => setServiceFormData({ ...serviceFormData, price: e.target.value })}
+            type="text"
+            inputMode="numeric"
+            value={serviceFormData.price ? Number(serviceFormData.price).toLocaleString('vi-VN') : ''}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\./g, '').replace(/\D/g, '');
+              setServiceFormData({ ...serviceFormData, price: raw });
+            }}
             size="small"
+            placeholder="0"
           />
           <TextField
             fullWidth

@@ -368,6 +368,15 @@ export const adminApi = {
     return response.data;
   },
 
+  cancelOrder: async (orderId: string, reason?: string): Promise<ApiResponse<AdminOrderResponse>> => {
+    const response = await axiosInstance.put<ApiResponse<AdminOrderResponse>>(
+      API_ENDPOINTS.ADMIN.ORDERS.CANCEL(orderId),
+      null,
+      { params: reason ? { reason } : undefined },
+    );
+    return response.data;
+  },
+
   getRefunds: async (status?: string, page = 0, size = 20): Promise<ApiResponse<PageResponse<AdminRefundResponse>>> => {
     const response = await axiosInstance.get<ApiResponse<PageResponse<AdminRefundResponse>>>(
       API_ENDPOINTS.ADMIN.REFUNDS.LIST,

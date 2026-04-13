@@ -222,6 +222,7 @@ export const API_ENDPOINTS = {
     ORDERS: {
       LIST: `${API_ENDPOINT}/admin/orders`,
       GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}`,
+      CANCEL: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}/cancel`,
     },
     REFUNDS: {
       LIST: `${API_ENDPOINT}/admin/refunds`,
