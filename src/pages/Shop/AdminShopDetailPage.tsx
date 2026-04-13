@@ -56,15 +56,17 @@ import {
   Close,
   Image as ImageIcon,
   WorkspacePremium,
+  ChevronLeft,
+  ChevronRight,
   Receipt,
   LocalMall,
 } from '@mui/icons-material';
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
-import type { DeactivationStatus } from '@/api/shopApi';
+import type { DeactivationStatus, ClosureStatus } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
@@ -90,6 +92,7 @@ const AdminShopDetailPage = () => {
   const [closeShopConfirm, setCloseShopConfirm] = useState(false);
   const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
   const [deactivationInfo, setDeactivationInfo] = useState<DeactivationStatus | null>(null);
+  const [closureInfo, setClosureInfo] = useState<ClosureStatus | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -108,6 +111,12 @@ const AdminShopDetailPage = () => {
           setDeactivationInfo(deactRes.data ?? null);
         } catch {
           setDeactivationInfo(null);
+        }
+        try {
+          const closeRes = await adminApi.getClosureStatus(id);
+          setClosureInfo(closeRes.data ?? null);
+        } catch {
+          setClosureInfo(null);
         }
       } else {
         toast.error('Shop not found');
@@ -187,12 +196,17 @@ const AdminShopDetailPage = () => {
     try {
       setTogglingStatus(true);
       if (actionType === 'deactivate') {
-        if (!deactivateEndDate) return;
-        await adminApi.deactivateShop(shop.id, actionReason, deactivateEndDate);
-        toast.success('Shop deactivated — status is now Pending');
+        await adminApi.deactivateShop(shop.id, actionReason);
+        toast.success('Shop deactivated successfully');
       } else {
         if (!closeShopConfirm) return;
-        await adminApi.closeShop(shop.id, actionReason, closeShopConfirm);
+        const res = await adminApi.closeShop(shop.id, actionReason);
+        setClosureInfo(res.data ? {
+          shopId: res.data.shopId, shopName: res.data.shopName, reason: res.data.reason,
+          requestedAt: res.data.requestedAt, closeAt: res.data.closeAt,
+          canCancelBefore: res.data.canCancelBefore, daysRemaining: res.data.daysRemaining,
+          status: res.data.status, message: res.data.message,
+        } : null);
         toast.success('Close shop request submitted — status is now Closing');
       }
       resetActionDialog();
@@ -225,6 +239,7 @@ const AdminShopDetailPage = () => {
       setTogglingStatus(true);
       await adminApi.cancelCloseShop(shop.id);
       toast.success('Shop closure cancelled successfully');
+      setClosureInfo(null);
       void fetchShop();
     } catch {
       toast.error('Failed to cancel closure');
@@ -237,8 +252,15 @@ const AdminShopDetailPage = () => {
     if (!shop) return;
     try {
       setTogglingStatus(true);
-      await adminApi.reactivateShop(shop.id);
-      toast.success('Shop reactivated successfully');
+      if (shop.status === 'CLOSING') {
+        // Shop hasn't been closed by the job yet — cancel the closure to restore ACTIVE
+        await adminApi.cancelCloseShop(shop.id);
+        setClosureInfo(null);
+        toast.success('Shop closure cancelled and shop is now active');
+      } else {
+        await adminApi.reactivateShop(shop.id);
+        toast.success('Shop reactivated successfully');
+      }
       setReactivateDialogOpen(false);
       setDeactivationInfo(null);
       void fetchShop();
@@ -301,11 +323,26 @@ const AdminShopDetailPage = () => {
   const mockRevenue = (shop.totalOrders ?? 0) * 285000;
   const mockCommissionEarned = mockRevenue * (shop.commissionRate / 100);
 
-  // Check if within cancel window for deactivation (scheduled by owner, not admin-forced)
+  // Admin deactivated: status stays ACTIVE but scheduledDeactivateAt is set → cancellable window
+  const isAdminPendingDeactivation = shop?.status === 'ACTIVE' && !!shop?.scheduledDeactivateAt;
+
+  // Owner-scheduled deactivation: SCHEDULED + within cancel window
   const isScheduledDeactivation = deactivationInfo?.status === 'SCHEDULED';
-  const withinDeactivationCancelWindow = isScheduledDeactivation &&
+  const withinOwnerDeactivationCancelWindow = isScheduledDeactivation &&
     !!deactivationInfo?.canCancelBefore &&
     new Date() < new Date(deactivationInfo.canCancelBefore);
+
+  // Show Cancel Deactivation button when: admin pending deactivation OR owner scheduled within window
+  const withinDeactivationCancelWindow = isAdminPendingDeactivation || withinOwnerDeactivationCancelWindow;
+
+  // Closure cancel window (admin close)
+  const withinClosureCancelWindow = shop?.status === 'CLOSING' &&
+    !!closureInfo?.canCancelBefore &&
+    new Date() < new Date(closureInfo.canCancelBefore);
+
+  // Reactivate: INACTIVE, or CLOSING past cancel window
+  const canReactivate = shop?.status === 'INACTIVE' ||
+    (shop?.status === 'CLOSING' && (!closureInfo?.canCancelBefore || new Date() >= new Date(closureInfo.canCancelBefore)));
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -411,20 +448,8 @@ const AdminShopDetailPage = () => {
                   Cancel Deactivation
                 </Button>
               )}
-              {/* INACTIVE → Reactivate */}
-              {shop.status === 'INACTIVE' && (
-                <Button
-                  variant="outlined"
-                  startIcon={togglingStatus ? <CircularProgress size={15} /> : <CheckCircle />}
-                  onClick={() => setReactivateDialogOpen(true)}
-                  disabled={togglingStatus}
-                  sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}
-                >
-                  Reactivate
-                </Button>
-              )}
-              {/* CLOSING → Cancel Close */}
-              {shop.status === 'CLOSING' && (
+              {/* CLOSING + within cancel window → Cancel Close */}
+              {withinClosureCancelWindow && (
                 <Button
                   variant="outlined"
                   startIcon={togglingStatus ? <CircularProgress size={15} /> : <Close />}
@@ -435,8 +460,20 @@ const AdminShopDetailPage = () => {
                   Cancel Close
                 </Button>
               )}
-              {/* ACTIVE + no scheduled deactivation → Deactivate + Close Shop */}
-              {shop.status === 'ACTIVE' && !isScheduledDeactivation && (
+              {/* INACTIVE or CLOSING past cancel window → Reactivate */}
+              {canReactivate && (
+                <Button
+                  variant="outlined"
+                  startIcon={togglingStatus ? <CircularProgress size={15} /> : <CheckCircle />}
+                  onClick={() => setReactivateDialogOpen(true)}
+                  disabled={togglingStatus}
+                  sx={{ borderColor: '#4ADE80', color: '#4ADE80', '&:hover': { borderColor: '#22C55E', bgcolor: 'rgba(34,197,94,0.1)' } }}
+                >
+                  Reactivate
+                </Button>
+              )}
+              {/* ACTIVE + no pending deactivation → Deactivate + Close Shop */}
+              {shop.status === 'ACTIVE' && !isAdminPendingDeactivation && !isScheduledDeactivation && (
                 <>
                   <Button
                     variant="outlined"
@@ -638,7 +675,7 @@ const AdminShopDetailPage = () => {
                 <Grid container spacing={2}>
                   {products.map((product) => {
                     const pStatus = getProductStatusConfig(product.isActive, product.stockQuantity);
-                    const imgUrl = product.fileResponses?.[0]?.url;
+                    const imgs = ProductAPI.getImageUrls(product);
                     const hasDiscount = product.compareAtPrice > product.basePrice;
                     return (
                       <Grid key={product.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
@@ -651,26 +688,19 @@ const AdminShopDetailPage = () => {
                             '&:hover': { boxShadow: '0 6px 24px rgba(0,0,0,0.09)', borderColor: theme.palette.custom.border.main, transform: 'translateY(-2px)' },
                           }}
                         >
-                          <CardActionArea onClick={() => setSelectedProduct(product)}>
-                            <Box sx={{ position: 'relative' }}>
-                              {imgUrl ? (
-                                <CardMedia component="img" height={160} image={imgUrl} alt={product.name} sx={{ objectFit: 'cover' }} />
-                              ) : (
-                                <Box sx={{ height: 160, bgcolor: theme.palette.custom.neutral[100], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <ImageIcon sx={{ fontSize: 48, color: theme.palette.custom.neutral[300] }} />
-                                </Box>
-                              )}
-                              <Chip
-                                label={pStatus.label}
-                                size="small"
-                                sx={{ position: 'absolute', top: 8, right: 8, bgcolor: pStatus.bg, color: pStatus.color, fontWeight: 700, fontSize: 10, height: 20 }}
-                              />
-                              {hasDiscount && (
-                                <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: '#EF4444', color: '#fff', borderRadius: 1, px: 0.75, py: 0.25, fontSize: 10, fontWeight: 700 }}>
-                                  -{Math.round((1 - product.basePrice / product.compareAtPrice) * 100)}%
-                                </Box>
-                              )}
-                            </Box>
+                          <ProductCardCarousel imgs={imgs} onCardClick={() => setSelectedProduct(product)}>
+                            <Chip
+                              label={pStatus.label}
+                              size="small"
+                              sx={{ position: 'absolute', top: 8, right: 8, bgcolor: pStatus.bg, color: pStatus.color, fontWeight: 700, fontSize: 10, height: 20 }}
+                            />
+                            {hasDiscount && (
+                              <Box sx={{ position: 'absolute', top: 8, left: 8, bgcolor: '#EF4444', color: '#fff', borderRadius: 1, px: 0.75, py: 0.25, fontSize: 10, fontWeight: 700 }}>
+                                -{Math.round((1 - product.basePrice / product.compareAtPrice) * 100)}%
+                              </Box>
+                            )}
+                          </ProductCardCarousel>
+                          <CardActionArea onClick={() => setSelectedProduct(product)} sx={{ display: 'block' }}>
 
                             <CardContent sx={{ p: 2 }}>
                               <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
@@ -801,19 +831,6 @@ const AdminShopDetailPage = () => {
             </Select>
           </FormControl>
 
-          {actionType === 'deactivate' && (
-            <TextField
-              fullWidth type="date"
-              label="Suggested Reactivation Date (optional)"
-              value={deactivateEndDate}
-              onChange={(e) => setDeactivateEndDate(e.target.value)}
-              disabled={togglingStatus}
-              required
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date().toISOString().split('T')[0] } }}
-              helperText="Reference date for when the shop should be reviewed for reactivation"
-            />
-          )}
-
           {actionType === 'close' && (
             <FormControlLabel
               control={<Checkbox checked={closeShopConfirm} onChange={(e) => setCloseShopConfirm(e.target.checked)} disabled={togglingStatus} />}
@@ -832,7 +849,6 @@ const AdminShopDetailPage = () => {
             onClick={handleAction}
             disabled={
               togglingStatus || !actionReason ||
-              (actionType === 'deactivate' && !deactivateEndDate) ||
               (actionType === 'close' && !closeShopConfirm)
             }
             startIcon={togglingStatus ? <CircularProgress size={16} /> : undefined}
@@ -874,6 +890,75 @@ const AdminShopDetailPage = () => {
   );
 };
 
+// ==================== Product Card Carousel ====================
+
+const ProductCardCarousel = ({
+  imgs,
+  onCardClick,
+  children,
+}: {
+  imgs: string[];
+  onCardClick: () => void;
+  children?: React.ReactNode;
+}) => {
+  const [idx, setIdx] = useState(0);
+
+  const prev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIdx((i) => (i - 1 + imgs.length) % imgs.length);
+  };
+  const next = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIdx((i) => (i + 1) % imgs.length);
+  };
+
+  return (
+    <Box sx={{ position: 'relative', height: 160, overflow: 'hidden', cursor: 'pointer', bgcolor: '#f8f8f8', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCardClick}>
+      {imgs.length > 0 ? (
+        <Box
+          component="img"
+          src={imgs[idx]}
+          alt=""
+          sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        />
+      ) : (
+        <Box sx={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ImageIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+        </Box>
+      )}
+      {imgs.length > 1 && (
+        <>
+          <IconButton
+            size="small"
+            onClick={prev}
+            sx={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.4)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' } }}
+          >
+            <ChevronLeft sx={{ fontSize: 18 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={next}
+            sx={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.4)', color: '#fff', p: 0.25, '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' } }}
+          >
+            <ChevronRight sx={{ fontSize: 18 }} />
+          </IconButton>
+          <Box sx={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 0.5 }}>
+            {imgs.map((_, i) => (
+              <Box
+                key={i}
+                onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+                sx={{ width: i === idx ? 14 : 6, height: 6, borderRadius: 3, bgcolor: i === idx ? '#fff' : 'rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}
+              />
+            ))}
+          </Box>
+        </>
+      )}
+      {/* overlaid chips/badges passed as children */}
+      {children}
+    </Box>
+  );
+};
+
 // ==================== Admin Product Detail Dialog ====================
 
 interface AdminProductDetailDialogProps {
@@ -884,6 +969,8 @@ interface AdminProductDetailDialogProps {
 
 const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminProductDetailDialogProps) => {
   const theme = useTheme();
+  const images = ProductAPI.getImageUrls(product);
+  const [imgIndex, setImgIndex] = useState(0);
 
   const estimatedRevenue = product.soldCount * product.basePrice;
 
@@ -952,29 +1039,65 @@ const AdminProductDetailDialog = ({ product, onClose, formatCurrency }: AdminPro
             size={{ xs: 12, md: 5 }}
             sx={{ p: 3, bgcolor: theme.palette.custom.neutral[50], borderRight: `1px solid ${theme.palette.custom.border.light}` }}
           >
-            <Box
-              sx={{
-                width: '100%',
-                aspectRatio: '4/3',
-                borderRadius: 2,
-                bgcolor: theme.palette.custom.neutral[100],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                mb: 2.5,
-              }}
-            >
-              {product.fileResponses?.[0]?.url ? (
+            {/* Image carousel */}
+            <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4/3', borderRadius: 2, bgcolor: '#f8f8f8', overflow: 'hidden', mb: images.length > 1 ? 1.5 : 2.5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {images.length > 0 ? (
                 <img
-                  src={product.fileResponses[0].url}
+                  src={images[imgIndex]}
                   alt={product.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               ) : (
-                <Inventory sx={{ fontSize: 64, color: theme.palette.custom.neutral[300] }} />
+                <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Inventory sx={{ fontSize: 64, color: theme.palette.custom.neutral[300] }} />
+                </Box>
+              )}
+              {images.length > 1 && (
+                <>
+                  <IconButton
+                    size="small"
+                    onClick={() => setImgIndex((i) => (i - 1 + images.length) % images.length)}
+                    sx={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.45)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' } }}
+                  >
+                    <ChevronLeft />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => setImgIndex((i) => (i + 1) % images.length)}
+                    sx={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(0,0,0,0.45)', color: '#fff', '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' } }}
+                  >
+                    <ChevronRight />
+                  </IconButton>
+                  <Box sx={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 0.75 }}>
+                    {images.map((_, i) => (
+                      <Box
+                        key={i}
+                        onClick={() => setImgIndex(i)}
+                        sx={{ width: i === imgIndex ? 18 : 7, height: 7, borderRadius: 4, bgcolor: i === imgIndex ? '#fff' : 'rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}
+                      />
+                    ))}
+                  </Box>
+                </>
               )}
             </Box>
+            {/* Thumbnail strip */}
+            {images.length > 1 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 2.5, overflowX: 'auto', pb: 0.5 }}>
+                {images.map((url, i) => (
+                  <Box
+                    key={i}
+                    onClick={() => setImgIndex(i)}
+                    sx={{
+                      flexShrink: 0, width: 52, height: 52, borderRadius: 1.5, overflow: 'hidden', cursor: 'pointer',
+                      border: `2px solid ${i === imgIndex ? theme.palette.primary.main : theme.palette.custom.border.light}`,
+                      opacity: i === imgIndex ? 1 : 0.6, transition: 'all 0.15s',
+                    }}
+                  >
+                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </Box>
+                ))}
+              </Box>
+            )}
 
             <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, p: 2, bgcolor: '#fff' }}>
               <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>

@@ -98,6 +98,9 @@ export interface ShopDetailResponse {
   rejectionReason?: string;
   adminComment?: string;
   warning?: string | null;
+
+  scheduledCloseAt?: string;
+  scheduledDeactivateAt?: string;
 }
 
 // ==================== Shop Types ====================
