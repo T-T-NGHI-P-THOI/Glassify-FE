@@ -25,9 +25,7 @@ export enum ReturnStatus {
   REQUESTED = 'REQUESTED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  RETURN_READY_TO_PICK = 'RETURN_READY_TO_PICK',
   RETURN_SHIPPING = 'RETURN_SHIPPING',
-  RETURN_DELIVERED = 'RETURN_DELIVERED',
   ITEM_RECEIVED = 'ITEM_RECEIVED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
@@ -47,10 +45,9 @@ export enum RefundProcessType {
   PARTIAL = 'PARTIAL',
 }
 
-export enum RefundDecision {
+export enum RefundReviewDecision {
   REFUND_WITHOUT_RETURN = 'REFUND_WITHOUT_RETURN',
   RETURN_AND_REFUND = 'RETURN_AND_REFUND',
-  PARTIAL_REFUND = 'PARTIAL_REFUND',
   REJECT = 'REJECT',
 }
 
@@ -94,6 +91,7 @@ export interface RefundRequest {
   shopCoverShipping?: boolean;
   itemCondition?: ItemCondition;
   itemConditionNote?: string;
+  adminDecision?: RefundReviewDecision;
   // Backward compatibility for older responses
   returnInstructions?: string;
   sellerPaysShipping?: boolean;
@@ -109,8 +107,6 @@ export interface RefundRequest {
   sellerResponsible: boolean;
   autoApprovalEligible: boolean;
   returnWindowRemaining?: number;
-  adminDirectRefund?: boolean;
-  adminRefundDecision?: RefundDecision;
   hasDispute?: boolean;
   adminNotes?: string;
   shopAppealStatus?: ShopAppealStatus;
@@ -158,14 +154,12 @@ export interface UpdateReturnTrackingDto {
 
 export interface ReviewRefundRequestDto {
   approved: boolean;
-  refundDecision: RefundDecision;
   rejectionReason?: string;
-  returnInstructions?: string;
-  sellerPaysShipping?: boolean;
-  // Backward compatibility for older APIs
-  decision?: RefundDecision;
   returnInstruction?: string;
   shopCoverShipping?: boolean;
+  // Backward compatibility for older APIs
+  returnInstructions?: string;
+  sellerPaysShipping?: boolean;
 }
 
 export interface ConfirmItemReceivedDto {
@@ -232,9 +226,7 @@ export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
   [ReturnStatus.REQUESTED]: 'Requested',
   [ReturnStatus.APPROVED]: 'Approved',
   [ReturnStatus.REJECTED]: 'Rejected',
-  [ReturnStatus.RETURN_READY_TO_PICK]: 'Ready to Pick',
-  [ReturnStatus.RETURN_SHIPPING]: 'Transporting',
-  [ReturnStatus.RETURN_DELIVERED]: 'Delivered',
+  [ReturnStatus.RETURN_SHIPPING]: 'Returning Item',
   [ReturnStatus.ITEM_RECEIVED]: 'Item Received',
   [ReturnStatus.COMPLETED]: 'Completed',
   [ReturnStatus.CANCELLED]: 'Cancelled',
@@ -244,9 +236,7 @@ export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
   ReturnStatus.REQUESTED,
   ReturnStatus.APPROVED,
   ReturnStatus.REJECTED,
-  ReturnStatus.RETURN_READY_TO_PICK,
   ReturnStatus.RETURN_SHIPPING,
-  ReturnStatus.RETURN_DELIVERED,
   ReturnStatus.ITEM_RECEIVED,
   ReturnStatus.COMPLETED,
   ReturnStatus.CANCELLED,

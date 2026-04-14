@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLayout } from '@/layouts/LayoutContext';
 import {
   RETURN_REASON_LABELS,
+  RefundReviewDecision,
   RETURN_STATUS_LABELS,
   ReturnStatus,
   type RefundRequest,
@@ -122,6 +123,19 @@ const ShopRefundReviewPage = () => {
     }
   };
 
+  const adminDecisionLabel = (decision: RefundReviewDecision): string => {
+    switch (decision) {
+      case RefundReviewDecision.REFUND_WITHOUT_RETURN:
+        return 'Refund Without Return';
+      case RefundReviewDecision.RETURN_AND_REFUND:
+        return 'Return and Refund';
+      case RefundReviewDecision.REJECT:
+        return 'Rejected';
+      default:
+        return 'Pending Review';
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
       <ShopOwnerSidebar
@@ -191,6 +205,7 @@ const ShopRefundReviewPage = () => {
             <Stack spacing={2} sx={{ p: 2 }}>
               {filteredRequests.map((request) => {
                 const isPendingReview = request.status === ReturnStatus.REQUESTED;
+                const resolvedAdminDecision = request.adminDecision;
 
                 return (
                   <Paper
@@ -215,6 +230,20 @@ const ShopRefundReviewPage = () => {
                             color={getStatusColor(request.status)}
                           />
                           <Chip size="small" variant="outlined" label={RETURN_REASON_LABELS[request.reason]} />
+                          {resolvedAdminDecision ? (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={adminDecisionLabel(resolvedAdminDecision)}
+                              color={
+                                resolvedAdminDecision === RefundReviewDecision.REJECT
+                                  ? 'error'
+                                  : 'info'
+                              }
+                            />
+                          ) : (
+                            <Chip size="small" variant="outlined" label="Pending Review" />
+                          )}
                         </Stack>
 
                         <Typography sx={{ fontWeight: 600, mb: 0.25 }}>{request.productName}</Typography>

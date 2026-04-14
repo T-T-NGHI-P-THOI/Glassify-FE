@@ -31,7 +31,7 @@ import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
-import { RefundDecision, SHOP_APPEAL_REASON_LABELS, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus } from '@/models/Refund';
+import { SHOP_APPEAL_REASON_LABELS, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus } from '@/models/Refund';
 
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested', APPROVED: 'Approved', REJECTED: 'Rejected',
@@ -91,12 +91,6 @@ const AdminRefundDetailPage = () => {
   const [reviewApproved, setReviewApproved] = useState(true);
   const [reviewNote, setReviewNote] = useState('');
   const [compensationAmount, setCompensationAmount] = useState('');
-  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
-  const [requestReviewMode, setRequestReviewMode] = useState<'approve' | 'reject'>('approve');
-  const [approvalFlowType, setApprovalFlowType] = useState<'RETURN_AND_REFUND' | 'DIRECT_REFUND'>('RETURN_AND_REFUND');
-  const [requestRejectionReason, setRequestRejectionReason] = useState('');
-  const [requestReturnInstruction, setRequestReturnInstruction] = useState('');
-  const [requestShopCoverShipping, setRequestShopCoverShipping] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchRefundDetail = async () => {
@@ -146,85 +140,6 @@ const AdminRefundDetailPage = () => {
   };
 
   const canReviewAppeal = refund?.shopAppealStatus === ShopAppealStatus.SUBMITTED;
-  const canReviewRequest = refund?.status === 'REQUESTED';
-  const isShippingFeeExemptReason = refund?.reason === 'NOT_RECEIVED';
-
-  const handleOpenRequestDialog = (mode: 'approve' | 'reject') => {
-    setRequestReviewMode(mode);
-    setRequestDialogOpen(true);
-  };
-
-  const handleCloseRequestDialog = () => {
-    setRequestDialogOpen(false);
-    setRequestReviewMode('approve');
-    setApprovalFlowType('RETURN_AND_REFUND');
-    setRequestRejectionReason('');
-    setRequestReturnInstruction('');
-    setRequestShopCoverShipping(true);
-  };
-
-  const handleReviewRequest = async () => {
-    if (!refundId) return;
-
-    if (requestReviewMode === 'reject' && !requestRejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
-      return;
-    }
-
-    if (
-      requestReviewMode === 'approve'
-      && approvalFlowType === 'RETURN_AND_REFUND'
-      && !requestReturnInstruction.trim()
-    ) {
-      toast.error('Please provide return instructions');
-      return;
-    }
-
-    const effectiveShopCoverShipping =
-      requestReviewMode === 'approve' && approvalFlowType === 'RETURN_AND_REFUND'
-        ? (isShippingFeeExemptReason ? false : requestShopCoverShipping)
-        : undefined;
-
-    try {
-      setSubmitting(true);
-      const refundDecision =
-        requestReviewMode === 'reject'
-          ? RefundDecision.REJECT
-          : approvalFlowType === 'DIRECT_REFUND'
-            ? RefundDecision.REFUND_WITHOUT_RETURN
-            : RefundDecision.RETURN_AND_REFUND;
-
-      await adminApi.reviewRefundRequest(refundId, {
-        approved: requestReviewMode === 'approve',
-        refundDecision,
-        rejectionReason: requestReviewMode === 'reject' ? requestRejectionReason.trim() : undefined,
-        returnInstruction:
-          requestReviewMode === 'approve' && approvalFlowType === 'RETURN_AND_REFUND'
-            ? requestReturnInstruction.trim()
-            : undefined,
-        sellerPaysShipping: effectiveShopCoverShipping,
-        // Backward compatibility for older API wiring.
-        decision: refundDecision,
-        returnInstructions:
-          requestReviewMode === 'approve' && approvalFlowType === 'RETURN_AND_REFUND'
-            ? requestReturnInstruction.trim()
-            : undefined,
-        shopCoverShipping: effectiveShopCoverShipping,
-      });
-
-      toast.success(
-        requestReviewMode === 'approve'
-          ? 'Refund request approved successfully'
-          : 'Refund request rejected successfully',
-      );
-      handleCloseRequestDialog();
-      await fetchRefundDetail();
-    } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Failed to review refund request'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -254,36 +169,11 @@ const AdminRefundDetailPage = () => {
                   Submitted: {formatDate(refund.requestedAt)}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: 1 }}>
-                {canReviewRequest && (
-                  <>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={() => handleOpenRequestDialog('reject')}
-                      sx={{ textTransform: 'none', fontSize: 13, fontWeight: 700, minHeight: 36, px: 2 }}
-                    >
-                      Reject Request
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={() => handleOpenRequestDialog('approve')}
-                      sx={{ textTransform: 'none', fontSize: 13, fontWeight: 700, minHeight: 36, px: 2.2 }}
-                    >
-                      Review Request
-                    </Button>
-                  </>
-                )}
+              <Stack direction="row" spacing={1}>
                 <Chip label={RETURN_TYPE_LABEL[refund.returnType] ?? refund.returnType} variant="outlined" sx={{ fontWeight: 600 }} />
                 <Chip label={REFUND_STATUS_LABEL[refund.status] ?? refund.status} color={statusColor(refund.status)} sx={{ fontWeight: 600 }} />
               </Stack>
             </Box>
-
-            {canReviewRequest && (
-              <Alert severity="info">
-                Review this request before the shop handles return logistics or refund processing.
-              </Alert>
-            )}
 
             {/* Main detail block */}
             <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
@@ -304,18 +194,6 @@ const AdminRefundDetailPage = () => {
                   <FieldRow label="Return type" value={<Chip size="small" label={RETURN_TYPE_LABEL[refund.returnType] ?? refund.returnType} variant="outlined" />} />
                   <FieldRow label="Reason" value={RETURN_REASON_LABEL[refund.reason] ?? refund.reason} />
                   <FieldRow label="Refund amount" value={<Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.primary.main }}>{formatCurrency(refund.refundAmount)}</Typography>} />
-                    <FieldRow
-                      label="Admin decision"
-                      value={
-                        (refund.adminRefundDecision ?? refund.refundDecision)
-                          ? (refund.adminRefundDecision ?? refund.refundDecision) === RefundDecision.REFUND_WITHOUT_RETURN
-                            ? 'Refund without return'
-                            : (refund.adminRefundDecision ?? refund.refundDecision) === RefundDecision.RETURN_AND_REFUND
-                              ? 'Return and refund'
-                              : 'Partial refund'
-                          : '—'
-                      }
-                    />
                   {refund.reasonDetail && <FieldRow label="Detail" value={refund.reasonDetail} />}
                 </Box>
               </Box>
@@ -380,7 +258,7 @@ const AdminRefundDetailPage = () => {
 
                 {canReviewAppeal && (
                   <Box sx={{ mt: 2 }}>
-                    <Alert severity="warning" sx={{ mb: 2 }}>Shop appeal is waiting for Glassify review.</Alert>
+                    <Alert severity="warning" sx={{ mb: 2 }}>Shop appeal is waiting for admin review.</Alert>
                     <Button variant="contained" onClick={() => setReviewDialogOpen(true)}>
                       Review Appeal
                     </Button>
@@ -429,108 +307,6 @@ const AdminRefundDetailPage = () => {
         <DialogActions>
           <Button onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleReviewAppeal} disabled={submitting}>
-            Submit Review
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={requestDialogOpen} onClose={handleCloseRequestDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontSize: 19, fontWeight: 700, pb: 1 }}>
-          {requestReviewMode === 'approve' ? 'Approve Refund Request' : 'Reject Refund Request'}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {requestReviewMode === 'approve' ? (
-              <>
-                <FormControl>
-                  <Typography sx={{ fontSize: 13, fontWeight: 600, mb: 1, color: 'text.secondary' }}>
-                    Approval flow
-                  </Typography>
-                  <RadioGroup
-                    value={approvalFlowType}
-                    onChange={(e) => setApprovalFlowType(e.target.value as 'RETURN_AND_REFUND' | 'DIRECT_REFUND')}
-                  >
-                    <FormControlLabel
-                      value="RETURN_AND_REFUND"
-                      control={<Radio />}
-                      label={<Typography sx={{ fontSize: 14 }}>Return and refund flow</Typography>}
-                    />
-                    <FormControlLabel
-                      value="DIRECT_REFUND"
-                      control={<Radio />}
-                      label={<Typography sx={{ fontSize: 14 }}>Direct refund now</Typography>}
-                    />
-                  </RadioGroup>
-                </FormControl>
-
-                {approvalFlowType === 'RETURN_AND_REFUND' ? (
-                  <>
-                    <TextField
-                      label="Return Instructions"
-                      multiline
-                      rows={3}
-                      size="small"
-                      value={requestReturnInstruction}
-                      onChange={(e) => setRequestReturnInstruction(e.target.value)}
-                      placeholder="Explain where and how buyer should return the item"
-                    />
-                    <FormControl>
-                      <RadioGroup
-                        value={(isShippingFeeExemptReason ? false : requestShopCoverShipping) ? 'shop' : 'buyer'}
-                        onChange={(e) => setRequestShopCoverShipping(e.target.value === 'shop')}
-                      >
-                        <FormControlLabel
-                          value="shop"
-                          control={<Radio />}
-                          disabled={isShippingFeeExemptReason}
-                          label={<Typography sx={{ fontSize: 14 }}>Shop covers return shipping</Typography>}
-                        />
-                        <FormControlLabel
-                          value="buyer"
-                          control={<Radio />}
-                          disabled={isShippingFeeExemptReason}
-                          label={<Typography sx={{ fontSize: 14 }}>Buyer covers return shipping</Typography>}
-                        />
-                      </RadioGroup>
-                    </FormControl>
-                    {isShippingFeeExemptReason && (
-                      <Alert severity="warning" sx={{ fontSize: 13 }}>
-                        This request reason is Not Received. Shipping fee is exempt for the shop under policy.
-                      </Alert>
-                    )}
-                  </>
-                ) : (
-                  <Alert severity="warning" sx={{ fontSize: 13 }}>
-                    Direct refund will submit approval without return instructions. Final handling depends on backend policy.
-                  </Alert>
-                )}
-              </>
-            ) : (
-              <TextField
-                label="Rejection Reason"
-                multiline
-                rows={3}
-                size="small"
-                value={requestRejectionReason}
-                onChange={(e) => setRequestRejectionReason(e.target.value)}
-                placeholder="Explain why this refund request is rejected"
-              />
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button
-            onClick={handleCloseRequestDialog}
-            sx={{ textTransform: 'none', fontSize: 13, fontWeight: 600 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleReviewRequest}
-            disabled={submitting}
-            sx={{ textTransform: 'none', fontSize: 13, fontWeight: 700, px: 2.5 }}
-          >
             Submit Review
           </Button>
         </DialogActions>

@@ -2,7 +2,12 @@ import type { ShopRequestsResponse, ShopRequest, ReviewShopRequest, AdminShopIte
 import type { ApiResponse } from '@/models/ApiResponse';
 import type { UserResponse, AdminUserListResponse } from '@/models/User';
 import type { DeactivationStatus, ClosureStatus } from '@/api/shopApi';
-import type { RefundDecision, ReviewRefundRequestDto, ReviewShopAppealDto, ShopAppealReason, ShopAppealStatus } from '@/models/Refund';
+import type {
+  RefundReviewDecision,
+  ReviewShopAppealDto,
+  ShopAppealReason,
+  ShopAppealStatus,
+} from '@/models/Refund';
 import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 
@@ -85,12 +90,10 @@ export interface AdminRefundResponse {
   statusDisplay: string;
   requestedAt: string;
   approvedAt?: string;
+  adminDecision?: RefundReviewDecision;
   rejectedAt?: string;
   rejectionReason?: string;
   completedAt?: string;
-  adminDirectRefund?: boolean;
-  adminRefundDecision?: RefundDecision;
-  refundDecision?: RefundDecision;
   shopAppealStatus?: ShopAppealStatus;
   shopAppealReason?: ShopAppealReason;
   shopAppealDetail?: string;
@@ -377,17 +380,6 @@ export const adminApi = {
   getRefundById: async (refundId: string): Promise<ApiResponse<AdminRefundResponse>> => {
     const response = await axiosInstance.get<ApiResponse<AdminRefundResponse>>(
       API_ENDPOINTS.ADMIN.REFUNDS.GET_BY_ID(refundId),
-    );
-    return response.data;
-  },
-
-  reviewRefundRequest: async (
-    refundId: string,
-    data: ReviewRefundRequestDto,
-  ): Promise<ApiResponse<AdminRefundResponse>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminRefundResponse>>(
-      API_ENDPOINTS.ADMIN.REFUNDS.REVIEW_REQUEST(refundId),
-      data,
     );
     return response.data;
   },

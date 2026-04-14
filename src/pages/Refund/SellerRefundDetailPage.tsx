@@ -28,16 +28,22 @@ import {
   Stepper,
   Step,
   StepLabel,
+  Checkbox,
+  FormGroup,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   AssignmentReturn,
   CheckCircle,
   ArrowBack,
+  ThumbUp,
+  ThumbDown,
   LocalShipping,
   Inventory,
   Image as ImageIcon,
   Videocam,
+  VerifiedUser,
+  AttachFile,
   Person,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
@@ -49,10 +55,10 @@ import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
   getReturnRequestDetail,
+  reviewReturnRequest,
   confirmItemReceived,
   processRefund,
   submitShopAppeal,
-  getReturnGhnStatus,
 } from '@/api/refund-api';
 import { userApi } from '@/api/service/userApi';
 import type { RefundRequest } from '@/models/Refund';
@@ -178,9 +184,7 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   const normalSteps: StepItem[] = [
     { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
     { label: 'Approved', status: ReturnStatus.APPROVED },
-    // { label: 'Ready to Pick', status: ReturnStatus.RETURN_READY_TO_PICK },
-    { label: 'Transporting', status: ReturnStatus.RETURN_SHIPPING },
-    { label: 'Delivered', status: ReturnStatus.RETURN_DELIVERED },
+    { label: 'Returning Item', status: ReturnStatus.RETURN_SHIPPING },
     { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
     { label: 'Completed', status: ReturnStatus.COMPLETED },
   ];
@@ -208,10 +212,8 @@ const getStatusColor = (status: ReturnStatus): 'warning' | 'success' | 'info' | 
     case ReturnStatus.REQUESTED:
       return 'warning';
     case ReturnStatus.APPROVED:
-    case ReturnStatus.RETURN_READY_TO_PICK:
     case ReturnStatus.RETURN_SHIPPING:
       return 'info';
-    case ReturnStatus.RETURN_DELIVERED:
     case ReturnStatus.ITEM_RECEIVED:
     case ReturnStatus.COMPLETED:
       return 'success';
@@ -234,6 +236,11 @@ const SellerRefundDetailPage = () => {
   const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
   const [buyerLoading, setBuyerLoading] = useState(false);
   
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [returnInstructions, setReturnInstructions] = useState('');
+  const [sellerPaysShipping, setSellerPaysShipping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -247,9 +254,6 @@ const SellerRefundDetailPage = () => {
   const [appealReason, setAppealReason] = useState<ShopAppealReason>(ShopAppealReason.DISAGREE_ADMIN_DECISION);
   const [appealDetail, setAppealDetail] = useState('');
   const [appealEvidenceInput, setAppealEvidenceInput] = useState('');
-  
-  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
-  const [fetchingGhn, setFetchingGhn] = useState(false);
   
 
   useEffect(() => {
@@ -307,6 +311,46 @@ const SellerRefundDetailPage = () => {
     };
     fetchBuyerInfo();
   }, [request]);
+
+  const handleOpenReviewDialog = (action: 'approve' | 'reject') => {
+    setReviewAction(action);
+    setReviewDialogOpen(true);
+  };
+
+  const handleCloseReviewDialog = () => {
+    setReviewDialogOpen(false);
+    setRejectionReason('');
+    setReturnInstructions('');
+    setSellerPaysShipping(false);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!requestId) return;
+    if (reviewAction === 'reject' && !rejectionReason.trim()) {
+      toast.error('Reason required');
+      return;
+    }
+    if (reviewAction === 'approve' && !returnInstructions.trim()) {
+      toast.error('Instructions required');
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await reviewReturnRequest(requestId, {
+        approved: reviewAction === 'approve',
+        rejectionReason: reviewAction === 'reject' ? rejectionReason : undefined,
+        returnInstruction: reviewAction === 'approve' ? returnInstructions : undefined,
+        shopCoverShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
+      });
+      toast.success('Action successful');
+      handleCloseReviewDialog();
+      await fetchRequestDetail();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Error processing request'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleConfirmReceived = async () => {
     if (!requestId) return;
@@ -379,19 +423,6 @@ const SellerRefundDetailPage = () => {
     }
   };
 
-  const handleTrackGhnStatus = async () => {
-    if (!requestId) return;
-    try {
-      setFetchingGhn(true);
-      const res = await getReturnGhnStatus(requestId);
-      setGhnStatusData(res.data);
-    } catch (error) {
-      toast.error('Tracking failed');
-    } finally {
-      setFetchingGhn(false);
-    }
-  };
-
   const handleSubmitAppeal = async () => {
     if (!requestId || !request) return;
 
@@ -440,8 +471,8 @@ const SellerRefundDetailPage = () => {
 
   if (!request) return <Typography>Not Found</Typography>;
 
-  const waitingForAdminDecision = request.status === ReturnStatus.REQUESTED;
-  const canConfirmReceived = request.status === ReturnStatus.RETURN_DELIVERED;
+  const canReview = request.status === ReturnStatus.REQUESTED;
+  const canConfirmReceived = request.status === ReturnStatus.RETURN_SHIPPING;
   const appealStatus = request.shopAppealStatus;
   const hasNoAppeal = appealStatus === undefined || appealStatus === ShopAppealStatus.NONE;
   const appealStartAt = request.itemReceivedAt ?? request.completedAt ?? request.approvedAt ?? request.requestedAt;
@@ -458,7 +489,6 @@ const SellerRefundDetailPage = () => {
     !!request.itemReceivedAt;
   const isAppealEligibleStatus =
     request.status === ReturnStatus.RETURN_SHIPPING
-    || request.status === ReturnStatus.RETURN_DELIVERED
     || request.status === ReturnStatus.ITEM_RECEIVED
     || request.status === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
@@ -514,14 +544,28 @@ const SellerRefundDetailPage = () => {
               <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500], mt: 1 }}>
                 Submitted on {formatDate(request.requestedAt)} • Order <b>#{request.orderNumber}</b>
               </Typography>
-              {waitingForAdminDecision && (
-                <Alert severity="info" sx={{ mt: 1.5, borderRadius: 2 }}>
-                  Waiting for admin decision. Shop actions are disabled until admin reviews this refund request.
-                </Alert>
-              )}
             </Box>
 
             <Stack direction="row" spacing={2}>
+              {canReview && (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    color="error" 
+                    onClick={() => handleOpenReviewDialog('reject')}
+                    sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Reject Request
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => handleOpenReviewDialog('approve')}
+                    sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600, bgcolor: theme.palette.custom.neutral[900] }}
+                  >
+                    Approve & Instructions
+                  </Button>
+                </>
+              )}
               {canConfirmReceived && (
                 <Button 
                   variant="contained" 
@@ -731,30 +775,9 @@ const SellerRefundDetailPage = () => {
                           {request.returnTrackingNumber}
                         </Typography>
                       </Box>
-                      <Button 
-                        fullWidth 
-                        variant="outlined" 
-                        onClick={handleTrackGhnStatus} 
-                        disabled={fetchingGhn}
-                        sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                      >
-                        {fetchingGhn ? <CircularProgress size={20} /> : 'Track Package Status'}
-                      </Button>
-                      {ghnStatusData && (
-                        <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                          <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.primary.main, display: 'block', mb: 0.5 }}>
-                            {ghnStatusData.status?.toUpperCase()}
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: 12 }}>{ghnStatusData.location || 'Status updated from carrier'}</Typography>
-                        </Box>
-                      )}
                     </Stack>
                   ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          {waitingForAdminDecision
-                            ? 'Waiting for admin decision before return logistics starts.'
-                            : 'Waiting for buyer to return item...'}
-                        </Typography>
+                    <Typography variant="body2" color="text.secondary">Waiting for buyer to return item...</Typography>
                   )}
                 </Paper>
 
@@ -834,6 +857,68 @@ const SellerRefundDetailPage = () => {
           </Grid>
         </Box>
       </Box>
+
+      {/* Dialogs... same logic but restyle headers */}
+      <Dialog 
+        open={reviewDialogOpen} 
+        onClose={handleCloseReviewDialog} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 4 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, px: 3, pt: 3 }}>
+          {reviewAction === 'approve' ? 'Approve Refund Request' : 'Reject Refund Request'}
+        </DialogTitle>
+        <DialogContent sx={{ px: 3 }}>
+          {reviewAction === 'approve' ? (
+            <Stack spacing={3} sx={{ py: 2 }}>
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                Approve this request if the item is eligible for return. Provide clear instructions for the customer.
+              </Alert>
+              <TextField 
+                label="Return Instructions" 
+                multiline 
+                rows={4} 
+                fullWidth 
+                placeholder="Where should the customer send the item? What items should be included in the package?"
+                value={returnInstructions} 
+                onChange={(e) => setReturnInstructions(e.target.value)} 
+              />
+              <FormControlLabel 
+                control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} 
+                label={<Typography sx={{ fontSize: 14, fontWeight: 600 }}>Shop will cover the return shipping fee</Typography>} 
+              />
+            </Stack>
+          ) : (
+            <Stack spacing={3} sx={{ py: 2 }}>
+              <Alert severity="error" sx={{ borderRadius: 2 }}>
+                Rejecting a request should be based on valid policy reasons.
+              </Alert>
+              <TextField 
+                label="Rejection Reason" 
+                multiline 
+                rows={4} 
+                fullWidth 
+                placeholder="Explain why this request is being rejected..."
+                value={rejectionReason} 
+                onChange={(e) => setRejectionReason(e.target.value)} 
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button onClick={handleCloseReviewDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            color={reviewAction === 'approve' ? 'primary' : 'error'} 
+            onClick={handleSubmitReview} 
+            disabled={submitting}
+            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
+          >
+            {submitting ? <CircularProgress size={20} /> : 'Submit Review'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={appealDialogOpen}
