@@ -20,6 +20,7 @@ import {
   Warehouse,
   RemoveShoppingCart,
   EditNote,
+  Visibility,
 } from '@mui/icons-material';
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -197,7 +198,7 @@ const FrameProductPage = () => {
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <CustomButton
               variant="outlined"
-              startIcon={<Add />}
+              startIcon={<Visibility />}
               sx={{ textTransform: 'none', fontWeight: 600 }}
               onClick={() => { navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_LENS); }}
             >

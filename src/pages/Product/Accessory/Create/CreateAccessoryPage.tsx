@@ -17,6 +17,9 @@ import {
     Switch,
     InputAdornment,
     Avatar,
+    FormControl,
+    InputLabel,
+    Select,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import {
@@ -37,17 +40,22 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
+import ProductAPI from '@/api/product-api';
+import { ProductSize } from '@/types/product.enums';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CreateAccessoryFormData {
     name: string;
     type: string;
+    description: string;
 }
 
 export interface CreateAccessoryVariantFormData {
+    name: string;
     color: string;
-    size: string;
+    colorHex: string;
+    size: ProductSize;
     isFeatured: boolean;
     stock: number;
     stockThreshold: number;
@@ -55,7 +63,7 @@ export interface CreateAccessoryVariantFormData {
     costPrice: number;
     basePrice: number;
     isReturnable: boolean;
-    images: ProductImageFile[];
+    productImages: ProductImageFile[];
 }
 
 interface ProductImageFile {
@@ -129,6 +137,12 @@ const Step0AccessoryInfo = ({ formData, setFormData, errors }: Step0Props) => {
         '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: theme.palette.custom.border.light } },
     };
 
+    const handleInputChange =
+        (field: keyof CreateAccessoryFormData) =>
+            (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                setFormData(prev => ({ ...prev, [field]: e.target.value }));
+            };
+
     return (
         <Box>
             <Typography sx={{ fontSize: 18, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -162,6 +176,21 @@ const Step0AccessoryInfo = ({ formData, setFormData, errors }: Step0Props) => {
                         ))}
                     </TextField>
                 </Grid>
+
+                {/* Description */}
+                <Grid size={{ xs: 12 }}>
+                    <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Description"
+                        value={formData.description}
+                        onChange={handleInputChange('description')}
+                        placeholder="Describe your frame..."
+                        inputProps={{ maxLength: 1000 }}
+                        helperText={`${formData.description.length}/1000`}
+                    />
+                </Grid>
             </Grid>
         </Box>
     );
@@ -181,6 +210,19 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
     const fieldSx = {
         '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: theme.palette.custom.border.light } },
     };
+    const [colors, setColors] = useState<{ name: string; hex: string }[]>([]);
+    useEffect(() => {
+        const fetchColors = async () => {
+            try {
+                const response = await ProductAPI.getColors();
+                setColors(response);
+            } catch (error) {
+                toast.error("Cannot load color!")
+            }
+        };
+        fetchColors();
+    }, []);
+
 
     const setField = <K extends keyof CreateAccessoryVariantFormData>(field: K, value: CreateAccessoryVariantFormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -192,10 +234,10 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
         if (!files) return;
         const newImages: ProductImageFile[] = Array.from(files)
             .filter(f => f.type.startsWith('image/'))
-            .slice(0, 4 - formData.images.length)
+            .slice(0, 4 - formData.productImages.length)
             .map(file => ({ name: file.name, size: file.size, type: file.type, preview: URL.createObjectURL(file), file }));
-        setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages].slice(0, 4) }));
-        if (errors.images) setErrors(prev => ({ ...prev, images: undefined }));
+        setFormData(prev => ({ ...prev, productImages: [...prev.productImages, ...newImages].slice(0, 4) }));
+        if (errors.productImages) setErrors(prev => ({ ...prev, productImages: undefined }));
         e.target.value = '';
     };
 
@@ -206,12 +248,100 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
             </Typography>
 
             <Grid container spacing={3}>
+                {/* ── Name & Size── */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField fullWidth label="Color" value={formData.color} onChange={e => setField('color', e.target.value)} placeholder="e.g. Black, Red" sx={fieldSx} />
+                    <TextField
+                        fullWidth required label="Variant Name"
+                        value={formData.name}
+                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        error={!!errors.name} helperText={errors.name}
+                        placeholder="Enter accessory name"
+                        inputProps={{ minLength: 3, maxLength: 150 }}
+                        InputProps={{ startAdornment: <Category sx={{ mr: 1, color: theme.palette.custom.neutral[400] }} /> }}
+                        sx={fieldSx}
+                    />
                 </Grid>
+
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField fullWidth label="Size" value={formData.size} onChange={e => setField('size', e.target.value)} placeholder="e.g. S, M, L or Free size" sx={fieldSx} />
+                    <FormControl fullWidth required error={!!errors.size}>
+                        <InputLabel>Size</InputLabel>
+                        <Select
+                            value={formData.size}
+                            label="Size"
+                            onChange={e => setField('size', e.target.value as ProductSize)}
+                        >
+                            <MenuItem value={ProductSize.EXTRA_SMALL}>Extra Small</MenuItem>
+                            <MenuItem value={ProductSize.SMALL}>Small</MenuItem>
+                            <MenuItem value={ProductSize.MEDIUM}>Medium</MenuItem>
+                            <MenuItem value={ProductSize.LARGE}>Large</MenuItem>
+                            <MenuItem value={ProductSize.EXTRA_LARGE}>Extra Large</MenuItem>
+                        </Select>
+                        {errors.size && (
+                            <Typography color="error" fontSize={12} sx={{ mt: 0.5, ml: 1.5 }}>
+                                {errors.size}
+                            </Typography>
+                        )}
+                    </FormControl>
                 </Grid>
+                {/* ── Color & Size ── */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                        select
+                        fullWidth
+                        required
+                        label="Color Name"
+                        value={formData.color}
+                        onChange={(e) => {
+                            const selectedName = e.target.value;
+                            const selectedColor = colors.find(c => c.name === selectedName);
+
+                            setField("color", selectedName);
+
+                            // auto set hex khi chọn
+                            if (selectedColor) {
+                                setField("colorHex", selectedColor.hex);
+                            }
+                        }}
+                        error={!!errors.color}
+                        helperText={errors.color}
+                    >
+                        {colors?.map((color) => (
+                            <MenuItem key={color.name} value={color.name}>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    {/* preview màu */}
+                                    <Box
+                                        sx={{
+                                            width: 14,
+                                            height: 14,
+                                            borderRadius: "50%",
+                                            backgroundColor: color.hex,
+                                            border: "1px solid #ccc"
+                                        }}
+                                    />
+                                    {color.name}
+                                </Box>
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                        fullWidth
+                        label="Color Hex"
+                        value={formData.colorHex}
+                        onChange={e => setField('colorHex', e.target.value)}
+                        placeholder="#000000"
+                        InputProps={{
+                            endAdornment:
+                                (<InputAdornment position="end">
+                                    <input type="color" value={formData.colorHex}
+                                        onChange={e => setField('colorHex', e.target.value)}
+                                        style={{ width: 28, height: 28, border: 'none', borderRadius: 100, padding: 0, cursor: 'pointer', background: 'none', }} />
+                                </InputAdornment>),
+                        }} />
+                </Grid>
+
                 <Grid size={{ xs: 12, md: 6 }}>
                     <FormControlLabel control={<Switch checked={formData.isFeatured} onChange={e => setField('isFeatured', e.target.checked)} />} label="Is Featured" />
                 </Grid>
@@ -249,31 +379,31 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
             </Typography>
 
             <input type="file" id="acc-create-step-image" multiple accept=".jpg,.jpeg,.png" style={{ display: 'none' }} onChange={handleFileUpload} />
-            {formData.images.length < 4 && (
+            {formData.productImages.length < 4 && (
                 <label htmlFor="acc-create-step-image">
-                    <UploadArea sx={errors.images ? { borderColor: theme.palette.error.main } : {}}>
+                    <UploadArea sx={errors.productImages ? { borderColor: theme.palette.error.main } : {}}>
                         <CloudUpload sx={{ fontSize: 48, color: theme.palette.custom.neutral[400], mb: 2 }} />
                         <Typography sx={{ fontSize: 16, fontWeight: 500, color: theme.palette.custom.neutral[700], mb: 1 }}>
                             Drag and drop files here or click to browse
                         </Typography>
                         <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                            JPG, PNG up to 5 MB · {formData.images.length}/4 uploaded
+                            JPG, PNG up to 5 MB · {formData.productImages.length}/4 uploaded
                         </Typography>
                     </UploadArea>
                 </label>
             )}
-            {errors.images && <Typography color="error" fontSize={12} sx={{ mt: 1 }}>{errors.images}</Typography>}
+            {errors.productImages && <Typography color="error" fontSize={12} sx={{ mt: 1 }}>{errors.productImages}</Typography>}
 
-            {formData.images.length > 0 && (
+            {formData.productImages.length > 0 && (
                 <Box sx={{ mt: 3 }}>
-                    {formData.images.map((file, index) => (
+                    {formData.productImages.map((file, index) => (
                         <Paper key={index} elevation={0} sx={{ p: 2, mb: 1.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Avatar variant="rounded" src={file.preview} sx={{ width: 56, height: 56, borderRadius: 1 }} />
                             <Box sx={{ flex: 1 }}>
                                 <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{file.name}</Typography>
                                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{formatFileSize(file.size)}</Typography>
                             </Box>
-                            <IconButton size="small" onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }))} sx={{ color: theme.palette.custom.status.error.main }}>
+                            <IconButton size="small" onClick={() => setFormData(prev => ({ ...prev, images: prev.productImages.filter((_, i) => i !== index) }))} sx={{ color: theme.palette.custom.status.error.main }}>
                                 <Delete />
                             </IconButton>
                         </Paper>
@@ -338,13 +468,13 @@ const Step2Review = ({ groupData, variantData }: Step2Props) => {
                     </Paper>
                 </Grid>
 
-                {variantData.images.length > 0 && (
+                {variantData.productImages.length > 0 && (
                     <Grid size={{ xs: 12 }}>
                         <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
                             <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 2 }}>Product Images</Typography>
                             <Divider sx={{ mb: 2 }} />
                             <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                                {variantData.images.map((img, i) => (
+                                {variantData.productImages.map((img, i) => (
                                     <Avatar
                                         key={i}
                                         variant="rounded"
@@ -374,13 +504,13 @@ const CreateAccessoryPage = () => {
     const [shop, setShop] = useState<ShopDetailResponse | null>(null);
     const [accessoryId, setAccessoryId] = useState('');
 
-    const [groupData, setGroupData] = useState<CreateAccessoryFormData>({ name: '', type: '' });
+    const [groupData, setGroupData] = useState<CreateAccessoryFormData>({ name: '', type: '', description: '' });
     const [groupErrors, setGroupErrors] = useState<Partial<Record<keyof CreateAccessoryFormData, string>>>({});
 
     const [variantData, setVariantData] = useState<CreateAccessoryVariantFormData>({
-        color: '', size: '', isFeatured: false,
+        name: '', color: '', colorHex: '', size: ProductSize.MEDIUM, isFeatured: false,
         stock: 0, stockThreshold: 0, warrantyMonths: 0,
-        costPrice: 0, basePrice: 0, isReturnable: false, images: [],
+        costPrice: 0, basePrice: 0, isReturnable: false, productImages: [],
     });
     const [variantErrors, setVariantErrors] = useState<Partial<Record<keyof CreateAccessoryVariantFormData, string>>>({});
 
@@ -399,6 +529,24 @@ const CreateAccessoryPage = () => {
         })();
     }, []);
 
+    const toFormData = (data: Record<string, any>) => {
+        const formData = new FormData();
+
+        Object.entries(data).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+                if (key === 'productImages' && Array.isArray(value)) {
+                    value.forEach((img: ProductImageFile) => {
+                        formData.append('productImages', img.file);
+                    });
+                } else {
+                    formData.append(key, value);
+                }
+            }
+        });
+
+        return formData;
+    };
+
     const validateStep0 = () => {
         const e: typeof groupErrors = {};
         if (!groupData.name.trim() || groupData.name.trim().length < 3) e.name = 'Name must be at least 3 characters';
@@ -411,27 +559,38 @@ const CreateAccessoryPage = () => {
         const e: typeof variantErrors = {};
         if (!variantData.basePrice || Number(variantData.basePrice) <= 0) e.basePrice = 'Base price must be greater than 0';
         if (!variantData.stock || Number(variantData.stock) <= 0) e.stock = 'Stock must be greater than 0';
-        if (variantData.images.length === 0) e.images = 'Please upload at least 1 image';
+        if (variantData.productImages.length === 0) e.productImages = 'Please upload at least 1 image';
         setVariantErrors(e);
         return Object.keys(e).length === 0;
     };
 
     const handleNext = async () => {
-        if (activeStep === 0) {
-            if (!validateStep0()) return;
-            try {
-                // TODO: const res = await AccessoryAPI.createAccessory({ shopId: shop?.id, ...groupData });
-                // setAccessoryId(res.id);
+        try {
+            if (activeStep === 0) {
+                if (!validateStep0()) return;
+
+                const payload = toFormData(groupData);
+                if (shop?.id) payload.append("shopId", shop.id);
+                const response = await ProductAPI.createAccessory(payload);
+
+                console.log("API Res:", response.id)
+                setAccessoryId(response.id);
                 toast.success('Accessory info saved!');
-            } catch (err) { return; }
-        } else if (activeStep === 1) {
-            if (!validateStep1()) return;
-            try {
-                // TODO: await AccessoryAPI.createAccessoryVariant({ accessoryId, shopId: shop?.id, ...variantData });
+            } else if (activeStep === 1) {
+                if (!validateStep1()) return;
+
+                const payload = toFormData(variantData);
+                if (shop?.id) payload.append("shopId", shop.id);
+                if (accessoryId) payload.append("accessoryId", accessoryId);
+                await ProductAPI.createAccessoryVariant(payload)
+
                 toast.success('Variant saved!');
-            } catch (err) { return; }
+            }
+            setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         }
-        setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
+        catch (err: any) {
+            err?.errors.map((message: any) => toast.error(message))
+        }
     };
 
     const handleBack = () => setActiveStep(prev => Math.max(prev - 1, 0));

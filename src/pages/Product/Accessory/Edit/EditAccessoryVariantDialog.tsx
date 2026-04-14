@@ -17,19 +17,26 @@ import {
     Paper,
     Avatar,
     Button,
+    FormControl,
+    InputLabel,
+    Select,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import { Close, Save, Delete, CloudUpload, Refresh } from '@mui/icons-material';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import ProductAPI from '@/api/product-api';
 import type { AccessoryVariantResponse } from '../View/AccessoryCard';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
+import { ProductSize } from '@/types/product.enums';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface EditAccessoryVariantFormData {
+    name: string;
     color: string;
+    colorHex: string;
     size: string;
     isFeatured: boolean;
     stock: number;
@@ -83,7 +90,9 @@ const formatFileSize = (bytes: number) => {
 };
 
 const buildDefaultForm = (variant: AccessoryVariantResponse): EditAccessoryVariantFormData => ({
+    name: variant.name ?? '',
     color: variant.color ?? '',
+    colorHex: variant.colorHex ?? '#000000',
     size: variant.size ?? '',
     isFeatured: variant.productResponse?.isFeatured ?? false,
     stock: variant.productResponse?.stockQuantity ?? variant.stock ?? 0,
@@ -111,6 +120,7 @@ const EditAccessoryVariantDialog = ({
     const [formData, setFormData] = useState<EditAccessoryVariantFormData>(() => buildDefaultForm(variant));
     const [errors, setErrors] = useState<Partial<Record<keyof EditAccessoryVariantFormData, string>>>({});
     const [loading, setLoading] = useState(false);
+    const [colors, setColors] = useState<{ name: string; hex: string }[]>([]);
 
     useEffect(() => {
         if (open) {
@@ -118,6 +128,12 @@ const EditAccessoryVariantDialog = ({
             setErrors({});
         }
     }, [open, variant]);
+
+    useEffect(() => {
+        ProductAPI.getColors()
+            .then(res => setColors(res))
+            .catch(() => toast.error('Cannot load colors!'));
+    }, []);
 
     const setField = <K extends keyof EditAccessoryVariantFormData>(
         field: K,
@@ -146,7 +162,9 @@ const EditAccessoryVariantDialog = ({
             const payload = new FormData();
             payload.append('accessoryId', accessoryId);
             payload.append('shopId', shopId);
-            if (formData.color) payload.append('color', formData.color);
+            if (formData.name) payload.append('name', formData.name.trim());
+            if (formData.color) payload.append('color', formData.color.trim());
+            payload.append('colorHex', formData.colorHex);
             if (formData.size) payload.append('size', formData.size);
             payload.append('isFeatured', String(formData.isFeatured));
             payload.append('stock', String(formData.stock));
@@ -158,7 +176,7 @@ const EditAccessoryVariantDialog = ({
             formData.keepImageUrls.forEach(url => payload.append('keepImageUrls', url));
             formData.newImages.forEach(img => { if (img.file) payload.append('productImages', img.file); });
 
-            // TODO: await AccessoryAPI.updateAccessoryVariant(variant.id, payload);
+            await ProductAPI.updateAccessoryVariant(variant.id, payload);
             toast.success('Accessory variant updated successfully!');
             onSaved?.(variant.id, formData);
             onClose();
@@ -243,32 +261,103 @@ const EditAccessoryVariantDialog = ({
 
             {/* Content */}
             <DialogContent sx={{ px: 3, py: 3, overflowY: 'auto' }}>
-                {/* Color & Size */}
+                {/* Identity */}
                 <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>
-                    Color & Size
+                    Identity & Color
                 </Typography>
                 <Grid container spacing={2.5}>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    {/* Variant name */}
+                    <Grid size={{ xs: 12 }}>
                         <TextField
                             fullWidth
-                            label="Color"
+                            label="Variant Name"
+                            value={formData.name}
+                            onChange={e => setField('name', e.target.value)}
+                            size="small"
+                            placeholder="e.g. Black Large Case"
+                            InputProps={{ startAdornment: <InputAdornment position="start"><ViewModuleIcon sx={{ fontSize: 16, color: theme.palette.custom.neutral[400] }} /></InputAdornment> }}
+                            sx={fieldSx}
+                        />
+                    </Grid>
+
+                    {/* Color dropdown */}
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Color Name"
                             value={formData.color}
-                            onChange={e => setField('color', e.target.value)}
+                            onChange={e => {
+                                const name = e.target.value;
+                                const found = colors.find(c => c.name === name);
+                                setField('color', name);
+                                if (found) setField('colorHex', found.hex);
+                            }}
+                            error={!!errors.color}
+                            helperText={errors.color}
                             size="small"
                             sx={fieldSx}
-                        />
+                        >
+                            {colors.map(c => (
+                                <MenuItem key={c.name} value={c.name}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: c.hex, border: '1px solid #ccc', flexShrink: 0 }} />
+                                        {c.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </TextField>
                     </Grid>
+
+                    {/* ColorHex picker */}
                     <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                             fullWidth
-                            label="Size"
-                            value={formData.size}
-                            onChange={e => setField('size', e.target.value)}
+                            label="Color Hex"
+                            value={formData.colorHex}
+                            onChange={e => setField('colorHex', e.target.value)}
+                            placeholder="#000000"
                             size="small"
-                            placeholder="e.g. S, M, L or Free size"
                             sx={fieldSx}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <input
+                                            type="color"
+                                            value={formData.colorHex}
+                                            onChange={e => setField('colorHex', e.target.value)}
+                                            style={{ width: 28, height: 28, border: 'none', borderRadius: 100, padding: 0, cursor: 'pointer', background: 'none' }}
+                                        />
+                                    </InputAdornment>
+                                ),
+                            }}
                         />
                     </Grid>
+
+                    {/* Size */}
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <FormControl fullWidth required error={!!errors.size}>
+                            <InputLabel>Size</InputLabel>
+                            <Select
+                                value={formData.size}
+                                label="Size"
+                                onChange={e => setField('size', e.target.value as ProductSize)}
+                            >
+                                <MenuItem value={ProductSize.EXTRA_SMALL}>Extra Small</MenuItem>
+                                <MenuItem value={ProductSize.SMALL}>Small</MenuItem>
+                                <MenuItem value={ProductSize.MEDIUM}>Medium</MenuItem>
+                                <MenuItem value={ProductSize.LARGE}>Large</MenuItem>
+                                <MenuItem value={ProductSize.EXTRA_LARGE}>Extra Large</MenuItem>
+                            </Select>
+                            {errors.size && (
+                                <Typography color="error" fontSize={12} sx={{ mt: 0.5, ml: 1.5 }}>
+                                    {errors.size}
+                                </Typography>
+                            )}
+                        </FormControl>
+                    </Grid>
+
+                    {/* Featured */}
                     <Grid size={{ xs: 12, md: 6 }}>
                         <FormControlLabel
                             control={<Switch checked={formData.isFeatured} onChange={e => setField('isFeatured', e.target.checked)} />}

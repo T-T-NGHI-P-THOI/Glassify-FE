@@ -534,4 +534,51 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  // ------------------------------------------------------------
+  // ----------------------- ACCESSORY --------------------------
+  // ------------------------------------------------------------
+  static async getAccessoriesFromShopId(shopId: string) {
+    const response = await axiosInstance.get(
+      API_ENDPOINTS.PRODUCTS.GET_SHOP_ACCESSORY(shopId)
+    );
+    return response.data.data;
+  }
+
+  static async createAccessory(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.CREATE_ACCESSORY,
+      body,
+    );
+    return response.data.data;
+  }
+
+  static async updateAccessory(accessoryId: string, formData: any) {
+    const response = await axiosInstance.put(
+      API_ENDPOINTS.PRODUCTS.UPDATE_ACCESSORY(accessoryId),
+      formData,
+    );
+    return response.data.data;
+  }
+
+  static async createAccessoryVariant(body: FormData) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.CREATE_ACCESSORY_VARIANT,
+      body,
+    );
+    return response.data.data;
+  }
+
+  static async updateAccessoryVariant(accessoryId: string, formData: FormData) {
+    const response = await axiosInstance.put(
+      API_ENDPOINTS.PRODUCTS.UPDATE_ACCESSORY_VARIANT(accessoryId),
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data.data;
+  }
 }

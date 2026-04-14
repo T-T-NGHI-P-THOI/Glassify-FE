@@ -178,7 +178,7 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                         <ViewModuleIcon sx={{ color: theme.palette.primary.main }} />
                         <Box>
                             <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.custom.neutral[900] }}>
-                                {variant.color || 'Variant Detail'}
+                                {variant.name ?? variant.color ?? 'Variant Detail'}
                             </Typography>
                             {variant.id && (
                                 <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], fontFamily: 'monospace' }}>
@@ -198,7 +198,26 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                         <Grid size={{ xs: 12, md: 6 }}>
                             <SectionTitle icon={<PaletteIcon fontSize="small" />} label="Color & Identity" />
                             <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
-                                <InfoRow label="Color" value={variant.color ?? '—'} />
+                                {variant.name && (
+                                    <>
+                                        <InfoRow label="Variant Name" value={variant.name} />
+                                        <Divider sx={{ my: 0.5 }} />
+                                    </>
+                                )}
+                                <InfoRow
+                                    label="Color"
+                                    value={
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            {variant.colorHex && (
+                                                <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: variant.colorHex, border: `1px solid ${theme.palette.custom.border.light}` }} />
+                                            )}
+                                            <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
+                                                {variant.color ?? '—'}
+                                            </Typography>
+                                            
+                                        </Box>
+                                    }
+                                />
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Size" value={variant.size ?? '—'} />
                                 <Divider sx={{ my: 0.5 }} />
