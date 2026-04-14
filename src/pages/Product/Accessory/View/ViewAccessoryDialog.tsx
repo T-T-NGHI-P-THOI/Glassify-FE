@@ -64,11 +64,11 @@ const ViewAccessoryDialog = ({ open, onClose, accessory }: ViewAccessoryDialogPr
             <DialogContent dividers>
                 {accessory && (
                     <Grid container spacing={2}>
-                        <Grid size={{ xs: 12 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             {renderField('Accessory Name', accessory.name)}
                         </Grid>
 
-                        <Grid size={{ xs: 12 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
                                 Type
                             </Typography>
@@ -85,27 +85,51 @@ const ViewAccessoryDialog = ({ open, onClose, accessory }: ViewAccessoryDialogPr
                             />
                         </Grid>
 
+                        {accessory.description && (
+                            <Grid size={{ xs: 12 }}>
+                                {renderField('Description', accessory.description)}
+                            </Grid>
+                        )}
+
                         <Grid size={{ xs: 12 }}>
                             <Divider />
                         </Grid>
 
                         <Grid size={{ xs: 12 }}>
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
-                                Variants ({accessory.accessoryVariants.length})
+                                Variants ({accessory.variants.length})
                             </Typography>
-                            {accessory.accessoryVariants.length === 0 ? (
+                            {accessory.variants.length === 0 ? (
                                 <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
                                     No variants
                                 </Typography>
                             ) : (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    {accessory.accessoryVariants.map(v => (
-                                        <Chip
+                                    {accessory.variants.map(v => (
+                                        <Box
                                             key={v.id}
-                                            label={`${v.color || '—'} ${v.size ? `· ${v.size}` : ''}`}
-                                            size="small"
-                                            sx={{ fontSize: 12 }}
-                                        />
+                                            sx={{
+                                                display: 'flex', alignItems: 'center', gap: 0.75,
+                                                px: 1, py: 0.5, borderRadius: 1.5,
+                                                border: `1px solid ${theme.palette.custom.border.light}`,
+                                                bgcolor: theme.palette.custom.neutral[50],
+                                            }}
+                                        >
+                                            {v.colorHex && (
+                                                <Box
+                                                    sx={{
+                                                        width: 12, height: 12, borderRadius: '50%',
+                                                        bgcolor: v.colorHex,
+                                                        border: '1px solid rgba(0,0,0,0.12)',
+                                                        flexShrink: 0,
+                                                    }}
+                                                />
+                                            )}
+                                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[700] }}>
+                                                {v.name ?? v.color ?? '—'}
+                                                {v.size ? ` · ${v.size}` : ''}
+                                            </Typography>
+                                        </Box>
                                     ))}
                                 </Box>
                             )}

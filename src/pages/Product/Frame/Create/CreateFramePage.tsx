@@ -36,7 +36,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
-import { toast } from 'react-toastify';
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 

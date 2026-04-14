@@ -27,7 +27,9 @@ import EditAccessoryVariantDialog, { type EditAccessoryVariantFormData } from '.
 export interface AccessoryVariantResponse {
     id: string;
     accessoryId: string;
+    name: string | null;
     color: string | null;
+    colorHex: string | null;
     size: string | null;
     isFeatured: boolean | null;
     productId: string | null;
@@ -37,7 +39,6 @@ export interface AccessoryVariantResponse {
     costPrice: number;
     stock: number;
     stockThreshold: number;
-    isActive: boolean | null;
     warrantyMonths: number;
     isReturnable: boolean;
     productResponse: AccessoryProductResponse;
@@ -67,8 +68,9 @@ export interface Accessory {
     id: string;
     name: string;
     type: string; // AccessoryType enum: e.g. CASE, STRAP, LENS_CLOTH, etc.
+    description: string;
     createdAt: string;
-    accessoryVariants: AccessoryVariantResponse[];
+    variants: AccessoryVariantResponse[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -121,12 +123,75 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
         );
     }
 
+    const handleAddVariant = (variantId: string, productId: string, data: any) => {
+        setAccessories(prev =>
+            prev.map(acc => {
+                if (acc.id !== accessoryId) return acc;
+
+                const newVariant: AccessoryVariantResponse = {
+                    id: variantId,
+                    accessoryId: accessoryId,
+                    name: data.name ?? null,
+                    color: data.color ?? null,
+                    colorHex: data.colorHex ?? null,
+                    size: data.size ?? null,
+                    isFeatured: data.isFeatured ?? false,
+
+                    productId: productId,
+                    productName: data.name ?? null,
+                    slug: null,
+
+                    basePrice: data.basePrice ?? 0,
+                    costPrice: data.costPrice ?? 0,
+                    stock: data.stock ?? 0,
+                    stockThreshold: data.stockThreshold ?? 0,
+                    warrantyMonths: data.warrantyMonths ?? 0,
+                    isReturnable: data.isReturnable ?? false,
+
+                    productResponse: {
+                        id: productId,
+                        basePrice: data.basePrice ?? 0,
+                        costPrice: data.costPrice ?? 0,
+                        stockQuantity: data.stock ?? 0,
+                        isActive: true,
+                        isFeatured: data.isFeatured ?? false,
+                        isReturnable: data.isReturnable ?? false,
+                        warrantyMonths: data.warrantyMonths ?? 0,
+                        viewCount: 0,
+                        soldCount: 0,
+                        avgRating: 0,
+                        reviewCount: 0,
+                        metaTitle: '',
+                        metaDescription: '',
+                        productType: 'ACCESSORY',
+                        productImages: data.productImages.map((img: any) => img.preview),
+                        fileResponses: null,
+                    }
+                };
+
+                return {
+                    ...acc,
+                    variants: [...(acc.variants ?? []), newVariant]
+                };
+            })
+        );
+    };
+    
     const handleVariantUpdated = (variantId: string, data: EditAccessoryVariantFormData) => {
         setAccessories(prev =>
             prev.map(acc => ({
                 ...acc,
-                accessoryVariants: acc.accessoryVariants.map(v =>
-                    v.id === variantId ? { ...v, ...data } : v
+                variants: acc.variants.map(v =>
+                    v.id === variantId ? {
+                        ...v, ...data,
+                        productResponse: {
+                            ...v.productResponse,
+                            productImages:
+                                data.newImages && data.newImages.length > 0
+                                    ? data.newImages.map(file => file.preview)
+                                    : v.productResponse.productImages,
+                        }
+                    } : v
                 ),
             }))
         );
@@ -182,13 +247,38 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                     }}
                                 />
 
-                                {/* Color */}
+                                {/* Variant name */}
+                                {v.name && (
+                                    <Typography
+                                        sx={{
+                                            fontSize: 11, fontWeight: 700,
+                                            color: theme.palette.custom.neutral[500],
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            mb: 0.4,
+                                        }}
+                                    >
+                                        {v.name}
+                                    </Typography>
+                                )}
+
+                                {/* Color swatch + name + size chip */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                                    {v.colorHex && (
+                                        <Box
+                                            sx={{
+                                                width: 13, height: 13, borderRadius: '50%',
+                                                bgcolor: v.colorHex,
+                                                border: '1.5px solid rgba(0,0,0,0.12)',
+                                                flexShrink: 0,
+                                            }}
+                                        />
+                                    )}
                                     <Typography
                                         sx={{
                                             fontSize: 12, fontWeight: 600,
                                             color: theme.palette.custom.neutral[700],
                                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            flex: 1,
                                         }}
                                     >
                                         {v.color || '—'}
@@ -313,6 +403,9 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                     open={addVariantOpen}
                     accessoryId={accessoryId}
                     shopId={shopId}
+                    onCreated={(variantId, productId, data) => {
+                        handleAddVariant(variantId, productId, data);
+                    }}
                     onClose={() => setAddVariantOpen(false)}
                 />
             )}
@@ -361,7 +454,7 @@ const AccessoryCard = ({
 }: AccessoryCardProps) => {
     const theme = useTheme();
 
-    const variants = accessory.accessoryVariants ?? [];
+    const variants = accessory.variants ?? [];
     const totalStock = variants.reduce((sum, v) => sum + (v.productResponse?.stockQuantity ?? v.stock ?? 0), 0);
     const hasOut = variants.some((v) => (v.stock ?? v.productResponse?.stockQuantity ?? 0) === 0);
     const hasLow = variants.some((v) => {
@@ -370,7 +463,7 @@ const AccessoryCard = ({
     });
 
     const featuredVariant = variants.find(v => v.productResponse?.isFeatured) ?? null;
-    const isActive = featuredVariant?.productResponse?.isActive ?? variants.some(v => v.isActive === true);
+    const isActive = featuredVariant?.productResponse?.isActive ?? variants.some(v => v.productResponse.isActive === true);
 
     const price = (() => {
         const p = featuredVariant?.productResponse;
@@ -491,14 +584,47 @@ const AccessoryCard = ({
                     {accessory.name}
                 </Typography>
 
+                {/* Type · Description */}
                 <Typography
                     sx={{
                         fontSize: 11, color: theme.palette.custom.neutral[500],
                         mb: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}
                 >
-                    {accessory.type}
+                    {accessory.type}{accessory.description ? ` · ${accessory.description}` : ''}
                 </Typography>
+
+                {/* Color swatches row */}
+                {(() => {
+                    const swatches = Array.from(
+                        new Map(
+                            variants
+                                .filter(v => v.colorHex)
+                                .map(v => [v.colorHex!, v.color ?? v.colorHex!])
+                        ).entries()
+                    );
+                    return swatches.length > 0 ? (
+                        <Box sx={{ display: 'flex', gap: 0.4, mb: 1 }}>
+                            {swatches.slice(0, 7).map(([hex, name]) => (
+                                <Tooltip key={hex} title={name}>
+                                    <Box
+                                        sx={{
+                                            width: 13, height: 13, borderRadius: '50%',
+                                            bgcolor: hex,
+                                            border: '1.5px solid rgba(0,0,0,0.12)',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                </Tooltip>
+                            ))}
+                            {swatches.length > 7 && (
+                                <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400], alignSelf: 'center' }}>
+                                    +{swatches.length - 7}
+                                </Typography>
+                            )}
+                        </Box>
+                    ) : null;
+                })()}
 
                 {/* Price row */}
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, mb: 1 }}>

@@ -34,6 +34,7 @@ import AccessoryCard, { type Accessory } from './View/AccessoryCard';
 import EditAccessoryDialog, { type EditAccessoryFormData } from './Edit/EditAccessoryDialog';
 import DeleteConfirmDialog from './Delete/DeleteConfirmDialog';
 import ViewAccessoryDialog from './View/ViewAccessoryDialog';
+import ProductAPI from '@/api/product-api';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -73,10 +74,8 @@ const AccessoryProductPage = () => {
                 const myShop = shopRes.data?.[0] ?? null;
                 setShop(myShop);
                 if (myShop?.id) {
-                    // TODO: replace with actual API call
-                    // const data = await AccessoryAPI.getAccessoriesFromShopId(myShop.id);
-                    // setAccessories(data ?? []);
-                    setAccessories([]); // placeholder
+                    const data = await ProductAPI.getAccessoriesFromShopId(myShop.id);
+                    setAccessories(data ?? []);
                 }
             } catch (err) {
                 console.error('Failed to load accessories:', err);
@@ -100,7 +99,7 @@ const AccessoryProductPage = () => {
             (a) =>
                 a.name.toLowerCase().includes(q) ||
                 a.type.toLowerCase().includes(q) ||
-                a.accessoryVariants.some(
+                a.variants.some(
                     (v) =>
                         v.color?.toLowerCase().includes(q) ||
                         v.size?.toLowerCase().includes(q)
@@ -114,10 +113,11 @@ const AccessoryProductPage = () => {
     const paginated = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
     const totalCount = accessories.length;
-    const activeCount = accessories.filter(a => a.accessoryVariants.some(v => v.isActive ?? true)).length;
-    const inStockCount = accessories.filter(a => a.accessoryVariants.some(v => (v.stock ?? v.productResponse?.stockQuantity ?? 0) > LOW_STOCK_THRESHOLD)).length;
-    const outOfStockCount = accessories.filter(a => a.accessoryVariants.length > 0 && a.accessoryVariants.every(v => (v.stock ?? v.productResponse?.stockQuantity ?? 0) === 0)).length;
-    const noVariantCount = accessories.filter(a => a.accessoryVariants.length === 0).length;
+    console.log("Accessories: ", accessories)
+    const activeCount = accessories.filter(a => a.variants.some(v => v.productResponse.isActive ?? true)).length;
+    const inStockCount = accessories.filter(a => a.variants.some(v => (v.stock ?? v.productResponse?.stockQuantity ?? 0) > LOW_STOCK_THRESHOLD)).length;
+    const outOfStockCount = accessories.filter(a => a.variants.length > 0 && a.variants.every(v => (v.stock ?? v.productResponse?.stockQuantity ?? 0) === 0)).length;
+    const noVariantCount = accessories.filter(a => a.variants.length === 0).length;
 
     const stats = [
         { icon: <Inventory2 sx={{ color: theme.palette.custom.status.pink.main }} />, label: 'Total', value: totalCount, bgColor: theme.palette.custom.status.pink.light },
@@ -184,14 +184,6 @@ const AccessoryProductPage = () => {
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1.5 }}>
-                        <CustomButton
-                            variant="outlined"
-                            startIcon={<Add />}
-                            sx={{ textTransform: 'none', fontWeight: 600 }}
-                            onClick={() => navigate(PAGE_ENDPOINTS.SHOP.PRODUCTS)}
-                        >
-                            Frame List
-                        </CustomButton>
                         <CustomButton
                             variant="contained"
                             startIcon={<Add />}
@@ -335,6 +327,7 @@ const AccessoryProductPage = () => {
                 open={!!editTarget}
                 onClose={() => setEditTarget(null)}
                 onSave={handleEditSave}
+                shopId={shop?.id}
                 accessory={editTarget}
                 loading={editLoading}
             />

@@ -119,8 +119,9 @@ export const ShopOwnerSidebar = ({
       icon: <Inventory />,
       label: 'Products',
       children: [
-        { label: 'Frame List', path: PAGE_ENDPOINTS.SHOP.PRODUCTS },
+        { label: 'Frame List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME },
         { label: 'Lens List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_LENS },
+        { label: 'Accessory List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY }
       ],
     },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },

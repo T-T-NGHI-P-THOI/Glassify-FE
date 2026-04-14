@@ -17,18 +17,21 @@ import { useState, useEffect, useRef } from 'react';
 import { CustomButton } from '@/components/custom';
 import { toast } from 'react-toastify';
 import type { Accessory } from '../View/AccessoryCard';
+import ProductAPI from '@/api/product-api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface EditAccessoryFormData {
     name: string;
     type: string;
+    description: string;
 }
 
 interface EditAccessoryDialogProps {
     open: boolean;
     onClose: () => void;
     onSave: (id: string, data: EditAccessoryFormData) => Promise<void> | void;
+    shopId?: string;
     accessory: Accessory | null;
     loading?: boolean;
 }
@@ -51,6 +54,7 @@ const EditAccessoryDialog = ({
     open,
     onClose,
     onSave,
+    shopId,
     accessory,
     loading = false,
 }: EditAccessoryDialogProps) => {
@@ -60,6 +64,7 @@ const EditAccessoryDialog = ({
     const [formData, setFormData] = useState<EditAccessoryFormData>({
         name: '',
         type: '',
+        description: '',
     });
 
     const fieldSx = {
@@ -76,6 +81,7 @@ const EditAccessoryDialog = ({
             setFormData({
                 name: accessory.name,
                 type: accessory.type,
+                description: accessory.description ?? '',
             });
             initializedRef.current = true;
         }
@@ -95,7 +101,8 @@ const EditAccessoryDialog = ({
             return;
         }
         try {
-            // TODO: await AccessoryAPI.updateAccessory(accessory.id, formData);
+            const requestBody =  { ...formData, shopId: shopId}
+            await ProductAPI.updateAccessory(accessory.id, requestBody);
             toast.success('Accessory updated successfully!');
             await onSave(accessory.id, formData);
             onClose();
@@ -177,6 +184,21 @@ const EditAccessoryDialog = ({
                                 </MenuItem>
                             ))}
                         </TextField>
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }}>
+                        <TextField
+                            fullWidth
+                            multiline
+                            rows={3}
+                            label="Description"
+                            value={formData.description}
+                            onChange={(e) => set('description', e.target.value)}
+                            placeholder="Describe this accessory..."
+                            inputProps={{ maxLength: 1000 }}
+                            helperText={`${formData.description?.length ?? 0}/1000`}
+                            sx={fieldSx}
+                        />
                     </Grid>
                 </Grid>
             </DialogContent>

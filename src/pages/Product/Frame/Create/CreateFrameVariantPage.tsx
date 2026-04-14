@@ -171,11 +171,9 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
                 if (formData.textureFile?.file) {
-                    setTimeout(() => {
-                        if (service.viewerModel) {
-                            service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
-                        }
-                    }, 1500);
+                    if (service.viewerModel) {
+                        service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
+                    }
                 }
             };
 
