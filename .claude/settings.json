@@ -6,6 +6,9 @@
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java -name *Return* -o -name *Refund*)",
       "Bash(grep -i \"\\\\.java$\")",
       "Bash(xargs cat:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces"
     ]
   }
 }
