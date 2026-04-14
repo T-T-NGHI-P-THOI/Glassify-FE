@@ -16,6 +16,9 @@ export const formatNumber = (value: number) => {
   return new Intl.NumberFormat("vi-VN").format(value);
 };
 
-export const parseNumber = (value: string) => {
-  return Number(value.replace(/\D/g, ""));
+export const parseNumber = (value: string): number => {
+  if (!value) return 0;
+
+  const cleaned = value.replace(/\D/g, ""); // 🔥 remove hết không phải số
+  return Number(cleaned);
 };
