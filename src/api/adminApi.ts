@@ -14,6 +14,17 @@ export interface AdminOverviewStats {
   totalGrossRevenue: number;
   totalShippingSubsidy: number;
   netAfterShippingSubsidy: number;
+  // Order Status Overview
+  pendingOrders: number;
+  confirmedOrders: number;
+  processingOrders: number;
+  shippedOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  // Today's Highlights
+  todayCompletedOrders: number;
+  todayShipmentsSent: number;
+  todayNewCustomers: number;
 }
 
 export interface PageResponse<T> {
@@ -51,6 +62,9 @@ export interface AdminOrderResponse {
   refundRequestedAt?: string;
   refundStatus?: string;
   items: AdminOrderItem[];
+  actualShippingFee?: number;
+  platformShippingSubsidy?: number;
+  grandTotal?: number;
 }
 
 export interface AdminOrderItem {
