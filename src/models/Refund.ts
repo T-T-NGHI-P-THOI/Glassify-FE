@@ -162,6 +162,13 @@ export interface ReviewRefundRequestDto {
   sellerPaysShipping?: boolean;
 }
 
+export interface AdminReviewRefundRequestDto {
+  refundDecision: RefundReviewDecision;
+  rejectionReason?: string;
+  returnInstructions?: string;
+  sellerPaysShipping?: boolean;
+}
+
 export interface ConfirmItemReceivedDto {
   itemCondition: ItemCondition;
   itemConditionNote?: string;

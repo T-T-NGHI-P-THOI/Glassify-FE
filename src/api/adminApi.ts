@@ -395,6 +395,22 @@ export const adminApi = {
     return response.data;
   },
 
+  reviewRefund: async (
+    refundId: string,
+    data: {
+      refundDecision: RefundReviewDecision;
+      rejectionReason?: string;
+      returnInstructions?: string;
+      sellerPaysShipping?: boolean;
+    },
+  ): Promise<ApiResponse<AdminRefundResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<AdminRefundResponse>>(
+      API_ENDPOINTS.ADMIN.REFUNDS.REVIEW(refundId),
+      data,
+    );
+    return response.data;
+  },
+
   getWarranties: async (status?: string, page = 0, size = 20): Promise<ApiResponse<PageResponse<AdminWarrantyResponse>>> => {
     const response = await axiosInstance.get<ApiResponse<PageResponse<AdminWarrantyResponse>>>(
       API_ENDPOINTS.ADMIN.WARRANTIES.LIST,
