@@ -28,8 +28,6 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Checkbox,
-  FormGroup,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -55,7 +53,6 @@ import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
   getReturnRequestDetail,
-  reviewReturnRequest,
   confirmItemReceived,
   processRefund,
   submitShopAppeal,
@@ -236,11 +233,6 @@ const SellerRefundDetailPage = () => {
   const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
   const [buyerLoading, setBuyerLoading] = useState(false);
   
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [returnInstructions, setReturnInstructions] = useState('');
-  const [sellerPaysShipping, setSellerPaysShipping] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -311,46 +303,6 @@ const SellerRefundDetailPage = () => {
     };
     fetchBuyerInfo();
   }, [request]);
-
-  const handleOpenReviewDialog = (action: 'approve' | 'reject') => {
-    setReviewAction(action);
-    setReviewDialogOpen(true);
-  };
-
-  const handleCloseReviewDialog = () => {
-    setReviewDialogOpen(false);
-    setRejectionReason('');
-    setReturnInstructions('');
-    setSellerPaysShipping(false);
-  };
-
-  const handleSubmitReview = async () => {
-    if (!requestId) return;
-    if (reviewAction === 'reject' && !rejectionReason.trim()) {
-      toast.error('Reason required');
-      return;
-    }
-    if (reviewAction === 'approve' && !returnInstructions.trim()) {
-      toast.error('Instructions required');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await reviewReturnRequest(requestId, {
-        approved: reviewAction === 'approve',
-        rejectionReason: reviewAction === 'reject' ? rejectionReason : undefined,
-        returnInstruction: reviewAction === 'approve' ? returnInstructions : undefined,
-        shopCoverShipping: reviewAction === 'approve' ? sellerPaysShipping : undefined,
-      });
-      toast.success('Action successful');
-      handleCloseReviewDialog();
-      await fetchRequestDetail();
-    } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Error processing request'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleConfirmReceived = async () => {
     if (!requestId) return;
@@ -471,7 +423,6 @@ const SellerRefundDetailPage = () => {
 
   if (!request) return <Typography>Not Found</Typography>;
 
-  const canReview = request.status === ReturnStatus.REQUESTED;
   const canConfirmReceived = request.status === ReturnStatus.RETURN_SHIPPING;
   const appealStatus = request.shopAppealStatus;
   const hasNoAppeal = appealStatus === undefined || appealStatus === ShopAppealStatus.NONE;
@@ -547,25 +498,6 @@ const SellerRefundDetailPage = () => {
             </Box>
 
             <Stack direction="row" spacing={2}>
-              {canReview && (
-                <>
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
-                    onClick={() => handleOpenReviewDialog('reject')}
-                    sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 600 }}
-                  >
-                    Reject Request
-                  </Button>
-                  <Button 
-                    variant="contained" 
-                    onClick={() => handleOpenReviewDialog('approve')}
-                    sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600, bgcolor: theme.palette.custom.neutral[900] }}
-                  >
-                    Approve & Instructions
-                  </Button>
-                </>
-              )}
               {canConfirmReceived && (
                 <Button 
                   variant="contained" 
@@ -857,68 +789,6 @@ const SellerRefundDetailPage = () => {
           </Grid>
         </Box>
       </Box>
-
-      {/* Dialogs... same logic but restyle headers */}
-      <Dialog 
-        open={reviewDialogOpen} 
-        onClose={handleCloseReviewDialog} 
-        maxWidth="sm" 
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 4 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, px: 3, pt: 3 }}>
-          {reviewAction === 'approve' ? 'Approve Refund Request' : 'Reject Refund Request'}
-        </DialogTitle>
-        <DialogContent sx={{ px: 3 }}>
-          {reviewAction === 'approve' ? (
-            <Stack spacing={3} sx={{ py: 2 }}>
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                Approve this request if the item is eligible for return. Provide clear instructions for the customer.
-              </Alert>
-              <TextField 
-                label="Return Instructions" 
-                multiline 
-                rows={4} 
-                fullWidth 
-                placeholder="Where should the customer send the item? What items should be included in the package?"
-                value={returnInstructions} 
-                onChange={(e) => setReturnInstructions(e.target.value)} 
-              />
-              <FormControlLabel 
-                control={<Checkbox checked={sellerPaysShipping} onChange={(e) => setSellerPaysShipping(e.target.checked)} />} 
-                label={<Typography sx={{ fontSize: 14, fontWeight: 600 }}>Shop will cover the return shipping fee</Typography>} 
-              />
-            </Stack>
-          ) : (
-            <Stack spacing={3} sx={{ py: 2 }}>
-              <Alert severity="error" sx={{ borderRadius: 2 }}>
-                Rejecting a request should be based on valid policy reasons.
-              </Alert>
-              <TextField 
-                label="Rejection Reason" 
-                multiline 
-                rows={4} 
-                fullWidth 
-                placeholder="Explain why this request is being rejected..."
-                value={rejectionReason} 
-                onChange={(e) => setRejectionReason(e.target.value)} 
-              />
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 3, gap: 1 }}>
-          <Button onClick={handleCloseReviewDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color={reviewAction === 'approve' ? 'primary' : 'error'} 
-            onClick={handleSubmitReview} 
-            disabled={submitting}
-            sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
-          >
-            {submitting ? <CircularProgress size={20} /> : 'Submit Review'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog
         open={appealDialogOpen}
