@@ -217,7 +217,7 @@ const ShopEditProfilePage = () => {
     if (file.size > 5 * 1024 * 1024) { toast.error('Image size must be less than 5MB'); return; }
     try {
       setUploadingLogo(true);
-      const response = await shopApi.uploadLogo(file);
+      const response = await shopApi.uploadShopLogo(shop!.id, file);
       if (response.data?.logoUrl) {
         setFormData((prev) => ({ ...prev, logoUrl: response.data!.logoUrl }));
         setShop((prev) => prev ? { ...prev, logoUrl: response.data!.logoUrl } : prev);

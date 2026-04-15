@@ -407,16 +407,16 @@ const MyOrdersPage = () => {
     if (!cancelTargetId || cancelReasons.length === 0) return;
     try {
       setCancellingOrderId(cancelTargetId);
-      await orderApi.cancelOrder(cancelTargetId);
+      await orderApi.cancelOrder(cancelTargetId, { reason: cancelReasons.join(', ') });
       toast.success('Order cancelled successfully');
       setCancelDialogOpen(false);
       await fetchOrders();
       if (selectedOrder?.id === cancelTargetId) {
         setDetailDialogOpen(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to cancel order:', error);
-      toast.error('Failed to cancel order');
+      toast.error(error?.message || 'Failed to cancel order');
     } finally {
       setCancellingOrderId(null);
       setCancelTargetId(null);

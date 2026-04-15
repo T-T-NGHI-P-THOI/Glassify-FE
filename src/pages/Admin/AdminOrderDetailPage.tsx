@@ -1,7 +1,12 @@
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   Paper,
@@ -12,10 +17,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack } from '@mui/icons-material';
+import { ArrowBack, Cancel } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -74,6 +80,9 @@ const AdminOrderDetailPage = () => {
 
   const [order, setOrder] = useState<AdminOrderResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -83,6 +92,22 @@ const AdminOrderDetailPage = () => {
       .catch(() => toast.error('Failed to load order'))
       .finally(() => setLoading(false));
   }, [orderId]);
+
+  const handleCancelOrder = async () => {
+    if (!orderId) return;
+    try {
+      setCancelling(true);
+      const res = await adminApi.cancelOrder(orderId, cancelReason || undefined);
+      if (res.data) setOrder(res.data);
+      toast.success('Order cancelled successfully');
+      setCancelDialogOpen(false);
+      setCancelReason('');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to cancel order');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -112,9 +137,21 @@ const AdminOrderDetailPage = () => {
                   Ordered: {formatDate(order.orderedAt)}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center">
                 <Chip label={ORDER_STATUS_LABEL[order.status] ?? order.status} color={orderStatusColor(order.status)} sx={{ fontWeight: 600 }} />
                 <Chip label={order.paymentStatus} color={paymentStatusColor(order.paymentStatus)} variant="outlined" sx={{ fontWeight: 600 }} />
+                {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<Cancel />}
+                    onClick={() => setCancelDialogOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Cancel Order
+                  </Button>
+                )}
               </Stack>
             </Box>
 
@@ -233,6 +270,38 @@ const AdminOrderDetailPage = () => {
           </Stack>
         )}
       </Box>
+
+      <Dialog open={cancelDialogOpen} onClose={() => !cancelling && setCancelDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Cancel Order</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+            Are you sure you want to cancel order <strong>#{order?.orderNumber}</strong>? This will restock inventory and cannot be undone.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Reason (optional)"
+            size="small"
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            disabled={cancelling}
+            multiline
+            rows={2}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={cancelling}>Back</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancelOrder}
+            disabled={cancelling}
+            startIcon={cancelling ? <CircularProgress size={16} /> : <Cancel />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {cancelling ? 'Cancelling...' : 'Confirm Cancel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

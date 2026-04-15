@@ -184,13 +184,12 @@ export const shopApi = {
     return response.data;
   },
 
-  uploadLogo: async (file: File): Promise<ApiResponse<{ logoUrl: string }>> => {
+  uploadShopLogo: async (shopId: string, file: File): Promise<ApiResponse<{ logoUrl: string }>> => {
     const formData = new FormData();
-    formData.append('logo', file);
+    formData.append('file', file);
     const response = await axiosInstance.post<ApiResponse<{ logoUrl: string }>>(
-      `${SHOP_BASE_URL}/my-shop/logo`,
+      `${SHOP_BASE_URL}/my-shops/${shopId}/upload-logo`,
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   },

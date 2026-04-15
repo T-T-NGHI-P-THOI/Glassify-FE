@@ -1583,7 +1583,7 @@ const WarrantyPage = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1 }}>
-              {(selectedClaim.status === 'QUOTED' || selectedClaim.status === 'QUOTE_REJECTED') && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
+              {selectedClaim.status === 'QUOTED' && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
                 <Button
                   variant="contained"
                   startIcon={<Payment />}

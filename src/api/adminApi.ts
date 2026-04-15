@@ -151,6 +151,19 @@ export interface AdminWarrantyResponse {
   completedAt?: string;
 }
 
+export interface AdminCloseShopResponse {
+  shopId: string;
+  shopCode?: string;
+  shopName?: string;
+  reason?: string;
+  requestedAt?: string;
+  closeAt?: string;
+  canCancelBefore?: string;
+  daysRemaining?: number;
+  status: string;
+  message?: string;
+}
+
 export interface AdminWalletSummary {
   totalTopUps: number;
   totalOrderPayments: number;
@@ -265,38 +278,40 @@ export const adminApi = {
     return response.data;
   },
 
-  deactivateShop: async (shopId: string, reason: string, endDate: string): Promise<ApiResponse<AdminShopItem>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
+  deactivateShop: async (shopId: string, reason?: string): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
       API_ENDPOINTS.ADMIN.SHOPS.DEACTIVATE(shopId),
-      { reason, endDate },
+      null,
+      { params: reason ? { reason } : undefined },
     );
     return response.data;
   },
 
-  reactivateShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
+  reactivateShop: async (shopId: string): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
       API_ENDPOINTS.ADMIN.SHOPS.REACTIVATE(shopId),
     );
     return response.data;
   },
 
-  closeShop: async (shopId: string, reason: string, confirmUnderstand: boolean): Promise<ApiResponse<AdminShopItem>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
-      API_ENDPOINTS.ADMIN.SHOPS.CLOSE(shopId),
-      { reason, confirmUnderstand },
-    );
-    return response.data;
-  },
-
-  cancelDeactivateShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
+  cancelDeactivateShop: async (shopId: string): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<ShopDetailResponse>>(
       API_ENDPOINTS.ADMIN.SHOPS.CANCEL_DEACTIVATE(shopId),
     );
     return response.data;
   },
 
-  cancelCloseShop: async (shopId: string): Promise<ApiResponse<AdminShopItem>> => {
-    const response = await axiosInstance.post<ApiResponse<AdminShopItem>>(
+  closeShop: async (shopId: string, reason?: string): Promise<ApiResponse<AdminCloseShopResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<AdminCloseShopResponse>>(
+      API_ENDPOINTS.ADMIN.SHOPS.CLOSE(shopId),
+      null,
+      { params: reason ? { reason } : undefined },
+    );
+    return response.data;
+  },
+
+  cancelCloseShop: async (shopId: string): Promise<ApiResponse<AdminCloseShopResponse>> => {
+    const response = await axiosInstance.post<ApiResponse<AdminCloseShopResponse>>(
       API_ENDPOINTS.ADMIN.SHOPS.CANCEL_CLOSE(shopId),
     );
     return response.data;
@@ -365,6 +380,15 @@ export const adminApi = {
   getOrderById: async (orderId: string): Promise<ApiResponse<AdminOrderResponse>> => {
     const response = await axiosInstance.get<ApiResponse<AdminOrderResponse>>(
       API_ENDPOINTS.ADMIN.ORDERS.GET_BY_ID(orderId),
+    );
+    return response.data;
+  },
+
+  cancelOrder: async (orderId: string, reason?: string): Promise<ApiResponse<AdminOrderResponse>> => {
+    const response = await axiosInstance.put<ApiResponse<AdminOrderResponse>>(
+      API_ENDPOINTS.ADMIN.ORDERS.CANCEL(orderId),
+      null,
+      { params: reason ? { reason } : undefined },
     );
     return response.data;
   },

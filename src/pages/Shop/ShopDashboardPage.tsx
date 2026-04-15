@@ -186,9 +186,10 @@ const ShopDashboardPage = () => {
           color: theme.palette.custom.status.error.main,
         };
       case 'INACTIVE':
+      case 'CLOSING':
         return {
-          bg: theme.palette.custom.neutral[100],
-          color: theme.palette.custom.neutral[500],
+          bg: theme.palette.custom.status.error.light,
+          color: theme.palette.custom.status.error.main,
         };
       default:
         return {
@@ -392,6 +393,34 @@ const ShopDashboardPage = () => {
             <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Pending Deactivation Request</Typography>
             <Typography sx={{ fontSize: 14 }}>
               Your shop has a pending deactivation request. You can cancel it before it takes effect.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Closing Banner */}
+        {shop.status === 'CLOSING' && (
+          <Alert
+            severity="error"
+            icon={<AccessTime />}
+            sx={{ mb: 3, borderRadius: 2 }}
+            action={
+              <Button
+                color="error"
+                variant="outlined"
+                size="small"
+                startIcon={cancelDeactivateLoading ? <CircularProgress size={14} /> : <Cancel />}
+                onClick={handleCancelDeactivate}
+                disabled={cancelDeactivateLoading}
+                sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+              >
+                Cancel Closure
+              </Button>
+            }
+          >
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Shop Scheduled for Permanent Closure</Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              Your shop has been scheduled for permanent closure in 30 days due to policy violation.
+              If you wish to appeal, please contact glassify2026@gmail.com.
             </Typography>
           </Alert>
         )}
