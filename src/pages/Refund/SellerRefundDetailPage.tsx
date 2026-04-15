@@ -439,7 +439,8 @@ const SellerRefundDetailPage = () => {
     request.status === ReturnStatus.ITEM_RECEIVED &&
     !!request.itemReceivedAt;
   const isAppealEligibleStatus =
-    request.status === ReturnStatus.RETURN_SHIPPING
+    request.status === ReturnStatus.APPROVED
+    || request.status === ReturnStatus.RETURN_SHIPPING
     || request.status === ReturnStatus.ITEM_RECEIVED
     || request.status === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
