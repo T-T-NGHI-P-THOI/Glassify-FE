@@ -130,14 +130,13 @@ export interface RefundRequest {
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
-  // Proposal fields (shop proposes partial/full refund to customer)
+  // Proposal fields
   proposalStatus?: ProposalStatus;
-  proposedRefundType?: RefundProcessType;
-  proposedRefundAmount?: number;
-  proposalNote?: string;
-  proposedAt?: string;
-  proposalRespondedAt?: string;
-  proposalRejectionReason?: string;
+  proposedPartialAmount?: number;
+  proposalAdminNote?: string;
+  proposalCreatedAt?: string;
+  proposalUpdatedAt?: string;
+  proposedActions?: string;
 }
 
 export interface ReturnEligibility {
@@ -216,7 +215,7 @@ export interface ReviewShopAppealDto {
 export interface ProposeRefundDto {
   proposedRefundType: RefundProcessType;
   /** Required when proposedRefundType is PARTIAL */
-  proposedRefundAmount?: number;
+  proposedAmount?: number;
   proposalNote?: string;
 }
 
