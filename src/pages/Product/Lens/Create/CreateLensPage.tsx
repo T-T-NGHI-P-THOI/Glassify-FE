@@ -52,6 +52,7 @@ import {
 } from '@/api/lens-api';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { getApiErrorMessage } from '@/utils/api-error';
+import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 
 type LensScope = 'GLOBAL' | 'FRAME_VARIANT' | 'FRAME_GROUP';
 type LensCategory = 'SINGLE_VISION' | 'BIFOCAL' | 'PROGRESSIVE' | 'READING';
@@ -1896,12 +1897,15 @@ const CreateLensPage = () => {
                       required
                       type="text"
                       label="Base Price"
-                      value={form.basePrice}
-                      onChange={(e) => handlePriceFieldChange('basePrice', e.target.value)}
+                      value={form.basePrice ? formatNumber(parseNumber(form.basePrice)) : ''}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/\D/g, '');
+                        handlePriceFieldChange('basePrice', sanitized);
+                      }}
                       onKeyDown={(e) => {
                         if (shouldBlockNonNumericKey(e)) e.preventDefault();
                       }}
-                      inputProps={{ inputMode: 'decimal' }}
+                      inputProps={{ inputMode: 'numeric' }}
                       error={!!errors.basePrice}
                       helperText={errors.basePrice}
                     />
@@ -2236,18 +2240,18 @@ const CreateLensPage = () => {
                                           fullWidth
                                           label="Extra Price (Lens-specific)"
                                           type="text"
-                                          value={editingData.extraPrice || 0}
+                                          value={editingData.extraPrice ? formatNumber(parseNumber(String(editingData.extraPrice))) : ''}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
                                               prev
-                                                ? { ...prev, extraPrice: Number(sanitizeDecimalInput(e.target.value)) }
+                                                ? { ...prev, extraPrice: Number(parseNumber(e.target.value)) }
                                                 : null,
                                             )
                                           }
                                           onKeyDown={(e) => {
                                             if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                           }}
-                                          inputProps={{ inputMode: 'decimal' }}
+                                          inputProps={{ inputMode: 'numeric' }}
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12, md: 3 }}>
@@ -2586,18 +2590,18 @@ const CreateLensPage = () => {
                                           fullWidth
                                           type="text"
                                           label="Base Price"
-                                          value={editingData.basePrice || 0}
+                                          value={editingData.basePrice ? formatNumber(parseNumber(String(editingData.basePrice))) : ''}
                                           onChange={(e) =>
                                             setEditingExistingTint((prev) =>
                                               prev
-                                                ? { ...prev, basePrice: Number(sanitizeDecimalInput(e.target.value)) }
+                                                ? { ...prev, basePrice: Number(parseNumber(e.target.value)) }
                                                 : null,
                                             )
                                           }
                                           onKeyDown={(e) => {
                                             if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                           }}
-                                          inputProps={{ inputMode: 'decimal' }}
+                                          inputProps={{ inputMode: 'numeric' }}
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12, md: 2 }}>
@@ -2627,18 +2631,18 @@ const CreateLensPage = () => {
                                           fullWidth
                                           type="text"
                                           label="Extra Price"
-                                          value={editingData.extraPrice || 0}
+                                          value={editingData.extraPrice ? formatNumber(parseNumber(String(editingData.extraPrice))) : ''}
                                           onChange={(e) =>
                                             setEditingExistingTint((prev) =>
                                               prev
-                                                ? { ...prev, extraPrice: Number(sanitizeDecimalInput(e.target.value)) }
+                                                ? { ...prev, extraPrice: Number(parseNumber(e.target.value)) }
                                                 : null,
                                             )
                                           }
                                           onKeyDown={(e) => {
                                             if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                           }}
-                                          inputProps={{ inputMode: 'decimal' }}
+                                          inputProps={{ inputMode: 'numeric' }}
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12, md: 1.5 }}>
@@ -2851,12 +2855,12 @@ const CreateLensPage = () => {
                                   fullWidth
                                   type="text"
                                   label="Price"
-                                  value={item.basePrice}
-                                  onChange={(e) => setTintAt(index, 'basePrice', sanitizeDecimalInput(e.target.value))}
+                                  value={item.basePrice ? formatNumber(parseNumber(String(item.basePrice))) : ''}
+                                  onChange={(e) => setTintAt(index, 'basePrice', parseNumber(e.target.value).toString())}
                                   onKeyDown={(e) => {
                                     if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                   }}
-                                  inputProps={{ inputMode: 'decimal' }}
+                                  inputProps={{ inputMode: 'numeric' }}
                                 />
                               </Grid>
                               <Grid size={{ xs: 12, md: 2 }}>
@@ -3000,11 +3004,6 @@ const CreateLensPage = () => {
                                 <AccordionDetails sx={{ pt: 2 }}>
                                   {isEditing && editingData ? (
                                     <Grid container spacing={2}>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <Alert severity="info" sx={{ py: 0.5 }}>
-                                          Usage object (type/name) is managed by admin. Shop can edit usage rules only.
-                                        </Alert>
-                                      </Grid>
                                       <Grid size={{ xs: 12, md: 2.5 }}>
                                         <FormControlLabel
                                           control={
@@ -3040,18 +3039,18 @@ const CreateLensPage = () => {
                                           fullWidth
                                           type="text"
                                           label="Min Price Adj"
-                                          value={editingData.minPriceAdjustment || 0}
+                                          value={editingData.minPriceAdjustment ? formatNumber(parseNumber(String(editingData.minPriceAdjustment))) : ''}
                                           onChange={(e) =>
                                             setEditingExistingUsage((prev) =>
                                               prev
-                                                ? { ...prev, minPriceAdjustment: Number(sanitizeDecimalInput(e.target.value)) }
+                                                ? { ...prev, minPriceAdjustment: Number(parseNumber(e.target.value)) }
                                                 : null,
                                             )
                                           }
                                           onKeyDown={(e) => {
                                             if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                           }}
-                                          inputProps={{ inputMode: 'decimal' }}
+                                          inputProps={{ inputMode: 'numeric' }}
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12 }} sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
@@ -3499,12 +3498,12 @@ const CreateLensPage = () => {
                                 fullWidth
                                 type="text"
                                 label="Extra Price"
-                                value={item.extraPrice}
-                                onChange={(e) => setProgressiveOptionAt(index, 'extraPrice', sanitizeDecimalInput(e.target.value))}
+                                value={item.extraPrice ? formatNumber(parseNumber(String(item.extraPrice))) : ''}
+                                onChange={(e) => setProgressiveOptionAt(index, 'extraPrice', parseNumber(e.target.value).toString())}
                                 onKeyDown={(e) => {
                                   if (shouldBlockNonNumericKey(e)) e.preventDefault();
                                 }}
-                                inputProps={{ inputMode: 'decimal' }}
+                                inputProps={{ inputMode: 'numeric' }}
                               />
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6, md: 4 }}>

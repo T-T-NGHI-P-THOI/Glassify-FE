@@ -39,6 +39,8 @@ import {
   ReturnStatus,
   RETURN_STATUS_LABELS,
   RETURN_REASON_LABELS,
+  SHOP_APPEAL_STATUS_LABELS,
+  ShopAppealStatus,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -312,6 +314,22 @@ const SellerRefundListPage = () => {
                           color={request.returnType === 'REFUND' ? 'primary' : 'secondary'}
                           size="small"
                         />
+                        {request.shopAppealStatus && request.shopAppealStatus !== ShopAppealStatus.NONE && (
+                          <Chip
+                            label={SHOP_APPEAL_STATUS_LABELS[request.shopAppealStatus ?? ShopAppealStatus.NONE]}
+                            color={
+                              request.shopAppealStatus === ShopAppealStatus.SUBMITTED
+                                ? 'warning'
+                                : request.shopAppealStatus === ShopAppealStatus.APPROVED
+                                  ? 'success'
+                                  : request.shopAppealStatus === ShopAppealStatus.REJECTED || request.shopAppealStatus === ShopAppealStatus.EXPIRED
+                                    ? 'error'
+                                    : 'default'
+                            }
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
                       </Stack>
                     </Grid>
                     <Grid item xs={12} sm={4} textAlign="right">

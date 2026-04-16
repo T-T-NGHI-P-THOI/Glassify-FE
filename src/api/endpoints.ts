@@ -236,6 +236,10 @@ export const API_ENDPOINTS = {
     REFUNDS: {
       LIST: `${API_ENDPOINT}/admin/refunds`,
       GET_BY_ID: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}`,
+      REVIEW: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/review`,
+      REVIEW_APPEAL: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/appeal/review`,
+      REVIEW_REQUEST: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}/review`,
+      UPDATE: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}`,
     },
     WARRANTIES: {
       LIST: `${API_ENDPOINT}/admin/warranties`,
