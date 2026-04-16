@@ -823,7 +823,7 @@ const SellerRefundDetailPage = () => {
                 {isReturnAndRefundDecision && (
                   <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
                     <Typography sx={{ fontWeight: 700, mb: 2.5 }}>
-                      Case 2: Platform Decided Return & Refund
+                      Platform Decided Return & Refund
                     </Typography>
 
                     <Stack spacing={1.5} sx={{ mb: 2.5 }}>

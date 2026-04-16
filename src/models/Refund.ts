@@ -25,7 +25,9 @@ export enum ReturnStatus {
   REQUESTED = 'REQUESTED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  RETURN_READY_TO_PICK = 'RETURN_READY_TO_PICK',
   RETURN_SHIPPING = 'RETURN_SHIPPING',
+  RETURN_DELIVERED = 'RETURN_DELIVERED',
   ITEM_RECEIVED = 'ITEM_RECEIVED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
@@ -57,6 +59,13 @@ export enum ShopAppealStatus {
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   EXPIRED = 'EXPIRED',
+}
+
+export enum ProposalStatus {
+  NONE = 'NONE',
+  PROPOSED = 'PROPOSED',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
 }
 
 export enum ShopAppealReason {
@@ -121,6 +130,14 @@ export interface RefundRequest {
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
+  // Proposal fields (shop proposes partial/full refund to customer)
+  proposalStatus?: ProposalStatus;
+  proposedRefundType?: RefundProcessType;
+  proposedRefundAmount?: number;
+  proposalNote?: string;
+  proposedAt?: string;
+  proposalRespondedAt?: string;
+  proposalRejectionReason?: string;
 }
 
 export interface ReturnEligibility {
@@ -195,6 +212,19 @@ export interface ReviewShopAppealDto {
   compensationAmount?: number;
 }
 
+/** Shop propose a partial or full refund to the customer without return */
+export interface ProposeRefundDto {
+  proposedRefundType: RefundProcessType;
+  /** Required when proposedRefundType is PARTIAL */
+  proposedRefundAmount?: number;
+  proposalNote?: string;
+}
+
+/** Customer responds to (accept/reject) a shop's refund proposal */
+export interface ProposalResponseDto {
+  rejectionReason?: string;
+}
+
 export interface RefundRequestFilter {
   page?: number;
   unitPerPage?: number;
@@ -233,7 +263,9 @@ export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
   [ReturnStatus.REQUESTED]: 'Requested',
   [ReturnStatus.APPROVED]: 'Approved',
   [ReturnStatus.REJECTED]: 'Rejected',
+  [ReturnStatus.RETURN_READY_TO_PICK]: 'Ready for Pickup',
   [ReturnStatus.RETURN_SHIPPING]: 'Returning Item',
+  [ReturnStatus.RETURN_DELIVERED]: 'Return Delivered',
   [ReturnStatus.ITEM_RECEIVED]: 'Item Received',
   [ReturnStatus.COMPLETED]: 'Completed',
   [ReturnStatus.CANCELLED]: 'Cancelled',
@@ -243,7 +275,9 @@ export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
   ReturnStatus.REQUESTED,
   ReturnStatus.APPROVED,
   ReturnStatus.REJECTED,
+  ReturnStatus.RETURN_READY_TO_PICK,
   ReturnStatus.RETURN_SHIPPING,
+  ReturnStatus.RETURN_DELIVERED,
   ReturnStatus.ITEM_RECEIVED,
   ReturnStatus.COMPLETED,
   ReturnStatus.CANCELLED,
