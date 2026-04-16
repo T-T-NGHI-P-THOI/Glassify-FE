@@ -59,7 +59,6 @@ export interface CreateFrameVariantFormData {
     warrantyMonths: number;
     costPrice: number;
     basePrice: number;
-    compareAtPrice: number;
     isReturnable: boolean;
     isFeatured: boolean;
     images: ProductImage[];
@@ -100,17 +99,16 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     colorName: '',
     colorHex: '#000000',
     size: '',
-    frameWidthMm: 0,
-    lensWidthMm: 0,
-    lensHeightMm: 0,
-    bridgeWidthMm: 0,
-    templeLengthMm: 0,
+    frameWidthMm: 1,
+    lensWidthMm: 1,
+    lensHeightMm: 1,
+    bridgeWidthMm: 1,
+    templeLengthMm: 1,
     stock: 0,
     stockThreshold: 0,
     warrantyMonths: 0,
     costPrice: 0,
     basePrice: 0,
-    compareAtPrice: 0,
     isFeatured: false,
     isReturnable: false,
     images: [],
@@ -130,12 +128,26 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
         const [errors, setErrors] = useState<Partial<Record<keyof CreateFrameVariantFormData, string>>>({});
         const [loading, setLoading] = useState(false);
+        const [colors, setColors] = useState<{ name: string; hex: string }[]>([]);
 
         // ── Local Three.js viewer ─────────────────────────────────────────────
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const containerRef = useRef<HTMLDivElement>(null);
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
+
+        useEffect(() => {
+            const fetchColors = async () => {
+                try {
+                    const response = await ProductAPI.getColors();
+                    console.log(response)
+                    setColors(response);
+                } catch (error) {
+                    toast.error("Cannot load color!")
+                }
+            };
+            fetchColors();
+        }, []);
 
         useEffect(() => {
             if (!modelFile?.file) return;
@@ -159,11 +171,9 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
                 if (formData.textureFile?.file) {
-                    setTimeout(() => {
-                        if (service.viewerModel) {
-                            service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
-                        }
-                    }, 1500);
+                    if (service.viewerModel) {
+                        service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
+                    }
                 }
             };
 
@@ -214,6 +224,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
         };
 
         // ── Validate ──────────────────────────────────────────────────────────
+        const validateDimension = (value: number, label: string) => {
+            if (!value || value <= 0) return `${label} must be greater than 0`;
+            if (value > 500) return `${label} must not exceed 500`;
+            return "";
+        };
 
         const validate = (): boolean => {
             const e: Partial<Record<keyof CreateFrameVariantFormData, string>> = {};
@@ -228,6 +243,19 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 e.stock = 'Stock must be greater than 0';
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
+
+            const dimensionFields: (keyof CreateFrameVariantFormData)[] = [
+                "frameWidthMm",
+                "lensWidthMm",
+                "lensHeightMm",
+                "bridgeWidthMm",
+                "templeLengthMm",
+            ];
+
+            dimensionFields.forEach((field) => {
+                const error = validateDimension(formData[field] as number, field);
+                if (error) e[field] = error;
+            });
 
             setErrors(e);
             return Object.keys(e).length === 0;
@@ -262,8 +290,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 if (formData.costPrice) payload.append('costPrice', String(formData.costPrice));
                 if (formData.basePrice) payload.append('basePrice', String(formData.basePrice));
 
-                if (formData.compareAtPrice) payload.append('compareAtPrice', String(formData.compareAtPrice));
-
                 payload.append('isReturnable', String(formData.isReturnable));
                 payload.append('isFeatured', String(formData.isFeatured));
 
@@ -277,7 +303,15 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, response.productId, formData);
-            } finally {
+                toast.success("Save frame variant success!");
+            }
+            catch (error: any) {
+                error?.errors.map((err: any) => {
+                    toast.error(err);
+                })
+                throw new Error("Cannot save frame variant!")
+            }
+            finally {
                 setLoading(false);
             }
         };
@@ -372,15 +406,43 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
+                            select
                             fullWidth
                             required
                             label="Color Name"
-                            placeholder="Black / Silver"
                             value={formData.colorName}
-                            onChange={e => setField('colorName', e.target.value)}
+                            onChange={(e) => {
+                                const selectedName = e.target.value;
+                                const selectedColor = colors.find(c => c.name === selectedName);
+
+                                setField("colorName", selectedName);
+
+                                // auto set hex khi chọn
+                                if (selectedColor) {
+                                    setField("colorHex", selectedColor.hex);
+                                }
+                            }}
                             error={!!errors.colorName}
                             helperText={errors.colorName}
-                        />
+                        >
+                            {colors?.map((color) => (
+                                <MenuItem key={color.name} value={color.name}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        {/* preview màu */}
+                                        <Box
+                                            sx={{
+                                                width: 14,
+                                                height: 14,
+                                                borderRadius: "50%",
+                                                backgroundColor: color.hex,
+                                                border: "1px solid #ccc"
+                                            }}
+                                        />
+                                        {color.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </TextField>
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -391,26 +453,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             onChange={e => setField('colorHex', e.target.value)}
                             placeholder="#000000"
                             InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <input
-                                            type="color"
-                                            value={formData.colorHex}
+                                endAdornment:
+                                    (<InputAdornment position="end">
+                                        <input type="color" value={formData.colorHex}
                                             onChange={e => setField('colorHex', e.target.value)}
-                                            style={{
-                                                width: 28,
-                                                height: 28,
-                                                border: 'none',
-                                                borderRadius: 100,
-                                                padding: 0,
-                                                cursor: 'pointer',
-                                                background: 'none',
-                                            }}
-                                        />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
+                                            style={{ width: 28, height: 28, border: 'none', borderRadius: 100, padding: 0, cursor: 'pointer', background: 'none', }} />
+                                    </InputAdornment>),
+                            }} />
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -433,7 +482,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         </FormControl>
                     </Grid>
 
-                     <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <FormControlLabel
                             control={
                                 <Switch
@@ -466,14 +515,23 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         <Grid key={field} size={{ xs: 12, md: 4 }}>
                             <TextField
                                 fullWidth
-                                label={label}
+                                label={label + " *"}
                                 type="number"
-                                value={formData[field] as number}
+                                value={formData[field] || ""}
                                 onChange={e => {
-                                    const raw = parseNumber(e.target.value);
-                                    setField(field, raw);
+                                    const value = e.target.value;
+
+                                    if (value === "") {
+                                        setField(field, 0);
+                                        return;
+                                    }
+
+                                    const num = Number(value);
+
+                                    if (num <= 0 || num > 500) return;
+
+                                    setField(field, num);
                                 }}
-                                inputProps={{ min: 0 }}
                             />
                         </Grid>
                     ))}
@@ -538,8 +596,8 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         <TextField
                             fullWidth
                             label="Cost Price"
-                            type="number"
-                            placeholder="0.00"
+                            type="text"
+                            placeholder="0.000"
                             value={formatNumber(formData.costPrice)}
                             onChange={e => {
                                 const raw = parseNumber(e.target.value);
@@ -556,6 +614,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             fullWidth
                             label="Base Price"
                             type="text"
+                            placeholder="0.000"
                             value={formatNumber(formData.basePrice)}
                             onChange={(e) => {
                                 const raw = parseNumber(e.target.value);
@@ -564,24 +623,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            fullWidth
-                            label="Compare At Price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formatNumber(formData.compareAtPrice)}
-                            onChange={e => {
-                                const raw = parseNumber(e.target.value);
-                                setField('compareAtPrice', raw);
-                            }}
-                            helperText="Original price shown as strikethrough"
-                            InputProps={{
-                                startAdornment: <InputAdornment position="start">₫</InputAdornment>,
-                            }}
-                            inputProps={{ min: 0 }}
                         />
                     </Grid>
 

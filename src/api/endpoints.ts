@@ -33,13 +33,22 @@ export const API_ENDPOINTS = {
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
     GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
     GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
+    GET_SHOP_ACCESSORY: (shopId: string) => `${API_ENDPOINT}/product/accessory/shop/${shopId}`,
     GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
+    GET_COLORS: `${API_ENDPOINT}/product/frame-variant/colors`,
+    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
+
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
+    CREATE_ACCESSORY: `${API_ENDPOINT}/product/accessory`,
+    CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
+
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
+    UPDATE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
+    UPDATE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
+    UPDATE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
-    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
@@ -227,6 +236,10 @@ export const API_ENDPOINTS = {
     REFUNDS: {
       LIST: `${API_ENDPOINT}/admin/refunds`,
       GET_BY_ID: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}`,
+      REVIEW: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/review`,
+      REVIEW_APPEAL: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/appeal/review`,
+      REVIEW_REQUEST: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}/review`,
+      UPDATE: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}`,
     },
     WARRANTIES: {
       LIST: `${API_ENDPOINT}/admin/warranties`,
@@ -286,6 +299,11 @@ export const PAGE_ENDPOINTS = {
     PRODUCT_LENS: `/shop/products/lenses`,
     LENS_DETAIL: (lensId: string) => `/shop/products/lenses/detail/${lensId}`,
     EDIT_LENS: (lensId: string) => `/shop/products/lenses/${lensId}/edit`,
+
+    // Product Accessory
+    PRODUCT_ACCESSORY: `/shop/product/accessory`,
+    CREATE_ACCESSORY: `/shop/product/accessory/create`,
+
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
     REFUND_REVIEW: `/shop/refunds/review`,

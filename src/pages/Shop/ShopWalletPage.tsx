@@ -42,6 +42,7 @@ import type { WalletResponse, WithdrawalResponse, TransactionResponse, ShopBankA
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -206,7 +207,7 @@ const ShopWalletPage = () => {
   }, [activeTab, withdrawalPage, transactionPage, fetchWithdrawals, fetchTransactions]);
 
   const handleWithdraw = async () => {
-    const amount = parseFloat(withdrawAmount);
+    const amount = parseNumber(withdrawAmount);
     if (isNaN(amount) || amount < 10000) {
       toast.error('Minimum withdrawal amount is 10,000 VND');
       return;
@@ -699,10 +700,10 @@ const ShopWalletPage = () => {
               label="Amount (VND)"
               placeholder="Minimum 10,000 VND"
               fullWidth
-              type="number"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              inputProps={{ min: 10000 }}
+              type="text"
+              value={withdrawAmount ? formatNumber(parseNumber(withdrawAmount)) : ''}
+              onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ''))}
+              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', min: 10000 }}
             />
             <TextField
               label="Bank Account"

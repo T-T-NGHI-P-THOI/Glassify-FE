@@ -91,7 +91,7 @@ const CreateFramePage = () => {
                 await variantRef.current?.submit();
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
-        } catch {
+        } catch (error: any) {
             // validation failed or API error → stay on current step
         }
     };

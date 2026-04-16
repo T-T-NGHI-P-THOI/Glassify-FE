@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -42,7 +42,7 @@ import { userWalletApi, type UserWalletResponse, type UserTransactionResponse, t
 import { userBankAccountApi, type UserBankAccountResponse } from '@/api/user-bank-account-api';
 import { paymentApi } from '@/api/payment-api';
 import { toast } from 'react-toastify';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const formatDate = (dateStr: string) => {
@@ -106,6 +106,7 @@ const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'defa
 const UserWalletPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [tab, setTab] = useState(0);
   const [wallet, setWallet] = useState<UserWalletResponse | null>(null);
@@ -192,8 +193,17 @@ const UserWalletPage = () => {
   useEffect(() => { fetchTransactions(txPage); }, [txPage, fetchTransactions]);
   useEffect(() => { if (tab === 1) { fetchWithdrawals(wdPage); fetchBankAccounts(); } }, [tab, wdPage, fetchWithdrawals, fetchBankAccounts]);
 
+  // Auto-open top-up dialog when redirected from checkout with insufficient wallet funds
+  useEffect(() => {
+    const topUpAmount = searchParams.get('topUpAmount');
+    if (topUpAmount) {
+      setTopUpAmount(topUpAmount);
+      setTopUpDialogOpen(true);
+    }
+  }, [searchParams]);
+
   const handleWithdrawRequest = async () => {
-    const amount = parseInt(withdrawAmount, 10);
+    const amount = parseNumber(withdrawAmount);
     if (isNaN(amount) || amount < 50000) {
       toast.error('Minimum withdrawal amount is 50,000 VND');
       return;
@@ -233,7 +243,7 @@ const UserWalletPage = () => {
   };
 
   const handleTopUp = async () => {
-    const amount = parseInt(topUpAmount, 10);
+    const amount = parseNumber(topUpAmount);
     if (isNaN(amount) || amount < 10000) {
       toast.error('Minimum top-up amount is 10,000 VND');
       return;
@@ -243,6 +253,11 @@ const UserWalletPage = () => {
       const res = await paymentApi.topUpWallet({ amount });
       const paymentUrl = res.data;
       if (paymentUrl) {
+        // Persist returnTo so PaymentResultPage can redirect back after VNPay completes
+        const returnTo = searchParams.get('returnTo') || sessionStorage.getItem('topup_return_to');
+        if (returnTo) {
+          sessionStorage.setItem('topup_return_to', returnTo);
+        }
         window.location.href = paymentUrl;
       } else {
         toast.error('Failed to create top-up payment URL');
@@ -573,14 +588,14 @@ const UserWalletPage = () => {
               label="Amount to withdraw (VND)"
               placeholder="Min. 50,000 VND"
               fullWidth
-              value={withdrawAmount}
+              value={withdrawAmount ? formatNumber(parseNumber(withdrawAmount)) : ''}
               onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ''))}
               inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
               size="small"
             />
-            {withdrawAmount && !isNaN(Number(withdrawAmount)) && Number(withdrawAmount) > 0 && (
+            {withdrawAmount && parseNumber(withdrawAmount) > 0 && (
               <Typography sx={{ fontSize: 13, color: '#1976d2', fontWeight: 600, mt: -1, pl: 0.5 }}>
-                = {formatCurrency(Number(withdrawAmount))}
+                = {formatCurrency(parseNumber(withdrawAmount))}
               </Typography>
             )}
             {bankAccounts.length === 0 ? (
@@ -669,14 +684,14 @@ const UserWalletPage = () => {
                 label="Amount to top up (VND)"
                 placeholder="Min. 10,000 VND"
                 fullWidth
-                value={topUpAmount}
+                value={topUpAmount ? formatNumber(parseNumber(topUpAmount)) : ''}
                 onChange={(e) => setTopUpAmount(e.target.value.replace(/\D/g, ''))}
                 inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
                 size="small"
               />
-              {topUpAmount && !isNaN(Number(topUpAmount)) && Number(topUpAmount) > 0 && (
+              {topUpAmount && parseNumber(topUpAmount) > 0 && (
                 <Typography sx={{ fontSize: 13, color: '#4caf50', fontWeight: 600, mt: 0.75, pl: 0.5 }}>
-                  = {formatCurrency(Number(topUpAmount))}
+                  = {formatCurrency(parseNumber(topUpAmount))}
                 </Typography>
               )}
             </Box>

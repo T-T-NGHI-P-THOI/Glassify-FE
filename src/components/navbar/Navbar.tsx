@@ -39,7 +39,7 @@ import { logOut } from '@/auth/Reducer';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
-import CartProvider from "@/contexts/CartProvider";
+
 import { useLayout } from '@/layouts/LayoutContext';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
 import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
@@ -109,8 +109,8 @@ export const Navbar = () => {
   };
 
   return (
-    <CartProvider>
-      <AppBar
+    <>
+    <AppBar
         position="static"
         elevation={0}
         sx={{
@@ -476,6 +476,6 @@ export const Navbar = () => {
         onClose={() => setTryOnOpen(false)}
         isTryOn={false}
       />
-    </CartProvider >
+    </>
   );
 };
