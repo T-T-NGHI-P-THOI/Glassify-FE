@@ -29,7 +29,7 @@ import { adminApi, type AdminRefundResponse } from '@/api/adminApi';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
 import { SHOP_APPEAL_REASON_LABELS, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus, RefundReviewDecision } from '@/models/Refund';
 
@@ -127,7 +127,7 @@ const AdminRefundDetailPage = () => {
   const handleReviewAppeal = async () => {
     if (!refundId) return;
 
-    const amountValue = compensationAmount.trim() ? Number(compensationAmount) : undefined;
+    const amountValue = compensationAmount.trim() ? parseNumber(compensationAmount) : undefined;
     if (reviewApproved && (amountValue === undefined || Number.isNaN(amountValue) || amountValue < 0)) {
       toast.error('Please enter a valid compensation amount');
       return;
@@ -438,10 +438,10 @@ const AdminRefundDetailPage = () => {
             {reviewApproved && (
               <TextField
                 label="Compensation Amount"
-                type="number"
-                inputProps={{ min: '0', step: '1000' }}
-                value={compensationAmount}
-                onChange={(e) => setCompensationAmount(e.target.value)}
+                type="text"
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', min: '0' }}
+                value={compensationAmount ? formatNumber(parseNumber(compensationAmount)) : ''}
+                onChange={(e) => setCompensationAmount(e.target.value.replace(/\D/g, ''))}
               />
             )}
 
