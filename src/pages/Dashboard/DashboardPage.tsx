@@ -48,18 +48,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
+import { adminApi, type AdminOverviewStats, type AdminOrderResponse } from '@/api/adminApi';
 import { adminApi, type AdminOverviewStats, type AdminRefundResponse } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';
 
-const recentOrders = [
-  { orderId: 'ORD-2024-001', customer: 'Nguyễn Văn Minh', customerAvatar: '/avatars/c1.jpg', shop: 'Optical Vision Store', amount: 7500000, status: 'DELIVERED', date: '2024-01-20T10:30:00' },
-  { orderId: 'ORD-2024-002', customer: 'Trần Thị Lan', customerAvatar: '/avatars/c2.jpg', shop: 'EyeWear Plus', amount: 3200000, status: 'SHIPPING', date: '2024-01-20T09:15:00' },
-  { orderId: 'ORD-2024-003', customer: 'Lê Văn Hùng', customerAvatar: '/avatars/c3.jpg', shop: 'Premium Optics', amount: 12800000, status: 'PROCESSING', date: '2024-01-20T08:45:00' },
-  { orderId: 'ORD-2024-004', customer: 'Phạm Thị Mai', customerAvatar: '/avatars/c4.jpg', shop: 'Lens World', amount: 4500000, status: 'PENDING', date: '2024-01-19T16:20:00' },
-  { orderId: 'ORD-2024-005', customer: 'Hoàng Văn Nam', customerAvatar: '/avatars/c5.jpg', shop: 'Optical Vision Store', amount: 8900000, status: 'DELIVERED', date: '2024-01-19T14:00:00' },
-];
 
 const formatVND = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
@@ -81,12 +75,14 @@ const DashboardPage = () => {
   const [pendingRequests, setPendingRequests] = useState<ShopRequest[]>([]);
   const [refundRequests, setRefundRequests] = useState<AdminRefundResponse[]>([]);
   const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<AdminOrderResponse[]>([]);
 
   useEffect(() => {
     adminApi.getShops().then((res) => { if (res.data) setShops(res.data); }).catch(() => {});
     adminApi.getShopRequests('PENDING').then((res) => { if (res.data) setPendingRequests(res.data.requests); }).catch(() => {});
     adminApi.getRefunds('REQUESTED', 0, 3).then((res) => { if (res.data) setRefundRequests(res.data.content); }).catch(() => {});
     adminApi.getOverviewStats().then((res) => { if (res.data) setOverviewStats(res.data); }).catch(() => {});
+    adminApi.getOrders(undefined, 0, 5).then((res) => { if (res.data) setRecentOrders(res.data.content); }).catch(() => {});
   }, []);
 
   const totalShops = shops.length;
@@ -222,7 +218,7 @@ const DashboardPage = () => {
                       <Table>
                         <TableHead>
                           <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                            {['ORDER ID', 'CUSTOMER', 'SHOP', 'AMOUNT', 'STATUS', ''].map((h) => (
+                            {['ORDER ID', 'CUSTOMER', 'EMAIL', 'AMOUNT', 'STATUS', ''].map((h) => (
                               <TableCell key={h} sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>{h}</TableCell>
                             ))}
                           </TableRow>
@@ -231,18 +227,18 @@ const DashboardPage = () => {
                           {recentOrders.map((order) => {
                             const statusStyle = getOrderStatusStyle(order.status);
                             return (
-                              <TableRow key={order.orderId} hover sx={{ cursor: 'pointer' }}>
+                              <TableRow key={order.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(PAGE_ENDPOINTS.ADMIN.ORDER_DETAIL.replace(':id', order.id))}>
                                 <TableCell>
-                                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.pink.main }}>{order.orderId}</Typography>
+                                  <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.pink.main }}>#{order.orderNumber}</Typography>
                                 </TableCell>
                                 <TableCell>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <Avatar src={order.customerAvatar} sx={{ width: 28, height: 28 }}>{order.customer[0]}</Avatar>
-                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[800] }}>{order.customer}</Typography>
+                                    <Avatar sx={{ width: 28, height: 28 }}>{order.customerFullName?.[0] ?? '?'}</Avatar>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[800] }}>{order.customerFullName}</Typography>
                                   </Box>
                                 </TableCell>
-                                <TableCell><Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>{order.shop}</Typography></TableCell>
-                                <TableCell><Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{formatVND(order.amount)}</Typography></TableCell>
+                                <TableCell><Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{order.customerEmail}</Typography></TableCell>
+                                <TableCell><Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{formatVND(order.totalAmount)}</Typography></TableCell>
                                 <TableCell>
                                   <Chip label={order.status} size="small" sx={{ backgroundColor: statusStyle.bg, color: statusStyle.color, fontWeight: 600, fontSize: 11 }} />
                                 </TableCell>
@@ -369,20 +365,30 @@ const DashboardPage = () => {
                   {/* Order Status */}
                   <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
                     <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 3 }}>Order Status Overview</Typography>
-                    {[
-                      { label: 'Delivered', value: 68, color: theme.palette.custom.status.success.main },
-                      { label: 'Shipping', value: 18, color: theme.palette.custom.status.info.main },
-                      { label: 'Processing', value: 10, color: theme.palette.custom.status.warning.main },
-                      { label: 'Pending', value: 4, color: theme.palette.custom.neutral[400] },
-                    ].map((item, index) => (
-                      <Box key={index} sx={{ mb: index < 3 ? 2.5 : 0 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
-                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{item.value}%</Typography>
+                    {(() => {
+                      const s = overviewStats;
+                      const total = s ? (s.pendingOrders + s.confirmedOrders + s.processingOrders + s.shippedOrders + s.deliveredOrders + s.cancelledOrders) : 0;
+                      const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
+                      const items = s ? [
+                        { label: 'Delivered', count: s.deliveredOrders, color: theme.palette.custom.status.success.main },
+                        { label: 'Shipped', count: s.shippedOrders, color: theme.palette.custom.status.info.main },
+                        { label: 'Processing', count: s.processingOrders, color: theme.palette.custom.status.warning.main },
+                        { label: 'Confirmed', count: s.confirmedOrders, color: theme.palette.custom.status.teal.main },
+                        { label: 'Pending', count: s.pendingOrders, color: theme.palette.custom.neutral[400] },
+                        { label: 'Cancelled', count: s.cancelledOrders, color: theme.palette.custom.status.error.main },
+                      ] : [];
+                      return items.map((item, index) => (
+                        <Box key={item.label} sx={{ mb: index < items.length - 1 ? 2 : 0 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                              {formatCount(item.count)} <span style={{ color: theme.palette.custom.neutral[400], fontWeight: 400 }}>({pct(item.count)}%)</span>
+                            </Typography>
+                          </Box>
+                          <LinearProgress variant="determinate" value={pct(item.count)} sx={{ height: 7, borderRadius: 4, backgroundColor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { borderRadius: 4, backgroundColor: item.color } }} />
                         </Box>
-                        <LinearProgress variant="determinate" value={item.value} sx={{ height: 8, borderRadius: 4, backgroundColor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { borderRadius: 4, backgroundColor: item.color } }} />
-                      </Box>
-                    ))}
+                      ));
+                    })()}
                   </Paper>
 
                   {/* Today's Highlights */}
@@ -390,16 +396,16 @@ const DashboardPage = () => {
                     <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>Today's Highlights</Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {[
-                        { icon: <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />, label: 'Orders Completed', value: 156, color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
-                        { icon: <LocalShipping sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }} />, label: 'Shipments Sent', value: 89, color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
-                        { icon: <People sx={{ fontSize: 20, color: theme.palette.custom.status.purple.main }} />, label: 'New Customers', value: 24, color: theme.palette.custom.status.purple.main, bg: theme.palette.custom.status.purple.light },
+                        { icon: <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />, label: 'Orders Completed', value: overviewStats?.todayCompletedOrders ?? 0, color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
+                        { icon: <LocalShipping sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }} />, label: 'Shipments Sent', value: overviewStats?.todayShipmentsSent ?? 0, color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
+                        { icon: <People sx={{ fontSize: 20, color: theme.palette.custom.status.purple.main }} />, label: 'New Customers', value: overviewStats?.todayNewCustomers ?? 0, color: theme.palette.custom.status.purple.main, bg: theme.palette.custom.status.purple.light },
                       ].map((item) => (
                         <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 1, bgcolor: item.bg }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {item.icon}
                             <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
                           </Box>
-                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: item.color }}>{item.value}</Typography>
+                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: item.color }}>{formatCount(item.value)}</Typography>
                         </Box>
                       ))}
                     </Box>

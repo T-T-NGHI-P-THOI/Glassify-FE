@@ -186,13 +186,35 @@ const AdminOrderDetailPage = () => {
                 <Box sx={{ p: 3 }}>
                   <SectionLabel>Pricing</SectionLabel>
                   <FieldRow label="Subtotal" value={formatCurrency(order.subtotal)} />
-                  <FieldRow label="Shipping fee" value={formatCurrency(order.shippingFee)} />
+                  <FieldRow label="Shipping fee (charged)" value={formatCurrency(order.shippingFee)} />
+                  {order.actualShippingFee != null && (
+                    <FieldRow label="Actual shipping fee" value={formatCurrency(order.actualShippingFee)} />
+                  )}
+                  {order.platformShippingSubsidy != null && order.platformShippingSubsidy > 0 && (
+                    <FieldRow
+                      label="Shipping subsidy"
+                      value={
+                        <Typography sx={{ fontSize: 13, color: theme.palette.error.main }}>
+                          - {formatCurrency(order.platformShippingSubsidy)}
+                        </Typography>
+                      }
+                    />
+                  )}
                   <FieldRow label="Discount" value={order.discountAmount > 0 ? `- ${formatCurrency(order.discountAmount)}` : '—'} />
                   <Divider sx={{ my: 1 }} />
                   <Box sx={{ display: 'flex', alignItems: 'center', py: 0.6, gap: 2 }}>
-                    <Typography sx={{ width: 150, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Total</Typography>
+                    <Typography sx={{ width: 150, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>Total (customer paid)</Typography>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.primary.main }}>{formatCurrency(order.totalAmount)}</Typography>
                   </Box>
+                  {order.grandTotal != null && order.platformShippingSubsidy != null && order.platformShippingSubsidy > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', py: 0.6, gap: 2 }}>
+                      <Typography sx={{ width: 150, fontSize: 13, fontWeight: 700, flexShrink: 0, color: theme.palette.error.main }}>Grand Total</Typography>
+                      <Box>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.error.main }}>{formatCurrency(order.grandTotal)}</Typography>
+                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>incl. {formatCurrency(order.platformShippingSubsidy)} shipping subsidy</Typography>
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
               </Box>
 

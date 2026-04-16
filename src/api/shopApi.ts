@@ -72,6 +72,9 @@ export interface ShopOrderResponse {
   customerId: string;
   customerName: string;
   items: ShopOrderItemResponse[];
+  actualShippingFee?: number;
+  platformShippingSubsidy?: number;
+  grandTotal?: number;
 }
 
 export interface MonthlyRevenueItem {

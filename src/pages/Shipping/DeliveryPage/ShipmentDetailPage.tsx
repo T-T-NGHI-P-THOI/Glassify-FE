@@ -618,20 +618,22 @@ const ShipmentDetailPage = () => {
             }}
           >
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Shipping Fee: <strong>{formatCurrency(order.shippingFee)}</strong>
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
               Discount: <strong>{formatCurrency(order.discountAmount)}</strong>
             </Typography>
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
               Order price: <strong>{formatCurrency(order.totalAmount)}</strong>
             </Typography>
+            {order.actualShippingFee != null && (
+              <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                Actual Shipping Fee: <strong>{formatCurrency(order.actualShippingFee)}</strong>
+              </Typography>
+            )}
             <Box sx={{ borderLeft: `1px solid ${theme.palette.custom.border.light}`, pl: 4 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>
                 Grand Total (incl. shipping)
               </Typography>
               <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
-                {formatCurrency(order.totalAmount + order.shippingFee)}
+                {formatCurrency(order.totalAmount + (order.actualShippingFee ?? order.shippingFee))}
               </Typography>
             </Box>
           </Box>
