@@ -303,7 +303,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, response.productId, formData);
-                toast.success("Save frame variant success!");
+                toast.success("Send frame variant registration form successful!");
             }
             catch (error: any) {
                 error?.errors.map((err: any) => {

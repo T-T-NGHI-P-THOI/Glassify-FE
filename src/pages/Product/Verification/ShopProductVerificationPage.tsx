@@ -24,12 +24,15 @@ import type {
     FrameVariantInfo,
     AccessoryVariantInfo,
     FrameGroupInfo,
-    AccessoryGroupInfo,
-    ShopBasicInfo,
     VerifyPayload,
 } from '@/types/verifications';
 import { REJECT_REASONS } from '@/types/verifications';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import type { ShopDetailResponse } from '@/models/Shop';
+import ProductAPI from '@/api/product-api';
+import { shopApi } from '@/api/shopApi';
+import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
+import { useAuth } from '@/hooks/useAuth';
 
 // ─── Styled chips ─────────────────────────────────────────────────────────────
 
@@ -63,138 +66,6 @@ const formatDate = (iso: string | null) => {
 const isFrame = (item: ProductVerificationItem): item is ProductVerificationItem & {
     variantInfo: FrameVariantInfo; groupInfo: FrameGroupInfo;
 } => item.productType === 'FRAME';
-
-// ─── Shop Info Dialog ─────────────────────────────────────────────────────────
-
-function ShopInfoDialog({
-    open, onClose, shop,
-}: { open: boolean; onClose: () => void; shop: ShopBasicInfo }) {
-
-    const theme = useTheme();
-
-    const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-        <Box sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            py: 1,
-            borderBottom: `1px solid ${theme.palette.divider}`
-        }}>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary', minWidth: 140 }}>
-                {label}
-            </Typography>
-            <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                {value || '—'}
-            </Typography>
-        </Box>
-    );
-
-    return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth
-            PaperProps={{ sx: { borderRadius: 3 } }}
-        >
-            <DialogTitle sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                pb: 1,
-                borderBottom: `1px solid ${theme.palette.divider}`
-            }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Store sx={{ color: theme.palette.primary.main }} />
-                    <Typography fontWeight={700} fontSize={16}>
-                        Shop Information
-                    </Typography>
-                </Box>
-                <IconButton size="small" onClick={onClose}>
-                    <Close fontSize="small" />
-                </IconButton>
-            </DialogTitle>
-
-            <DialogContent sx={{ pt: 2.5 }}>
-                {/* Header */}
-                <Box sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    mb: 3,
-                    p: 2,
-                    bgcolor: '#F8FAFC',
-                    borderRadius: 2
-                }}>
-                    <Avatar
-                        src={shop.logoUrl}
-                        sx={{ width: 56, height: 56, borderRadius: 2 }}
-                    >
-                        {shop.shopName?.[0]}
-                    </Avatar>
-
-                    <Box sx={{ flex: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                            <Typography fontWeight={700} fontSize={15}>
-                                {shop.shopName}
-                            </Typography>
-                            {shop.isVerified && (
-                                <VerifiedUser sx={{ fontSize: 16, color: '#3B82F6' }} />
-                            )}
-                        </Box>
-
-                        <Typography fontSize={12} color="text.secondary">
-                            {shop.shopCode}
-                        </Typography>
-
-                        <Chip
-                            label={shop.tier}
-                            size="small"
-                            sx={{
-                                mt: 0.5,
-                                height: 18,
-                                fontSize: 10,
-                                fontWeight: 600
-                            }}
-                        />
-                    </Box>
-
-                    {shop.avgRating != null && (
-                        <Box sx={{ textAlign: 'center' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Star sx={{ fontSize: 16, color: '#F59E0B' }} />
-                                <Typography fontWeight={700} fontSize={15}>
-                                    {shop.avgRating.toFixed(1)}
-                                </Typography>
-                            </Box>
-                            <Typography fontSize={11} color="text.secondary">
-                                Rating
-                            </Typography>
-                        </Box>
-                    )}
-                </Box>
-
-                {/* Info */}
-                <Grid container spacing={2}>
-                    <Grid size={{ xs: 12 }}>
-                        <Typography fontSize={11} fontWeight={700} color="text.secondary"
-                            sx={{ mb: 1, textTransform: 'uppercase' }}>
-                            Basic Info
-                        </Typography>
-
-                        <Row label="Total Products" value={shop.totalProducts ?? '—'} />
-                        <Row label="Status" value={shop.status} />
-                    </Grid>
-
-                    <Grid size={{ xs: 12 }}>
-                        <Typography fontSize={11} fontWeight={700} color="text.secondary"
-                            sx={{ mb: 1, textTransform: 'uppercase' }}>
-                            Location
-                        </Typography>
-
-                        <Row label="Address" value={shop.address} />
-                        <Row label="City" value={shop.city} />
-                    </Grid>
-                </Grid>
-            </DialogContent>
-        </Dialog>
-    );
-}
 
 // ─── Product Detail Dialog ────────────────────────────────────────────────────
 function ProductDetailDialog({
@@ -460,146 +331,6 @@ const navBtnRight = {
     color: '#fff'
 };
 
-
-
-// ─── Verification Dialog ──────────────────────────────────────────────────────
-
-interface VerificationDialogProps {
-    open: boolean;
-    onClose: () => void;
-    item: ProductVerificationItem;
-    onVerify: (id: string, payload: VerifyPayload, onSuccess: () => void) => Promise<void>;
-    isVerifying: boolean;
-}
-
-function VerificationDialog({ open, onClose, item, onVerify, isVerifying }: VerificationDialogProps) {
-    const theme = useTheme();
-    const [mode, setMode] = useState<'choose' | 'reject'>('choose');
-    const [rejectReason, setRejectReason] = useState('');
-    const [rejectNote, setRejectNote] = useState('');
-
-    // Reset when dialog opens
-    useEffect(() => {
-        if (open) { setMode('choose'); setRejectReason(''); setRejectNote(''); }
-    }, [open]);
-
-    const handleApprove = () => {
-        onVerify(item.id, { action: 'APPROVED' }, onClose);
-    };
-
-    const handleReject = () => {
-        if (!rejectReason) { toast.error('Please select a rejection reason'); return; }
-        onVerify(
-            item.id,
-            { action: 'REJECTED', rejectionReason: rejectReason as any, rejectionNote: rejectNote || undefined },
-            onClose,
-        );
-    };
-
-    return (
-        <Dialog open={open} onClose={!isVerifying ? onClose : undefined} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${theme.palette.divider}`, py: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <ShieldOutlined sx={{ color: theme.palette.primary.main }} />
-                    <Typography fontWeight={700} fontSize={15}>Verify Product</Typography>
-                </Box>
-                <IconButton size="small" onClick={onClose} disabled={isVerifying}><Close fontSize="small" /></IconButton>
-            </DialogTitle>
-
-            <DialogContent sx={{ pt: 2.5 }}>
-                {/* Product summary card */}
-                <Box sx={{ p: 1.5, bgcolor: '#F8FAFC', borderRadius: 2, border: `1px solid ${theme.palette.divider}`, mb: 2.5 }}>
-                    <Typography fontSize={13} fontWeight={700}>{item.productName}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                        <TypeChip label={item.productType} ptype={item.productType} />
-                        {item.verificationType === 'UPDATE' && (
-                            <Chip label="Update Request" size="small" sx={{ height: 18, fontSize: 10, fontWeight: 600, bgcolor: '#FEF3C7', color: '#92400E' }} />
-                        )}
-                        <Typography fontSize={12} color="text.secondary">{item.shop.shopName}</Typography>
-                    </Box>
-                    {item.verificationType === 'UPDATE' && (
-                        <Typography fontSize={11} color="#92400E" sx={{ mt: 0.75, bgcolor: '#FFFBEB', px: 1, py: 0.5, borderRadius: 1 }}>
-                            ⚠ Approving will apply the proposed changes to the live product.
-                        </Typography>
-                    )}
-                </Box>
-
-                {mode === 'choose' ? (
-                    <>
-                        <Typography fontSize={13} color="text.secondary" sx={{ mb: 2 }}>
-                            Review the product details carefully before deciding.
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            <Button
-                                fullWidth variant="contained"
-                                onClick={handleApprove}
-                                disabled={isVerifying}
-                                startIcon={isVerifying ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <CheckCircle />}
-                                sx={{ bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, borderRadius: 2, textTransform: 'none', fontWeight: 600, py: 1.25 }}
-                            >
-                                {isVerifying ? 'Processing...' : 'Approve Product'}
-                            </Button>
-                            <Button
-                                fullWidth variant="outlined"
-                                onClick={() => setMode('reject')}
-                                disabled={isVerifying}
-                                startIcon={<Cancel />}
-                                sx={{ borderColor: '#EF4444', color: '#EF4444', '&:hover': { bgcolor: '#FEF2F2', borderColor: '#DC2626' }, borderRadius: 2, textTransform: 'none', fontWeight: 600, py: 1.25 }}
-                            >
-                                Reject Product
-                            </Button>
-                        </Box>
-                    </>
-                ) : (
-                    <>
-                        <Typography fontSize={13} fontWeight={600} sx={{ mb: 1.5 }}>Rejection Details</Typography>
-                        <TextField
-                            select fullWidth required
-                            label="Rejection Reason"
-                            value={rejectReason}
-                            onChange={e => setRejectReason(e.target.value)}
-                            size="small"
-                            disabled={isVerifying}
-                            sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                        >
-                            {REJECT_REASONS.map(r => (
-                                <MenuItem key={r.value} value={r.value} sx={{ fontSize: 13 }}>{r.label}</MenuItem>
-                            ))}
-                        </TextField>
-                        <TextField
-                            fullWidth multiline rows={3}
-                            label="Additional Notes (optional)"
-                            value={rejectNote}
-                            onChange={e => setRejectNote(e.target.value)}
-                            size="small"
-                            disabled={isVerifying}
-                            placeholder="Provide detailed feedback for the shop owner..."
-                            inputProps={{ maxLength: 500 }}
-                            helperText={`${rejectNote.length}/500`}
-                            sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                        />
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button variant="outlined" onClick={() => setMode('choose')} disabled={isVerifying}
-                                sx={{ borderRadius: 2, textTransform: 'none', flex: 1 }}>
-                                Back
-                            </Button>
-                            <Button
-                                variant="contained"
-                                onClick={handleReject}
-                                disabled={isVerifying || !rejectReason}
-                                startIcon={isVerifying ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <Cancel />}
-                                sx={{ bgcolor: '#DC2626', '&:hover': { bgcolor: '#B91C1C' }, borderRadius: 2, textTransform: 'none', fontWeight: 600, flex: 2 }}
-                            >
-                                {isVerifying ? 'Rejecting...' : 'Confirm Reject'}
-                            </Button>
-                        </Box>
-                    </>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 // ─── Product Row Card ─────────────────────────────────────────────────────────
 
 interface ProductRowCardProps {
@@ -610,9 +341,7 @@ interface ProductRowCardProps {
 
 function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
     const theme = useTheme();
-    const [shopOpen, setShopOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [verifyOpen, setVerifyOpen] = useState(false);
 
     const frame = isFrame(item);
     const thumb = item.productImages[0] ?? null;
@@ -732,48 +461,22 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                                 <Visibility sx={{ fontSize: 16 }} />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="View shop info">
-                            <IconButton size="small" onClick={() => setShopOpen(true)}
-                                sx={{ bgcolor: '#F3E8FF', color: '#7C3AED', '&:hover': { bgcolor: '#EDE9FE' }, borderRadius: 1.5, width: 32, height: 32 }}>
-                                <Store sx={{ fontSize: 16 }} />
-                            </IconButton>
-                        </Tooltip>
-                        {item.status === 'PENDING' && (
-                            <Tooltip title="Verify product">
-                                <Button size="small" variant="contained"
-                                    onClick={() => setVerifyOpen(true)}
-                                    disabled={isVerifying}
-                                    startIcon={isVerifying
-                                        ? <CircularProgress size={12} sx={{ color: '#fff' }} />
-                                        : <ShieldOutlined sx={{ fontSize: 14 }} />
-                                    }
-                                    sx={{ bgcolor: '#0F172A', '&:hover': { bgcolor: '#1E293B' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600, fontSize: 12, px: 1.5, height: 32 }}>
-                                    Verify
-                                </Button>
-                            </Tooltip>
-                        )}
                     </Box>
                 </Box>
             </Paper>
 
             {/* Dialogs */}
-            <ShopInfoDialog open={shopOpen} onClose={() => setShopOpen(false)} shop={item.shop} />
             <ProductDetailDialog open={detailOpen} onClose={() => setDetailOpen(false)} item={item} />
-            <VerificationDialog
-                open={verifyOpen}
-                onClose={() => setVerifyOpen(false)}
-                item={item}
-                onVerify={onVerify}
-                isVerifying={isVerifying}
-            />
         </>
     );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const ProductVerificationPage = () => {
+const ShopProductVerificationPage = () => {
     const theme = useTheme();
+    const { user } = useAuth();
+    const [shop, setShop] = useState<ShopDetailResponse | null>(null);
 
     // ── Filter / pagination state (all server-side) ───────────────────────────
     const [search, setSearch] = useState('');
@@ -787,20 +490,33 @@ const ProductVerificationPage = () => {
     const handleStatusChange = (v: VerificationStatus | 'ALL') => { setStatusFilter(v); setPage(1); };
     const handleTypeChange = (v: ProductType | 'ALL') => { setTypeFilter(v); setPage(1); };
 
+    // ── Layout ────────────────────────────────────────────────────────────────
+    useLayoutConfig({ showNavbar: false, showFooter: false });
+
     // ── Data ──────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        (async () => {
+            try {
+                const shopRes = await shopApi.getMyShops();
+                const myShop = shopRes.data?.[0] ?? null;
+                setShop(myShop);
+            } catch (err) {
+                console.error('Failed to load shop', err);
+            }
+        })();
+    }, []);
+
     const {
         items, totalElements, totalPages, loading, stats, statsLoading,
         verifyingId, verify, refresh,
     } = useVerification({
         status: statusFilter,
         productType: typeFilter,
+        shopId: shop?.id,
         search,
         page,
         pageSize: PAGE_SIZE,
     });
-
-    // ── Layout ────────────────────────────────────────────────────────────────
-    useLayoutConfig({ showNavbar: false, showFooter: false });
 
     // ── Stat cards ────────────────────────────────────────────────────────────
     const statCards = [
@@ -810,9 +526,18 @@ const ProductVerificationPage = () => {
         { label: 'Total', value: stats.total, color: '#6366F1', bg: '#EEF2FF', icon: <Inventory2 /> },
     ];
 
+    const sidebarProps = {
+        activeMenu: PAGE_ENDPOINTS.SHOP.PRODUCTS,
+        shopName: shop?.shopName,
+        shopLogo: shop?.logoUrl,
+        ownerName: user?.fullName,
+        ownerEmail: user?.email,
+        ownerAvatar: user?.avatarUrl,
+    };
+
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F8FAFC' }}>
-            <Sidebar activeMenu={PAGE_ENDPOINTS.ADMIN.VERIFY_PRODUCT} />
+            <ShopOwnerSidebar {...sidebarProps} />
 
             <Box sx={{ flex: 1, p: 4, minWidth: 0, overflowX: 'hidden' }}>
 
@@ -965,4 +690,4 @@ const ProductVerificationPage = () => {
     );
 };
 
-export default ProductVerificationPage;
+export default ShopProductVerificationPage;
