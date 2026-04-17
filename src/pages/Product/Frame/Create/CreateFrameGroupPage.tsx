@@ -63,6 +63,7 @@ interface CreateFrameGroupPageProps {
     initialData?: Partial<CreateFrameFormData>;
     createdBy?: string;
     shopId?: string;
+    frameGroupId?: string;
     /** Expose ref của Upload3DModelPage lên CreateFramePage để truyền cho VariantPage */
     upload3DModelRef?: React.RefObject<Upload3DModelPageRef | null>;
 }
@@ -86,7 +87,7 @@ const DEFAULT_FORM: CreateFrameFormData = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGroupPageProps>(
-    ({ onCreated, shopId, initialData, createdBy, upload3DModelRef }, ref) => {
+    ({ onCreated, shopId, frameGroupId, initialData, createdBy, upload3DModelRef }, ref) => {
         const theme = useTheme();
 
         const [formData, setFormData] = useState<CreateFrameFormData>({
@@ -149,7 +150,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
             try {
                 const payload = new FormData();
                 payload.append('shopId', shopId ?? '');
-                payload.append('productName', formData.frameName.trim());
+                payload.append('frameName', formData.frameName.trim());
                 payload.append('frameShape', formData.frameShape);
                 payload.append('frameStructure', formData.frameStructure);
                 payload.append('frameMaterial', formData.frameMaterial);
@@ -164,10 +165,18 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                 if (formData.model3dFile?.file && formData.vrEnabled == true) {
                     payload.append('model3dFile', formData.model3dFile.file);
                 }
-                const response = await ProductAPI.createFrameGroup(payload);
-                const frameGroupId = response.id;
+
+                // Call API
+                if (!frameGroupId || frameGroupId.trim() === "") {
+                    const response = await ProductAPI.createFrameGroup(payload);
+                    onCreated?.(response.id, formData);
+                }
+                else {
+                    await ProductAPI.updateFrameGroup(frameGroupId, payload);
+                    onCreated?.(frameGroupId, formData);
+                }
                 setSuccess(true);
-                onCreated?.(frameGroupId, formData);
+
                 toast.success("Save frame group success!")
             } catch (error: any) {
                 error?.errors.map((err: any) => {

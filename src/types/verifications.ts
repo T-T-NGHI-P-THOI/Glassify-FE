@@ -1,5 +1,8 @@
 // ─── Core enums ───────────────────────────────────────────────────────────────
 
+import type { Accessory, AccessoryProductResponse, AccessoryVariantResponse } from "@/pages/Product/Accessory/View/AccessoryCard";
+import type { FrameGroup, FrameVariantResponse } from "@/pages/Product/Frame/View/FrameGroupCard";
+
 export type ProductType = 'FRAME' | 'LENS' | 'ACCESSORY';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type VerificationType = 'INITIAL' | 'UPDATE';
@@ -46,6 +49,11 @@ export interface ProductVerificationItem {
     // Full product/variant detail
     variantInfo: FrameVariantInfo | AccessoryVariantInfo;
     groupInfo: FrameGroupInfo | AccessoryGroupInfo;
+
+    frameGroupResponse: FrameGroup;
+    frameVariantResponse: FrameVariantResponse;
+    accessoryResponse: Accessory;
+    accessoryVariantResponse: AccessoryVariantResponse;
 
     // Shop
     shop: ShopBasicInfo;
@@ -112,23 +120,14 @@ export interface ShopBasicInfo {
     id: string;
     shopCode: string;
     shopName: string;
-    email: string;
-    phone: string;
     address: string;
     city: string;
     logoUrl: string;
-    isVerified: boolean;
+    status: string;
     tier: string;
-    commissionRate: number;
     avgRating: number | null;
     totalProducts: number | null;
-    totalOrders: number | null;
-    ownerName: string;
-    ownerEmail: string;
-    joinedAt: string;
-    provinceName: string;
-    districtName: string;
-    wardName: string;
+    isVerified: boolean;
 }
 
 // ─── API request / response shapes ───────────────────────────────────────────

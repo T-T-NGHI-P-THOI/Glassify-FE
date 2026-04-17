@@ -31,10 +31,11 @@ export function useVerification(options: {
     status: VerificationStatus | 'ALL';
     productType: ProductType | 'ALL';
     search: string;
-    page: number;       // 1-indexed (UI) — converted to 0-indexed for API
+    shopId?: string;
+    page: number;
     pageSize: number;
 }) {
-    const { status, productType, search, page, pageSize } = options;
+    const { status, productType, search, shopId, page, pageSize } = options;
 
     const [state, setState] = useState<UseVerificationState>({
         items: [],
@@ -58,6 +59,7 @@ export function useVerification(options: {
                 status,
                 productType,
                 search,
+                shopId,
                 page: page - 1,   // convert 1-indexed UI page to 0-indexed Spring
                 size: pageSize,
             });

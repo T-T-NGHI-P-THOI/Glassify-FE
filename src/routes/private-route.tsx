@@ -48,6 +48,7 @@ import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage";
 import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
 import ProductVerificationPage from "@/pages/Admin/ProductVerificationPage";
+import ShopProductVerificationPage from "@/pages/Product/Verification/ShopProductVerificationPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -124,6 +125,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <CreateAccessoryPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+              <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_VERIFICATION}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={[ 'SHOP_OWNER', 'ADMIN']}>
+                            <ShopProductVerificationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
