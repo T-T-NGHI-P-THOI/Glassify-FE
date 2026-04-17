@@ -354,7 +354,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     imageUrl: resolvedImageUrl,
                     price: lens.basePrice,
                     isPrescription: isPrescription,
-                    isProgressive: lens.isProgressive,
+                    isProgressive: (lens.category === 'PROGRESSIVE'),
                     usage_id: selectedUsage.id,
                 };
             });
@@ -391,7 +391,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             id: tint.tintId,
             name: tint.name,
             description: `${tint.behavior} - Code: ${tint.code}`,
-            price: tint.basePrice + tint.extraPrice,
+            price: Number((tint as { basePrice?: number }).basePrice ?? 0) + (tint.extraPrice ?? 0),
             cssValue: tint.cssValue,
             opacity: tint.opacity,
         }));
