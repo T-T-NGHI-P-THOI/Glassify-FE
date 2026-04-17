@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
   FilterList,
@@ -55,6 +56,7 @@ const ProductBrowsePage: React.FC = () => {
     'Đồng Nai', 'Quảng Ninh', 'Khánh Hòa', 'Nghệ An', 'Thanh Hóa', 'Thừa Thiên Huế'
   ];
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -81,6 +83,34 @@ const ProductBrowsePage: React.FC = () => {
   });
 
   useEffect(() => {
+    
+    if (location.state && location.state.resetFilters) {
+      if (location.state.resetFilters === 'LENSES') {
+        setActiveFilters({
+          productType: 'LENSES',
+          brandIds: [],
+          categoryNames: [],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ productType: 'LENSES' });
+      } else {
+        setActiveFilters({
+          productType: undefined,
+          brandIds: [],
+          categoryNames: [location.state.resetFilters],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ category: location.state.resetFilters });
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      return;
+    }
+
     const category = searchParams.get('category');
     const productType = searchParams.get('productType');
     const query = searchParams.get('q');
@@ -110,7 +140,7 @@ const ProductBrowsePage: React.FC = () => {
         return { ...prev, ...updates };
       });
     }
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -198,15 +228,14 @@ const ProductBrowsePage: React.FC = () => {
         setIsLoading(true);
 
         // Build filter params from activeFilters
-        const filterParams: ProductFilterParams = {
+        // Only send one of productType or categoryName
+        let filterParams: ProductFilterParams = {
           search: activeFilters.searchQuery || undefined,
           minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
           maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
           isActive: true,
           minRating: activeFilters.minRating || undefined,
-          productType: activeFilters.productType,
           brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
-          categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
           isFeatured: activeFilters.isFeatured,
           isReturnable: activeFilters.isReturnable,
           page: currentPage,
@@ -214,6 +243,11 @@ const ProductBrowsePage: React.FC = () => {
           frameShapes: activeFilters.frameShapes || undefined,
           colors: activeFilters.colors || undefined,
         };
+        if (activeFilters.productType) {
+          filterParams.productType = activeFilters.productType;
+        } else if (activeFilters.categoryNames.length > 0) {
+          filterParams.categoryName = activeFilters.categoryNames[0];
+        }
 
         // Map sortBy to API params
         if (activeFilters.sortBy) {
@@ -331,16 +365,13 @@ const ProductBrowsePage: React.FC = () => {
     // Update URL params to match filters
     const params = new URLSearchParams();
 
-    // Convert productType to category name for URL
+    // Only set one of productType or category
     if (newFilters.productType) {
-      const categoryName = newFilters.categoryNames && newFilters.categoryNames.length > 0
-        ? newFilters.categoryNames[0]
-        : undefined;
       params.set('productType', newFilters.productType);
-      if (categoryName) {
-        params.set('category', categoryName);
-      }
+    } else if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
+      params.set('category', newFilters.categoryNames[0]);
     }
+
     if (newFilters.searchQuery) params.set('q', newFilters.searchQuery);
     if (newFilters.sortBy && newFilters.sortBy !== 'popular') params.set('sortBy', newFilters.sortBy);
     if (newFilters.priceMin !== undefined) params.set('minPrice', newFilters.priceMin.toString());
@@ -348,9 +379,6 @@ const ProductBrowsePage: React.FC = () => {
     if (newFilters.minRating) params.set('minRating', newFilters.minRating.toString());
     if (newFilters.brandIds && newFilters.brandIds.length > 0) {
       params.set('brandId', newFilters.brandIds[0]);
-    }
-    if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
-      params.set('category', newFilters.categoryNames[0]);
     }
     if (newFilters.shopCities && newFilters.shopCities.length > 0) {
       params.set('shopCity', newFilters.shopCities[0]);
