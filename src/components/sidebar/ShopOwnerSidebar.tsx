@@ -35,6 +35,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { logOut } from '@/auth/Reducer';
 import { shopApi } from '@/api/shopApi';
+import { Verified } from 'lucide-react';
 
 interface ShopOwnerSidebarProps {
   activeMenu?: string;
@@ -124,6 +125,7 @@ export const ShopOwnerSidebar = ({
         { label: 'Accessory List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY }
       ],
     },
+    { icon: <Verified />, label: 'Product Verification', path: PAGE_ENDPOINTS.SHOP.PRODUCT_VERIFICATION },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
     { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },

@@ -14,6 +14,7 @@ export interface ListVerificationsParams {
     status?: VerificationStatus | 'ALL';
     productType?: ProductType | 'ALL';
     search?: string;
+    shopId?: string;
     page?: number;       // 0-indexed (Spring PageRequest)
     size?: number;
 }

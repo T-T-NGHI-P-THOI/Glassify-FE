@@ -55,7 +55,7 @@ const CustomConnector = styled(StepConnector)(({ theme }) => ({
 const registrationSteps = [
     { label: 'Frame Info', key: 'FRAME_INFO' },
     { label: 'Frame Variant', key: 'VARIANT' },
-    { label: 'Review & Submit', key: 'REVIEW' },
+    // { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -103,14 +103,11 @@ const CreateFramePage = () => {
     const handleSubmit = async () => {
         try {
             // Nếu cần activate product sau khi review
-            if (productId) {
-                await ProductAPI.activateProduct(productId); // ví dụ
-            }
+            await variantRef.current?.submit();
             navigate(PAGE_ENDPOINTS.SHOP.PRODUCTS);
         } catch {
             // handle error
         }
-        navigate(PAGE_ENDPOINTS.SHOP.PRODUCTS);
     };
 
     useLayoutConfig({ showNavbar: false, showFooter: false });
@@ -277,14 +274,14 @@ const CreateFramePage = () => {
                     )}
 
                     {/* ── Step 2: Review & Submit ── */}
-                    {activeStep === 2 && (
+                    {/* {activeStep === 2 && (
                         <ReviewFramePage
                             groupData={savedGroupData}
                             variantData={savedVariantData}
                             productId={productId} // ✅
                             modelFile={savedGroupData.model3dFile ?? null}
                         />
-                    )}
+                    )} */}
 
                     {/* Navigation Buttons */}
                     <Box
