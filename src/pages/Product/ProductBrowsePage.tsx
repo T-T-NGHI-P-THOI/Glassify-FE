@@ -60,7 +60,7 @@ const ProductBrowsePage: React.FC = () => {
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    productTypes: ['FRAME', 'LENS', 'ACCESSORIES'],
+    productTypes: ['FRAME', 'LENSES', 'ACCESSORIES'],
     brands: [],
     categories: [],
     shopCities: defaultShopCities,
