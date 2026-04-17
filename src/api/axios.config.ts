@@ -7,7 +7,6 @@
 // ==================== CONFIGURATION ====================
 
 import { type AxiosError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
-import type { ApiResponse } from "@/models/ApiResponse";
 import axios from "axios";
 
 /**
@@ -183,14 +182,6 @@ const createAxiosInstance = (): AxiosInstance => {
             // Log response
             Logger.response(response);
 
-            // BE luôn trả HTTP 200 nhưng body có status >= 400 khi có lỗi
-            const body = response.data as ApiResponse<unknown> | undefined;
-            if (body && typeof body.status === 'number' && body.status >= 400) {
-                const errors = Array.isArray(body.errors) ? (body.errors as string[]) : undefined;
-                const message = errors?.[0] || body.message || 'An error occurred';
-                return Promise.reject({ status: body.status, message, errors: body.errors, originalError: null });
-            }
-
             return response;
         },
         async (error: AxiosError) => {
@@ -270,14 +261,13 @@ interface FormattedError {
 const formatError = (error: AxiosError): FormattedError => {
     const response = error.response;
 
-    const data = response?.data as { errorMessage?: string; message?: string; errors?: string[] | Record<string, string[]> } | undefined;
-    // If errors is a plain string array (BE validation errors), use the first entry as the message
-    const firstError = Array.isArray(data?.errors) ? (data.errors as string[])[0] : undefined;
+    const data = response?.data as { errorMessage?: string; message?: string; errors?: Record<string, string[]> } | undefined;
     return {
         status: response?.status || 500,
-        // Priority: errorMessage > errors[0] > message > fallback
-        message: data?.errorMessage || firstError || data?.message || error.message || 'An unexpected error occurred',
-        errors: data?.errors as Record<string, string[]> | undefined,
+        // Prefer errorMessage (specific reason, e.g. "Insufficient stock. On hand: 3")
+        // over message (generic wrapper, e.g. "Cannot update cart item!")
+        message: data?.errorMessage || data?.message || error.message || 'An unexpected error occurred',
+        errors: data?.errors,
         originalError: error,
     };
 };
