@@ -13,6 +13,7 @@ import {
   MenuItem,
   Typography,
   Divider,
+  Tooltip,
 } from "@mui/material";
 import {
   Search,
@@ -27,8 +28,8 @@ import {
   Receipt,
   VerifiedUser,
   AccountBalanceWallet,
+  CameraAlt,
   Dashboard,
-  AdminPanelSettings,
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -38,13 +39,17 @@ import { logOut } from '@/auth/Reducer';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
-import CartProvider from "@/contexts/CartProvider";
+
 import { useLayout } from '@/layouts/LayoutContext';
+import type { UserRecommendationResponse } from '@/models/Recommendation';
+import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import { RecommendationSearchButton } from "../custom/RecommendationSearchButton";
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [myShop, setMyShop] = useState<ShopDetailResponse | null>(null);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
   const navigate = useNavigate();
   const { itemCount, isAnimating } = useCart();
   const { isAuthenticated, user, dispatch } = useAuth();
@@ -104,8 +109,8 @@ export const Navbar = () => {
   };
 
   return (
-    <CartProvider>
-      <AppBar
+    <>
+    <AppBar
         position="static"
         elevation={0}
         sx={{
@@ -144,7 +149,8 @@ export const Navbar = () => {
                 flexGrow: 1,
                 maxWidth: 500,
                 mx: 4,
-                display: { xs: "none", md: "block" },
+                display: { xs: 'none', md: 'flex' },
+                alignItems: 'center', gap: 1
               }}
             >
               <TextField
@@ -160,10 +166,21 @@ export const Navbar = () => {
                     </InputAdornment>
                   ),
                   endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton type="submit" sx={{ p: "6px" }}>
-                        <Search sx={{ color: "#6b7280", fontSize: 20 }} />
-                      </IconButton>
+                    <InputAdornment position="end" sx={{ gap: 0.5 }}>
+                      <Tooltip title="Try recommendation">
+                        <IconButton
+                          onClick={() => setTryOnOpen(true)}
+                          sx={{
+                            p: "6px",
+                            backgroundColor: "#000000",
+                            color: "#ffffff",
+                            borderRadius: "50%",
+                            "&:hover": { backgroundColor: "#1f2937" },
+                          }}
+                        >
+                          <CameraAlt sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     </InputAdornment>
                   ),
                 }}
@@ -184,6 +201,10 @@ export const Navbar = () => {
                   },
                 }}
               />
+
+              {isAuthenticated && (
+                <RecommendationSearchButton />
+              )}
             </Box>
 
             {/* Right Icons */}
@@ -236,47 +257,53 @@ export const Navbar = () => {
                       <Typography variant="body2">View my profile</Typography>
                     </MenuItem>
 
-                    {isAdmin ? (
+                    {isAdmin && (
                       <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
                         <Dashboard fontSize="small" sx={{ color: "#2563eb" }} />
                         <Typography variant="body2" sx={{ color: "#2563eb", fontWeight: 600 }}>Admin Dashboard</Typography>
                       </MenuItem>
-                    ) : (
-                      <>
-                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">View my orders</Typography>
-                        </MenuItem>
+                    )}
 
-                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">My warranty</Typography>
-                        </MenuItem>
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.ORDER.MY_ORDERS); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Receipt fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my orders</Typography>
+                      </MenuItem>
+                    )}
 
-                        <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
-                          <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
-                          <Typography variant="body2">View my wallet</Typography>
-                        </MenuItem>
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.WARRANTY.MAIN); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <VerifiedUser fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">My warranty</Typography>
+                      </MenuItem>
+                    )}
 
-                        {user?.roles?.includes('SHOP_OWNER') ? (
-                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <Store fontSize="small" sx={{ color: "#6b7280" }} />
-                            <Typography variant="body2">View my shop</Typography>
-                          </MenuItem>
-                        ) : !myShop ? (
-                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
-                            <Typography variant="body2">Become a shop owner</Typography>
-                          </MenuItem>
-                        ) : null}
+                    {!isAdmin && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.USER.WALLET); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AccountBalanceWallet fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my wallet</Typography>
+                      </MenuItem>
+                    )}
 
-                        {myShop?.latestRequestStatus === 'REJECTED' && (
-                          <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
-                            <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
-                            <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
-                          </MenuItem>
-                        )}
-                      </>
+                    {!isAdmin && user?.roles?.includes('SHOP_OWNER') && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.DASHBOARD); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <Store fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">View my shop</Typography>
+                      </MenuItem>
+                    )}
+
+                    {!isAdmin && (!myShop || myShop.status === 'CLOSED' || myShop.latestRequestStatus === 'EXPIRED') && !user?.roles?.includes('SHOP_OWNER') && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.REGISTER); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#6b7280" }} />
+                        <Typography variant="body2">Become a shop owner</Typography>
+                      </MenuItem>
+                    )}
+
+                    {!isAdmin && myShop?.latestRequestStatus === 'REJECTED' && (
+                      <MenuItem onClick={() => { handleUserMenuClose(); navigate(PAGE_ENDPOINTS.SHOP.RESUBMIT); }} sx={{ gap: 1.5, py: 1.25 }}>
+                        <AddBusiness fontSize="small" sx={{ color: "#dc2626" }} />
+                        <Typography variant="body2" sx={{ color: "#dc2626" }}>Resubmit registration</Typography>
+                      </MenuItem>
                     )}
 
                     <Divider />
@@ -442,6 +469,13 @@ export const Navbar = () => {
           </Box>
         </Container>
       </AppBar>
-    </CartProvider>
+
+      <GlassesTryOnPopup
+        frameGroupId=""
+        open={tryOnOpen}
+        onClose={() => setTryOnOpen(false)}
+        isTryOn={false}
+      />
+    </>
   );
 };

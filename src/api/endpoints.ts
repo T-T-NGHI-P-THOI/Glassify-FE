@@ -33,13 +33,22 @@ export const API_ENDPOINTS = {
     GET_REVIEWS: (productId: string) => `${API_ENDPOINT}/product/${productId}/reviews`,
     GET_SHOP_FRAME: (shopId: string) => `${API_ENDPOINT}/product/frame-group/shop/${shopId}`,
     GET_PRODUCT_IMAGES: (productId: string) => `${API_ENDPOINT}/product/product-images/${productId}`,
+    GET_SHOP_ACCESSORY: (shopId: string) => `${API_ENDPOINT}/product/accessory/shop/${shopId}`,
     GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
+    GET_COLORS: `${API_ENDPOINT}/product/frame-variant/colors`,
+    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
+
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
+    CREATE_ACCESSORY: `${API_ENDPOINT}/product/accessory`,
+    CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
+
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
+    UPDATE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
+    UPDATE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
+    UPDATE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
-    GET_TEXTURE_FILES:  `${API_ENDPOINT}/product/frame-group/texture-files`,
   },
   CATEGORIES: {
     BASE: `${API_ENDPOINT}/categories`,
@@ -48,9 +57,28 @@ export const API_ENDPOINTS = {
   LENS: {
     BASE: `${API_ENDPOINT}/lens-catalog`,
     CATALOG_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lens-catalog/for-frame/${frameVariantId}`,
+    GET_ALL: `${API_ENDPOINT}/lenses`,
     CREATE: `${API_ENDPOINT}/lenses`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/lenses/${id}`,
+    UPDATE: (id: string) => `${API_ENDPOINT}/lenses/${id}`,
     CREATE_FOR_FRAME: (frameVariantId: string) => `${API_ENDPOINT}/lenses/for-frame/${frameVariantId}`,
     CREATE_FOR_FRAME_GROUP: (frameGroupId: string) => `${API_ENDPOINT}/lenses/for-frame-group/${frameGroupId}`,
+    CREATE_FEATURE: `${API_ENDPOINT}/lenses/features`,
+    UPDATE_FEATURE: (featureId: string) => `${API_ENDPOINT}/lenses/features/${featureId}`,
+    FEATURE_FRAME_COMPATIBILITIES: `${API_ENDPOINT}/lenses/feature-frame-compatibilities`,
+    FEATURE_FRAME_COMPATIBILITY_BY_ID: (compatibilityId: string) => `${API_ENDPOINT}/lenses/feature-frame-compatibilities/${compatibilityId}`,
+    CREATE_TINT: `${API_ENDPOINT}/lenses/tints`,
+    UPDATE_TINT: (tintId: string) => `${API_ENDPOINT}/lenses/tints/${tintId}`,
+    CREATE_USAGE: `${API_ENDPOINT}/lenses/usages`,
+    UPDATE_USAGE: (usageId: string) => `${API_ENDPOINT}/lenses/usages/${usageId}`,
+    CREATE_FEATURE_MAPPING: (lensId: string) => `${API_ENDPOINT}/lenses/${lensId}/feature-mappings`,
+    UPDATE_FEATURE_MAPPING: (lensId: string, mappingId: string) => `${API_ENDPOINT}/lenses/${lensId}/feature-mappings/${mappingId}`,
+    CREATE_TINT_OPTION: (lensId: string) => `${API_ENDPOINT}/lenses/${lensId}/tint-options`,
+    UPDATE_TINT_OPTION: (lensId: string, optionId: string) => `${API_ENDPOINT}/lenses/${lensId}/tint-options/${optionId}`,
+    CREATE_USAGE_RULE: (lensId: string) => `${API_ENDPOINT}/lenses/${lensId}/usage-rules`,
+    UPDATE_USAGE_RULE: (lensId: string, ruleId: string) => `${API_ENDPOINT}/lenses/${lensId}/usage-rules/${ruleId}`,
+    CREATE_PROGRESSIVE_OPTION: (lensId: string) => `${API_ENDPOINT}/lenses/${lensId}/progressive-options`,
+    UPDATE_PROGRESSIVE_OPTION: (lensId: string, optionId: string) => `${API_ENDPOINT}/lenses/${lensId}/progressive-options/${optionId}`,
   },
   PRESCRIPTIONS: {
     BASE: `${API_ENDPOINT}/prescriptions`,
@@ -124,13 +152,26 @@ export const API_ENDPOINTS = {
     CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}`,
     PAY_VNPAY: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/vnpay`,
     PAY_WALLET: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/pay/wallet`,
+    REJECT_QUOTE: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/reject-quote`,
+    RECEIVE: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/receive`,
+    GHN_STATUS: (id: string) => `${API_ENDPOINT}/warranty-claims/${id}/ghn-status`,
   },
   SHOP_WARRANTY: {
     CLAIMS: `${API_ENDPOINT}/shop/warranty-claims`,
+    CLAIM_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}`,
     APPROVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/approve`,
     RECEIVE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/receive`,
+    QUOTE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/quote`,
     REJECT: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/reject`,
     COMPLETE: (id: string) => `${API_ENDPOINT}/shop/warranty-claims/${id}/complete`,
+    SERVICE_PRICES: `${API_ENDPOINT}/shop/warranty-service-prices`,
+    SERVICE_PRICE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-service-prices/${id}`,
+    POLICIES: `${API_ENDPOINT}/shop/warranty-policies`,
+    POLICY_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-policies/${id}`,
+  },
+  WARRANTY_PUBLIC: {
+    SERVICE_PRICES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-service-prices`,
+    POLICIES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-policies`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
@@ -159,6 +200,7 @@ export const API_ENDPOINTS = {
     MY_SHOP_BY_ID: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}`,
     MY_SHOP_RESUBMIT: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/resubmit`,
     MY_SHOP_REGISTRATION: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/registration`,
+    MY_SHOP_UPLOAD_LOGO: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/upload-logo`,
     MY_SHOP_DEACTIVATION_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/deactivation-status`,
     MY_SHOP_CLOSURE_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/closure-status`,
   },
@@ -169,11 +211,13 @@ export const API_ENDPOINTS = {
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
-      DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivate-request`,
-      CANCEL_DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivate/cancel`,
-      REACTIVATE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/reactivate`,
-      CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close`,
-      CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/close/cancel`,
+      DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/deactivate`,
+      REACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/reactivate`,
+      CLOSE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/close`,
+      CANCEL_CLOSE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/close/cancel`,
+      CANCEL_DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/deactivate/cancel`,
+      DEACTIVATION_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivation-status`,
+      CLOSURE_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/closure-status`,
     },
     USERS: {
       LIST: `${API_ENDPOINT}/admin/users`,
@@ -187,10 +231,15 @@ export const API_ENDPOINTS = {
     ORDERS: {
       LIST: `${API_ENDPOINT}/admin/orders`,
       GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}`,
+      CANCEL: (orderId: string) => `${API_ENDPOINT}/admin/orders/${orderId}/cancel`,
     },
     REFUNDS: {
       LIST: `${API_ENDPOINT}/admin/refunds`,
       GET_BY_ID: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}`,
+      REVIEW: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/review`,
+      REVIEW_APPEAL: (refundId: string) => `${API_ENDPOINT}/admin/refunds/${refundId}/appeal/review`,
+      REVIEW_REQUEST: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}/review`,
+      UPDATE: (refundId: string) => `${API_ENDPOINT}/refunds/${refundId}`,
     },
     WARRANTIES: {
       LIST: `${API_ENDPOINT}/admin/warranties`,
@@ -209,6 +258,12 @@ export const API_ENDPOINTS = {
       REJECT_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/reject`,
     },
   },
+  USER_RECOMMENDATION: {
+    GET_MY: `${API_BASE}/users/recommendation`,
+    CREATE: `${API_BASE}/users/recommendation`,
+    UPDATE_NAME: (id: string) => `${API_BASE}/users/recommendation/${id}`,
+    DELETE: (id: string) => `${API_BASE}/users/recommendation/${id}`,
+  }
 } as const;
 
 
@@ -241,11 +296,20 @@ export const PAGE_ENDPOINTS = {
     BANK_ACCOUNTS: `/shop/bank-accounts`,
     WALLET: `/shop/wallet`,
     PRODUCTS: `/shop/products`,
+    PRODUCT_LENS: `/shop/products/lenses`,
+    LENS_DETAIL: (lensId: string) => `/shop/products/lenses/detail/${lensId}`,
+    EDIT_LENS: (lensId: string) => `/shop/products/lenses/${lensId}/edit`,
+
+    // Product Accessory
+    PRODUCT_ACCESSORY: `/shop/product/accessory`,
+    CREATE_ACCESSORY: `/shop/product/accessory/create`,
+
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
     REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
     WARRANTY: `/shop/warranty`,
+    WARRANTY_POLICIES: `/shop/warranty/policies`,
   },
 
   ADMIN: {
@@ -259,6 +323,7 @@ export const PAGE_ENDPOINTS = {
     WARRANTIES: `/admin/warranties`,
     WARRANTY_DETAIL: `/admin/warranties/:id`,
     TRANSACTIONS: `/admin/transactions`,
+    VERIFY_PRODUCT: `/admin/verify-product`,
   },
 
   ORDER: {

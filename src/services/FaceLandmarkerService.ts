@@ -153,8 +153,8 @@ export class FaceLandmarkerService {
 
         const results = this.faceLandmarker.detectForVideo(video, performance.now());
 
-        if (results.faceLandmarks && results.faceLandmarks.length > 0 && this.glassesObj) {
-            this.glassesObj.visible = true;
+        if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+            if (this.glassesObj) this.glassesObj.visible = true;
             this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, CFG);
             this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
@@ -314,11 +314,12 @@ export class ImageFaceLandmarkerService {
      * Run detection on a static HTMLImageElement and place glasses once.
      * Returns { found, landmarks } — landmarks are used for face shape analysis.
      */
-    async detectAndApply(img: HTMLImageElement): Promise<{
+    async detectAndApply(img: HTMLImageElement, isTryOn: boolean): Promise<{
         found: boolean;
         landmarks: vision.NormalizedLandmark[] | null;
     }> {
-        if (!this.faceLandmarker || !this.glassesObj) return { found: false, landmarks: null };
+        if (!this.faceLandmarker || (!this.glassesObj && isTryOn))
+            return { found: false, landmarks: null };
 
         // Reset smoothing state for a fresh image (no lerp needed)
         sm.ready = false;
@@ -326,12 +327,11 @@ export class ImageFaceLandmarkerService {
         const results = this.faceLandmarker.detect(img);
 
         if (!results.faceLandmarks || results.faceLandmarks.length === 0) {
-            this.glassesObj.visible = false;
             if (this.faceObj) this.faceObj.visible = false;
             return { found: false, landmarks: null };
         }
 
-        this.glassesObj.visible = true;
+        this.setVisibility(true, isTryOn);
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],
             img.naturalWidth,
@@ -340,5 +340,14 @@ export class ImageFaceLandmarkerService {
         );
 
         return { found: true, landmarks: results.faceLandmarks[0] };
+    }
+
+    private setVisibility(visible: boolean, isTryOn: boolean) {
+        if (isTryOn && this.glassesObj) {
+            this.glassesObj.visible = visible;
+        }
+        if (this.faceObj) {
+            this.faceObj.visible = false;
+        }
     }
 }

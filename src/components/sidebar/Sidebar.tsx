@@ -77,6 +77,8 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       subItems: [
         { label: 'Shop Approval', path: PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL },
         { label: 'User Management', path: PAGE_ENDPOINTS.ADMIN.USER_MANAGEMENT },
+        // ── NEW: product verification queue ──
+        { label: 'Product Verification', path: PAGE_ENDPOINTS.ADMIN.VERIFY_PRODUCT },
       ],
     },
     {

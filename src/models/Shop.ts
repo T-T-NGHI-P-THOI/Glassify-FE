@@ -17,7 +17,7 @@ export interface GhnWard {
 }
 
 // ==================== Shop Enums ====================
-export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'PENDING_DEACTIVATION' | 'CLOSING';
+export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'PENDING_DEACTIVATION' | 'CLOSING' | 'CLOSED';
 export type ShopTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
 
 // ==================== Business License ====================
@@ -97,6 +97,10 @@ export interface ShopDetailResponse {
   latestRequestStatus?: string;
   rejectionReason?: string;
   adminComment?: string;
+  warning?: string | null;
+
+  scheduledCloseAt?: string;
+  scheduledDeactivateAt?: string;
 }
 
 // ==================== Shop Types ====================

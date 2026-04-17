@@ -66,6 +66,25 @@ interface OrderItem {
 
 const steps = ['Check Eligibility', 'Select Reason', 'Confirm'];
 
+const POLICY_SENSITIVE_REASONS: ReturnReason[] = [
+  ReturnReason.CHANGED_MIND,
+  ReturnReason.NO_LONGER_NEEDED,
+  ReturnReason.BETTER_PRICE_FOUND,
+  ReturnReason.WRONG_SELECTION,
+];
+
+const QUALITY_ISSUE_REASONS: ReturnReason[] = [
+  ReturnReason.DEFECTIVE,
+  ReturnReason.NOT_AS_DESCRIBED,
+  ReturnReason.DAMAGED_IN_SHIPPING,
+  ReturnReason.WRONG_ITEM,
+  ReturnReason.WRONG_COLOR,
+  ReturnReason.WRONG_SIZE,
+  ReturnReason.WRONG_PRESCRIPTION,
+  ReturnReason.MISSING_ITEMS,
+  ReturnReason.NOT_RECEIVED,
+];
+
 const BuyerCreateRefundPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -121,6 +140,22 @@ const BuyerCreateRefundPage = () => {
     }
     if (activeStep === 1 && !reason) {
       toast.error('Please select a return reason');
+      return;
+    }
+    if (activeStep === 1 && quantity < 1) {
+      toast.error('Quantity must be at least 1');
+      return;
+    }
+    if (activeStep === 1 && quantity > orderItem.quantity) {
+      toast.error(`Quantity cannot exceed purchased quantity (${orderItem.quantity})`);
+      return;
+    }
+    if (activeStep === 1 && reason === ReturnReason.NO_LONGER_NEEDED && evidenceImages.length < 3) {
+      toast.error('No Longer Needed requests require at least 3 evidence images');
+      return;
+    }
+    if (activeStep === 1 && reason === ReturnReason.NO_LONGER_NEEDED && reasonDetail.trim().length < 20) {
+      toast.error('Please provide a detailed note (at least 20 characters) for No Longer Needed requests');
       return;
     }
     setActiveStep((prev) => prev + 1);
@@ -211,6 +246,9 @@ const BuyerCreateRefundPage = () => {
           <AssignmentReturn sx={{ fontSize: 40, verticalAlign: 'middle', mr: 1 }} />
           Return / Exchange Request
         </Typography>
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Your request is reviewed by Glassify before return shipping instructions are finalized.
+        </Alert>
       </Box>
 
       {/* Stepper */}
@@ -381,6 +419,24 @@ const BuyerCreateRefundPage = () => {
               </Select>
             </FormControl>
 
+            <Stack spacing={1.5} sx={{ mt: 2 }}>
+              {QUALITY_ISSUE_REASONS.includes(reason) && (
+                <Alert severity="success">
+                  Quality/fulfillment issue selected. Please attach clear product evidence to speed up admin review.
+                </Alert>
+              )}
+              {POLICY_SENSITIVE_REASONS.includes(reason) && (
+                <Alert severity="warning">
+                  Policy-sensitive reason selected. Add detailed notes and multiple images to avoid rejection.
+                </Alert>
+              )}
+              {reason === ReturnReason.NO_LONGER_NEEDED && (
+                <Alert severity="warning">
+                  For No Longer Needed: submit at least 3 photos and describe item condition clearly.
+                </Alert>
+              )}
+            </Stack>
+
             {/* Detailed reason */}
             <TextField
               fullWidth
@@ -391,6 +447,11 @@ const BuyerCreateRefundPage = () => {
               onChange={(e) => setReasonDetail(e.target.value)}
               sx={{ mt: 3 }}
               placeholder="Describe your return reason in detail..."
+              helperText={
+                reason === ReturnReason.NO_LONGER_NEEDED
+                  ? 'Required for policy review (min 20 characters).'
+                  : 'Optional but recommended for faster review.'
+              }
             />
 
             {/* Quantity */}
@@ -409,6 +470,11 @@ const BuyerCreateRefundPage = () => {
               <Typography variant="body1" gutterBottom>
                 Evidence Images (Maximum 5)
               </Typography>
+              {reason === ReturnReason.NO_LONGER_NEEDED && (
+                <Typography variant="body2" color="warning.main" sx={{ mb: 1 }}>
+                  Minimum required for this reason: 3 images.
+                </Typography>
+              )}
               <Button
                 variant="outlined"
                 component="label"
@@ -499,6 +565,14 @@ const BuyerCreateRefundPage = () => {
                   <Typography variant="body1">{reasonDetail}</Typography>
                 </Box>
               )}
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Review Flow
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  Admin review first → approval/rejection → return shipping if approved
+                </Typography>
+              </Box>
               <Box>
                 <Typography variant="body2" color="text.secondary">
                   Quantity

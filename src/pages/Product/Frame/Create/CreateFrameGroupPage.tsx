@@ -22,6 +22,7 @@ import Upload3DModelPage, {
     type Model3DFile,
     type Upload3DModelPageRef,
 } from './Upload3DModel';
+import { toast } from "react-toastify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -167,8 +168,12 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
                 const frameGroupId = response.id;
                 setSuccess(true);
                 onCreated?.(frameGroupId, formData);
-            } catch (err: any) {
-                throw new Error('API Error');
+                toast.success("Save frame group success!")
+            } catch (error: any) {
+                error?.errors.map((err: any) => {
+                    toast.error(err);
+                })
+                throw new Error("Cannot save frame group!")
             } finally {
                 setLoading(false);
             }

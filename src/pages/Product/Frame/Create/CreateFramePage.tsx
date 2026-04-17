@@ -91,7 +91,7 @@ const CreateFramePage = () => {
                 await variantRef.current?.submit();
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
-        } catch {
+        } catch (error: any) {
             // validation failed or API error → stay on current step
         }
     };
@@ -106,11 +106,11 @@ const CreateFramePage = () => {
             if (productId) {
                 await ProductAPI.activateProduct(productId); // ví dụ
             }
-            navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME);
+            navigate(PAGE_ENDPOINTS.SHOP.PRODUCTS);
         } catch {
             // handle error
         }
-        navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME);
+        navigate(PAGE_ENDPOINTS.SHOP.PRODUCTS);
     };
 
     useLayoutConfig({ showNavbar: false, showFooter: false });

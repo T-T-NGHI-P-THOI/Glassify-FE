@@ -5,8 +5,9 @@ import type {
   ReturnEligibility,
   CreateRefundRequestDto,
   UpdateReturnTrackingDto,
-  ReviewRefundRequestDto,
   ConfirmItemReceivedDto,
+  ProcessRefundDto,
+  SubmitShopAppealDto,
   RefundRequestFilter,
 } from '../models/Refund';
 
@@ -85,18 +86,6 @@ export const cancelReturnRequest = async (
   return response.data;
 };
 
-// Seller APIs
-export const reviewReturnRequest = async (
-  requestId: string,
-  data: ReviewRefundRequestDto
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/review`,
-    data
-  );
-  return response.data;
-};
-
 export const confirmItemReceived = async (
   requestId: string,
   data: ConfirmItemReceivedDto
@@ -110,10 +99,23 @@ export const confirmItemReceived = async (
 
 // Seller refund payout API
 export const processRefund = async (
-  requestId: string
+  requestId: string,
+  data: ProcessRefundDto
 ): Promise<ApiResponse<RefundRequest>> => {
   const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/process-refund`
+    `${REFUND_BASE_URL}/${requestId}/process-refund`,
+    data
+  );
+  return response.data;
+};
+
+export const submitShopAppeal = async (
+  requestId: string,
+  data: SubmitShopAppealDto
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/shop-appeal`,
+    data
   );
   return response.data;
 };
@@ -145,7 +147,7 @@ export const getReturnStatistics = async (
 ): Promise<ApiResponse<any>> => {
   const response = await axios.get<ApiResponse<any>>(
     `${REFUND_BASE_URL}/statistics`,
-    { params: { shopId } }
+    { params: shopId ? { shopId } : undefined }
   );
   return response.data;
 };

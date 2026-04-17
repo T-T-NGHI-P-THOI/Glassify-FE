@@ -72,6 +72,9 @@ export interface ShopOrderResponse {
   customerId: string;
   customerName: string;
   items: ShopOrderItemResponse[];
+  actualShippingFee?: number;
+  platformShippingSubsidy?: number;
+  grandTotal?: number;
 }
 
 export interface MonthlyRevenueItem {
@@ -90,6 +93,32 @@ export interface ShopAnalyticsSummary {
   totalRevenue: number;
   totalOrders: number;
   avgOrderValue: number;
+}
+
+export interface DeactivationStatus {
+  shopId: string;
+  shopCode?: string;
+  shopName?: string;
+  reason?: string;
+  requestedAt?: string;
+  effectiveAt?: string;
+  reactivateAt?: string;
+  canCancelBefore?: string;
+  status: string; // 'SCHEDULED' | 'INACTIVE' | 'ACTIVE'
+  message?: string;
+}
+
+export interface ClosureStatus {
+  shopId: string;
+  shopCode?: string;
+  shopName?: string;
+  reason?: string;
+  requestedAt?: string;
+  closeAt?: string;
+  canCancelBefore?: string;
+  daysRemaining?: number;
+  status: string; // 'CLOSING' | 'CLOSED' | 'CANCELLED'
+  message?: string;
 }
 
 const SHOP_BASE_URL = '/api/v1/shops';
@@ -158,13 +187,12 @@ export const shopApi = {
     return response.data;
   },
 
-  uploadLogo: async (file: File): Promise<ApiResponse<{ logoUrl: string }>> => {
+  uploadShopLogo: async (shopId: string, file: File): Promise<ApiResponse<{ logoUrl: string }>> => {
     const formData = new FormData();
-    formData.append('logo', file);
+    formData.append('file', file);
     const response = await axiosInstance.post<ApiResponse<{ logoUrl: string }>>(
-      `${SHOP_BASE_URL}/my-shop/logo`,
+      `${SHOP_BASE_URL}/my-shops/${shopId}/upload-logo`,
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
   },
@@ -263,15 +291,15 @@ export const shopApi = {
     return response.data;
   },
 
-  getDeactivationStatus: async (shopId: string): Promise<ApiResponse<unknown>> => {
-    const response = await axiosInstance.get<ApiResponse<unknown>>(
+  getDeactivationStatus: async (shopId: string): Promise<ApiResponse<DeactivationStatus>> => {
+    const response = await axiosInstance.get<ApiResponse<DeactivationStatus>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}/deactivation-status`,
     );
     return response.data;
   },
 
-  getClosureStatus: async (shopId: string): Promise<ApiResponse<unknown>> => {
-    const response = await axiosInstance.get<ApiResponse<unknown>>(
+  getClosureStatus: async (shopId: string): Promise<ApiResponse<ClosureStatus>> => {
+    const response = await axiosInstance.get<ApiResponse<ClosureStatus>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}/closure-status`,
     );
     return response.data;

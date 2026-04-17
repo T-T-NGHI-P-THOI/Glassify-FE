@@ -40,7 +40,6 @@ interface FrameVariantDetailDialogProps {
     variant: FrameVariantResponse;
     modelFile?: Model3DFile | null;
     vrEnabled?: boolean;
-    productImages: string[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -170,7 +169,7 @@ function ImageLightbox({ images, open, initialIndex = 0, onClose }: {
 // ─── Main Dialog ──────────────────────────────────────────────────────────────
 
 export default function FrameVariantDetailDialog({
-    open, onClose, variant, productImages, modelFile, vrEnabled,
+    open, onClose, variant, modelFile, vrEnabled,
 }: FrameVariantDetailDialogProps) {
     const theme = useTheme();
     const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -310,9 +309,9 @@ export default function FrameVariantDetailDialog({
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Size" value={variant.size} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Featured" value={<BoolBadge value={variant.isFeatured} />} />
+                                <InfoRow label="Featured" value={<BoolBadge value={variant.productResponse.isFeatured} />} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Returnable" value={<BoolBadge value={variant.isReturnable} />} />
+                                <InfoRow label="Returnable" value={<BoolBadge value={variant.productResponse.isReturnable} />} />
                             </Paper>
 
                             {/* Dimensions */}
@@ -335,12 +334,12 @@ export default function FrameVariantDetailDialog({
                             {/* Inventory */}
                             <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
                             <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
-                                {/* <InfoRow
+                                <InfoRow
                                     label="Available"
                                     value={
                                         <Typography sx={{
                                             fontSize: 13, fontWeight: 700,
-                                            color: (variant. ?? 0) === 0
+                                            color: (variant.qtyAvailable ?? 0) === 0
                                                 ? theme.palette.error.main
                                                 : (variant.qtyAvailable ?? 0) <= (variant.lowStockThreshold ?? 10)
                                                     ? '#ca8a04'
@@ -357,7 +356,7 @@ export default function FrameVariantDetailDialog({
                                 <Divider sx={{ my: 0.5 }} />
                                 <InfoRow label="Low Stock Threshold" value={variant.lowStockThreshold != null ? `${variant.lowStockThreshold} units` : '—'} />
                                 <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Warranty" value={variant.warrantyMonths ? `${variant.warrantyMonths} months` : '—'} /> */}
+                                <InfoRow label="Warranty" value={variant.productResponse.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
                             </Paper>
 
                             {/* Pricing */}
@@ -373,17 +372,7 @@ export default function FrameVariantDetailDialog({
                                         </Typography>
                                     }
                                 />
-                                <Divider sx={{ my: 0.5 }} />
-                                <InfoRow
-                                    label="Compare At Price"
-                                    value={
-                                        variant.compareAtPrice ? (
-                                            <Typography sx={{ fontSize: 13, fontWeight: 500, textDecoration: 'line-through', color: theme.palette.custom.neutral[400] }}>
-                                                {formatPrice(variant.compareAtPrice)}
-                                            </Typography>
-                                        ) : '—'
-                                    }
-                                />
+                                
                             </Paper>
                         </Grid>
 
@@ -392,7 +381,7 @@ export default function FrameVariantDetailDialog({
 
                             {/* Product Images */}
                             <SectionTitle icon={<CollectionsIcon fontSize="small" />} label="Product Images" />
-                            {productImages.length === 0 ? (
+                            {variant.productResponse.productImages.length === 0 ? (
                                 <Box sx={{ py: 4, textAlign: 'center', color: theme.palette.custom.neutral[400], border: `1px dashed ${theme.palette.custom.border.light}`, borderRadius: 2, mb: 3 }}>
                                     <CollectionsIcon sx={{ fontSize: 32, mb: 1, opacity: 0.4 }} />
                                     <Typography sx={{ fontSize: 13 }}>No images uploaded</Typography>
@@ -413,7 +402,7 @@ export default function FrameVariantDetailDialog({
                                             '&:hover .overlay': { opacity: 1 },
                                         }}
                                     >
-                                        <Box component="img" src={productImages[0]}
+                                        <Box component="img" src={variant.productResponse.productImages[0]}
                                             sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         <Box className="overlay" sx={{
                                             position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)',
@@ -425,9 +414,9 @@ export default function FrameVariantDetailDialog({
                                     </Box>
 
                                     {/* Thumbnails */}
-                                    {productImages.length > 1 && (
+                                    {variant.productResponse.productImages.length > 1 && (
                                         <Box sx={{ display: 'flex', gap: 1 }}>
-                                            {productImages.slice(1).map((img, i) => (
+                                            {variant.productResponse.productImages.slice(1).map((img, i) => (
                                                 <Box
                                                     key={i}
                                                     onClick={() => openLightbox(i + 1)}
@@ -546,7 +535,7 @@ export default function FrameVariantDetailDialog({
 
             {/* Image lightbox */}
             <ImageLightbox
-                images={productImages}
+                images={variant.productResponse.productImages}
                 open={lightboxOpen}
                 initialIndex={lightboxIndex}
                 onClose={() => setLightboxOpen(false)}

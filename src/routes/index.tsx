@@ -7,6 +7,7 @@ import ShoppingCart from '../pages/cart/Cart';
 import ShopDetailPage from '../pages/Shop/ShopDetailPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import AccountDisabledPage from '../pages/AccountDisabledPage';
+import ForbiddenPage from '../layouts/ForbiddenPage';
 
 const RouteComponent = () => {
     return (

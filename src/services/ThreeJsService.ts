@@ -4,8 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { API_CONFIG } from '@/api/axios.config';
 
-export const CANVAS_WIDTH = 880;
-export const CANVAS_HEIGHT = 540;
+export const CANVAS_WIDTH = 1024;
+export const CANVAS_HEIGHT = 576;
 
 function handleResize(camera: THREE.OrthographicCamera, renderer: THREE.WebGLRenderer, vw: number, vh: number) {
     camera.left = -vw / 2;
@@ -41,7 +41,7 @@ export class ThreeJsService {
     };
 
     // ── VIDEO mode (webcam page) ──────────────────────────────────────────
-    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement, frameGroupId: string) {
+    async initalizeThreeJs(video: HTMLVideoElement, canvas: HTMLCanvasElement, frameGroupId: string, isTryOn = true) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
@@ -64,14 +64,16 @@ export class ThreeJsService {
         const lights = await this.createLights();
         lights.forEach(l => scene.add(l));
 
-        this.faceObj = await this.createDynamicFaceMesh();
-        this.faceObj.visible = false;
-        scene.add(this.faceObj);
+        if (isTryOn) {
+            this.faceObj = await this.createDynamicFaceMesh();
+            this.faceObj.visible = false;
+            scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel(frameGroupId);
-        this.normalizeModel(this.glassesObj);
-        this.glassesObj.visible = false;
-        scene.add(this.glassesObj);
+            this.glassesObj = await this.loadGlassesModel(frameGroupId);
+            this.normalizeModel(this.glassesObj);
+            this.glassesObj.visible = false;
+            scene.add(this.glassesObj);
+        }
 
         window.addEventListener('resize', () => handleResize(camera, renderer, vw, vh), false);
 
@@ -79,7 +81,7 @@ export class ThreeJsService {
     }
 
     // ── IMAGE mode (photo upload page) ───────────────────────────────────
-    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string) {
+    async initializeWithImage(img: HTMLImageElement, canvas: HTMLCanvasElement, frameGroupId: string, isTryOn = true) {
         const vw = img.naturalWidth;
         const vh = img.naturalHeight;
 
@@ -114,14 +116,16 @@ export class ThreeJsService {
         const lights = await this.createLights();
         lights.forEach(l => scene.add(l));
 
-        this.faceObj = await this.createDynamicFaceMesh();
-        this.faceObj.visible = false;
-        scene.add(this.faceObj);
+        if (isTryOn) {
+            this.faceObj = await this.createDynamicFaceMesh();
+            this.faceObj.visible = false;
+            scene.add(this.faceObj);
 
-        this.glassesObj = await this.loadGlassesModel(frameGroupId);
-        this.normalizeModel(this.glassesObj);
-        this.glassesObj.visible = false;
-        scene.add(this.glassesObj);
+            this.glassesObj = await this.loadGlassesModel(frameGroupId);
+            this.normalizeModel(this.glassesObj);
+            this.glassesObj.visible = false;
+            scene.add(this.glassesObj);
+        }
 
         renderer.render(scene, camera);
     }
@@ -145,8 +149,8 @@ export class ThreeJsService {
 
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
-        renderer.setSize(w, h, false); // false = không override CSS
-        renderer.setClearColor(0xffffff);
+        renderer.setSize(w, h, false);
+        renderer.setClearColor(0x7A7A73);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -421,7 +425,7 @@ export class ThreeJsService {
             objectURL,
             (texture) => {
                 texture.colorSpace = THREE.SRGBColorSpace;
-                texture.flipY = false; // GLTF cần flipY = false
+                texture.flipY = false;
 
                 model.traverse((child) => {
                     if (child instanceof THREE.Mesh) {

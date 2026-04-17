@@ -25,6 +25,8 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ProductAPI from '@/api/product-api';
 import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
+import { toast } from 'react-toastify';
+import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,17 +49,16 @@ export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
     size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
-    frameWidthMm: string;
-    lensWidthMm: string;
-    lensHeightMm: string;
-    bridgeWidthMm: string;
-    templeLengthMm: string;
-    stock: string;
-    stockThreshold: string;
-    warrantyMonths: string;
-    costPrice: string;
-    basePrice: string;
-    compareAtPrice: string;
+    frameWidthMm: number;
+    lensWidthMm: number;
+    lensHeightMm: number;
+    bridgeWidthMm: number;
+    templeLengthMm: number;
+    stock: number;
+    stockThreshold: number;
+    warrantyMonths: number;
+    costPrice: number;
+    basePrice: number;
     isReturnable: boolean;
     isFeatured: boolean;
     images: ProductImage[];
@@ -98,17 +99,16 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     colorName: '',
     colorHex: '#000000',
     size: '',
-    frameWidthMm: '',
-    lensWidthMm: '',
-    lensHeightMm: '',
-    bridgeWidthMm: '',
-    templeLengthMm: '',
-    stock: '',
-    stockThreshold: '',
-    warrantyMonths: '',
-    costPrice: '',
-    basePrice: '',
-    compareAtPrice: '',
+    frameWidthMm: 1,
+    lensWidthMm: 1,
+    lensHeightMm: 1,
+    bridgeWidthMm: 1,
+    templeLengthMm: 1,
+    stock: 0,
+    stockThreshold: 0,
+    warrantyMonths: 0,
+    costPrice: 0,
+    basePrice: 0,
     isFeatured: false,
     isReturnable: false,
     images: [],
@@ -128,12 +128,26 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
         const [errors, setErrors] = useState<Partial<Record<keyof CreateFrameVariantFormData, string>>>({});
         const [loading, setLoading] = useState(false);
+        const [colors, setColors] = useState<{ name: string; hex: string }[]>([]);
 
         // ── Local Three.js viewer ─────────────────────────────────────────────
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const containerRef = useRef<HTMLDivElement>(null);
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
+
+        useEffect(() => {
+            const fetchColors = async () => {
+                try {
+                    const response = await ProductAPI.getColors();
+                    console.log(response)
+                    setColors(response);
+                } catch (error) {
+                    toast.error("Cannot load color!")
+                }
+            };
+            fetchColors();
+        }, []);
 
         useEffect(() => {
             if (!modelFile?.file) return;
@@ -157,11 +171,9 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
                 if (formData.textureFile?.file) {
-                    setTimeout(() => {
-                        if (service.viewerModel) {
-                            service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
-                        }
-                    }, 1500);
+                    if (service.viewerModel) {
+                        service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
+                    }
                 }
             };
 
@@ -212,6 +224,11 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
         };
 
         // ── Validate ──────────────────────────────────────────────────────────
+        const validateDimension = (value: number, label: string) => {
+            if (!value || value <= 0) return `${label} must be greater than 0`;
+            if (value > 500) return `${label} must not exceed 500`;
+            return "";
+        };
 
         const validate = (): boolean => {
             const e: Partial<Record<keyof CreateFrameVariantFormData, string>> = {};
@@ -226,6 +243,19 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 e.stock = 'Stock must be greater than 0';
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
+
+            const dimensionFields: (keyof CreateFrameVariantFormData)[] = [
+                "frameWidthMm",
+                "lensWidthMm",
+                "lensHeightMm",
+                "bridgeWidthMm",
+                "templeLengthMm",
+            ];
+
+            dimensionFields.forEach((field) => {
+                const error = validateDimension(formData[field] as number, field);
+                if (error) e[field] = error;
+            });
 
             setErrors(e);
             return Object.keys(e).length === 0;
@@ -247,19 +277,18 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 payload.append('colorHex', formData.colorHex);
                 payload.append('size', formData.size);
 
-                if (formData.frameWidthMm) payload.append('frameWidthMm', formData.frameWidthMm);
-                if (formData.lensWidthMm) payload.append('lensWidthMm', formData.lensWidthMm);
-                if (formData.lensHeightMm) payload.append('lensHeightMm', formData.lensHeightMm);
-                if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', formData.bridgeWidthMm);
-                if (formData.templeLengthMm) payload.append('templeLengthMm', formData.templeLengthMm);
+                if (formData.frameWidthMm) payload.append('frameWidthMm', String(formData.frameWidthMm));
+                if (formData.lensWidthMm) payload.append('lensWidthMm', String(formData.lensWidthMm));
+                if (formData.lensHeightMm) payload.append('lensHeightMm', String(formData.lensHeightMm));
+                if (formData.bridgeWidthMm) payload.append('bridgeWidthMm', String(formData.bridgeWidthMm));
+                if (formData.templeLengthMm) payload.append('templeLengthMm', String(formData.templeLengthMm));
 
-                if (formData.stock) payload.append('stock', formData.stock);
-                if (formData.stockThreshold) payload.append('stockThreshold', formData.stockThreshold);
-                if (formData.warrantyMonths) payload.append('warrantyMonths', formData.warrantyMonths);
+                if (formData.stock) payload.append('stock', String(formData.stock));
+                if (formData.stockThreshold) payload.append('stockThreshold', String(formData.stockThreshold));
+                if (formData.warrantyMonths) payload.append('warrantyMonths', String(formData.warrantyMonths));
 
-                if (formData.costPrice) payload.append('costPrice', formData.costPrice);
-                if (formData.basePrice) payload.append('basePrice', formData.basePrice);
-                if (formData.compareAtPrice) payload.append('compareAtPrice', formData.compareAtPrice);
+                if (formData.costPrice) payload.append('costPrice', String(formData.costPrice));
+                if (formData.basePrice) payload.append('basePrice', String(formData.basePrice));
 
                 payload.append('isReturnable', String(formData.isReturnable));
                 payload.append('isFeatured', String(formData.isFeatured));
@@ -274,7 +303,15 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, response.productId, formData);
-            } finally {
+                toast.success("Save frame variant success!");
+            }
+            catch (error: any) {
+                error?.errors.map((err: any) => {
+                    toast.error(err);
+                })
+                throw new Error("Cannot save frame variant!")
+            }
+            finally {
                 setLoading(false);
             }
         };
@@ -369,15 +406,43 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
+                            select
                             fullWidth
                             required
                             label="Color Name"
-                            placeholder="Black / Silver"
                             value={formData.colorName}
-                            onChange={e => setField('colorName', e.target.value)}
+                            onChange={(e) => {
+                                const selectedName = e.target.value;
+                                const selectedColor = colors.find(c => c.name === selectedName);
+
+                                setField("colorName", selectedName);
+
+                                // auto set hex khi chọn
+                                if (selectedColor) {
+                                    setField("colorHex", selectedColor.hex);
+                                }
+                            }}
                             error={!!errors.colorName}
                             helperText={errors.colorName}
-                        />
+                        >
+                            {colors?.map((color) => (
+                                <MenuItem key={color.name} value={color.name}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        {/* preview màu */}
+                                        <Box
+                                            sx={{
+                                                width: 14,
+                                                height: 14,
+                                                borderRadius: "50%",
+                                                backgroundColor: color.hex,
+                                                border: "1px solid #ccc"
+                                            }}
+                                        />
+                                        {color.name}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </TextField>
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -388,26 +453,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             onChange={e => setField('colorHex', e.target.value)}
                             placeholder="#000000"
                             InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <input
-                                            type="color"
-                                            value={formData.colorHex}
+                                endAdornment:
+                                    (<InputAdornment position="end">
+                                        <input type="color" value={formData.colorHex}
                                             onChange={e => setField('colorHex', e.target.value)}
-                                            style={{
-                                                width: 28,
-                                                height: 28,
-                                                border: 'none',
-                                                borderRadius: 100,
-                                                padding: 0,
-                                                cursor: 'pointer',
-                                                background: 'none',
-                                            }}
-                                        />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
+                                            style={{ width: 28, height: 28, border: 'none', borderRadius: 100, padding: 0, cursor: 'pointer', background: 'none', }} />
+                                    </InputAdornment>),
+                            }} />
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }}>
@@ -430,7 +482,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         </FormControl>
                     </Grid>
 
-                     <Grid size={{ xs: 12, md: 4 }}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <FormControlLabel
                             control={
                                 <Switch
@@ -463,11 +515,23 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         <Grid key={field} size={{ xs: 12, md: 4 }}>
                             <TextField
                                 fullWidth
-                                label={label}
+                                label={label + " *"}
                                 type="number"
-                                value={formData[field] as string}
-                                onChange={e => setField(field, e.target.value)}
-                                inputProps={{ min: 0 }}
+                                value={formData[field] || ""}
+                                onChange={e => {
+                                    const value = e.target.value;
+
+                                    if (value === "") {
+                                        setField(field, 0);
+                                        return;
+                                    }
+
+                                    const num = Number(value);
+
+                                    if (num <= 0 || num > 500) return;
+
+                                    setField(field, num);
+                                }}
                             />
                         </Grid>
                     ))}
@@ -489,7 +553,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="0"
                             value={formData.stock}
-                            onChange={e => setField('stock', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('stock', raw);
+                            }}
                             error={!!errors.stock}
                             helperText={errors.stock}
                             inputProps={{ min: 0 }}
@@ -502,7 +569,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="10"
                             value={formData.stockThreshold}
-                            onChange={e => setField('stockThreshold', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('stockThreshold', raw);
+                            }}
                             helperText="Alert when stock falls below this value"
                             inputProps={{ min: 0 }}
                         />
@@ -514,7 +584,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             type="number"
                             placeholder="12"
                             value={formData.warrantyMonths}
-                            onChange={e => setField('warrantyMonths', e.target.value)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('warrantyMonths', raw);
+                            }}
                             inputProps={{ min: 0 }}
                         />
                     </Grid>
@@ -523,10 +596,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         <TextField
                             fullWidth
                             label="Cost Price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.costPrice}
-                            onChange={e => setField('costPrice', e.target.value)}
+                            type="text"
+                            placeholder="0.000"
+                            value={formatNumber(formData.costPrice)}
+                            onChange={e => {
+                                const raw = parseNumber(e.target.value);
+                                setField('costPrice', raw);
+                            }}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
@@ -536,33 +612,17 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                     <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                             fullWidth
-                            required
                             label="Base Price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.basePrice}
-                            onChange={e => setField('basePrice', e.target.value)}
-                            error={!!errors.basePrice}
-                            helperText={errors.basePrice}
+                            type="text"
+                            placeholder="0.000"
+                            value={formatNumber(formData.basePrice)}
+                            onChange={(e) => {
+                                const raw = parseNumber(e.target.value);
+                                setField('basePrice', raw);
+                            }}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
-                            inputProps={{ min: 0 }}
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            fullWidth
-                            label="Compare At Price"
-                            type="number"
-                            placeholder="0.00"
-                            value={formData.compareAtPrice}
-                            onChange={e => setField('compareAtPrice', e.target.value)}
-                            helperText="Original price shown as strikethrough"
-                            InputProps={{
-                                startAdornment: <InputAdornment position="start">₫</InputAdornment>,
-                            }}
-                            inputProps={{ min: 0 }}
                         />
                     </Grid>
 

@@ -34,10 +34,11 @@ export interface WarrantyClaimResponse {
     productImageUrl?: string;
     shopId: string;
     shopName: string;
-    // Customer info (populated for shop-owner views)
+    // Customer info
     customerName?: string;
     customerEmail?: string;
     customerAvatarUrl?: string;
+    customerPhone?: string;
     // Order info
     purchasedAt?: string;
     warrantyExpiresAt?: string;
@@ -47,23 +48,36 @@ export interface WarrantyClaimResponse {
     issueImages: string[];
     // Customer logistics address
     customerAddress?: string;
-    // Resolution
+    // Resolution & fault
     resolutionType?: string;
+    faultType?: string;
+    inspectionNote?: string;
     repairCost?: number;
     customerPays?: number;
     returnTrackingNumber?: string;
-    returnDeliveredAt?: string;
     replacementTrackingNumber?: string;
-    replacementDeliveredAt?: string;
     // Shipping fee breakdown
     customerShippingFeeToShop?: number;
     platformSubsidyToShop?: number;
     customerShippingFeeToCustomer?: number;
     platformSubsidyToCustomer?: number;
+    // Escrow
+    escrowAmount?: number;
+    escrowHeldAt?: string;
+    escrowReleasedAt?: string;
+    // Payment
+    paymentStatus?: string;
+    paymentMethod?: string;
+    paidAt?: string;
+    // Actual delivery times (set by GHN webhook)
+    deliveredToShopAt?: string;
+    deliveredToCustomerAt?: string;
     // Status & dates
     status: string;
     submittedAt: string;
     approvedAt?: string;
+    itemReceivedAt?: string;
+    quotedAt?: string;
     rejectedAt?: string;
     rejectionReason?: string;
     completedAt?: string;
@@ -95,11 +109,37 @@ export interface ReturnRequestResponse {
     completedAt?: string;
 }
 
+export interface WarrantyServicePriceResponse {
+    id: string;
+    serviceName: string;
+    price: number;
+    description?: string;
+    isActive: boolean;
+}
+
+export interface UpdateWarrantyServicePriceRequest {
+    serviceName: string;
+    price: number;
+    description?: string;
+    isActive?: boolean;
+}
+
 // ==================== API ====================
 export const warrantyApi = {
     submitClaim: async (request: CreateWarrantyClaimRequest): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.post<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.WARRANTY.CLAIMS, request
+        );
+        return response.data;
+    },
+
+    uploadWarrantyImages: async (files: File[]): Promise<ApiResponse<string[]>> => {
+        const formData = new FormData();
+        files.forEach(file => formData.append('files', file));
+        const response = await axiosInstance.post<ApiResponse<string[]>>(
+            `${API_ENDPOINTS.WARRANTY.CLAIMS}/upload-images`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
         );
         return response.data;
     },
@@ -117,6 +157,41 @@ export const warrantyApi = {
     getClaimDetail: async (id: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.get<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.WARRANTY.CLAIM_BY_ID(id)
+        );
+        return response.data;
+    },
+
+    payClaimVnpay: async (claimId: string): Promise<ApiResponse<string>> => {
+        const response = await axiosInstance.post<ApiResponse<string>>(
+            API_ENDPOINTS.WARRANTY.PAY_VNPAY(claimId)
+        );
+        return response.data;
+    },
+
+    payClaimWallet: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.PAY_WALLET(claimId)
+        );
+        return response.data;
+    },
+
+    rejectQuote: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.REJECT_QUOTE(claimId)
+        );
+        return response.data;
+    },
+
+    markCustomerReceived: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.WARRANTY.RECEIVE(claimId)
+        );
+        return response.data;
+    },
+
+    getWarrantyGhnStatus: async (claimId: string): Promise<ApiResponse<any>> => {
+        const response = await axiosInstance.get<ApiResponse<any>>(
+            API_ENDPOINTS.WARRANTY.GHN_STATUS(claimId)
         );
         return response.data;
     },
@@ -163,10 +238,17 @@ export const warrantyApi = {
         return response.data;
     },
 
-    approveShopClaim: async (claimId: string, resolutionType: string, repairCost?: number): Promise<ApiResponse<WarrantyClaimResponse>> => {
+    getShopClaimDetail: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.CLAIM_BY_ID(claimId)
+        );
+        return response.data;
+    },
+
+    approveShopClaim: async (claimId: string, resolutionType: string, faultType?: string, repairCost?: number): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.SHOP_WARRANTY.APPROVE(claimId),
-            { resolutionType, ...(repairCost != null ? { repairCost } : {}) }
+            { resolutionType, faultType, repairCost }
         );
         return response.data;
     },
@@ -178,23 +260,17 @@ export const warrantyApi = {
         return response.data;
     },
 
-    payClaimVnpay: async (claimId: string): Promise<ApiResponse<string>> => {
-        const response = await axiosInstance.post<ApiResponse<string>>(
-            API_ENDPOINTS.WARRANTY.PAY_VNPAY(claimId)
-        );
-        return response.data;
-    },
-
-    payClaimWallet: async (claimId: string): Promise<ApiResponse<string>> => {
-        const response = await axiosInstance.post<ApiResponse<string>>(
-            API_ENDPOINTS.WARRANTY.PAY_WALLET(claimId)
-        );
-        return response.data;
-    },
-
     markItemReceived: async (claimId: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
         const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
             API_ENDPOINTS.SHOP_WARRANTY.RECEIVE(claimId)
+        );
+        return response.data;
+    },
+
+    quoteShopClaim: async (claimId: string, resolutionType: string, faultType: string, repairCost: number, inspectionNote?: string): Promise<ApiResponse<WarrantyClaimResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyClaimResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.QUOTE(claimId),
+            { resolutionType, faultType, repairCost, inspectionNote }
         );
         return response.data;
     },
@@ -205,4 +281,95 @@ export const warrantyApi = {
         );
         return response.data;
     },
+
+    // --- Warranty Service Prices ---
+    getShopServicePrices: async (shopId: string): Promise<ApiResponse<WarrantyServicePriceResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyServicePriceResponse[]>>(
+            API_ENDPOINTS.WARRANTY_PUBLIC.SERVICE_PRICES_BY_SHOP(shopId)
+        );
+        return response.data;
+    },
+
+    getMyServicePrices: async (): Promise<ApiResponse<WarrantyServicePriceResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyServicePriceResponse[]>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICES
+        );
+        return response.data;
+    },
+
+    createServicePrice: async (request: UpdateWarrantyServicePriceRequest): Promise<ApiResponse<WarrantyServicePriceResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<WarrantyServicePriceResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICES, request
+        );
+        return response.data;
+    },
+
+    updateServicePrice: async (id: string, request: UpdateWarrantyServicePriceRequest): Promise<ApiResponse<WarrantyServicePriceResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyServicePriceResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICE_BY_ID(id), request
+        );
+        return response.data;
+    },
+
+    deleteServicePrice: async (id: string): Promise<ApiResponse<void>> => {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICE_BY_ID(id)
+        );
+        return response.data;
+    },
+
+    // --- Warranty Policies ---
+    getShopPolicies: async (shopId: string): Promise<ApiResponse<WarrantyPolicyResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyPolicyResponse[]>>(
+            API_ENDPOINTS.WARRANTY_PUBLIC.POLICIES_BY_SHOP(shopId)
+        );
+        return response.data;
+    },
+
+    getMyPolicies: async (): Promise<ApiResponse<WarrantyPolicyResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyPolicyResponse[]>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICIES
+        );
+        return response.data;
+    },
+
+    createPolicy: async (request: UpdateWarrantyPolicyRequest): Promise<ApiResponse<WarrantyPolicyResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<WarrantyPolicyResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICIES, request
+        );
+        return response.data;
+    },
+
+    updatePolicy: async (id: string, request: UpdateWarrantyPolicyRequest): Promise<ApiResponse<WarrantyPolicyResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyPolicyResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICY_BY_ID(id), request
+        );
+        return response.data;
+    },
+
+    deletePolicy: async (id: string): Promise<ApiResponse<void>> => {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            API_ENDPOINTS.SHOP_WARRANTY.POLICY_BY_ID(id)
+        );
+        return response.data;
+    },
 };
+
+export interface WarrantyPolicyResponse {
+    id: string;
+    name: string;
+    durationMonths: number;
+    coverageDescription?: string;
+    excludedIssues: string[];
+    isDefault: boolean;
+    isActive: boolean;
+}
+
+export interface UpdateWarrantyPolicyRequest {
+    name: string;
+    durationMonths: number;
+    coverageDescription?: string;
+    excludedIssues: string[];
+    isDefault?: boolean;
+    isActive?: boolean;
+}

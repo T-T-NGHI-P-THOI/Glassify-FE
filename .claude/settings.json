@@ -4,7 +4,16 @@
       "Bash(ls -la /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/repository/*.java)",
       "Bash(ls -la /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/controller/*.java)",
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java -name *Return* -o -name *Refund*)",
-      "Bash(grep -i \"\\\\.java$\")"
+      "Bash(grep -i \"\\\\.java$\")",
+      "Bash(xargs cat:*)",
+      "Bash(npx --yes tsc --noEmit)"
+    ],
+    "additionalDirectories": [
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/dto/order/response",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/analytics",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/repository",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/service/impl"
     ]
   }
 }

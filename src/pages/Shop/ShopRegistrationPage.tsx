@@ -46,7 +46,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
+import type { ShopRegisterRequest, ShopRegisterResponse, GhnProvince, GhnDistrict, GhnWard } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
@@ -132,6 +132,7 @@ const ShopRegistrationPage = () => {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [registerResponse, setRegisterResponse] = useState<ShopRegisterResponse | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [uploadingLicense, setUploadingLicense] = useState(false);
@@ -148,10 +149,11 @@ const ShopRegistrationPage = () => {
 
   useLayoutConfig({ showNavbar: false, showFooter: true });
 
-  // Redirect if user already has a shop
+  // Redirect if user already has an active shop (skip if CLOSED or registration EXPIRED)
   useEffect(() => {
     shopApi.getMyShops().then((res) => {
-      if (res.data && res.data.length > 0) {
+      const shop = res.data?.[0];
+      if (shop && shop.status !== 'CLOSED' && shop.latestRequestStatus !== 'EXPIRED') {
         navigate(PAGE_ENDPOINTS.SHOP.PROFILE, { replace: true });
       }
     }).catch(() => {});
@@ -413,7 +415,8 @@ const ShopRegistrationPage = () => {
         },
       };
 
-      await shopApi.register(requestData);
+      const result = await shopApi.register(requestData);
+      setRegisterResponse(result.data ?? null);
       // Refresh user profile so the SHOP_OWNER role is reflected in FE context
       try {
         const profileRes = await userApi.getMyProfile();
@@ -427,10 +430,15 @@ const ShopRegistrationPage = () => {
     } catch (err: any) {
       const rawErrors = err?.originalError?.response?.data?.errors;
       const beError = Array.isArray(rawErrors) ? rawErrors[0] : rawErrors?.[Object.keys(rawErrors ?? {})[0]]?.[0];
-      const message = beError || err?.message || 'Registration failed. Please try again.';
-      if (message.toLowerCase().includes('email')) {
+      const message = beError || err?.originalError?.response?.data?.message || err?.message || 'Registration failed. Please try again.';
+      const lowerMsg = message.toLowerCase();
+      if (lowerMsg.includes('email')) {
         setActiveStep(0);
         setErrors({ email: message });
+      } else if (lowerMsg.includes('pending') || lowerMsg.includes('already submitted') || lowerMsg.includes('pending request')) {
+        setSubmitError('You already have a pending registration request under review. Please wait for admin approval or check your shop profile.');
+      } else if (lowerMsg.includes('already owns') || lowerMsg.includes('already has a shop') || lowerMsg.includes('shop owner')) {
+        navigate(PAGE_ENDPOINTS.SHOP.PROFILE, { replace: true });
       } else {
         setSubmitError(message);
       }
@@ -441,7 +449,7 @@ const ShopRegistrationPage = () => {
 
   const handleSuccessDialogClose = () => {
     setSuccessDialogOpen(false);
-    navigate(PAGE_ENDPOINTS.HOME);
+    navigate(PAGE_ENDPOINTS.SHOP.PROFILE);
   };
 
   const renderShopInfoForm = () => (
@@ -1086,6 +1094,22 @@ const ShopRegistrationPage = () => {
               Shop Details
             </Typography>
 
+            {formData.logoUrl && (
+              <Box sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar
+                  variant="rounded"
+                  src={formData.logoUrl}
+                  sx={{ width: 64, height: 64, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
+                >
+                  <Store sx={{ color: theme.palette.custom.neutral[400] }} />
+                </Avatar>
+                <Box>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Shop Logo</Typography>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>Uploaded</Typography>
+                </Box>
+              </Box>
+            )}
+
             <Box sx={{ mb: 2 }}>
               <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>Shop Name</Typography>
               <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
@@ -1243,17 +1267,27 @@ const ShopRegistrationPage = () => {
                 </Typography>
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>License Image URL</Typography>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: formData.licenseImageUrl ? theme.palette.primary.main : theme.palette.custom.neutral[800],
-                    wordBreak: 'break-all',
-                  }}
-                >
-                  {formData.licenseImageUrl || '-'}
-                </Typography>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 1 }}>License Document</Typography>
+                {formData.licenseImageUrl ? (
+                  <Box
+                    component="img"
+                    src={formData.licenseImageUrl}
+                    alt="License document"
+                    onClick={() => window.open(formData.licenseImageUrl, '_blank')}
+                    sx={{
+                      width: '100%',
+                      maxHeight: 280,
+                      objectFit: 'contain',
+                      borderRadius: 1.5,
+                      border: `1px solid ${theme.palette.custom.border.light}`,
+                      bgcolor: theme.palette.custom.neutral[50],
+                      cursor: 'pointer',
+                      display: 'block',
+                    }}
+                  />
+                ) : (
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>-</Typography>
+                )}
               </Grid>
             </Grid>
           </Paper>
@@ -1544,7 +1578,6 @@ const ShopRegistrationPage = () => {
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={!policyAgreed}
                 sx={{ px: 4 }}
               >
                 Continue
@@ -1716,20 +1749,89 @@ const ShopRegistrationPage = () => {
               sx={{
                 fontSize: 15,
                 color: theme.palette.custom.neutral[600],
-                mb: 1,
-              }}
-            >
-              Thank you for registering your shop on Glassify.
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: 15,
-                color: theme.palette.custom.neutral[600],
                 mb: 3,
               }}
             >
-              Our team will review your registration and you will receive a notification within the next few days regarding the status of your application.
+              Our team will review your application and notify you within a few business days.
             </Typography>
+
+            {registerResponse && (
+              <Box
+                sx={{
+                  p: 2.5,
+                  mb: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.custom.border.light}`,
+                  bgcolor: theme.palette.custom.neutral[50],
+                  textAlign: 'left',
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: theme.palette.custom.neutral[500],
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    mb: 1.5,
+                  }}
+                >
+                  Registration Details
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Shop Code</Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                      {registerResponse.shopCode}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Request ID</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: theme.palette.custom.neutral[600],
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {registerResponse.requestId}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Status</Typography>
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 0.25,
+                        borderRadius: 1,
+                        bgcolor: theme.palette.custom.status.warning.light,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: theme.palette.custom.status.warning.main,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {registerResponse.status}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  {registerResponse.submittedAt && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Submitted At</Typography>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                        {new Date(registerResponse.submittedAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+
             <Box
               sx={{
                 p: 2,
@@ -1738,15 +1840,18 @@ const ShopRegistrationPage = () => {
               }}
             >
               <Typography sx={{ fontSize: 14, color: theme.palette.custom.status.info.main }}>
-                Please check your email <strong>{formData.email || 'inbox'}</strong> for updates on your registration status.
+                A confirmation email has been sent to <strong>{formData.email || 'your inbox'}</strong>. Please check it for updates on your registration status.
               </Typography>
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2, pt: 0, justifyContent: 'center' }}>
+          <DialogActions sx={{ p: 2, pt: 0, justifyContent: 'center', gap: 1 }}>
             <Button
-              variant="contained"
-              onClick={handleSuccessDialogClose}
-              sx={{ px: 5, py: 1.2 }}
+              variant="outlined"
+              onClick={() => {
+                setSuccessDialogOpen(false);
+                navigate(PAGE_ENDPOINTS.HOME);
+              }}
+              sx={{ px: 4, py: 1.2 }}
             >
               Back to Homepage
             </Button>

@@ -26,6 +26,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { RefundReviewDecision, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus } from '@/models/Refund';
 
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested',
@@ -51,6 +52,31 @@ const STATUS_OPTIONS = [
 const RETURN_TYPE_LABEL: Record<string, string> = {
   REFUND: 'Refund',
   EXCHANGE: 'Exchange',
+};
+
+const ADMIN_DECISION_LABELS: Record<RefundReviewDecision, string> = {
+  [RefundReviewDecision.REFUND_WITHOUT_RETURN]: 'Refund Without Return',
+  [RefundReviewDecision.RETURN_AND_REFUND]: 'Return and Refund',
+  [RefundReviewDecision.REJECT]: 'Rejected',
+};
+
+const getResolvedDecision = (refund: AdminRefundResponse): RefundReviewDecision | null => {
+  const direct = refund.adminDecision;
+  if (direct) return direct;
+  if (refund.status === 'REJECTED') return RefundReviewDecision.REJECT;
+  return null;
+};
+
+const getDecisionColor = (decision: RefundReviewDecision): 'info' | 'error' | 'default' => {
+  switch (decision) {
+    case RefundReviewDecision.REFUND_WITHOUT_RETURN:
+    case RefundReviewDecision.RETURN_AND_REFUND:
+      return 'info';
+    case RefundReviewDecision.REJECT:
+      return 'error';
+    default:
+      return 'default';
+  }
 };
 
 const getStatusColor = (status: string): 'warning' | 'info' | 'success' | 'error' | 'default' => {
@@ -154,7 +180,7 @@ const AdminRefundsPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: theme.palette.custom.neutral[50] }}>
-                      {['Request', 'Product', 'Shop', 'Customer', 'Amount', 'Type', 'Status', 'Requested At', ''].map((h) => (
+                      {['Request', 'Product', 'Shop', 'Customer', 'Amount', 'Type', 'Status', 'Admin Action', 'Appeal', 'Requested At', ''].map((h) => (
                         <TableCell key={h} sx={{ fontWeight: 600, fontSize: 12, color: theme.palette.custom.neutral[500] }}>
                           {h}
                         </TableCell>
@@ -162,7 +188,9 @@ const AdminRefundsPage = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {refunds.map((r) => (
+                    {refunds.map((r) => {
+                      const decision = getResolvedDecision(r);
+                      return (
                       <TableRow
                         key={r.id}
                         hover
@@ -201,6 +229,36 @@ const AdminRefundsPage = () => {
                           />
                         </TableCell>
                         <TableCell>
+                          {decision ? (
+                            <Chip
+                              size="small"
+                              label={ADMIN_DECISION_LABELS[decision]}
+                              color={getDecisionColor(decision)}
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                              Pending Review
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={SHOP_APPEAL_STATUS_LABELS[r.shopAppealStatus ?? ShopAppealStatus.NONE]}
+                            color={
+                              r.shopAppealStatus === ShopAppealStatus.SUBMITTED
+                                ? 'warning'
+                                : r.shopAppealStatus === ShopAppealStatus.APPROVED
+                                  ? 'success'
+                                  : r.shopAppealStatus === ShopAppealStatus.REJECTED || r.shopAppealStatus === ShopAppealStatus.EXPIRED
+                                    ? 'error'
+                                    : 'default'
+                            }
+                            variant={r.shopAppealStatus ? 'filled' : 'outlined'}
+                          />
+                        </TableCell>
+                        <TableCell>
                           <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>
                             {formatDate(r.requestedAt)}
                           </Typography>
@@ -214,7 +272,8 @@ const AdminRefundsPage = () => {
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>

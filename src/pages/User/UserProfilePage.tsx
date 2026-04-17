@@ -1,8 +1,3 @@
-// ============================================
-// USER PROFILE PAGE - Trang hiển thị và chỉnh sửa thông tin User
-// Design đồng bộ với ShopProfilePage
-// ============================================
-
 import { useState, useRef, useEffect } from 'react';
 import {
     Box,
@@ -28,6 +23,10 @@ import {
     Tooltip,
     Badge,
     Skeleton,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -55,6 +54,8 @@ import {
     Delete,
     Phone,
     LocationOn,
+    Add as AddIcon,
+    HomeOutlined,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -68,6 +69,10 @@ import userApi from "@/api/service/userApi.ts";
 import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { AutoAwesome } from '@mui/icons-material';
+import { RecommendationsTabContent } from './RecommendationTab';
+import type { UserRecommendationResponse } from '@/models/Recommendation';
+import { userAddressApi, type UserAddressResponse, type UserAddressRequest } from '@/api/user-address-api';
 
 // ==================== COMPONENT ====================
 
@@ -104,6 +109,45 @@ const UserProfilePage = () => {
         message: '',
         severity: 'success' as 'success' | 'error' | 'info' | 'warning',
     });
+
+    // ========== ADDRESS STATES ==========
+    const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
+    const [loadingAddresses, setLoadingAddresses] = useState(false);
+    const [addressDialog, setAddressDialog] = useState<{ open: boolean; mode: 'create' | 'edit'; data: UserAddressResponse | null }>({
+        open: false, mode: 'create', data: null,
+    });
+    const [addressForm, setAddressForm] = useState<UserAddressRequest>({
+        label: '', recipientName: '', recipientPhone: '',
+        addressLine1: '', addressLine2: '', ward: '', district: '', city: '',
+        postalCode: '', isDefault: false,
+        ghnProvinceId: 0, ghnDistrictId: 0, ghnWardCode: '',
+    });
+    const [savingAddress, setSavingAddress] = useState(false);
+    const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
+    const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+
+    // ========== RECOMMENDATIONS ==========
+    const [recommendations, setRecommendations] = useState<UserRecommendationResponse[]>([]);
+    const [loadingRecs, setLoadingRecs] = useState(false);
+
+    const fetchRecommendations = async () => {
+        setLoadingRecs(true);
+        try {
+            const res = await userApi.getMyRecommendations();
+            setRecommendations(res.data ?? []);
+        } catch { setRecommendations([]); }
+        finally { setLoadingRecs(false); }
+    };
+
+    // ========== FETCH ADDRESSES ==========
+    const fetchAddresses = async () => {
+        setLoadingAddresses(true);
+        try {
+            const res = await userAddressApi.getAll();
+            setAddresses(res.data ?? []);
+        } catch { setAddresses([]); }
+        finally { setLoadingAddresses(false); }
+    };
 
     // ========== FETCH USER PROFILE ==========
     const fetchUserProfile = async () => {
@@ -265,14 +309,30 @@ const UserProfilePage = () => {
         return false;
     };
 
+    // ========== HANDLE RECOMMENDATION ==========
+
+    const handleDeleteRecommendation = async (id: string) => {
+        await userApi.deleteRecommendation(id);
+        setRecommendations(prev => prev.filter(r => r.id !== id));
+        setSnackbar({ open: true, message: 'Recommendation deleted', severity: 'success' });
+    };
+
+    const handleUpdateRecommendationName = async (id: string, name: string) => {
+        await userApi.updateRecommendationName(id, name);
+        setRecommendations(prev => prev.map(r => r.id === id ? { ...r, name } : r));
+        setSnackbar({ open: true, message: 'Name updated', severity: 'success' });
+    };
+
     // ========== EFFECTS ==========
     // Disable navbar and footer
-    useLayoutConfig({showNavbar: false, showFooter: false});
+    useLayoutConfig({ showNavbar: false, showFooter: false });
 
     // Fetch data on mount
     useEffect(() => {
         fetchUserProfile();
         fetchUserStats();
+        fetchRecommendations();
+        fetchAddresses();
         shopApi.getMyShops().then((res) => {
             const shops = res.data;
             setShopDetail(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
@@ -432,6 +492,60 @@ const UserProfilePage = () => {
         }
     };
 
+
+    // ========== ADDRESS HANDLERS ==========
+    const openCreateAddress = () => {
+        setAddressForm({ label: '', recipientName: '', recipientPhone: '', addressLine1: '', addressLine2: '', ward: '', district: '', city: '', postalCode: '', isDefault: false, ghnProvinceId: 0, ghnDistrictId: 0, ghnWardCode: '' });
+        setAddressDialog({ open: true, mode: 'create', data: null });
+    };
+
+    const openEditAddress = (addr: UserAddressResponse) => {
+        setAddressForm({ label: addr.label, recipientName: addr.recipientName, recipientPhone: addr.recipientPhone, addressLine1: addr.addressLine1, addressLine2: addr.addressLine2 ?? '', ward: addr.ward, district: addr.district, city: addr.city, postalCode: addr.postalCode ?? '', isDefault: addr.isDefault, ghnProvinceId: addr.ghnProvinceId, ghnDistrictId: addr.ghnDistrictId, ghnWardCode: addr.ghnWardCode });
+        setAddressDialog({ open: true, mode: 'edit', data: addr });
+    };
+
+    const handleSaveAddress = async () => {
+        if (!addressForm.recipientName.trim() || !addressForm.recipientPhone.trim() || !addressForm.addressLine1.trim() || !addressForm.city.trim()) {
+            setSnackbar({ open: true, message: 'Please fill in all required fields.', severity: 'error' });
+            return;
+        }
+        setSavingAddress(true);
+        try {
+            if (addressDialog.mode === 'create') {
+                await userAddressApi.create(addressForm);
+                setSnackbar({ open: true, message: 'Address added successfully.', severity: 'success' });
+            } else {
+                await userAddressApi.update(addressDialog.data!.id, addressForm);
+                setSnackbar({ open: true, message: 'Address updated successfully.', severity: 'success' });
+            }
+            await fetchAddresses();
+            setAddressDialog({ open: false, mode: 'create', data: null });
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to save address. Please try again.', severity: 'error' });
+        } finally { setSavingAddress(false); }
+    };
+
+    const handleDeleteAddress = async (id: string) => {
+        setDeletingAddressId(id);
+        try {
+            await userAddressApi.delete(id);
+            setSnackbar({ open: true, message: 'Address deleted.', severity: 'success' });
+            await fetchAddresses();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to delete address.', severity: 'error' });
+        } finally { setDeletingAddressId(null); }
+    };
+
+    const handleSetDefault = async (id: string) => {
+        setSettingDefaultId(id);
+        try {
+            await userAddressApi.setDefault(id);
+            setSnackbar({ open: true, message: 'Default address updated.', severity: 'success' });
+            await fetchAddresses();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to update default address.', severity: 'error' });
+        } finally { setSettingDefaultId(null); }
+    };
 
     const mockStats: UserStats = {
         totalOrders: 125,
@@ -876,6 +990,8 @@ const UserProfilePage = () => {
                             }}
                         >
                             <Tab icon={<Person sx={{ fontSize: 18 }} />} iconPosition="start" label="Personal Info" />
+                            <Tab icon={<HomeOutlined sx={{ fontSize: 18 }} />} iconPosition="start" label="Addresses" />
+                            <Tab icon={<AutoAwesome sx={{ fontSize: 18 }} />} iconPosition="start" label="Recommendation" />
                             <Tab icon={<Security sx={{ fontSize: 18 }} />} iconPosition="start" label="Security" />
                             <Tab icon={<Settings sx={{ fontSize: 18 }} />} iconPosition="start" label="Settings" />
                         </Tabs>
@@ -1097,8 +1213,85 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 1: Security ========== */}
+                    {/* ========== TAB 1: Addresses ========== */}
                     {activeTab === 1 && (
+                        <Box sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                                <Box>
+                                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                        Shipping Addresses
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+                                        Manage your delivery addresses
+                                    </Typography>
+                                </Box>
+                                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateAddress} size="small">
+                                    Add Address
+                                </Button>
+                            </Box>
+
+                            {loadingAddresses ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>
+                            ) : addresses.length === 0 ? (
+                                <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: 2, border: `1px dashed ${theme.palette.custom.border.main}` }}>
+                                    <LocationOn sx={{ fontSize: 52, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                                    <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>No addresses yet</Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 3 }}>Add a shipping address to make checkout faster</Typography>
+                                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateAddress}>Add Your First Address</Button>
+                                </Paper>
+                            ) : (
+                                <Grid container spacing={2}>
+                                    {addresses.map(addr => (
+                                        <Grid size={{ xs: 12, md: 6 }} key={addr.id}>
+                                            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1.5px solid ${addr.isDefault ? theme.palette.primary.main : theme.palette.custom.border.light}`, position: 'relative', transition: 'all 0.2s', '&:hover': { borderColor: theme.palette.primary.main, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' } }}>
+                                                {addr.isDefault && (
+                                                    <Chip label="Default" size="small" color="primary" sx={{ position: 'absolute', top: 12, right: 12, fontWeight: 600, fontSize: 11 }} />
+                                                )}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                                    <HomeOutlined sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
+                                                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: 0.5 }}>{addr.label}</Typography>
+                                                </Box>
+                                                <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 0.5 }}>{addr.recipientName}</Typography>
+                                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], mb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Phone sx={{ fontSize: 14 }} />{addr.recipientPhone}
+                                                </Typography>
+                                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                                                    <LocationOn sx={{ fontSize: 14, mt: 0.2, flexShrink: 0 }} />
+                                                    {[addr.addressLine1, addr.addressLine2, addr.ward, addr.district, addr.city].filter(Boolean).join(', ')}
+                                                </Typography>
+                                                <Divider sx={{ my: 1.5 }} />
+                                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                    {!addr.isDefault && (
+                                                        <Button size="small" variant="outlined" onClick={() => handleSetDefault(addr.id)} disabled={settingDefaultId === addr.id}
+                                                            startIcon={settingDefaultId === addr.id ? <CircularProgress size={12} /> : <CheckCircle sx={{ fontSize: 14 }} />}>
+                                                            Set Default
+                                                        </Button>
+                                                    )}
+                                                    <Button size="small" variant="outlined" onClick={() => openEditAddress(addr)} startIcon={<Edit sx={{ fontSize: 14 }} />}>Edit</Button>
+                                                    <Button size="small" variant="outlined" color="error" onClick={() => handleDeleteAddress(addr.id)} disabled={deletingAddressId === addr.id}
+                                                        startIcon={deletingAddressId === addr.id ? <CircularProgress size={12} color="error" /> : <Delete sx={{ fontSize: 14 }} />}>
+                                                        Delete
+                                                    </Button>
+                                                </Box>
+                                            </Paper>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            )}
+                        </Box>
+                    )}
+
+                    {activeTab === 2 && (
+                        <RecommendationsTabContent
+                            recommendations={recommendations}
+                            loading={loadingRecs}
+                            onDeleteRecommendation={handleDeleteRecommendation}
+                            onUpdateRecommendationName={handleUpdateRecommendationName}
+                        />
+                    )}
+
+                    {/* ========== TAB 3: Security ========== */}
+                    {activeTab === 3 && (
                         <Box sx={{ p: 3 }}>
                             <Grid container spacing={3}>
                                 <Grid size={{ xs: 12, md: 6 }}>
@@ -1302,8 +1495,8 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 2: Settings ========== */}
-                    {activeTab === 2 && (
+                    {/* ========== TAB 4: Settings ========== */}
+                    {activeTab === 4 && (
                         <Box sx={{ p: 4, textAlign: 'center' }}>
                             <Settings
                                 sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }}
@@ -1419,17 +1612,69 @@ const UserProfilePage = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* ==================== SNACKBAR ==================== */}
+            {/* ========== ADDRESS DIALOG ========== */}
+            <Dialog open={addressDialog.open} onClose={() => setAddressDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+                    {addressDialog.mode === 'create' ? 'Add New Address' : 'Edit Address'}
+                </DialogTitle>
+                <DialogContent dividers>
+                    <Grid container spacing={2} sx={{ pt: 1 }}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Label" placeholder="e.g. Home, Office" value={addressForm.label} onChange={e => setAddressForm(f => ({ ...f, label: e.target.value }))} fullWidth size="small" />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Recipient Name *" value={addressForm.recipientName} onChange={e => setAddressForm(f => ({ ...f, recipientName: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Phone Number *" value={addressForm.recipientPhone} onChange={e => setAddressForm(f => ({ ...f, recipientPhone: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField label="Address Line 1 *" placeholder="Street, house number..." value={addressForm.addressLine1} onChange={e => setAddressForm(f => ({ ...f, addressLine1: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField label="Address Line 2" placeholder="Apartment, suite, floor (optional)" value={addressForm.addressLine2} onChange={e => setAddressForm(f => ({ ...f, addressLine2: e.target.value }))} fullWidth size="small" />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField label="Ward *" value={addressForm.ward} onChange={e => setAddressForm(f => ({ ...f, ward: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField label="District *" value={addressForm.district} onChange={e => setAddressForm(f => ({ ...f, district: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField label="City / Province *" value={addressForm.city} onChange={e => setAddressForm(f => ({ ...f, city: e.target.value }))} fullWidth size="small" required />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Postal Code" value={addressForm.postalCode} onChange={e => setAddressForm(f => ({ ...f, postalCode: e.target.value }))} fullWidth size="small" />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <input type="checkbox" id="isDefault" checked={!!addressForm.isDefault} onChange={e => setAddressForm(f => ({ ...f, isDefault: e.target.checked }))} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                                <Typography component="label" htmlFor="isDefault" sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], cursor: 'pointer' }}>Set as default shipping address</Typography>
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                    <Button onClick={() => setAddressDialog(d => ({ ...d, open: false }))} color="inherit" disabled={savingAddress}>Cancel</Button>
+                    <Button variant="contained" onClick={handleSaveAddress} disabled={savingAddress}
+                        startIcon={savingAddress ? <CircularProgress size={16} color="inherit" /> : <Save />}>
+                        {addressDialog.mode === 'create' ? 'Add Address' : 'Save Changes'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ========== SNACKBAR ========== */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                onClose={() => setSnackbar(s => ({ ...s, open: false }))}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
                 <Alert
+                    onClose={() => setSnackbar(s => ({ ...s, open: false }))}
                     severity={snackbar.severity}
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
-                    sx={{ width: '100%' }}
+                    variant="filled"
+                    sx={{ borderRadius: 2 }}
                 >
                     {snackbar.message}
                 </Alert>

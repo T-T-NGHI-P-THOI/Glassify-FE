@@ -39,7 +39,18 @@ const PaymentResultPage = () => {
     });
 
     paymentApi.processVnpayReturn(params)
-      .then((res) => setResult(res))
+      .then((res) => {
+        setResult(res);
+        // If this was a wallet top-up (no orderId) and it succeeded,
+        // redirect back to wherever the user came from (e.g. checkout)
+        if (!res.orderId && res.status === 'SUCCESS') {
+          const returnTo = sessionStorage.getItem('topup_return_to');
+          if (returnTo) {
+            sessionStorage.removeItem('topup_return_to');
+            navigate(returnTo);
+          }
+        }
+      })
       .catch(() => {
         // Fallback: build result from URL params directly (display only)
         const amount = searchParams.get('vnp_Amount');

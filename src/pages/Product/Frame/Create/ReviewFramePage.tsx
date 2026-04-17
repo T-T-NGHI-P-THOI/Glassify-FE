@@ -435,9 +435,8 @@ const ReviewFramePage = ({ groupData, variantData, productId, modelFile }: Revie
                         <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[500], mb: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             Pricing & Inventory
                         </Typography>
-                        <InfoRow label="Base Price" value={formatCurrency(variantData.basePrice || '')} />
-                        <InfoRow label="Cost Price" value={formatCurrency(variantData.costPrice || '')} />
-                        <InfoRow label="Compare At Price" value={formatCurrency(variantData.compareAtPrice || '')} />
+                        <InfoRow label="Base Price" value={formatCurrency(String(variantData.basePrice ?? ''))} />
+                        <InfoRow label="Cost Price" value={formatCurrency(String(variantData.costPrice ?? ''))} />
                         <InfoRow label="Stock" value={variantData.stock ? variantData.stock + ' units' : undefined} />
                         <InfoRow label="Stock Threshold" value={variantData.stockThreshold ? variantData.stockThreshold + ' units' : undefined} />
                         <InfoRow label="Warranty" value={variantData.warrantyMonths ? variantData.warrantyMonths + ' months' : undefined} />

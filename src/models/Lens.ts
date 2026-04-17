@@ -1,17 +1,13 @@
 // Lens-related models for eyewear customization
 
-export type LensUsageType = 
-    | 'NON_PRESCRIPTION'
-    | 'SINGLE_VISION'
-    | 'READING'
-    | 'BIFOCAL'
-    | 'PROGRESSIVE';
+export type LensUsageType = string;
 
 export interface LensUsage {
     id: string;
     name: string;
     description: string;
-    type?: LensUsageType;
+    type?: string;
+    isNonPrescription?: boolean;
     icon?: string;
 }
 
@@ -19,6 +15,7 @@ export interface LensType {
     id: string;
     name: string;
     description: string;
+    imageUrl?: string;
     price: number;
     isPrescription: boolean;
     isProgressive?: boolean;
@@ -132,7 +129,8 @@ export interface LensFrameValidationResponse {
 // Lens Catalog API Types
 export interface LensCatalogUsage {
     usageId: string;
-    type: string;
+    type?: string;
+    isNonPrescription?: boolean;
     name: string;
     description: string;
     allowTint: boolean;
@@ -177,6 +175,8 @@ export interface LensCatalogLens {
     lensId: string;
     lensSku: string;
     lensName: string;
+    imageUrl?: string;
+    lensImageUrl?: string;
     basePrice: number;
     isProgressive: boolean;
     usages: LensCatalogUsage[];

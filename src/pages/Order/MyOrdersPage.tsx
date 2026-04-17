@@ -407,16 +407,16 @@ const MyOrdersPage = () => {
     if (!cancelTargetId || cancelReasons.length === 0) return;
     try {
       setCancellingOrderId(cancelTargetId);
-      await orderApi.cancelOrder(cancelTargetId);
+      await orderApi.cancelOrder(cancelTargetId, { reason: cancelReasons.join(', ') });
       toast.success('Order cancelled successfully');
       setCancelDialogOpen(false);
       await fetchOrders();
       if (selectedOrder?.id === cancelTargetId) {
         setDetailDialogOpen(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to cancel order:', error);
-      toast.error('Failed to cancel order');
+      toast.error(error?.message || 'Failed to cancel order');
     } finally {
       setCancellingOrderId(null);
       setCancelTargetId(null);
@@ -540,12 +540,12 @@ const MyOrdersPage = () => {
 
   const handleSubmitReturnRequest = async () => {
     if (!selectedOrder) {
-      toast.error('Không tìm thấy thông tin đơn hàng');
+      toast.error('Order information not found');
       return;
     }
 
     if (selectedReturnItemIds.length === 0) {
-      toast.error('Vui lòng chọn ít nhất 1 sản phẩm để tạo yêu cầu');
+      toast.error('Please select at least 1 product to create a request');
       return;
     }
 
@@ -594,20 +594,20 @@ const MyOrdersPage = () => {
         } catch (error) {
           failedCount += 1;
           if (!firstFailureMessage) {
-            firstFailureMessage = getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng');
+            firstFailureMessage = getApiErrorMessage(error, 'Unable to create return request');
           }
           console.error(`Failed to create return request for item ${item.id}:`, error);
         }
       }
 
       if (createdRequestIds.length === 0) {
-        toast.error(firstFailureMessage || 'Không thể tạo yêu cầu trả hàng cho các sản phẩm đã chọn');
+        toast.error(firstFailureMessage || 'Unable to create return requests for the selected products');
         return;
       }
 
-      toast.success(`Tạo thành công ${createdRequestIds.length} yêu cầu trả hàng`);
+      toast.success(`Successfully created ${createdRequestIds.length} return request(s)`);
       if (failedCount > 0) {
-        toast.warning(`${failedCount} sản phẩm không tạo được yêu cầu`);
+        toast.warning(`Could not create requests for ${failedCount} product(s)`);
       }
 
       handleCloseReturnDialog();
@@ -620,7 +620,7 @@ const MyOrdersPage = () => {
       }
     } catch (error: any) {
       console.error('Failed to create return request:', error);
-      toast.error(getApiErrorMessage(error, 'Không thể tạo yêu cầu trả hàng'));
+      toast.error(getApiErrorMessage(error, 'Unable to create return request'));
     } finally {
       setSubmittingReturn(false);
     }

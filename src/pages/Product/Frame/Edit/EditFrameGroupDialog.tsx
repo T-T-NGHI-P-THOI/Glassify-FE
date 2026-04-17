@@ -46,7 +46,7 @@ export interface EditFrameGroupFormData {
 interface EditFrameGroupDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (id: string, data: EditFrameGroupFormData) => Promise<void> | void;
+    onSaved: (id: string, data: EditFrameGroupFormData) => Promise<void> | void;
     frameGroup: FrameGroup | null;
     loading?: boolean;
 }
@@ -97,7 +97,7 @@ export const AGE_GROUPS = [
 const EditFrameGroupDialog = ({
     open,
     onClose,
-    onSave,
+    onSaved,
     frameGroup,
     loading = false,
 }: EditFrameGroupDialogProps) => {
@@ -234,7 +234,7 @@ const EditFrameGroupDialog = ({
     const handleSave = async () => {
         if (!frameGroup) return;
         await handleUpdateFrameGroup(frameGroup.id, formData);
-        await onSave(frameGroup.id, formData);
+        await onSaved(frameGroup.id, formData);
     };
 
     const fieldSx = {

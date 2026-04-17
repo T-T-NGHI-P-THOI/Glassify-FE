@@ -23,10 +23,12 @@ import {
   HelpCenter,
   Store,
   ExpandMore,
+  ExpandLess,
   PeopleAlt,
   Build,
   Logout,
 } from '@mui/icons-material';
+import { Collapse } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
@@ -58,6 +60,10 @@ export const ShopOwnerSidebar = ({
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [shopName, setShopName] = useState(shopNameProp);
   const [shopLogo, setShopLogo] = useState(shopLogoProp);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    Products: location.pathname.startsWith('/shop/products') || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
+    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES,
+  });
 
   useEffect(() => {
     if (shopNameProp) {
@@ -90,20 +96,58 @@ export const ShopOwnerSidebar = ({
 
   const TRANSITION = 'background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease';
 
-  const menuItems = [
+  useEffect(() => {
+    if (location.pathname.startsWith('/shop/products')) {
+      setExpandedGroups(prev => ({ ...prev, Products: true }));
+    }
+    if (location.pathname.startsWith('/shop/warranty')) {
+      setExpandedGroups(prev => ({ ...prev, Warranty: true }));
+    }
+  }, [location.pathname]);
+
+  interface SidebarMenuItem {
+    icon: React.ReactNode;
+    label: string;
+    path?: string;
+    children?: Array<{ label: string; path: string }>;
+  }
+
+  const menuItems: SidebarMenuItem[] = [
     { icon: <Dashboard />, label: 'Dashboard', path: PAGE_ENDPOINTS.SHOP.DASHBOARD },
     { icon: <StorefrontOutlined />, label: 'Shop Profile', path: PAGE_ENDPOINTS.SHOP.EDIT_PROFILE },
-    { icon: <Inventory />, label: 'Products', path: '/shop/products' },
+    {
+      icon: <Inventory />,
+      label: 'Products',
+      children: [
+        { label: 'Frame List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME },
+        { label: 'Lens List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_LENS },
+        { label: 'Accessory List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY }
+      ],
+    },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
     { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
     { icon: <PeopleAlt />, label: 'Staff', path: PAGE_ENDPOINTS.SHOP.STAFF },
-    { icon: <Build />, label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
+    {
+      icon: <Build />,
+      label: 'Warranty',
+      children: [
+        { label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
+        { label: 'Policies & Pricing', path: PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES },
+      ],
+    },
   ];
 
   const isActive = (path: string) => {
     return activeMenu === path || location.pathname === path;
+  };
+
+  const isGroupActive = (item: SidebarMenuItem) => {
+    if (item.children) {
+      return item.children.some(child => isActive(child.path));
+    }
+    return item.path ? isActive(item.path) : false;
   };
 
   const bottomMenuItems = [
@@ -189,11 +233,91 @@ export const ShopOwnerSidebar = ({
       {/* Main Menu */}
       <List sx={{ flex: 1, px: 1, overflowY: 'auto', minHeight: 0, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
         {menuItems.map((item) => {
-          const active = isActive(item.path);
+          if (item.children) {
+            const groupActive = isGroupActive(item);
+            const isOpen = expandedGroups[item.label] || false;
+
+            return (
+              <Box key={item.label}>
+                <ListItemButton
+                  onClick={() => setExpandedGroups(prev => ({ ...prev, [item.label]: !isOpen }))}
+                  sx={{
+                    borderRadius: 2,
+                    mb: 0.5,
+                    transition: TRANSITION,
+                    backgroundColor: groupActive ? theme.palette.custom.neutral[100] : 'transparent',
+                    '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 36,
+                      transition: TRANSITION,
+                      color: groupActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: {
+                        style: {
+                          fontSize: 14,
+                          fontWeight: groupActive ? 600 : 500,
+                          color: groupActive ? theme.palette.primary.main : theme.palette.text.primary,
+                          transition: TRANSITION,
+                        },
+                      },
+                    }}
+                  />
+                  {isOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                </ListItemButton>
+                <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                  <List disablePadding>
+                    {item.children.map((child) => {
+                      const childActive = isActive(child.path);
+                      return (
+                        <ListItemButton
+                          key={child.label}
+                          onClick={() => navigate(child.path)}
+                          sx={{
+                            borderRadius: 2,
+                            mb: 0.5,
+                            ml: 1,
+                            pl: 5,
+                            transition: TRANSITION,
+                            backgroundColor: childActive ? theme.palette.custom.neutral[100] : 'transparent',
+                            '&:hover': { backgroundColor: theme.palette.custom.neutral[100] },
+                          }}
+                        >
+                          <ListItemText
+                            primary={child.label}
+                            slotProps={{
+                              primary: {
+                                style: {
+                                  fontSize: 13,
+                                  fontWeight: childActive ? 600 : 500,
+                                  color: childActive ? theme.palette.primary.main : theme.palette.text.primary,
+                                  transition: TRANSITION,
+                                },
+                              },
+                            }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </Box>
+            );
+          }
+
+          const active = item.path ? isActive(item.path) : false;
           return (
             <ListItemButton
               key={item.label}
-              onClick={() => navigate(item.path)}
+              onClick={() => item.path && navigate(item.path)}
               sx={{
                 borderRadius: 2,
                 mb: 0.5,

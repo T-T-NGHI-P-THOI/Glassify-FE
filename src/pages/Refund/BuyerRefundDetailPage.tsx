@@ -50,6 +50,7 @@ import type {
 } from '@/models/Refund';
 import {
   ReturnStatus,
+  RefundReviewDecision,
   RETURN_STATUS_LABELS,
   RETURN_REASON_LABELS,
 } from '@/models/Refund';
@@ -63,27 +64,38 @@ type RefundStep = {
 
 // Status steps for progress indicator
 const getStatusSteps = (request: RefundRequest) => {
-  const baseSteps: RefundStep[] = [
-    { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
-    { label: 'Approved', statuses: [ReturnStatus.APPROVED] },
-    { label: 'Return Shipping', statuses: [ReturnStatus.RETURN_SHIPPING] },
-    { label: 'Item Received', statuses: [ReturnStatus.ITEM_RECEIVED] },
-    { label: 'Completed', statuses: [ReturnStatus.COMPLETED] },
-  ];
-
   // Handle rejected/cancelled cases
   if (request.status === ReturnStatus.REJECTED || request.status === ReturnStatus.CANCELLED) {
     const endStatus = request.status;
     return [
       { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
       {
-        label: endStatus === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
+        label: endStatus === ReturnStatus.REJECTED ? 'Rejected by Glassify' : 'Cancelled',
         statuses: [endStatus],
       },
     ] satisfies RefundStep[];
   }
 
-  return baseSteps;
+  const resolvedAdminDecision = request.adminDecision;
+
+  const isDirectRefundDecision =
+    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
+
+  if (isDirectRefundDecision) {
+    return [
+      { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
+      { label: 'Approved (No Return Needed)', statuses: [ReturnStatus.APPROVED] },
+      { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
+    ] satisfies RefundStep[];
+  }
+
+  return [
+    { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
+    { label: 'Approved by Glassify', statuses: [ReturnStatus.APPROVED] },
+    { label: 'Returning Item', statuses: [ReturnStatus.RETURN_SHIPPING] },
+    { label: 'Seller Received Item', statuses: [ReturnStatus.ITEM_RECEIVED] },
+    { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
+  ] satisfies RefundStep[];
 };
 
 const getActiveStep = (currentStatus: ReturnStatus, steps: RefundStep[]) => {
@@ -194,11 +206,14 @@ const BuyerRefundDetailPage = () => {
 
   const steps = getStatusSteps(request);
   const activeStep = getActiveStep(request.status, steps);
+  const resolvedAdminDecision = request.adminDecision;
+  const isDirectRefundDecision =
+    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
   const canCancel = request.status === ReturnStatus.REQUESTED;
   const isApproved = request.status === ReturnStatus.APPROVED;
-  const waitingForShopReview =
+  const waitingForAdminReview =
     request.status === ReturnStatus.REQUESTED;
-  const canUpdateTracking = isApproved && !request.returnTrackingNumber;
+  const canUpdateTracking = isApproved && !request.returnTrackingNumber && !isDirectRefundDecision;
   const evidenceFiles = request.evidenceImages || [];
 
   const isVideoFile = (url: string) => {
@@ -277,24 +292,24 @@ const BuyerRefundDetailPage = () => {
       </Paper>
 
       {/* Alert messages based on status */}
-      {waitingForShopReview && (
+      {waitingForAdminReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Waiting for shop review
+            Waiting for Glassify review
           </Typography>
           <Typography variant="body2">
-            Once approved by the shop, you can ship the item back and update tracking details.
+            Your request is under Glassify review. After approval, follow return instructions and update tracking details.
           </Typography>
         </Alert>
       )}
 
-      {isApproved && !request.returnTrackingNumber && (
+      {isApproved && !request.returnTrackingNumber && !isDirectRefundDecision && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Shop approved your request!
+            Your request was approved by Glassify
           </Typography>
           <Typography variant="body2">
-            Please ship the item back and update tracking number
+            Please ship the item back and update your tracking number.
           </Typography>
           <Button
             variant="outlined"
@@ -305,6 +320,17 @@ const BuyerRefundDetailPage = () => {
           >
             Update Tracking Number
           </Button>
+        </Alert>
+      )}
+
+      {isApproved && isDirectRefundDecision && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Approved as direct refund
+          </Typography>
+          <Typography variant="body2">
+            Glassify approved this request without return shipment. Please wait for refund completion.
+          </Typography>
         </Alert>
       )}
 
@@ -608,7 +634,7 @@ const BuyerRefundDetailPage = () => {
                       {formatDate(request.approvedAt)}
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
-                      Approved
+                      Approved by Glassify
                     </Typography>
                   </Box>
                 )}
