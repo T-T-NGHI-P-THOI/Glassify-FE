@@ -193,6 +193,8 @@ export interface LensTintOption {
   lensId: string;
   tintId: string;
   tintCode?: string;
+  tintName?: string;
+  tintBehavior?: LensTintBehavior;
   extraPrice?: number;
   isDefault?: boolean;
   tint?: LensTint;
@@ -204,6 +206,9 @@ export interface LensFeatureMapping {
   id: string;
   lensId: string;
   featureId: string;
+  sku?: string;
+  name?: string | null;
+  description?: string | null;
   extraPrice?: number;
   isDefault?: boolean;
   feature?: LensFeature;
@@ -215,6 +220,8 @@ export interface LensUsageRule {
   id: string;
   lensId: string;
   usageId: string;
+  name?: string;
+  description?: string;
   usage?: LensUsage;
   allowTint?: boolean;
   allowProgressive?: boolean;
@@ -226,8 +233,8 @@ export interface LensUsageRule {
 export interface LensResponse {
   id: string;
   shopId: string;
-  sku: string;
   name: string;
+  sku: string;
   imageFileId?: string;
   imageUrl?: string;
   basePrice: number;
@@ -237,10 +244,60 @@ export interface LensResponse {
   progressiveType?: LensProgressiveType;
   createdAt: string;
   updatedAt: string;
+  description?: string | null;
   usageRules?: LensUsageRule[];
   tintOptions?: LensTintOption[];
   progressiveOptions?: LensProgressiveOption[];
   featureMappings?: LensFeatureMapping[];
+}
+
+export interface LensDetailResponse {
+  lens: LensResponse;
+  product: {
+    id: string;
+    shopId: string;
+    shop?: {
+      id: string;
+      shopCode: string;
+      shopName: string;
+      address?: string;
+      city?: string;
+      logoUrl: string;
+      status: string;
+      tier: string;
+      avgRating: number | null;
+      totalProducts: number | null;
+      isVerified: boolean;
+    };
+    brandId: string | null;
+    categoryId: string;
+    categoryName: string;
+    variantId: string | null;
+    sku: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    basePrice: number;
+    costPrice: number;
+    compareAtPrice: number;
+    stockQuantity: number;
+    lowStockThreshold: number;
+    isActive: boolean;
+    isFeatured: boolean;
+    isReturnable: boolean;
+    warrantyMonths: number;
+    viewCount: number | null;
+    soldCount: number | null;
+    avgRating: number | null;
+    reviewCount: number | null;
+    metaTitle: string | null;
+    metaDescription: string | null;
+    productType: 'FRAME' | 'LENSES' | 'ACCESSORIES';
+    createdAt: string;
+    updatedAt: string;
+    fileResponses: unknown[];
+    productImages: string[] | null;
+  };
 }
 
 export interface LensFilterRequest {
@@ -529,11 +586,11 @@ export const lensApi = {
     return response.data?.data ?? null;
   },
 
-  getById: async (id: string): Promise<LensResponse> => {
-    const response = await axiosInstance.get<ApiResponse<LensResponse>>(
+  getById: async (id: string): Promise<LensDetailResponse> => {
+    const response = await axiosInstance.get<ApiResponse<LensDetailResponse>>(
       API_ENDPOINTS.LENS.GET_BY_ID(id),
     );
-    return response.data?.data as LensResponse;
+    return response.data?.data as LensDetailResponse;
   },
 
   getMany: async (filter: LensFilterRequest = {}): Promise<LensResponse[]> => {

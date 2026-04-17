@@ -228,8 +228,7 @@ const ShopRegistrationPage = () => {
   const handleTextChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const filtered = e.target.value
-          const filtered = sanitizeTextInput(e.target.value, { maxLength: 21 });
+    const filtered = sanitizeTextInput(e.target.value, { maxLength: 21 });
     setFormData((prev) => ({ ...prev, [field]: filtered }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
@@ -246,7 +245,6 @@ const ShopRegistrationPage = () => {
   const handleAddressChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const value = e.target.value.slice(0, 50);
     const value = sanitizeTextInput(e.target.value, { maxLength: 50 });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };

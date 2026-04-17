@@ -460,7 +460,7 @@ const ProductBrowsePage: React.FC = () => {
                 {[
                   { val: undefined, label: 'All types' },
                   { val: 'FRAME' as ProductType, label: 'Frames' },
-                  { val: 'LENS' as ProductType, label: 'Lenses' },
+                  { val: 'LENSES' as ProductType, label: 'Lenses' },
                   { val: 'ACCESSORIES' as ProductType, label: 'Accessories' },
                 ].map(opt => (
                   <MenuItem
