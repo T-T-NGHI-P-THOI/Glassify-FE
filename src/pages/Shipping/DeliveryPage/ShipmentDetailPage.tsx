@@ -518,14 +518,26 @@ const ShipmentDetailPage = () => {
                 {order.trackingNumber ?? '—'}
               </Typography>
             </Box> */}
-            <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>SHIPPED AT</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formatDate(order.shippedAt)}
-              </Typography>
-            </Box>
           </Paper>
         </Box>
+
+        {/* Cancellation Reason */}
+        {currentStatus === 'CANCELLED' && (
+          <Paper
+            elevation={0}
+            sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.status.error.light}`, bgcolor: theme.palette.custom.status.error.light }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <ReportProblem sx={{ fontSize: 18, color: theme.palette.custom.status.error.main }} />
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.error.main, textTransform: 'uppercase' }}>
+                Cancellation Reason
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+              {order.cancelReason ?? '—'}
+            </Typography>
+          </Paper>
+        )}
 
         {/* Item List */}
         <Paper
