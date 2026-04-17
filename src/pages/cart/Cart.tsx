@@ -1154,8 +1154,10 @@ const ShoppingCart: React.FC = () => {
     const hasCoupon = !!summary.applied_coupon;
     const couponMatches = hasCoupon && summary.applied_coupon?.code === promoCode.toUpperCase();
     const items = cartData?.items || [];
+    // stock_quantity = qtyAvailable (after reservation), so we only block if it went negative
+    // (race condition: someone else grabbed stock between add-to-cart and checkout)
     const exceededItems = items.filter(
-        (i) => i.stock_quantity != null && i.quantity > i.stock_quantity,
+        (i) => i.stock_quantity != null && i.stock_quantity < 0,
     );
 
     return (
