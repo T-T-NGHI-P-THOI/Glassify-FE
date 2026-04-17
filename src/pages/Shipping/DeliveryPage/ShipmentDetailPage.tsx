@@ -536,6 +536,26 @@ const ShipmentDetailPage = () => {
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
               {order.cancelReason ?? '—'}
             </Typography>
+            {order.paymentMethod !== 'COD' && (
+              <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.palette.custom.status.error.main}26` }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                    Refund Amount
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: order.refundedAt ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[500] }}>
+                    {order.refundAmount != null ? formatCurrency(order.refundAmount) : '—'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                    Refund Status
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: order.refundedAt ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main }}>
+                    {order.refundedAt ? `Refunded · ${formatDate(order.refundedAt)}` : 'Pending'}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </Paper>
         )}
 
