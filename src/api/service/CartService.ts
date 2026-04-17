@@ -26,9 +26,27 @@ interface ItemDisplayMeta {
 
 const DISPLAY_CACHE_KEY = 'glassify_cart_display_cache';
 
+// Decode the "sub" claim from the JWT to get a stable per-user cache key.
+// Falls back to the base key for unauthenticated (guest) sessions.
+function getCurrentUserId(): string | null {
+    const token = TokenManager.getAccessToken();
+    if (!token) return null;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.sub || null;
+    } catch {
+        return null;
+    }
+}
+
+function getCacheKey(): string {
+    const userId = getCurrentUserId();
+    return userId ? `${DISPLAY_CACHE_KEY}_${userId}` : DISPLAY_CACHE_KEY;
+}
+
 function getDisplayCache(): Record<string, ItemDisplayMeta> {
     try {
-        const raw = localStorage.getItem(DISPLAY_CACHE_KEY);
+        const raw = localStorage.getItem(getCacheKey());
         return raw ? JSON.parse(raw) : {};
     } catch {
         return {};
@@ -37,7 +55,7 @@ function getDisplayCache(): Record<string, ItemDisplayMeta> {
 
 function saveDisplayCache(cache: Record<string, ItemDisplayMeta>) {
     try {
-        localStorage.setItem(DISPLAY_CACHE_KEY, JSON.stringify(cache));
+        localStorage.setItem(getCacheKey(), JSON.stringify(cache));
     } catch {
         // localStorage full or unavailable
     }

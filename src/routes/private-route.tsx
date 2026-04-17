@@ -10,7 +10,6 @@ import ShopDashboardPage from "@/pages/Shop/ShopDashboardPage"
 import ShopBankAccountPage from "@/pages/Shop/ShopBankAccountPage"
 import ShopWalletPage from "@/pages/Shop/ShopWalletPage"
 import ShopEditProfilePage from "@/pages/Shop/ShopEditProfilePage"
-import ShopProductsPage from "@/pages/Shop/ShopProductsPage"
 import ShopRefundReviewPage from "@/pages/Shop/ShopRefundReviewPage"
 import AdminShopApprovalPage from "@/pages/Admin/AdminShopApprovalPage"
 import AdminShopDetailPage from "@/pages/Shop/AdminShopDetailPage"
@@ -45,6 +44,10 @@ import FrameProductPage from "@/pages/Product/Frame/FrameProductPage";
 import CreateLensPage from "@/pages/Product/Lens/Create/CreateLensPage";
 import LensProductPage from "@/pages/Product/Lens/LensProductPage";
 import LensDetailPage from "@/pages/Product/Lens/LensDetailPage";
+import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
+import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage";
+import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
+import ProductVerificationPage from "@/pages/Admin/ProductVerificationPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -80,6 +83,52 @@ const PrivateRoutesComponent = () => {
                     </AuthGuard>
                 }
             />
+
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_FRAME}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <FrameProductPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_FRAME}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <CreateFramePage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <AccessoryProductPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.CREATE_ACCESSORY}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
+                            <CreateAccessoryPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
 
             <Route
                 path={PAGE_ENDPOINTS.ORDER.MY_ORDERS}
@@ -517,6 +566,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminTransactionsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.VERIFY_PRODUCT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <ProductVerificationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

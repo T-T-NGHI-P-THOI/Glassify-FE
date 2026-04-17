@@ -149,8 +149,8 @@ export class ThreeJsService {
 
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
-        renderer.setSize(w, h, false); // false = không override CSS
-        renderer.setClearColor(0xffffff);
+        renderer.setSize(w, h, false);
+        renderer.setClearColor(0x7A7A73);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -425,7 +425,7 @@ export class ThreeJsService {
             objectURL,
             (texture) => {
                 texture.colorSpace = THREE.SRGBColorSpace;
-                texture.flipY = false; // GLTF cần flipY = false
+                texture.flipY = false;
 
                 model.traverse((child) => {
                     if (child instanceof THREE.Mesh) {

@@ -43,7 +43,8 @@ import {
   getReturnRequestDetail,
   updateReturnTracking,
   cancelReturnRequest,
-  getReturnGhnStatus,
+  acceptProposal,
+  rejectProposal,
 } from '@/api/refund-api';
 import type {
   RefundRequest,
@@ -51,8 +52,10 @@ import type {
 } from '@/models/Refund';
 import {
   ReturnStatus,
+  RefundReviewDecision,
   RETURN_STATUS_LABELS,
   RETURN_REASON_LABELS,
+  ProposalStatus,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -64,29 +67,39 @@ type RefundStep = {
 
 // Status steps for progress indicator
 const getStatusSteps = (request: RefundRequest) => {
-  const baseSteps: RefundStep[] = [
-    { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
-    { label: 'Approved', statuses: [ReturnStatus.APPROVED] },
-    // { label: 'Ready to Pick', statuses: [ReturnStatus.RETURN_READY_TO_PICK] },
-    { label: 'Transporting', statuses: [ReturnStatus.RETURN_SHIPPING] },
-    { label: 'Delivered', statuses: [ReturnStatus.RETURN_DELIVERED] },
-    { label: 'Item Received', statuses: [ReturnStatus.ITEM_RECEIVED] },
-    { label: 'Completed', statuses: [ReturnStatus.COMPLETED] },
-  ];
-
   // Handle rejected/cancelled cases
   if (request.status === ReturnStatus.REJECTED || request.status === ReturnStatus.CANCELLED) {
     const endStatus = request.status;
     return [
       { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
       {
-        label: endStatus === ReturnStatus.REJECTED ? 'Rejected' : 'Cancelled',
+        label: endStatus === ReturnStatus.REJECTED ? 'Rejected by Glassify' : 'Cancelled',
         statuses: [endStatus],
       },
     ] satisfies RefundStep[];
   }
 
-  return baseSteps;
+  const resolvedAdminDecision = request.adminDecision;
+
+  const isDirectRefundDecision =
+    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN ||
+    request.proposalStatus === ProposalStatus.ACCEPTED;
+
+  if (isDirectRefundDecision) {
+    return [
+      { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
+      { label: 'Approved (No Return Needed)', statuses: [ReturnStatus.APPROVED] },
+      { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
+    ] satisfies RefundStep[];
+  }
+
+  return [
+    { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
+    { label: 'Approved by Glassify', statuses: [ReturnStatus.APPROVED] },
+    { label: 'Returning Item', statuses: [ReturnStatus.RETURN_READY_TO_PICK, ReturnStatus.RETURN_SHIPPING, ReturnStatus.RETURN_DELIVERED] },
+    { label: 'Seller Received Item', statuses: [ReturnStatus.ITEM_RECEIVED] },
+    { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
+  ] satisfies RefundStep[];
 };
 
 const getActiveStep = (currentStatus: ReturnStatus, steps: RefundStep[]) => {
@@ -105,10 +118,9 @@ const BuyerRefundDetailPage = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // GHN Status
-  const [ghnStatusData, setGhnStatusData] = useState<any>(null);
-  const [fetchingGhn, setFetchingGhn] = useState(false);
+  const [acceptPropDialogOpen, setAcceptPropDialogOpen] = useState(false);
+  const [rejectPropDialogOpen, setRejectPropDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -172,17 +184,33 @@ const BuyerRefundDetailPage = () => {
     }
   };
 
-  const handleTrackGhnStatus = async () => {
+  const handleAcceptProposal = async () => {
     if (!requestId) return;
     try {
-      setFetchingGhn(true);
-      const res = await getReturnGhnStatus(requestId);
-      setGhnStatusData(res.data);
+      setSubmitting(true);
+      await acceptProposal(requestId);
+      toast.success('Proposal accepted. Refund process started!');
+      setAcceptPropDialogOpen(false);
+      fetchRequestDetail();
     } catch (error: any) {
-      console.error('Failed to fetch GHN tracking status:', error);
-      toast.error('Failed to fetch GHN tracking status.');
+      toast.error(getApiErrorMessage(error, 'Failed to accept proposal'));
     } finally {
-      setFetchingGhn(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleRejectProposal = async () => {
+    if (!requestId) return;
+    try {
+      setSubmitting(true);
+      await rejectProposal(requestId, { rejectionReason: rejectReason });
+      toast.success('Proposal rejected. Please follow standard return procedures.');
+      setRejectPropDialogOpen(false);
+      fetchRequestDetail();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to reject proposal'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -215,11 +243,14 @@ const BuyerRefundDetailPage = () => {
 
   const steps = getStatusSteps(request);
   const activeStep = getActiveStep(request.status, steps);
+  const resolvedAdminDecision = request.adminDecision;
+  const isDirectRefundDecision =
+    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
   const canCancel = request.status === ReturnStatus.REQUESTED;
   const isApproved = request.status === ReturnStatus.APPROVED;
-  const waitingForShopReview =
+  const waitingForAdminReview =
     request.status === ReturnStatus.REQUESTED;
-  const canUpdateTracking = isApproved && !request.returnTrackingNumber;
+  const canUpdateTracking = isApproved && !request.returnTrackingNumber && !isDirectRefundDecision;
   const evidenceFiles = request.evidenceImages || [];
 
   const isVideoFile = (url: string) => {
@@ -297,25 +328,74 @@ const BuyerRefundDetailPage = () => {
         </Stepper>
       </Paper>
 
+      {/* Proposal UI */}
+      {request.proposalStatus === ProposalStatus.PROPOSED && (
+        <Paper elevation={0} sx={{ border: '2px solid #3b82f6', borderRadius: 3, p: 3, mb: 3, bgcolor: '#eff6ff' }}>
+          <Typography variant="h6" color="primary.main" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            Shop proposed a resolution without return!
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            The shop has offered a {request.proposedPartialAmount === request.refundAmount ? "full" : "partial"} refund of <strong style={{ color: '#0f172a' }}>{formatCurrency(request.proposedPartialAmount || 0)}</strong>. By accepting, you'll receive the refund directly to your wallet without having to return the item.
+          </Typography>
+          {request.proposalAdminNote && (
+            <Typography variant="body2" sx={{ mb: 2, p: 2, bgcolor: '#fff', borderRadius: 2 }}>
+              <strong>Note: </strong> {request.proposalAdminNote}
+            </Typography>
+          )}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={2}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={() => setAcceptPropDialogOpen(true)}
+              disabled={submitting}
+            >
+              Accept & Receive Refund
+            </Button>
+            <Button 
+              variant="outlined" 
+              color="error"
+              onClick={() => setRejectPropDialogOpen(true)}
+              disabled={submitting}
+            >
+              Reject & Continue Return
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+      
+      {request.proposalStatus === ProposalStatus.ACCEPTED && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>Proposal Accepted</Typography>
+          <Typography variant="body2">You accepted the shop's refund proposal. The refund is being processed.</Typography>
+        </Alert>
+      )}
+
+      {request.proposalStatus === ProposalStatus.REJECTED && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>Proposal Rejected</Typography>
+          <Typography variant="body2">You rejected the shop's refund proposal. The standard Return & Refund process will continue.</Typography>
+        </Alert>
+      )}
+
       {/* Alert messages based on status */}
-      {waitingForShopReview && (
+      {waitingForAdminReview && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Waiting for shop review
+            Waiting for Glassify review
           </Typography>
           <Typography variant="body2">
-            Once approved by the shop, you can ship the item back and update tracking details.
+            Your request is under Glassify review. After approval, follow return instructions and update tracking details.
           </Typography>
         </Alert>
       )}
 
-      {isApproved && !request.returnTrackingNumber && (
+      {isApproved && !request.returnTrackingNumber && !isDirectRefundDecision && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Shop approved your request!
+            Your request was approved by Glassify
           </Typography>
           <Typography variant="body2">
-            Please ship the item back and update tracking number
+            Please ship the item back and update your tracking number.
           </Typography>
           <Button
             variant="outlined"
@@ -326,6 +406,17 @@ const BuyerRefundDetailPage = () => {
           >
             Update Tracking Number
           </Button>
+        </Alert>
+      )}
+
+      {isApproved && isDirectRefundDecision && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Approved as direct refund
+          </Typography>
+          <Typography variant="body2">
+            Glassify approved this request without return shipment. Please wait for refund completion.
+          </Typography>
         </Alert>
       )}
 
@@ -442,47 +533,6 @@ const BuyerRefundDetailPage = () => {
                         </Typography>
                       </Grid>
                     )}
-                    <Grid size={{ xs: 12 }}>
-                      <Box sx={{ mt: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary" fontWeight="bold">
-                            Live Tracking
-                          </Typography>
-                          <Button
-                            variant="text"
-                            size="small"
-                            startIcon={fetchingGhn ? <CircularProgress size={14} /> : <LocalShipping sx={{ fontSize: 14 }} />}
-                            onClick={handleTrackGhnStatus}
-                            disabled={fetchingGhn}
-                            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 600, p: 0, minWidth: 'auto' }}
-                          >
-                            {fetchingGhn ? 'Checking...' : 'Check GHN Status'}
-                          </Button>
-                        </Box>
-                        {ghnStatusData && (
-                          <Box sx={{ p: 1.5, borderRadius: '8px', bgcolor: 'grey.50', border: '1px dashed grey.400' }}>
-                            <Stack spacing={0.5}>
-                              <Box display="flex" justifyContent="space-between">
-                                <Typography variant="caption" color="text.secondary">Tracking No:</Typography>
-                                <Typography variant="caption" fontWeight="bold" sx={{ fontFamily: 'monospace' }}>{ghnStatusData.trackingCode}</Typography>
-                              </Box>
-                              <Box display="flex" justifyContent="space-between">
-                                <Typography variant="caption" color="text.secondary">Status:</Typography>
-                                <Typography variant="caption" fontWeight="bold" color="primary" sx={{ textTransform: 'capitalize' }}>
-                                  {ghnStatusData.status || 'UNKNOWN'}
-                                </Typography>
-                              </Box>
-                              {(ghnStatusData.message || ghnStatusData.ghnData?.Reason) && (
-                                <Box display="flex" justifyContent="space-between">
-                                  <Typography variant="caption" color="text.secondary">Note:</Typography>
-                                  <Typography variant="caption">{ghnStatusData.message || ghnStatusData.ghnData?.Reason}</Typography>
-                                </Box>
-                              )}
-                            </Stack>
-                          </Box>
-                        )}
-                      </Box>
-                    </Grid>
                   </>
                 )}
               </Grid>
@@ -670,7 +720,7 @@ const BuyerRefundDetailPage = () => {
                       {formatDate(request.approvedAt)}
                     </Typography>
                     <Typography variant="body2" fontWeight="medium">
-                      Approved
+                      Approved by Glassify
                     </Typography>
                   </Box>
                 )}
@@ -764,6 +814,46 @@ const BuyerRefundDetailPage = () => {
             disabled={submitting}
           >
             {submitting ? <CircularProgress size={24} /> : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Accept Proposal Dialog */}
+      <Dialog open={acceptPropDialogOpen} onClose={() => setAcceptPropDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Accept Refund Proposal</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mt: 1 }}>
+            Are you sure you want to accept this proposal for <strong>{formatCurrency(request?.proposedPartialAmount || 0)}</strong>? By accepting, you will receive the refund amount immediately and you will not have to return the item.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAcceptPropDialogOpen(false)} disabled={submitting}>Cancel</Button>
+          <Button variant="contained" color="primary" onClick={handleAcceptProposal} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} color="inherit" /> : 'Confirm & Accept'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reject Proposal Dialog */}
+      <Dialog open={rejectPropDialogOpen} onClose={() => setRejectPropDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Refund Proposal</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 1, mb: 2 }}>
+            You are rejecting the shop's money settlement. The standard Return & Refund process will continue (you will need to ship the item back). Please provide an optional reason.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Rejection Reason (Optional)"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectPropDialogOpen(false)} disabled={submitting}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleRejectProposal} disabled={submitting}>
+            {submitting ? <CircularProgress size={24} color="inherit" /> : 'Confirm Rejection'}
           </Button>
         </DialogActions>
       </Dialog>
