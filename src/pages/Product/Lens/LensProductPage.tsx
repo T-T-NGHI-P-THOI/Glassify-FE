@@ -33,11 +33,33 @@ import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
-import { lensApi, type LensResponse, type LensUsage } from '@/api/lens-api';
+import { lensApi, type LensResponse, type LensUsage, type LensWithProductResult } from '@/api/lens-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { CustomButton } from '@/components/custom';
 import { getApiErrorMessage } from '@/utils/api-error';
+import { formatCurrency } from '@/utils/formatCurrency';
+
+type LensListItem = LensResponse & Partial<{
+  id: string;
+  shopId: string;
+  sku: string;
+  name: string;
+  imageFileId: string;
+  imageUrl: string;
+  variantId: string;
+  basePrice: number;
+  costPrice: number;
+  compareAtPrice: number;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  warrantyMonths: number;
+  isReturnable: boolean;
+  isFeatured: boolean;
+  productType: string;
+  slug: string;
+  description: string;
+}>;
 
 type UsageFormState = {
   name: string;
@@ -87,7 +109,7 @@ const LensProductPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
-  const [lenses, setLenses] = useState<LensResponse[]>([]);
+  const [lenses, setLenses] = useState<LensListItem[]>([]);
   const [usages, setUsages] = useState<LensUsage[]>([]);
 
   const [search, setSearch] = useState('');
@@ -107,7 +129,7 @@ const LensProductPage = () => {
   const menuOpen = Boolean(menuAnchorEl);
   const usageMenuOpen = Boolean(usageMenuAnchorEl);
 
-  const getLensImageSrc = (lens: LensResponse): string => {
+  const getLensImageSrc = (lens: LensListItem): string => {
     if (failedLensImages[lens.id] || !lens.imageUrl) return LENS_FALLBACK_IMAGE;
     return lens.imageUrl;
   };
@@ -119,7 +141,7 @@ const LensProductPage = () => {
     });
   };
 
-  const openLensMenu = (event: React.MouseEvent<HTMLElement>, lens: LensResponse) => {
+  const openLensMenu = (event: React.MouseEvent<HTMLElement>, lens: LensListItem) => {
     setMenuAnchorEl(event.currentTarget);
     setSelectedLens(lens);
   };
@@ -210,8 +232,14 @@ const LensProductPage = () => {
     setUsageDialogOpen(true);
   };
 
-  const handleToggleLensStatus = async (lens: LensResponse) => {
+  const handleToggleLensStatus = async (lens: LensListItem) => {
     if (updatingId) return;
+
+    const resolveLensResponse = (value?: LensResponse | LensWithProductResult | null): LensListItem | null => {
+      if (!value) return null;
+      if ('lens' in value) return value.lens ?? null;
+      return value;
+    };
 
     try {
       setUpdatingId(lens.id);
@@ -219,16 +247,25 @@ const LensProductPage = () => {
         shopId: lens.shopId,
         sku: lens.sku,
         name: lens.name,
-        basePrice: lens.basePrice,
-        isProgressive: lens.isProgressive,
         category: lens.category,
         progressiveType: lens.progressiveType,
         isActive: !lens.isActive,
       });
-      const updatedLens = res.data;
+      const updatedLens = resolveLensResponse(res.data ?? null);
 
       if (updatedLens) {
-        setLenses((prev) => prev.map((item) => (item.id === updatedLens.id ? updatedLens : item)));
+        setLenses((prev) =>
+          prev.map((item) => {
+            if (item.id !== updatedLens.id) return item;
+
+            return {
+              ...item,
+              ...updatedLens,
+              sku: updatedLens.sku ?? item.sku,
+              isActive: updatedLens.isActive ?? item.isActive,
+            };
+          }),
+        );
       } else {
         setLenses((prev) =>
           prev.map((item) =>
@@ -272,7 +309,7 @@ const LensProductPage = () => {
   }, []);
 
   const lensOptions = useMemo(
-    () => lenses.map((lens) => ({ id: lens.id, label: `${lens.name} (${lens.sku})` })),
+    () => lenses.map((lens) => ({ id: lens.id, label: `${lens.name} (${lens.sku ?? lens.variantId ?? lens.id})` })),
     [lenses],
   );
 
@@ -420,7 +457,7 @@ const LensProductPage = () => {
       const matchSearch =
         !q ||
         lens.name.toLowerCase().includes(q) ||
-        lens.sku.toLowerCase().includes(q) ||
+        (lens.sku || '').toLowerCase().includes(q) ||
         (lens.category || '').toLowerCase().includes(q);
 
       const matchStatus =
@@ -433,7 +470,7 @@ const LensProductPage = () => {
 
   const totalLenses = lenses.length;
   const activeLenses = lenses.filter((lens) => lens.isActive).length;
-  const progressiveLenses = lenses.filter((lens) => lens.isProgressive).length;
+  const progressiveLenses = lenses.filter((lens) => (lens.category === 'PROGRESSIVE')).length;
   const usageObjects = usages.length;
 
   const stats = [
@@ -683,7 +720,7 @@ const LensProductPage = () => {
                         {lens.name}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], fontFamily: 'monospace' }}>
-                        {lens.sku}
+                        {lens.sku ?? lens.variantId ?? lens.id}
                       </Typography>
                     </Box>
                   </Box>
@@ -706,14 +743,24 @@ const LensProductPage = () => {
                     {lens.category}
                   </Typography>
 
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Base Price</Typography>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Price</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {(lens.basePrice ?? 0).toLocaleString('vi-VN')} VND
+                    {typeof lens.basePrice === 'number' ? formatCurrency(lens.basePrice) : '-'}
+                  </Typography>
+
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Stock</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {typeof lens.stockQuantity === 'number' ? lens.stockQuantity : '-'}
+                  </Typography>
+
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Featured</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {lens.isFeatured === true ? 'Yes' : lens.isFeatured === false ? 'No' : '-'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Progressive</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {lens.isProgressive ? lens.progressiveType || 'Yes' : 'No'}
+                    {(lens.category === 'PROGRESSIVE') ? lens.progressiveType || 'Yes' : 'No'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Updated</Typography>
