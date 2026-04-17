@@ -43,8 +43,6 @@ import {
   getReturnRequestDetail,
   updateReturnTracking,
   cancelReturnRequest,
-  acceptProposal,
-  rejectProposal,
 } from '@/api/refund-api';
 import type {
   RefundRequest,
@@ -55,7 +53,6 @@ import {
   RefundReviewDecision,
   RETURN_STATUS_LABELS,
   RETURN_REASON_LABELS,
-  ProposalStatus,
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -82,8 +79,7 @@ const getStatusSteps = (request: RefundRequest) => {
   const resolvedAdminDecision = request.adminDecision;
 
   const isDirectRefundDecision =
-    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN ||
-    request.proposalStatus === ProposalStatus.ACCEPTED;
+    resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
 
   if (isDirectRefundDecision) {
     return [
@@ -96,7 +92,7 @@ const getStatusSteps = (request: RefundRequest) => {
   return [
     { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
     { label: 'Approved by Glassify', statuses: [ReturnStatus.APPROVED] },
-    { label: 'Returning Item', statuses: [ReturnStatus.RETURN_READY_TO_PICK, ReturnStatus.RETURN_SHIPPING, ReturnStatus.RETURN_DELIVERED] },
+    { label: 'Returning Item', statuses: [ReturnStatus.RETURN_SHIPPING] },
     { label: 'Seller Received Item', statuses: [ReturnStatus.ITEM_RECEIVED] },
     { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
   ] satisfies RefundStep[];
@@ -118,9 +114,6 @@ const BuyerRefundDetailPage = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [acceptPropDialogOpen, setAcceptPropDialogOpen] = useState(false);
-  const [rejectPropDialogOpen, setRejectPropDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -179,36 +172,6 @@ const BuyerRefundDetailPage = () => {
     } catch (error: any) {
       console.error('Failed to cancel request:', error);
       toast.error(getApiErrorMessage(error, 'Unable to cancel request'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleAcceptProposal = async () => {
-    if (!requestId) return;
-    try {
-      setSubmitting(true);
-      await acceptProposal(requestId);
-      toast.success('Proposal accepted. Refund process started!');
-      setAcceptPropDialogOpen(false);
-      fetchRequestDetail();
-    } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Failed to accept proposal'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleRejectProposal = async () => {
-    if (!requestId) return;
-    try {
-      setSubmitting(true);
-      await rejectProposal(requestId, { rejectionReason: rejectReason });
-      toast.success('Proposal rejected. Please follow standard return procedures.');
-      setRejectPropDialogOpen(false);
-      fetchRequestDetail();
-    } catch (error: any) {
-      toast.error(getApiErrorMessage(error, 'Failed to reject proposal'));
     } finally {
       setSubmitting(false);
     }
@@ -327,55 +290,6 @@ const BuyerRefundDetailPage = () => {
           ))}
         </Stepper>
       </Paper>
-
-      {/* Proposal UI */}
-      {request.proposalStatus === ProposalStatus.PROPOSED && (
-        <Paper elevation={0} sx={{ border: '2px solid #3b82f6', borderRadius: 3, p: 3, mb: 3, bgcolor: '#eff6ff' }}>
-          <Typography variant="h6" color="primary.main" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            Shop proposed a resolution without return!
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            The shop has offered a {request.proposedPartialAmount === request.refundAmount ? "full" : "partial"} refund of <strong style={{ color: '#0f172a' }}>{formatCurrency(request.proposedPartialAmount || 0)}</strong>. By accepting, you'll receive the refund directly to your wallet without having to return the item.
-          </Typography>
-          {request.proposalAdminNote && (
-            <Typography variant="body2" sx={{ mb: 2, p: 2, bgcolor: '#fff', borderRadius: 2 }}>
-              <strong>Note: </strong> {request.proposalAdminNote}
-            </Typography>
-          )}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={2}>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={() => setAcceptPropDialogOpen(true)}
-              disabled={submitting}
-            >
-              Accept & Receive Refund
-            </Button>
-            <Button 
-              variant="outlined" 
-              color="error"
-              onClick={() => setRejectPropDialogOpen(true)}
-              disabled={submitting}
-            >
-              Reject & Continue Return
-            </Button>
-          </Stack>
-        </Paper>
-      )}
-      
-      {request.proposalStatus === ProposalStatus.ACCEPTED && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>Proposal Accepted</Typography>
-          <Typography variant="body2">You accepted the shop's refund proposal. The refund is being processed.</Typography>
-        </Alert>
-      )}
-
-      {request.proposalStatus === ProposalStatus.REJECTED && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>Proposal Rejected</Typography>
-          <Typography variant="body2">You rejected the shop's refund proposal. The standard Return & Refund process will continue.</Typography>
-        </Alert>
-      )}
 
       {/* Alert messages based on status */}
       {waitingForAdminReview && (
@@ -814,46 +728,6 @@ const BuyerRefundDetailPage = () => {
             disabled={submitting}
           >
             {submitting ? <CircularProgress size={24} /> : 'Confirm Cancellation'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Accept Proposal Dialog */}
-      <Dialog open={acceptPropDialogOpen} onClose={() => setAcceptPropDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Accept Refund Proposal</DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mt: 1 }}>
-            Are you sure you want to accept this proposal for <strong>{formatCurrency(request?.proposedPartialAmount || 0)}</strong>? By accepting, you will receive the refund amount immediately and you will not have to return the item.
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAcceptPropDialogOpen(false)} disabled={submitting}>Cancel</Button>
-          <Button variant="contained" color="primary" onClick={handleAcceptProposal} disabled={submitting}>
-            {submitting ? <CircularProgress size={24} color="inherit" /> : 'Confirm & Accept'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Reject Proposal Dialog */}
-      <Dialog open={rejectPropDialogOpen} onClose={() => setRejectPropDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Reject Refund Proposal</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 1, mb: 2 }}>
-            You are rejecting the shop's money settlement. The standard Return & Refund process will continue (you will need to ship the item back). Please provide an optional reason.
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Rejection Reason (Optional)"
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRejectPropDialogOpen(false)} disabled={submitting}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleRejectProposal} disabled={submitting}>
-            {submitting ? <CircularProgress size={24} color="inherit" /> : 'Confirm Rejection'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -246,7 +246,8 @@ const CreateFramePage = () => {
                             ref={frameInfoRef}
                             initialData={savedGroupData}
                             shopId={shop?.id}
-                            frameGroupId={frameGroupId ?? ''}
+                            // upload3DModelRef được gắn vào Upload3DModelPage bên trong
+                            // để sau này CreateFrameVariantPage có thể gọi applyTexture()
                             upload3DModelRef={upload3DModelRef}
                             onCreated={(id, data) => {
                                 setFrameGroupId(id);
