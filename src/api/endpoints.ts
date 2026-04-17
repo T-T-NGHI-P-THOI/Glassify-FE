@@ -323,6 +323,7 @@ export const PAGE_ENDPOINTS = {
     WARRANTIES: `/admin/warranties`,
     WARRANTY_DETAIL: `/admin/warranties/:id`,
     TRANSACTIONS: `/admin/transactions`,
+    VERIFY_PRODUCT: `/admin/verify-product`,
   },
 
   ORDER: {

@@ -47,6 +47,7 @@ import LensDetailPage from "@/pages/Product/Lens/LensDetailPage";
 import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage";
 import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
+import ProductVerificationPage from "@/pages/Admin/ProductVerificationPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -565,6 +566,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminTransactionsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.VERIFY_PRODUCT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <ProductVerificationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
