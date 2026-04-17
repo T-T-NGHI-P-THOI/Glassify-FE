@@ -242,7 +242,7 @@ const AddressEditDialog = ({ open, onClose, onSaved, existingAddress, defaultNam
             size="small"
             value={form.recipientPhone}
             onChange={(e) => setForm(f => ({ ...f, recipientPhone: e.target.value.replace(/\D/g, '') }))}
-            inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 11 }}
+            slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLength: 11 } }}
             error={!!formErrors.recipientPhone}
             helperText={formErrors.recipientPhone}
           />
@@ -718,8 +718,10 @@ const CheckoutPage = () => {
   const items = cartData?.items ?? [];
   const cartId = cartData?.cart?.id;
 
+  // stock_quantity = qtyAvailable (after reservation), so we only block if it went negative
+  // (race condition: someone else grabbed stock between add-to-cart and checkout)
   const exceededItems = items.filter(
-    (i) => i.stock_quantity != null && i.quantity > i.stock_quantity,
+    (i) => i.stock_quantity != null && i.stock_quantity < 0,
   );
 
   const validate = (): boolean => {
@@ -977,7 +979,7 @@ const CheckoutPage = () => {
                   error={!!errors.shippingPhone}
                   helperText={errors.shippingPhone}
                   size="small"
-                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 11 }}
+                  slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLength: 11 } }}
                   placeholder="0xxxxxxxxx"
                 />
               </Box>

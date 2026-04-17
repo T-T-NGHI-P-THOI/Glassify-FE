@@ -51,6 +51,7 @@ export interface ShopOrderResponse {
   shippedAt?: string;
   deliveredAt?: string;
   ghnOrderCode?: string;
+  cancelReason?: string;
   returnReason?: string;
   returnInTransitAt?: string;
   returnedAt?: string;
@@ -340,7 +341,8 @@ export const shopApi = {
   cancelShopOrder: async (shopId: string, orderId: string, reason?: string): Promise<ApiResponse<ShopOrderResponse>> => {
     const response = await axiosInstance.patch<ApiResponse<ShopOrderResponse>>(
       `${SHOP_BASE_URL}/my-shops/${shopId}/orders/${orderId}/cancel`,
-      reason ? { reason } : {},
+      {},
+      reason ? { params: { reason } } : undefined,
     );
     return response.data;
   },
