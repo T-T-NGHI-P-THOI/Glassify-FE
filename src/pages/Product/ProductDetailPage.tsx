@@ -10,6 +10,7 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
 import ProductAPI, {
@@ -67,6 +68,7 @@ const ProductDetailPage: React.FC = () => {
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
@@ -100,10 +102,15 @@ const ProductDetailPage: React.FC = () => {
 
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!slug) return;
+      if (!slug) {
+        setIsNotFound(true);
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
+        setIsNotFound(false);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
         let productWithFrameInfo: ProductWithFrameInfoData | null = null;
 
@@ -256,6 +263,29 @@ const ProductDetailPage: React.FC = () => {
 
         setRecommendedProducts(recommended);
       } catch (error) {
+        const err = error as {
+          status?: number;
+          message?: string;
+          errors?: unknown;
+          originalError?: { response?: { status?: number; data?: { errors?: unknown } } };
+        };
+        const status = err.status ?? err.originalError?.response?.status;
+        const message = err.message?.toLowerCase();
+        const errors = Array.isArray(err.errors)
+          ? err.errors
+          : Array.isArray(err.originalError?.response?.data?.errors)
+            ? err.originalError.response.data.errors
+            : [];
+
+        const hasProductNotFoundError = errors.some(
+          (item) => typeof item === 'string' && item.toLowerCase().includes('product not found')
+        );
+
+        if (status === 404 || status === 400 && (message?.includes('product not found') || hasProductNotFoundError)) {
+          setIsNotFound(true);
+          setProduct(null);
+          return;
+        }
         console.error('Error fetching product:', error);
       } finally {
         setIsLoading(false);
@@ -561,6 +591,10 @@ const ProductDetailPage: React.FC = () => {
       setSnackbar({ open: true, message: 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!', severity: 'error' });
     }
   };
+
+  if (isNotFound) {
+    return <NotFoundPage />;
+  }
 
   if (!product || isLoading) {
     return <div className="loading">Loading...</div>;
