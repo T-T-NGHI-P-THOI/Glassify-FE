@@ -48,6 +48,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { ShopDetailResponse } from '@/models/Shop';
 import ProductAPI, { type ApiProduct } from '@/api/product-api';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { sanitizeSearchInput } from '@/utils/text-input';
 
 const SortIcon = () => (
   <UnfoldMore sx={{ fontSize: 14, color: '#9ca3af', ml: 0.5, verticalAlign: 'middle' }} />
@@ -145,7 +146,7 @@ const ShopProductsPage = () => {
               size="small"
               placeholder="Search"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => { setSearch(sanitizeSearchInput(e.target.value)); setPage(1); }}
               sx={{
                 width: 200,
                 '& .MuiOutlinedInput-root': { borderRadius: 1.5, bgcolor: '#fff' },

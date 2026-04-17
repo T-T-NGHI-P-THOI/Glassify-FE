@@ -229,8 +229,7 @@ const ShopRegistrationPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const filtered = e.target.value
-      .replace(/[^a-zA-Z0-9\s\u00C0-\u1EF9.,\-/]/g, '')
-      .slice(0, 21);
+          const filtered = sanitizeTextInput(e.target.value, { maxLength: 21 });
     setFormData((prev) => ({ ...prev, [field]: filtered }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
@@ -248,7 +247,7 @@ const ShopRegistrationPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = e.target.value.slice(0, 50);
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const value = sanitizeTextInput(e.target.value, { maxLength: 50 });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
