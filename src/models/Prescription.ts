@@ -15,7 +15,7 @@ export interface Prescription {
   prescriptionDate: string;
   imageUrl: string;
   isDefault: boolean;
-  prescriptionUsage: 'DISTANCE' | 'READING' | 'COMPUTER' | 'OTHER';
+  prescriptionUsage: 'DISTANCE' | 'READING' | 'COMPUTER' | 'PROGRESSIVE';
   createdAt: string;
   updatedAt: string;
 }
@@ -35,7 +35,7 @@ export interface CreatePrescriptionData {
   prescriptionDate: string;
   imageUrl?: string;
   isDefault?: boolean;
-  prescriptionUsage: 'DISTANCE' | 'READING' | 'COMPUTER' | 'OTHER';
+  prescriptionUsage: 'DISTANCE' | 'READING' | 'COMPUTER' | 'PROGRESSIVE';
 }
 
 export interface UpdatePrescriptionData extends Partial<CreatePrescriptionData> {
