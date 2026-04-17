@@ -183,6 +183,7 @@ interface Props {
     setSaveModalOpen: (open: boolean) => void;
     isAnalyzing?: boolean;
     onRecommendReady?: (frames: FrameShape[], lens: string) => void;
+    handleClose?: () => void;
 }
 
 export const FaceShapeSuggestionPanel = ({
@@ -191,6 +192,7 @@ export const FaceShapeSuggestionPanel = ({
     setSaveModalOpen,
     isAnalyzing = false,
     onRecommendReady,
+    handleClose
 }: Props) => {
     const navigate = useNavigate();
     const [visible, setVisible] = useState(false);
@@ -216,6 +218,7 @@ export const FaceShapeSuggestionPanel = ({
             getFrameShapes(result.shape),
             fengShuiResult?.luckyColors ?? [],
         );
+        handleClose?.();
         navigate(`/products?${params.toString()}`);
     };
 

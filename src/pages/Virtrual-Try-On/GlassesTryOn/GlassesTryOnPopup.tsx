@@ -231,13 +231,14 @@ const LensDrawer = ({
 );
 
 const RecDrawer = ({
-    result, fengShuiResult, setSaveModalOpen, setRecommendedFrameStyles, setRecommendedLens
+    result, fengShuiResult, handleClose, setSaveModalOpen, setRecommendedFrameStyles, setRecommendedLens
 }: {
     result: FaceAnalysisResult | null;
     fengShuiResult: FengShuiResult | null;
     setSaveModalOpen: (open: boolean) => void;
     setRecommendedFrameStyles: (frame: FrameShape[]) => void;
     setRecommendedLens: (lenses: string) => void;
+    handleClose?: () => void;
 }) => {
     if (!result) {
         return (
@@ -275,7 +276,7 @@ const RecDrawer = ({
                 fengShuiResult={fengShuiResult}
                 setSaveModalOpen={setSaveModalOpen}
                 isAnalyzing={false}
-
+                handleClose={handleClose}
                 onRecommendReady={(frames, lens) => {
                     setRecommendedFrameStyles(frames);
                     setRecommendedLens(lens);
@@ -626,6 +627,7 @@ const GlassesTryOnPopup = ({
                                     setSaveModalOpen={() => setModalOpen(true)}
                                     setRecommendedFrameStyles={setRecommendedFrameStyles}
                                     setRecommendedLens={setRecommendedLens}
+                                    handleClose={handleClose}
                                 />
                             )}
                         </Box>
