@@ -36,7 +36,7 @@ export const API_ENDPOINTS = {
     GET_SHOP_ACCESSORY: (shopId: string) => `${API_ENDPOINT}/product/accessory/shop/${shopId}`,
     GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
     GET_COLORS: `${API_ENDPOINT}/product/frame-variant/colors`,
-    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
+    GET_VIRTUAL_TRY_ON_PARAMS: (frameGroupId: string) => `${API_ENDPOINT}/product/frame-group/virtual-try-on-params/${frameGroupId}`,
 
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
