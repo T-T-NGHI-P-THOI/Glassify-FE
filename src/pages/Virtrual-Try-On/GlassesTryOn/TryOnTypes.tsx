@@ -1,14 +1,12 @@
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
 export type DrawerType = "lens" | "rec" | "save_rec"| null;
-
-// export interface TextureVariant {
-//     id: string;
-//     label: string;
-//     cssPreview: string;
-//     texturePath: string;
-// }
-export interface TextureVariant {
+export interface VirtualTryOnParams {
+    frameWidthMm: number;
+    lensWidthMm: number;
+    lensHeightMm: number;
+    bridgeWidthMm: number;
+    templeLengthMm: number;
     colorHex: string;
     url: string;
 }

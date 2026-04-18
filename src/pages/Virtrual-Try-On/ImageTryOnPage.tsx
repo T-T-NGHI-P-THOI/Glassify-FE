@@ -24,6 +24,7 @@ const ImageTryOnPage = () => {
     const faceEngineRef = useRef<ImageFaceLandmarkerService | null>(null);
     const ageServiceRef = useRef<AgeDetectionService | null>(null);
     const prevUrlRef = useRef<string | null>(null);
+    const imgRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
         const engine = new ImageFaceLandmarkerService();
@@ -57,7 +58,10 @@ const ImageTryOnPage = () => {
         try {
             const img = new Image();
             img.src = url;
+
             await new Promise<void>((res, rej) => {
+                            img.onload = () => { imgRef.current = img; res(); }
+
                 img.onload = () => res();
                 img.onerror = () => rej(new Error("Image load failed"));
             });

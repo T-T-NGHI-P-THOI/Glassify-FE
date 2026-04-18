@@ -4,8 +4,9 @@ import { ImageFaceLandmarkerService } from "../../../services/FaceLandmarkerServ
 import { CANVAS_HEIGHT, CANVAS_WIDTH, ThreeJsService } from "../../../services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
-import { T, type TextureVariant } from "./TryOnTypes";
+import { T, type VirtualTryOnParams } from "./TryOnTypes";
 import { analyzeFengShui, type FengShuiResult } from "@/services/FengShuiAnalyzer";
+import type { GlassesMeasurements } from "@/utils/glasses-cfg";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ type LoadingStep =
 
 interface ImageTryOnProps {
     frameGroupId: string;
-    activeTexture: TextureVariant | null;
+    activeVariant: VirtualTryOnParams | null;
     isTryOn: boolean; // true = skip face analysis; false = skip Three.js/glasses
     onAnalysisReady: (result: FaceAnalysisResult) => void;
     onFengShuiReady: (result: FengShuiResult) => void;
@@ -35,7 +36,7 @@ interface ImageTryOnProps {
 
 const ImageTryOn = ({
     frameGroupId,
-    activeTexture,
+    activeVariant,
     isTryOn,
     onAnalysisReady,
     onFengShuiReady,
@@ -52,6 +53,42 @@ const ImageTryOn = ({
     const threeRef = useRef<ThreeJsService | null>(null);
     const ageServiceRef = useRef<AgeDetectionService | null>(null);
     const prevUrlRef = useRef<string | null>(null);
+    const imgRef = useRef<HTMLImageElement | null>(null);
+
+    const applyVariant = useCallback(async () => {
+        const img = imgRef.current;
+        const three = threeRef.current;
+        const engine = faceEngineRef.current;
+        if (!img || !three || !engine || !activeVariant) return;
+
+        try {
+            setLoadingStep("load_texture");
+
+            // Cập nhật measurements mới
+            const measurements: GlassesMeasurements = {
+                frameWidthMm: activeVariant.frameWidthMm ?? 0,
+                bridgeWidthMm: activeVariant.bridgeWidthMm ?? 0,
+                lensHeightMm: activeVariant.lensHeightMm ?? 0,
+                lensWidthMm: activeVariant.lensWidthMm ?? 0,
+                templeLengthMm: activeVariant.templeLengthMm ?? 0,
+            };
+
+            // Re-detect + re-apply với measurements mới
+            // sm.ready = false; // reset smoothing
+            await engine.detectAndApply(img, true, measurements);
+
+            // Cập nhật texture mới
+            if (activeVariant.url && three.glassesObj) {
+                await three.applyTextureFromUrl(three.glassesObj, activeVariant.url);
+            }
+
+            three.renderOnce?.();
+        } catch (err) {
+            console.error("Failed to apply variant:", err);
+        } finally {
+            setLoadingStep(null);
+        }
+    }, [activeVariant]);
 
     // ── Init age service (chỉ khi recommend mode) ──
     useEffect(() => {
@@ -72,25 +109,11 @@ const ImageTryOn = ({
         }
     }, [reloadSignal]);
 
-    // ── Update texture dynamically (chỉ khi try-on mode) ──
+    // Xóa effect cũ cập nhật texture, thay bằng:
     useEffect(() => {
-        if (!isTryOn) return;
-        const updateTexture = async () => {
-            const three = threeRef.current;
-            if (!three || !three.glassesObj || !activeTexture?.url || status !== "done") return;
-
-            try {
-                setLoadingStep("load_texture");
-                await three.applyTextureFromUrl(three.glassesObj, activeTexture.url);
-                three.renderOnce?.();
-            } catch (err) {
-                console.error("Failed to update texture:", err);
-            } finally {
-                setLoadingStep(null);
-            }
-        };
-        updateTexture();
-    }, [activeTexture, status, isTryOn]);
+        if (!isTryOn || status !== "done") return;
+        applyVariant();
+    }, [activeVariant, isTryOn, status]);
 
     // ── Process uploaded image ──
     const processImage = useCallback(async (file: File) => {
@@ -107,7 +130,7 @@ const ImageTryOn = ({
             const img = new Image();
             img.src = url;
             await new Promise<void>((res, rej) => {
-                img.onload = () => res();
+                img.onload = () => { imgRef.current = img; res(); }
                 img.onerror = () => rej(new Error("Image load failed"));
             });
 
@@ -138,10 +161,10 @@ const ImageTryOn = ({
                 }
 
                 // ── 3. Load texture ──
-                if (activeTexture?.url && threeService.glassesObj) {
+                if (activeVariant?.url && threeService.glassesObj) {
                     setLoadingStep("load_texture");
                     try {
-                        await threeService.applyTextureFromUrl(threeService.glassesObj, activeTexture.url);
+                        await threeService.applyTextureFromUrl(threeService.glassesObj, activeVariant.url);
                     } catch (e) {
                         console.warn("Texture load failed, using default.");
                     }
@@ -149,7 +172,15 @@ const ImageTryOn = ({
 
                 // ── 4. Detect landmarks (for glasses positioning only) ──
                 setLoadingStep("detect_face");
-                const { found } = await faceEngineRef.current.detectAndApply(img, true);
+                const measurements: GlassesMeasurements = {
+                    frameWidthMm: activeVariant?.frameWidthMm ?? 0,
+                    bridgeWidthMm: activeVariant?.bridgeWidthMm ?? 0,
+                    lensHeightMm: activeVariant?.lensHeightMm ?? 0,
+                    lensWidthMm: activeVariant?.lensWidthMm ?? 0,
+                    templeLengthMm: activeVariant?.templeLengthMm ?? 0,
+                };
+                const { found } = await faceEngineRef.current.detectAndApply(img, true, measurements);
+                imgRef.current = img
 
                 threeService.renderOnce();
                 setStatus(found ? "done" : "no_face");
@@ -215,7 +246,15 @@ const ImageTryOn = ({
                 // ── 3. Detect landmarks ──
                 // Không gọi setThreeObjects nên detectAndApply chỉ detect, không drive glasses
                 setLoadingStep("detect_face");
-                const { found, landmarks } = await faceEngineRef.current.detectAndApply(img, false);
+                const measurements: GlassesMeasurements = {
+                    frameWidthMm: activeVariant?.frameWidthMm ?? 0,
+                    bridgeWidthMm: activeVariant?.bridgeWidthMm ?? 0,
+                    lensHeightMm: activeVariant?.lensHeightMm ?? 0,
+                    lensWidthMm: activeVariant?.lensWidthMm ?? 0,
+                    templeLengthMm: activeVariant?.templeLengthMm ?? 0,
+                };
+                const { found, landmarks } = await faceEngineRef.current.detectAndApply(img, false, measurements);
+                imgRef.current = img
 
                 if (found && landmarks) {
                     const result = analyzeFaceShape(landmarks, img.naturalWidth, img.naturalHeight);
@@ -248,7 +287,7 @@ const ImageTryOn = ({
             setStatus("error");
             setLoadingStep(null);
         }
-    }, [onAnalysisReady, onFengShuiReady, onAgeReady, frameGroupId, activeTexture, isTryOn]);
+    }, [onAnalysisReady, onFengShuiReady, onAgeReady, frameGroupId, activeVariant, isTryOn]);
 
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

@@ -5,7 +5,8 @@ import { FaceLandmarkerService } from "../../../services/FaceLandmarkerService";
 import { ThreeJsService } from "../../../services/ThreeJsService";
 import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/FaceShapeAnalyzer";
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
-import { T, type TextureVariant } from "./TryOnTypes";
+import { T, type VirtualTryOnParams } from "./TryOnTypes";
+import type { GlassesMeasurements } from "@/utils/glasses-cfg";
 
 type Status = "idle" | "loading" | "done" | "error";
 type LoadingStep =
@@ -18,7 +19,7 @@ type LoadingStep =
 
 interface VideoTryOnProps {
     frameGroupId: string;
-    activeTexture: TextureVariant | null;
+    activeVariant: VirtualTryOnParams | null;
     isTryOn: boolean; // true = skip face analysis; false = skip Three.js/glasses
     onAnalysisReady: (result: FaceAnalysisResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
@@ -27,7 +28,7 @@ interface VideoTryOnProps {
 
 const VideoTryOn = ({
     frameGroupId,
-    activeTexture,
+    activeVariant,
     isTryOn,
     onAnalysisReady,
     onAgeReady,
@@ -96,9 +97,9 @@ const VideoTryOn = ({
                     await threeJsService.initalizeThreeJs(video, canvas, frameGroupId);
 
                     // ── Apply initial texture ──
-                    if (activeTexture?.url && threeJsService.glassesObj) {
+                    if (activeVariant?.url && threeJsService.glassesObj) {
                         setLoadingStep("load_texture");
-                        await threeJsService.applyTextureFromUrl(threeJsService.glassesObj, activeTexture.url).catch(console.error);
+                        await threeJsService.applyTextureFromUrl(threeJsService.glassesObj, activeVariant.url).catch(console.error);
                     }
 
                     // ── Init Face Engine ──
@@ -107,6 +108,15 @@ const VideoTryOn = ({
                     if (threeJsService.glassesObj && threeJsService.faceObj) {
                         faceEngine.setThreeObjects(threeJsService.glassesObj, threeJsService.faceObj);
                     }
+
+                    const measurements: GlassesMeasurements = {
+                        frameWidthMm: activeVariant?.frameWidthMm ?? 0,
+                        bridgeWidthMm: activeVariant?.bridgeWidthMm ?? 0,
+                        lensHeightMm: activeVariant?.lensHeightMm ?? 0,
+                        lensWidthMm: activeVariant?.lensWidthMm ?? 0,
+                        templeLengthMm: activeVariant?.templeLengthMm ?? 0,
+                    };
+                    faceEngine.setMeasurements(measurements);
 
                     // Landmark callback: chỉ dùng để drive glasses, skip analysis
                     faceEngine.onLandmarksDetected = () => {
@@ -166,18 +176,35 @@ const VideoTryOn = ({
         return () => {
             cancelled = true;
         };
-    }, [activeTexture, isTryOn]);
+    }, [isTryOn, frameGroupId]);
+
+    useEffect(() => {
+        if (!isTryOn) return;
+        const engine = faceEngineRef.current;
+        if (!engine || !activeVariant) return;
+
+        const measurements: GlassesMeasurements = {
+            frameWidthMm: activeVariant.frameWidthMm ?? 0,
+            bridgeWidthMm: activeVariant.bridgeWidthMm ?? 0,
+            lensHeightMm: activeVariant.lensHeightMm ?? 0,
+            lensWidthMm: activeVariant.lensWidthMm ?? 0,
+            templeLengthMm: activeVariant.templeLengthMm ?? 0,
+        };
+        engine.setMeasurements(measurements);
+    }, [activeVariant, isTryOn]);
 
     // ── Update texture dynamically (chỉ khi try-on mode) ──
     useEffect(() => {
         if (!isTryOn) return;
+        const three = threeRef.current;
+        if (!three || !three.glassesObj || !activeVariant?.url) return;
         const updateTexture = async () => {
             const three = threeRef.current;
-            if (!three || !three.glassesObj || !activeTexture?.url) return;
+            if (!three || !three.glassesObj || !activeVariant?.url) return;
 
             try {
                 setLoadingStep("load_texture");
-                await three.applyTextureFromUrl(three.glassesObj, activeTexture.url);
+                await three.applyTextureFromUrl(three.glassesObj, activeVariant.url);
                 setLoadingStep(null);
             } catch (err) {
                 console.error("Failed to update video texture:", err);
@@ -185,7 +212,7 @@ const VideoTryOn = ({
         };
 
         updateTexture();
-    }, [activeTexture, isTryOn]);
+    }, [activeVariant, isTryOn]);
 
     // ── Reload ──
     const handleReload = useCallback(() => {

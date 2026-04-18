@@ -140,6 +140,11 @@ export interface ProductWithFrameInfoData {
 }
 
 export interface ApiTextureFile {
+  frameWidthMm: number;
+  lensWidthMm: number;
+  lensHeightMm: number;
+  bridgeWidthMm: number;
+  templeLengthMm: number;
   colorHex: string;
   url: string;
 }
@@ -509,10 +514,8 @@ export default class ProductAPI {
     return response.data as Blob;
   }
 
-  static async getTextureFiles(frameGroupId: string): Promise<ApiTextureFile[]> {
-    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
-      params: { frameGroupId }
-    });
+  static async getVirtualTryOnParams(frameGroupId: string): Promise<ApiTextureFile[]> {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_VIRTUAL_TRY_ON_PARAMS(frameGroupId));
     return response.data.data as ApiTextureFile[];
   }
 
