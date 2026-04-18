@@ -335,10 +335,8 @@ const AccessoryProductPage = () => {
                 open={!!deleteTarget}
                 onClose={() => setDeleteTarget(null)}
                 onConfirm={handleDeleteConfirm}
-                loading={deleteLoading}
                 itemName={deleteTarget?.name}
-                title="Delete Accessory"
-                description="This action cannot be undone. All variants associated with this accessory will also be removed."
+                accessoryId={deleteTarget?.id}
             />
         </Box>
     );

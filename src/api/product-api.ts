@@ -461,6 +461,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async setIsFeaturedProduct(productId: string) {
+    const response = await axiosInstance.patch(
+      API_ENDPOINTS.PRODUCTS.SET_FEATURE_PRODUCT(productId)
+    );
+    return response.data.data;
+  }
+
   static async upload3DModelFile(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.UPLOAD_3D_MODEL,
@@ -522,6 +529,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async deleteFrameGroup(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_FRAME_GROUP(id),
+    );
+    return response.data.data;
+  }
+
   static async updateFrameVariant(id: string, body: FormData) {
     const response = await axiosInstance.put(
       API_ENDPOINTS.PRODUCTS.UPDATE_FRAME_VARIANT(id),
@@ -535,6 +549,12 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async deleteFrameVariant(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_FRAME_VARIANT(id),
+    );
+    return response.data.data;
+  }
   // ------------------------------------------------------------
   // ----------------------- ACCESSORY --------------------------
   // ------------------------------------------------------------
@@ -561,6 +581,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async deleteAccessory(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_ACCESSORY(id),
+    );
+    return response.data.data;
+  }
+
   static async createAccessoryVariant(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.CREATE_ACCESSORY_VARIANT,
@@ -578,6 +605,13 @@ export default class ProductAPI {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return response.data.data;
+  }
+
+  static async deleteAccessoryVariant(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_ACCESSORY_VARIANT(id),
     );
     return response.data.data;
   }
