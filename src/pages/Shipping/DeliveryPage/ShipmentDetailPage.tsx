@@ -290,6 +290,18 @@ const ShipmentDetailPage = () => {
               Order: #{order.shopOrderNumber}
             </Typography>
           </Box>
+          {currentStatus === 'PENDING' && order.paymentStatus === 'PENDING' && order.paymentMethod !== 'COD' && (
+            <Chip
+              label="Unpaid"
+              sx={{
+                backgroundColor: theme.palette.custom.status.warning.light,
+                color: theme.palette.custom.status.warning.main,
+                fontWeight: 600,
+                fontSize: 13,
+                px: 1,
+              }}
+            />
+          )}
           <Chip
             label={getStatusLabel(currentStatus)}
             sx={{
