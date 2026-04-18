@@ -10,33 +10,57 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Close, DeleteOutline, WarningAmberRounded } from '@mui/icons-material';
+import { useState } from 'react';
 import { CustomButton } from '@/components/custom';
+import ProductAPI from '@/api/product-api';
+import { toast } from 'react-toastify';
 
 interface DeleteConfirmDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void> | void;
-  loading?: boolean;
+  onConfirm?: () => void;
   title?: string;
   description?: string;
   itemName?: string;
+  frameGroupId?: string;
 }
 
 const DeleteConfirmDialog = ({
   open,
   onClose,
   onConfirm,
-  loading = false,
   title = 'Delete Frame Group',
   description = 'This action cannot be undone. All variants associated with this frame group will also be removed.',
   itemName,
+  frameGroupId
 }: DeleteConfirmDialogProps) => {
+
   const theme = useTheme();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!frameGroupId) return;
+
+    try {
+      setIsDeleting(true);
+
+      await ProductAPI.deleteFrameGroup(frameGroupId);
+
+      toast.success('Delete frame group successful!');
+      onConfirm?.();
+      onClose();
+    } catch (err: any) {
+      toast.error('Cannot delete frame group!');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <Dialog
       open={open}
-      onClose={!loading ? onClose : undefined}
+      onClose={!isDeleting ? onClose : undefined}
+      disableEscapeKeyDown={isDeleting}
       maxWidth="xs"
       fullWidth
       PaperProps={{
@@ -49,6 +73,7 @@ const DeleteConfirmDialog = ({
     >
       <DialogTitle sx={{ p: 2.5, pb: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          
           <Box
             sx={{
               width: 44,
@@ -61,18 +86,28 @@ const DeleteConfirmDialog = ({
               mb: 1.5,
             }}
           >
-            <WarningAmberRounded sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
+            <WarningAmberRounded
+              sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }}
+            />
           </Box>
+
           <IconButton
             size="small"
             onClick={onClose}
-            disabled={loading}
+            disabled={isDeleting}
             sx={{ mt: -0.5, color: theme.palette.custom.neutral[400] }}
           >
             <Close sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
-        <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+
+        <Typography
+          sx={{
+            fontSize: 16,
+            fontWeight: 600,
+            color: theme.palette.custom.neutral[800]
+          }}
+        >
           {title}
         </Typography>
       </DialogTitle>
@@ -89,33 +124,53 @@ const DeleteConfirmDialog = ({
               mb: 1.5,
             }}
           >
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: theme.palette.custom.neutral[700]
+              }}
+            >
               {itemName}
             </Typography>
           </Box>
         )}
-        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], lineHeight: 1.6 }}>
+
+        <Typography
+          sx={{
+            fontSize: 13,
+            color: theme.palette.custom.neutral[500],
+            lineHeight: 1.6
+          }}
+        >
           {description}
         </Typography>
       </DialogContent>
 
       <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1 }}>
+        
         <CustomButton
           variant="outlined"
           onClick={onClose}
-          disabled={loading}
+          disabled={isDeleting}
           fullWidth
-          sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 500, fontSize: 13 }}
+          sx={{
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontWeight: 500,
+            fontSize: 13
+          }}
         >
           Cancel
         </CustomButton>
+
         <CustomButton
           variant="contained"
-          onClick={onConfirm}
-          disabled={loading}
+          onClick={handleDelete}
+          disabled={isDeleting}
           fullWidth
           startIcon={
-            loading
+            isDeleting
               ? <CircularProgress size={14} sx={{ color: '#fff' }} />
               : <DeleteOutline sx={{ fontSize: 16 }} />
           }
@@ -128,8 +183,9 @@ const DeleteConfirmDialog = ({
             '&:hover': { bgcolor: '#b91c1c' },
           }}
         >
-          {loading ? 'Deleting...' : 'Delete'}
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </CustomButton>
+
       </DialogActions>
     </Dialog>
   );

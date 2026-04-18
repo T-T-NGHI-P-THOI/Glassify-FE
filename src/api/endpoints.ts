@@ -44,10 +44,15 @@ export const API_ENDPOINTS = {
     CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
 
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    SET_FEATURE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/feature/${id}`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
+    DELETE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPDATE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
+    DELETE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
     UPDATE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
+    DELETE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
     UPDATE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
+    DELETE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
   },
   CATEGORIES: {

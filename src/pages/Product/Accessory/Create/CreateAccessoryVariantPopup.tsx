@@ -156,7 +156,7 @@ export default function CreateAccessoryVariantPopup({
                 if (img.file) payload.append('productImages', img.file);
             });
             const response = await ProductAPI.createAccessoryVariant(payload);
-            onCreated?.(response.id, response.productId, formData);
+            onCreated?.(response.id, response.productResponse.id, formData);
             toast.success('Accessory variant created successfully!');
             setFormData(DEFAULT_FORM);
             onClose();

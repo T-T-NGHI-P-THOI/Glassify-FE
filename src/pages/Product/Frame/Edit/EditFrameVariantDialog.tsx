@@ -35,13 +35,14 @@ import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile } from '../Create/Upload3DModel';
 import type { FrameVariantResponse } from './../View/FrameGroupCard';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
+import type { ProductSize } from '@/types/product.enums';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface EditFrameVariantFormData {
     colorName: string;
     colorHex: string;
-    size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
+    size: ProductSize;
     frameWidthMm: number;
     lensWidthMm: number;
     lensHeightMm: number;

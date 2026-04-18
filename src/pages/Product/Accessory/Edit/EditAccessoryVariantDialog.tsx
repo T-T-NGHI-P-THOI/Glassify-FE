@@ -37,7 +37,7 @@ export interface EditAccessoryVariantFormData {
     name: string;
     color: string;
     colorHex: string;
-    size: string;
+    size: ProductSize;
     isFeatured: boolean;
     stock: number;
     stockThreshold: number;
