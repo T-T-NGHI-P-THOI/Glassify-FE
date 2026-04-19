@@ -33,6 +33,11 @@ import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrenc
 import { getApiErrorMessage } from '@/utils/api-error';
 import { SHOP_APPEAL_REASON_LABELS, SHOP_APPEAL_STATUS_LABELS, ShopAppealStatus, RefundReviewDecision } from '@/models/Refund';
 
+const isVideoFile = (url?: string) => {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(url.toLowerCase()) || url.includes('/video/');
+};
+
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested', APPROVED: 'Approved', REJECTED: 'Rejected',
   RETURN_SHIPPING: 'Return Shipping', ITEM_RECEIVED: 'Item Received',
@@ -282,6 +287,45 @@ const AdminRefundDetailPage = () => {
 
               {/* Row 3: Appeal */}
               <Box sx={{ p: 3 }}>
+                <SectionLabel>Customer Evidence</SectionLabel>
+                <FieldRow
+                  label="Evidence files"
+                  value={
+                    (refund.evidenceImages && refund.evidenceImages.length > 0) ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {refund.evidenceImages.map((url, idx) => (
+                          <Box
+                            key={`evidence-${idx}`}
+                            component="a"
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              width: 80,
+                              height: 80,
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              display: 'block',
+                              border: `1px solid ${theme.palette.custom.border.light}`,
+                            }}
+                          >
+                            {isVideoFile(url) ? (
+                              <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            ) : (
+                              <Box component="img" src={url} alt={`Evidence ${idx + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      '—'
+                    )
+                  }
+                />
+              </Box>
+            <Divider />
+              {/* Row 4: Customer Evidence */}
+              <Box sx={{ p: 3 }}>
                 <SectionLabel>Shop Appeal</SectionLabel>
                 <FieldRow
                   label="Appeal status"
@@ -307,7 +351,38 @@ const AdminRefundDetailPage = () => {
                   value={refund.shopAppealReason ? SHOP_APPEAL_REASON_LABELS[refund.shopAppealReason] : '—'}
                 />
                 <FieldRow label="Appeal detail" value={refund.shopAppealDetail || '—'} />
-                <FieldRow label="Appeal evidence" value={`${refund.shopAppealEvidenceImages?.length ?? 0} file(s)`} />
+                <FieldRow
+                  label="Appeal evidence"
+                  value={
+                    (refund.shopAppealEvidenceImages && refund.shopAppealEvidenceImages.length > 0) ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {refund.shopAppealEvidenceImages!.map((url, idx) => (
+                          <Box
+                            key={`appeal-evidence-${idx}`}
+                            component="a"
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              width: 80,
+                              height: 80,
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              display: 'block',
+                              border: `1px solid ${theme.palette.custom.border.light}`,
+                            }}
+                          >
+                            {isVideoFile(url) ? (
+                              <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            ) : (
+                              <Box component="img" src={url} alt={`Appeal evidence ${idx + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : `${refund.shopAppealEvidenceImages?.length ?? 0} file(s)`
+                  }
+                />
                 <FieldRow label="Admin review note" value={refund.adminAppealReviewNote || '—'} />
                 <FieldRow
                   label="Compensation"

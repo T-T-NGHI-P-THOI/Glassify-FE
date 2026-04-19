@@ -108,6 +108,7 @@ export interface AdminRefundResponse {
   rejectedAt?: string;
   rejectionReason?: string;
   completedAt?: string;
+  evidenceImages?: string[];
   shopAppealStatus?: ShopAppealStatus;
   shopAppealReason?: ShopAppealReason;
   shopAppealDetail?: string;
