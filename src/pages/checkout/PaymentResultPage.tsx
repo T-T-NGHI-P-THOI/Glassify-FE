@@ -6,11 +6,14 @@ import {
   Paper,
   Button,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   CheckCircle,
   Cancel,
   Receipt,
+  AccessTime,
+  CreditCard,
 } from '@mui/icons-material';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { paymentApi, type PaymentResultResponse } from '@/api/payment-api';
@@ -22,8 +25,10 @@ const PaymentResultPage = () => {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<PaymentResultResponse | null>(null);
   const [error, setError] = useState(false);
+  const [payingAgain, setPayingAgain] = useState(false);
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
+
   useEffect(() => {
     const vnpResponseCode = searchParams.get('vnp_ResponseCode');
     if (!vnpResponseCode) {
@@ -32,7 +37,6 @@ const PaymentResultPage = () => {
       return;
     }
 
-    // Forward all vnp_* params to BE so it can validate signature and credit wallet
     const params: Record<string, string> = {};
     searchParams.forEach((value, key) => {
       params[key] = value;
@@ -41,8 +45,6 @@ const PaymentResultPage = () => {
     paymentApi.processVnpayReturn(params)
       .then((res) => {
         setResult(res);
-        // If this was a wallet top-up (no orderId) and it succeeded,
-        // redirect back to wherever the user came from (e.g. checkout)
         if (!res.orderId && res.status === 'SUCCESS') {
           const returnTo = sessionStorage.getItem('topup_return_to');
           if (returnTo) {
@@ -52,7 +54,6 @@ const PaymentResultPage = () => {
         }
       })
       .catch(() => {
-        // Fallback: build result from URL params directly (display only)
         const amount = searchParams.get('vnp_Amount');
         setResult({
           status: vnpResponseCode === '00' ? 'SUCCESS' : 'FAILED',
@@ -70,6 +71,24 @@ const PaymentResultPage = () => {
       })
       .finally(() => setLoading(false));
   }, [searchParams]);
+
+  const handlePayAgain = async () => {
+    if (!result) return;
+    // orderId may be empty in fallback path — navigate to my-orders so user can retry from there
+    if (!result.orderId) {
+      navigate('/my-orders');
+      return;
+    }
+    try {
+      setPayingAgain(true);
+      const res = await paymentApi.createVnpayPayment({ orderId: result.orderId });
+      if (res.data) {
+        window.location.href = res.data;
+      }
+    } catch {
+      setPayingAgain(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -94,6 +113,14 @@ const PaymentResultPage = () => {
   }
 
   const isSuccess = result.status === 'SUCCESS';
+  // Detect failed/cancelled order payment — check responseCode directly so fallback path
+  // (where orderId may be empty string) also works correctly.
+  const isCancelledOrFailed =
+    !isSuccess &&
+    result.responseCode !== undefined &&
+    result.responseCode !== '' &&
+    // Only show for order payments, not wallet top-ups (top-ups have no order context)
+    (!!result.orderId || (result.txnRef && !result.txnRef.startsWith('TOPUP_')));
 
   return (
     <Box sx={{ maxWidth: 560, mx: 'auto', px: 3, py: 8 }}>
@@ -112,83 +139,125 @@ const PaymentResultPage = () => {
           {result?.message || 'Unable to determine payment status.'}
         </Typography>
 
-        {/* Payment Details */}
-        {result && (
-          <Box
-            sx={{
-              textAlign: 'left',
-              bgcolor: '#f9f9f9',
-              borderRadius: 2,
-              p: 2.5,
-              mb: 3,
-            }}
+        {/* 24h Warning for failed/cancelled order payments */}
+        {isCancelledOrFailed && (
+          <Alert
+            severity="warning"
+            icon={<AccessTime fontSize="small" />}
+            sx={{ mb: 3, textAlign: 'left', fontSize: 13 }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Receipt sx={{ fontSize: 20, color: '#666' }} />
-              <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
-                Transaction Details
-              </Typography>
-            </Box>
-
-            {[
-              { label: 'Amount', value: formatCurrency(result.amount) },
-              { label: 'Transaction No', value: result.transactionNo || '---' },
-              { label: 'Reference', value: result.txnRef || '---' },
-              { label: 'Bank', value: result.bankCode || '---' },
-              { label: 'Card Type', value: result.cardType || '---' },
-              { label: 'Date', value: result.payDate ? formatPayDate(result.payDate) : '---' },
-            ].map((row) => (
-              <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75 }}>
-                <Typography sx={{ fontSize: 13, color: '#888' }}>{row.label}</Typography>
-                <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#333' }}>{row.value}</Typography>
-              </Box>
-            ))}
-          </Box>
+            <strong>Đơn hàng chưa được thanh toán.</strong> Nếu không hoàn tất thanh toán trong vòng{' '}
+            <strong>24 giờ</strong> kể từ khi đặt hàng, đơn hàng sẽ tự động bị huỷ.
+          </Alert>
         )}
 
-        {/* Actions */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-          <Button
-            variant="contained"
-            onClick={() => navigate(result.orderId ? '/my-orders' : '/wallet')}
-            disableElevation
-            sx={{
-              bgcolor: '#111',
-              color: '#fff',
-              px: 4,
-              py: 1.2,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 600,
-              '&:hover': { bgcolor: '#333' },
-            }}
-          >
-            {result.orderId ? 'View My Orders' : 'View My Wallet'}
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/products')}
-            sx={{
-              px: 4,
-              py: 1.2,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 600,
-              borderColor: '#ddd',
-              color: '#555',
-              '&:hover': { borderColor: '#bbb', bgcolor: '#f5f5f5' },
-            }}
-          >
-            Continue Shopping
-          </Button>
+        {/* Payment Details */}
+        <Box sx={{ textAlign: 'left', bgcolor: '#f9f9f9', borderRadius: 2, p: 2.5, mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Receipt sx={{ fontSize: 20, color: '#666' }} />
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+              Transaction Details
+            </Typography>
+          </Box>
+
+          {[
+            { label: 'Amount', value: formatCurrency(result.amount) },
+            { label: 'Transaction No', value: result.transactionNo || '---' },
+            { label: 'Reference', value: result.txnRef || '---' },
+            { label: 'Bank', value: result.bankCode || '---' },
+            { label: 'Card Type', value: result.cardType || '---' },
+            { label: 'Date', value: result.payDate ? formatPayDate(result.payDate) : '---' },
+          ].map((row) => (
+            <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75 }}>
+              <Typography sx={{ fontSize: 13, color: '#888' }}>{row.label}</Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#333' }}>{row.value}</Typography>
+            </Box>
+          ))}
         </Box>
+
+        {/* Actions */}
+        {isCancelledOrFailed ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              disableElevation
+              disabled={payingAgain}
+              onClick={handlePayAgain}
+              startIcon={payingAgain ? <CircularProgress size={16} color="inherit" /> : <CreditCard />}
+              sx={{
+                bgcolor: '#111',
+                color: '#fff',
+                py: 1.3,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                '&:hover': { bgcolor: '#333' },
+              }}
+            >
+              {payingAgain ? 'Đang chuyển hướng...' : 'Thanh toán ngay'}
+            </Button>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => navigate('/my-orders')}
+              sx={{
+                py: 1.3,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderColor: '#ddd',
+                color: '#555',
+                '&:hover': { borderColor: '#bbb', bgcolor: '#f5f5f5' },
+              }}
+            >
+              Xem đơn hàng của tôi
+            </Button>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              onClick={() => navigate(result.orderId ? '/my-orders' : '/wallet')}
+              disableElevation
+              sx={{
+                bgcolor: '#111',
+                color: '#fff',
+                px: 4,
+                py: 1.2,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': { bgcolor: '#333' },
+              }}
+            >
+              {result.orderId ? 'View My Orders' : 'View My Wallet'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/products')}
+              sx={{
+                px: 4,
+                py: 1.2,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                borderColor: '#ddd',
+                color: '#555',
+                '&:hover': { borderColor: '#bbb', bgcolor: '#f5f5f5' },
+              }}
+            >
+              Continue Shopping
+            </Button>
+          </Box>
+        )}
       </Paper>
     </Box>
   );
 };
 
 function formatPayDate(payDate: string): string {
-  // VNPay format: yyyyMMddHHmmss
   if (payDate.length === 14) {
     const y = payDate.slice(0, 4);
     const m = payDate.slice(4, 6);

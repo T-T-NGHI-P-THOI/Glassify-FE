@@ -50,6 +50,7 @@ import {
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
+import { paymentApi } from '@/api/payment-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
 import { toast } from 'react-toastify';
@@ -433,6 +434,40 @@ const MyOrdersPage = () => {
       toast.error('Failed to re-order');
     }
   };
+
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+
+  const handlePayNow = async (order: Order) => {
+    try {
+      setPayingOrderId(order.id);
+      if (order.paymentMethod === 'VNPAY') {
+        const res = await paymentApi.createVnpayPayment({ orderId: order.id });
+        if (res.data) {
+          window.location.href = res.data;
+        }
+      } else if (order.paymentMethod === 'E_WALLET') {
+        await paymentApi.payFromWallet({ orderId: order.id });
+        toast.success('Payment successful!');
+        await fetchOrders();
+        setDetailDialogOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Payment failed');
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const getPaymentDeadline = (orderedAt: string): Date => {
+    const d = new Date(orderedAt);
+    d.setHours(d.getHours() + 24);
+    return d;
+  };
+
+  const isUnpaidPrePayment = (order: Order) =>
+    order.status === 'PENDING' &&
+    order.paymentStatus === 'PENDING' &&
+    (order.paymentMethod === 'VNPAY' || order.paymentMethod === 'E_WALLET');
 
   const fetchItemRefundLookup = useCallback(async (orderId: string) => {
     try {
@@ -1138,6 +1173,26 @@ const MyOrdersPage = () => {
                   <OrderStepper status={selectedOrder.status} />
                 </Box>
 
+                {/* Payment Deadline Alert */}
+                {isUnpaidPrePayment(selectedOrder) && (() => {
+                  const deadline = getPaymentDeadline(selectedOrder.orderedAt);
+                  const now = new Date();
+                  const msLeft = deadline.getTime() - now.getTime();
+                  const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
+                  const minutesLeft = Math.max(0, Math.floor((msLeft % 3600000) / 60000));
+                  return (
+                    <Alert
+                      severity="warning"
+                      sx={{ mb: 2, fontSize: 13 }}
+                      icon={<AccessTime fontSize="small" />}
+                    >
+                      <strong>Chờ thanh toán</strong> — Đơn hàng sẽ tự động huỷ sau{' '}
+                      <strong>{hoursLeft}h {minutesLeft}m</strong> nếu không thanh toán.
+                      Hạn chót: {deadline.toLocaleString('vi-VN')}.
+                    </Alert>
+                  );
+                })()}
+
                 <Divider sx={{ mb: 3 }} />
 
                 <Grid container spacing={3}>
@@ -1572,6 +1627,22 @@ const MyOrdersPage = () => {
                   </>
                   );
                 })()}
+                {isUnpaidPrePayment(selectedOrder) && (
+                  <Button
+                    variant="contained"
+                    disabled={payingOrderId === selectedOrder.id}
+                    onClick={() => handlePayNow(selectedOrder)}
+                    startIcon={payingOrderId === selectedOrder.id ? <CircularProgress size={16} color="inherit" /> : <CreditCard />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: '#111',
+                      '&:hover': { bgcolor: '#333' },
+                    }}
+                  >
+                    {payingOrderId === selectedOrder.id ? 'Processing...' : 'Pay Now'}
+                  </Button>
+                )}
                 {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"
