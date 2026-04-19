@@ -76,7 +76,7 @@ const ProductBrowsePage: React.FC = () => {
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
     priceMin: searchParams.get('minPrice') ? parseInt(searchParams.get('minPrice')!) : undefined,
     minRating: searchParams.get('minRating') ? parseInt(searchParams.get('minRating')!) : undefined,
-    colors: searchParams.get('colors') ? [searchParams.get('colors')!] : undefined,
+    colors: searchParams.getAll('colors').length > 0 ? searchParams.getAll('colors') : undefined,
     frameShapes: searchParams.get('frameShapes') ? [searchParams.get('frameShapes')!] : undefined,
   });
 

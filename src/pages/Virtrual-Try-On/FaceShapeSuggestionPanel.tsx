@@ -219,7 +219,13 @@ export const FaceShapeSuggestionPanel = ({
             fengShuiResult?.luckyColors ?? [],
         );
         handleClose?.();
-        navigate(`/products?${params.toString()}`);
+        const url = `/products?${params.toString()}`;
+        
+        if (window.location.pathname === "/products") {
+            window.location.href = url;
+        } else {
+            navigate(url);
+        }
     };
 
     if (!result && !isAnalyzing) return null;
