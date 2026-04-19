@@ -124,4 +124,16 @@ export const orderApi = {
         );
         return response.data;
     },
+
+    confirmReceived: async (orderId: string): Promise<ApiResponse<OrderResponse>> =>
+        (await axiosInstance.put<ApiResponse<OrderResponse>>(API_ENDPOINTS.ORDERS.CONFIRM_RECEIVED(orderId))).data,
+
+    markDeliveryFailed: async (orderId: string): Promise<ApiResponse<OrderResponse>> =>
+        (await axiosInstance.put<ApiResponse<OrderResponse>>(API_ENDPOINTS.ORDERS.DELIVERY_FAILED(orderId))).data,
+
+    refuseDelivery: async (orderId: string): Promise<ApiResponse<OrderResponse>> =>
+        (await axiosInstance.put<ApiResponse<OrderResponse>>(API_ENDPOINTS.ORDERS.REFUSE_DELIVERY(orderId))).data,
+
+    forceStatus: async (orderId: string, status: string): Promise<ApiResponse<OrderResponse>> =>
+        (await axiosInstance.put<ApiResponse<OrderResponse>>(API_ENDPOINTS.ORDERS.FORCE_STATUS(orderId), { status })).data,
 };

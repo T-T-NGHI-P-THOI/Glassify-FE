@@ -126,6 +126,10 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}`,
     CANCEL: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/cancel`,
     RE_ORDER: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/re-order`,
+    CONFIRM_RECEIVED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/confirm-received`,
+    DELIVERY_FAILED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/delivery-failed`,
+    REFUSE_DELIVERY: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/refuse-delivery`,
+    FORCE_STATUS: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/admin/force-status`,
   },
   PAYMENTS: {
     CREATE_VNPAY: `${API_ENDPOINT}/payments/create-vnpay`,
