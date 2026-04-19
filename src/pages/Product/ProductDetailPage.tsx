@@ -325,7 +325,7 @@ const ProductDetailPage: React.FC = () => {
       }
 
       try {
-        const texturePromise = ProductAPI.getTextureFiles(product.frameGroupId);
+        const texturePromise = ProductAPI.getVirtualTryOnParams(product.frameGroupId);
         const productWithFrameInfoPromise = ProductAPI.getProductWithFrameInfo(product.id)
           .catch(() => null);
 
