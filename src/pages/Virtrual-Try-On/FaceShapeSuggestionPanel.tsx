@@ -23,7 +23,7 @@ const fontSerif = "'Playfair Display', serif";
 const buildSearchParams = (recommendedFrameStyles: FrameShape[], luckColors: string[]): URLSearchParams => {
     const params = new URLSearchParams();
     recommendedFrameStyles.forEach(style => params.append("frameShapes", style));
-    luckColors.forEach(color => params.append("colors", color));
+    luckColors.forEach(color => params.append("colors", color.toUpperCase()));
     return params;
 };
 
