@@ -1583,14 +1583,14 @@ const WarrantyPage = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1 }}>
-              {selectedClaim.status === 'QUOTED' && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
+              {(selectedClaim.status === 'QUOTED' || selectedClaim.status === 'QUOTE_REJECTED') && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
                 <Button
                   variant="contained"
                   startIcon={<Payment />}
                   onClick={() => { setDetailDialogOpen(false); handleOpenPay(); }}
                   sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#b45309' } }}
                 >
-                  Pay Now — {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
+                  Pay Shipping Fee — {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
                 </Button>
               )}
               {selectedClaim.status === 'QUOTED' && (
@@ -2038,7 +2038,9 @@ const WarrantyPage = () => {
                 <Payment sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Pay for Warranty Service</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
+                  {selectedClaim?.status === 'QUOTE_REJECTED' ? 'Pay Return Shipping Fee' : 'Pay for Warranty Service'}
+                </Typography>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selectedClaim?.claimNumber}</Typography>
               </Box>
             </Box>
