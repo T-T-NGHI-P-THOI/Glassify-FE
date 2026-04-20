@@ -287,31 +287,6 @@ const formatScopeLabel = (scope: LensScope) => {
 
 const isCatalogableFrameVariant = (variant: FrameVariantLite) => Boolean(variant.id && variant.productId);
 
-const DECIMAL_INPUT_REGEX = /^\d*(\.\d*)?$/;
-const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
-
-const sanitizeDecimalInput = (value: string) => {
-  const normalized = value.replace(',', '.').replace(/[^\d.]/g, '');
-  const firstDot = normalized.indexOf('.');
-  if (firstDot === -1) return normalized;
-  return `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, '')}`;
-};
-
-const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
-
-const getBasePriceError = (value: string): string | undefined => {
-  const parsedValue = parseDecimalInput(value);
-  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
-    return 'Base price must be greater than 0';
-  }
-
-  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
-    return 'Base price must be <= 99,999,999.99';
-  }
-
-  return undefined;
-};
-
 const shouldBlockNonNumericKey = (event: KeyboardEvent<HTMLElement>) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
   if (event.key.length !== 1) return false;
@@ -336,6 +311,50 @@ const UUID_LIKE_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isUuidLike = (value: string): boolean => UUID_LIKE_REGEX.test(value.trim());
+
+const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
+
+const sanitizeDecimalInput = (value: string) => {
+  if (!value) return '';
+  let v = String(value).trim();
+
+  if (v.includes('.') && v.includes(',')) {
+    v = v.replace(/\./g, '').replace(/,/g, '.');
+  } else if (!v.includes('.') && v.includes(',')) {
+    const parts = v.split(',');
+    const decimal = parts.pop();
+    v = parts.join('') + (decimal !== undefined ? '.' + decimal : '');
+  } else if (v.includes('.') && !v.includes(',')) {
+    const parts = v.split('.');
+    if (parts.length > 2) {
+      const decimal = parts.pop();
+      v = parts.join('') + (decimal !== undefined ? '.' + decimal : '');
+    }
+  }
+
+  v = v.replace(/[^0-9.]/g, '');
+  const firstDot = v.indexOf('.');
+  if (firstDot !== -1) {
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+  }
+
+  return v;
+};
+
+const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
+
+const getBasePriceError = (value: string): string | undefined => {
+  const parsedValue = parseNumber(value);
+  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return 'Base price must be greater than 0';
+  }
+
+  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
+    return 'Base price must be <= 99,999,999.99';
+  }
+
+  return undefined;
+};
 
 const extractText = (record: unknown, keys: string[]): string => {
   if (!isRecord(record)) return '';
@@ -1074,36 +1093,6 @@ const CreateLensPage = () => {
     });
   };
 
-  const handlePriceFieldChange = (key: 'basePrice' | 'costPrice' | 'compareAtPrice', value: string) => {
-    let raw = value.replace(/,/g, '');
-    raw = raw.replace(/[^\d.]/g, '');
-    const parts = raw.split('.');
-    if (parts.length > 2) raw = parts[0] + '.' + parts[1];
-    if (parts[1]?.length > 2) raw = parts[0] + '.' + parts[1].slice(0, 2);
-    handleFieldChange(key, raw);
-    if (key === 'basePrice') {
-      const error = getBasePriceError(raw);
-      setErrors((prev) => {
-        const next = { ...prev };
-        if (error) {
-          next[key] = error;
-        } else {
-          delete next[key];
-        }
-        return next;
-      });
-    }
-  };
-
-  const handlePriceFieldBlur = (key: 'basePrice' | 'costPrice' | 'compareAtPrice') => {
-    let raw = (form[key] || '').replace(/,/g, '');
-    if (!raw) return;
-    const parts = raw.split('.');
-    let formatted = formatNumber(Number(parts[0] || '0'));
-    if (parts[1] !== undefined && parts[1] !== '') formatted += '.' + parts[1];
-    handleFieldChange(key, formatted);
-  };
-
   const validateStep = (step: number): boolean => {
     const nextErrors: Record<string, string> = {};
 
@@ -1178,8 +1167,10 @@ const CreateLensPage = () => {
 
   const buildPayload = (): CreateLensRequest => {
     const parseOptionalDecimal = (value: string) => {
-      const sanitized = sanitizeDecimalInput(value);
-      return sanitized.trim() ? parseDecimalInput(sanitized) : undefined;
+      const trimmed = (value || '').trim();
+      if (!trimmed) return undefined;
+      const parsed = parseNumber(trimmed);
+      return Number.isFinite(parsed) ? parsed : undefined;
     };
     const parseOptionalInteger = (value: string) => {
       const trimmed = value.trim();
@@ -1188,7 +1179,7 @@ const CreateLensPage = () => {
       return Number.isFinite(parsed) ? Math.trunc(parsed) : undefined;
     };
 
-    const parsedBasePrice = parseDecimalInput(form.basePrice);
+    const parsedBasePrice = parseNumber(form.basePrice || '');
 
     
     const featureIds = form.featureIds.length ? form.featureIds : undefined;
@@ -1882,6 +1873,11 @@ const CreateLensPage = () => {
             <Grid container spacing={2.5} alignItems="stretch" sx={{ pt: 0.5 }}>
               <Grid size={{ xs: 12, lg: 7 }}>
                 <Grid container spacing={2.5}>
+                  {/* Basic Info */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Basic Info</Typography>
+                  </Grid>
+
                   <Grid size={{ xs: 12 }}>
                     <FormControl>
                       <FormLabel>Apply Scope</FormLabel>
@@ -1973,7 +1969,7 @@ const CreateLensPage = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
+                  <Grid size={{ xs: 12, md: 12 }}>
                     <FormControl fullWidth>
                       <InputLabel>Category</InputLabel>
                       <Select
@@ -1990,21 +1986,28 @@ const CreateLensPage = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <FormControl fullWidth disabled={!(form.category === 'PROGRESSIVE')} error={!!errors.progressiveType}>
-                      <InputLabel>Progressive Type</InputLabel>
-                      <Select
-                        value={form.progressiveType}
-                        label="Progressive Type"
-                        onChange={(e) => handleFieldChange('progressiveType', e.target.value as ProgressiveType)}
-                      >
-                        <MenuItem value="STANDARD">Standard</MenuItem>
-                        <MenuItem value="PREMIUM">Premium</MenuItem>
-                        <MenuItem value="MID_RANGE">Mid Range</MenuItem>
-                        <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
-                      </Select>
-                      {!!errors.progressiveType && <Typography color="error" fontSize={12}>{errors.progressiveType}</Typography>}
-                    </FormControl>
+                  <Grid size={{ xs: 12, md: 12 }}>
+                    <Grid container spacing={2.5}>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Tooltip title="Enable this to make the lens visible and sellable in the shop. Disable it to hide the lens from the storefront while keeping its data.">
+                          <FormControlLabel
+                            control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
+                            label="Active Lens"
+                          />
+                        </Tooltip>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                          control={<Switch checked={form.isFeatured} onChange={(e) => handleFieldChange('isFeatured', e.target.checked)} />}
+                          label="Featured Lens"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                  
+                  {/* Pricing */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Pricing</Typography>
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 4 }}>
@@ -2012,9 +2015,8 @@ const CreateLensPage = () => {
                       fullWidth
                       required
                       label="Base Price"
-                      value={form.basePrice}
-                      onChange={(e) => handlePriceFieldChange('basePrice', e.target.value)}
-                      onBlur={() => handlePriceFieldBlur('basePrice')}
+                      value={formatNumber(parseNumber(form.basePrice || ''))}
+                      onChange={(e) => handleFieldChange('basePrice', String(parseNumber(e.target.value)))}
                       error={!!errors.basePrice}
                       helperText={errors.basePrice}
                       inputProps={{ inputMode: 'decimal' }}
@@ -2025,9 +2027,8 @@ const CreateLensPage = () => {
                     <TextField
                       fullWidth
                       label="Cost Price"
-                      value={form.costPrice}
-                      onChange={(e) => handlePriceFieldChange('costPrice', e.target.value)}
-                      onBlur={() => handlePriceFieldBlur('costPrice')}
+                      value={formatNumber(parseNumber(form.costPrice || ''))}
+                      onChange={(e) => handleFieldChange('costPrice', String(parseNumber(e.target.value)))}
                       inputProps={{ inputMode: 'decimal' }}
                     />
                   </Grid>
@@ -2036,11 +2037,15 @@ const CreateLensPage = () => {
                     <TextField
                       fullWidth
                       label="Compare At Price"
-                      value={form.compareAtPrice}
-                      onChange={(e) => handlePriceFieldChange('compareAtPrice', e.target.value)}
-                      onBlur={() => handlePriceFieldBlur('compareAtPrice')}
+                      value={formatNumber(parseNumber(form.compareAtPrice || ''))}
+                      onChange={(e) => handleFieldChange('compareAtPrice', String(parseNumber(e.target.value)))}
                       inputProps={{ inputMode: 'decimal' }}
                     />
+                  </Grid>
+
+                  {/* Inventory */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Inventory</Typography>
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 4 }}>
@@ -2072,31 +2077,12 @@ const CreateLensPage = () => {
                       onChange={(e) => handleFieldChange('warrantyMonths', e.target.value)}
                     />
                   </Grid>
-
-
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Tooltip title="Enable this to make the lens visible and sellable in the shop. Disable it to hide the lens from the storefront while keeping its data.">
-                      <FormControlLabel
-                        control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
-                        label="Active Lens"
-                      />
-                    </Tooltip>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormControlLabel
-                      control={<Switch checked={form.isFeatured} onChange={(e) => handleFieldChange('isFeatured', e.target.checked)} />}
-                      label="Featured Lens"
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <FormControlLabel
-                      control={<Switch checked={form.isReturnable} onChange={(e) => handleFieldChange('isReturnable', e.target.checked)} />}
-                      label="Returnable"
-                    />
-                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                          control={<Switch checked={form.isReturnable} onChange={(e) => handleFieldChange('isReturnable', e.target.checked)} />}
+                          label="Returnable"
+                        />
+                      </Grid>
                 </Grid>
               </Grid>
 
@@ -2117,7 +2103,7 @@ const CreateLensPage = () => {
                   <>
                     <Box
                       sx={{
-                        width: 'min(100%, 180px)',
+                        width: 'min(100%, 280px)',
                         flex: '0 0 auto',
                         aspectRatio: '1 / 1',
                         borderRadius: 1.5,
@@ -2144,7 +2130,10 @@ const CreateLensPage = () => {
                       )}
                     </Box>
 
-                    <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{
+                        mx: 'auto',
+                      }}>
+                      <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
                       <Button
                         variant="outlined"
                         component="label"
@@ -2170,6 +2159,7 @@ const CreateLensPage = () => {
                         ? selectedLensImageFile.name
                         : 'No file selected (image is optional)'}
                     </Typography>
+                    </Box>
                   </>
                 </Paper>
               </Grid>
@@ -2380,7 +2370,7 @@ const CreateLensPage = () => {
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
                                               prev
-                                                ? { ...prev, extraPrice: Number(parseNumber(e.target.value)) }
+                                                ? { ...prev, extraPrice: parseNumber(e.target.value) }
                                                 : null,
                                             )
                                           }
