@@ -1333,7 +1333,20 @@ const ShopWarrantyPage = () => {
                       {selected.customerPays != null && (
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 2, py: 1.5, bgcolor: theme.palette.custom.neutral[50] }}>
                           <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>Customer Pays</Typography>
-                          <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.status.warning.main }}>{Number(selected.customerPays).toLocaleString('vi-VN')} VND</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label={selected.paymentStatus === 'PAID' ? 'Paid' : 'Awaiting Payment'}
+                              size="small"
+                              sx={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                height: 22,
+                                bgcolor: selected.paymentStatus === 'PAID' ? theme.palette.custom.status.success.light : theme.palette.warning.light,
+                                color: selected.paymentStatus === 'PAID' ? theme.palette.custom.status.success.main : theme.palette.warning.dark,
+                              }}
+                            />
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.status.warning.main }}>{Number(selected.customerPays).toLocaleString('vi-VN')} VND</Typography>
+                          </Box>
                         </Box>
                       )}
                     </Box>
@@ -1458,7 +1471,12 @@ const ShopWarrantyPage = () => {
               </Box>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1.5 }}>
+            <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1.5, flexWrap: 'wrap' }}>
+              {selected.status === 'QUOTE_REJECTED' && selected.paymentStatus !== 'PAID' && (
+                <Alert severity="warning" sx={{ width: '100%', py: 0.5, fontSize: 13 }}>
+                  Customer has rejected the quote. Waiting for them to pay the return shipping fee before you can create a return shipment.
+                </Alert>
+              )}
               {isPendingReview(selected.status) && (
                 <>
                   <Button
@@ -1509,15 +1527,22 @@ const ShopWarrantyPage = () => {
                 </Button>
               )}
               {(selected.status === 'IN_REPAIR' || selected.status === 'IN_PROGRESS' || selected.status === 'QUOTE_REJECTED') && (
-                <Button
-                  variant="contained"
-                  startIcon={<AssignmentTurnedIn />}
-                  disabled={actioning}
-                  onClick={handleComplete}
-                  sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
+                <Tooltip
+                  title={selected.status === 'QUOTE_REJECTED' && selected.paymentStatus !== 'PAID' ? 'Waiting for customer to pay the return shipping fee' : ''}
+                  arrow
                 >
-                  {actioning ? <CircularProgress size={18} color="inherit" /> : 'Complete & Return'}
-                </Button>
+                  <span>
+                    <Button
+                      variant="contained"
+                      startIcon={<AssignmentTurnedIn />}
+                      disabled={actioning || (selected.status === 'QUOTE_REJECTED' && selected.paymentStatus !== 'PAID')}
+                      onClick={handleComplete}
+                      sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px' }}
+                    >
+                      {actioning ? <CircularProgress size={18} color="inherit" /> : 'Complete & Return'}
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
               <Box sx={{ flex: 1 }} />
               <Button onClick={() => setDetailOpen(false)} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
