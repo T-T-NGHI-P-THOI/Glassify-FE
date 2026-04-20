@@ -392,6 +392,16 @@ const PrivateRoutesComponent = () => {
                     </AuthGuard>
                 }
             />
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <ShopWarrantyPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
 
             <Route
                 path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}

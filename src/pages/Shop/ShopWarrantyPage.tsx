@@ -134,6 +134,7 @@ const TABS = [
   { label: 'Completed', statuses: ['COMPLETED'] },
   { label: 'Rejected', statuses: ['REJECTED'] },
   { label: 'Policies & Pricing', statuses: ['POLICIES'] },
+  { label: 'Issue Types', statuses: ['ISSUE_TYPES'] },
 ];
 
 const isPendingReview = (status: string) => status === 'SUBMITTED' || status === 'UNDER_REVIEW';
@@ -233,6 +234,7 @@ const ShopWarrantyPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(() => {
     if (location.pathname === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES) return 5;
+    if (location.pathname === PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES) return 6;
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
     return tab ? Number(tab) : 0;
@@ -241,6 +243,8 @@ const ShopWarrantyPage = () => {
   useEffect(() => {
     if (location.pathname === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES) {
       setActiveTab(5);
+    } else if (location.pathname === PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES) {
+      setActiveTab(6);
     } else {
       const params = new URLSearchParams(location.search);
       const tab = params.get('tab');
@@ -253,6 +257,8 @@ const ShopWarrantyPage = () => {
     setActiveTab(newValue);
     if (newValue === 5) {
       navigate(PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES);
+    } else if (newValue === 6) {
+      navigate(PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES);
     } else {
       navigate(`${PAGE_ENDPOINTS.SHOP.WARRANTY}?tab=${newValue}`);
     }
@@ -335,6 +341,16 @@ const ShopWarrantyPage = () => {
   });
   const [newExcludedIssue, setNewExcludedIssue] = useState('');
 
+  // Warranty Issue Type Management
+  const [issueTypes, setIssueTypes] = useState<any[]>([]);
+  const [loadingIssueTypes, setLoadingIssueTypes] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [editingIssueType, setEditingIssueType] = useState<any | null>(null);
+  const [issueFormData, setIssueFormData] = useState({
+    typeName: '',
+    description: '',
+  });
+
   useEffect(() => {
     setShowNavbar(false);
     setShowFooter(false);
@@ -401,6 +417,18 @@ const ShopWarrantyPage = () => {
     }
   }, []);
 
+  const fetchIssueTypes = useCallback(async () => {
+    try {
+      setLoadingIssueTypes(true);
+      const res = await warrantyApi.getMyIssueTypes();
+      if (res.data) setIssueTypes(res.data);
+    } catch {
+      toast.error('Failed to fetch issue types');
+    } finally {
+      setLoadingIssueTypes(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchClaims();
     fetchServicePrices();
@@ -410,8 +438,10 @@ const ShopWarrantyPage = () => {
     if (activeTab === 5) {
       fetchServicePrices();
       fetchPolicies();
+    } else if (activeTab === 6) {
+      fetchIssueTypes();
     }
-  }, [activeTab, fetchServicePrices, fetchPolicies]);
+  }, [activeTab, fetchServicePrices, fetchPolicies, fetchIssueTypes]);
 
   const handleSavePolicy = async () => {
     try {
@@ -477,13 +507,44 @@ const ShopWarrantyPage = () => {
     }
   };
 
+  const handleSaveIssueType = async () => {
+    try {
+      setActioning(true);
+      if (editingIssueType) {
+        await warrantyApi.updateIssueType(editingIssueType.id, issueFormData);
+        toast.success('Issue type updated');
+      } else {
+        await warrantyApi.createIssueType(issueFormData);
+        toast.success('Issue type created');
+      }
+      setIssueDialogOpen(false);
+      fetchIssueTypes();
+    } catch {
+      toast.error('Failed to save issue type');
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const handleDeleteIssueType = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this issue type?')) return;
+    try {
+      await warrantyApi.deleteIssueType(id);
+      toast.success('Issue type deleted');
+      fetchIssueTypes();
+    } catch {
+      toast.error('Failed to delete issue type');
+    }
+  };
+
   const statusCounts = useMemo(() => {
     return TABS.map((tab, i) => {
       if (i === 0) return claims.length;
       if (i === 5) return servicePrices.length;
+      if (i === 6) return issueTypes.length;
       return claims.filter((c) => tab.statuses.includes(c.status)).length;
     });
-  }, [claims, servicePrices]);
+  }, [claims, servicePrices, issueTypes]);
 
   const getStatusColor = (status: string) => {
     const { custom } = theme.palette;
@@ -1023,7 +1084,113 @@ const ShopWarrantyPage = () => {
             </Paper>
           </Box>
         )}
+
+        {/* Issue Types Tab Content */}
+        {activeTab === 6 && (
+          <Box sx={{ mt: 3 }}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box>
+                  <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                    Warranty Issue Types
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                    Manage common issues customers can select when requesting warranty.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => {
+                    setEditingIssueType(null);
+                    setIssueFormData({ typeName: '', description: '' });
+                    setIssueDialogOpen(true);
+                  }}
+                  sx={{ bgcolor: theme.palette.custom.neutral[800], borderRadius: 1.5, textTransform: 'none' }}
+                >
+                  Add Issue Type
+                </Button>
+              </Box>
+
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: theme.palette.custom.neutral[50] }}>
+                      {['Issue Type Name', 'Description', 'Actions'].map((h) => (
+                        <TableCell key={h} sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase' }}>{h}</TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {loadingIssueTypes ? (
+                      <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
+                    ) : issueTypes.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4 }}>No issue types added yet. Default types will be available to customers.</TableCell></TableRow>
+                    ) : (
+                      issueTypes.map((it) => (
+                        <TableRow key={it.id} hover>
+                          <TableCell sx={{ fontSize: 14, fontWeight: 600 }}>{it.typeName}</TableCell>
+                          <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], maxWidth: 400 }}>{it.description || '—'}</TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setEditingIssueType(it);
+                                setIssueFormData({ typeName: it.typeName, description: it.description || '' });
+                                setIssueDialogOpen(true);
+                              }}
+                            >
+                              <Edit sx={{ fontSize: 18 }} />
+                            </IconButton>
+                            <IconButton size="small" color="error" onClick={() => handleDeleteIssueType(it.id)}>
+                              <Cancel sx={{ fontSize: 18 }} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+        )}
       </Box>
+
+      {/* Issue Type Dialog */}
+      <Dialog open={issueDialogOpen} onClose={() => setIssueDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>{editingIssueType ? 'Edit Issue Type' : 'Add Issue Type'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          <TextField
+            fullWidth
+            label="Type Name"
+            placeholder="e.g. Scratched Lens"
+            value={issueFormData.typeName}
+            onChange={(e) => setIssueFormData({ ...issueFormData, typeName: e.target.value })}
+            size="small"
+          />
+          <TextField
+            fullWidth
+            label="Description"
+            multiline
+            rows={3}
+            value={issueFormData.description}
+            onChange={(e) => setIssueFormData({ ...issueFormData, description: e.target.value })}
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setIssueDialogOpen(false)} sx={{ color: theme.palette.custom.neutral[500] }}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveIssueType}
+            disabled={!issueFormData.typeName || actioning}
+            sx={{ bgcolor: theme.palette.custom.neutral[800], borderRadius: 1.5 }}
+          >
+            {actioning ? <CircularProgress size={20} /> : 'Save Issue Type'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Service Price Dialog */}
       <Dialog open={serviceDialogOpen} onClose={() => setServiceDialogOpen(false)} maxWidth="xs" fullWidth>
