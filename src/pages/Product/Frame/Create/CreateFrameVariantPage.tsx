@@ -27,6 +27,7 @@ import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
 import { toast } from 'react-toastify';
 import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
+import { ProductSize } from '@/types/product.enums';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ export interface TextureFile {
 export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
-    size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
+    size: ProductSize;
     frameWidthMm: number;
     lensWidthMm: number;
     lensHeightMm: number;
@@ -98,7 +99,7 @@ const UploadArea = styled(Box)(({ theme }) => ({
 const DEFAULT_FORM: CreateFrameVariantFormData = {
     colorName: '',
     colorHex: '#000000',
-    size: '',
+    size: ProductSize.MEDIUM,
     frameWidthMm: 1,
     lensWidthMm: 1,
     lensHeightMm: 1,
@@ -113,6 +114,30 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     isReturnable: false,
     images: [],
     textureFile: null,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Polls until `service.viewerModel` is populated, then applies the texture.
+ * Stops after `maxAttempts` to avoid infinite loops if the model never loads.
+ */
+const applyTextureWhenReady = (
+    service: ThreeJsService,
+    file: File,
+    intervalMs = 100,
+    maxAttempts = 50
+) => {
+    let attempts = 0;
+    const tryApply = () => {
+        attempts++;
+        if (service.viewerModel) {
+            service.applyTextureToModel(service.viewerModel, file);
+        } else if (attempts < maxAttempts) {
+            setTimeout(tryApply, intervalMs);
+        }
+    };
+    tryApply();
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,14 +161,22 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
 
+        // Keep a ref to the latest textureFile so the viewer init effect can
+        // access it without needing it as a dependency (avoids re-mounting).
+        const textureFileRef = useRef<TextureFile | null>(formData.textureFile);
+        useEffect(() => {
+            textureFileRef.current = formData.textureFile;
+        }, [formData.textureFile]);
+
+        const sizeOptions = Object.values(ProductSize);
+
         useEffect(() => {
             const fetchColors = async () => {
                 try {
                     const response = await ProductAPI.getColors();
-                    console.log(response)
                     setColors(response);
                 } catch (error) {
-                    toast.error("Cannot load color!")
+                    toast.error("Cannot load color!");
                 }
             };
             fetchColors();
@@ -169,11 +202,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 threeServiceRef.current = service;
                 cleanupRef.current = service.initializeThreeDViewer(canvas, modelFile.file);
 
-                // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
-                if (formData.textureFile?.file) {
-                    if (service.viewerModel) {
-                        service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
-                    }
+                // If a texture was already chosen (e.g. restored from back-navigation),
+                // apply it as soon as the model finishes loading.
+                if (textureFileRef.current?.file) {
+                    applyTextureWhenReady(service, textureFileRef.current.file);
                 }
             };
 
@@ -308,8 +340,8 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             catch (error: any) {
                 error?.errors.map((err: any) => {
                     toast.error(err);
-                })
-                throw new Error("Cannot save frame variant!")
+                });
+                throw new Error("Cannot save frame variant!");
             }
             finally {
                 setLoading(false);
@@ -367,13 +399,15 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             const texture: TextureFile = { name: file.name, size: file.size, preview, file };
             setField('textureFile', texture);
 
-            // Apply vào local viewer (Step 1)
+            // Apply to local viewer — poll until viewerModel is populated by the
+            // async GLTF/OBJ loader (viewerModel is null until loading completes).
             const service = threeServiceRef.current;
-            if (service?.viewerModel) {
-                service.applyTextureToModel(service.viewerModel, file);
+            if (service) {
+                console.log("applyTextureWhenReady applyTextureWhenReady")
+                applyTextureWhenReady(service, file);
             }
 
-            // Apply vào viewer Step 0 nếu vẫn còn mount
+            // Also apply to the Step-0 viewer if it's still mounted.
             upload3DModelRef?.current?.applyTexture(file);
 
             e.target.value = '';
@@ -417,7 +451,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                                 setField("colorName", selectedName);
 
-                                // auto set hex khi chọn
                                 if (selectedColor) {
                                     setField("colorHex", selectedColor.hex);
                                 }
@@ -428,7 +461,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             {colors?.map((color) => (
                                 <MenuItem key={color.name} value={color.name}>
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                        {/* preview màu */}
                                         <Box
                                             sx={{
                                                 width: 14,
@@ -468,11 +500,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             <Select
                                 value={formData.size}
                                 label="Frame Size"
-                                onChange={e => setField('size', e.target.value as 'SMALL' | 'MEDIUM' | 'LARGE')}
+                                onChange={e => setField('size', e.target.value as typeof sizeOptions[number])}
                             >
-                                <MenuItem value="SMALL">Small</MenuItem>
-                                <MenuItem value="MEDIUM">Medium</MenuItem>
-                                <MenuItem value="LARGE">Large</MenuItem>
+                                {sizeOptions.map(size => (
+                                    <MenuItem key={size} value={size}>
+                                        {size.replace('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                                    </MenuItem>
+                                ))}
                             </Select>
                             {errors.size && (
                                 <Typography color="error" fontSize={12} sx={{ mt: 0.5, ml: 1.5 }}>
@@ -843,7 +877,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             </Paper>
                         )}
 
-                        {/* ── Local 3D viewer — chỉ hiện khi có modelFile ── */}
+                        {/* ── Local 3D viewer ── */}
                         <Box
                             ref={containerRef}
                             sx={{
@@ -908,7 +942,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                         </Box>
                     </>
                 )}
-
 
                 {loading && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>
