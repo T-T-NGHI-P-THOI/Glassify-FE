@@ -41,7 +41,7 @@ export interface LensFeature {
     name: string;
     description: string;
     price: number;
-    category: 'coating' | 'tint' | 'protection' | 'other';
+    category: string;
     icon?: string;
 }
 

@@ -50,15 +50,16 @@ import {
   type LensFeatureFrameCompatibilityUpdateRequest,
   type LensResponse,
   type LensWithProductResult,
+  type LensCategory,
+  type LensProgressiveType,
+  type LensTintBehavior,
 } from '@/api/lens-api';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { getApiErrorMessage } from '@/utils/api-error';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
+import useLensEnums, { formatEnumLabel } from '@/hooks/useLensEnums';
 
 type LensScope = 'GLOBAL' | 'FRAME_VARIANT' | 'FRAME_GROUP';
-type LensCategory = 'SINGLE_VISION' | 'BIFOCAL' | 'PROGRESSIVE' | 'READING' | 'FASHION';
-type ProgressiveType = 'STANDARD' | 'PREMIUM' | 'MID_RANGE' | 'NEAR_RANGE';
-type TintBehavior = 'NONE' | 'SOLID' | 'GRADIENT' | 'MIRROR' | 'PHOTOCHROMIC';
 
 interface FeatureDraft {
   sku: string;
@@ -74,7 +75,7 @@ interface TintDraft {
   basePrice: string;
 
   isActive: boolean;
-  behavior: TintBehavior;
+  behavior: LensTintBehavior;
 }
 
 interface ProgressiveOptionDraft {
@@ -84,7 +85,7 @@ interface ProgressiveOptionDraft {
   extraPrice: string;
   isRecommended: boolean;
   isActive: boolean;
-  progressiveType: ProgressiveType;
+  progressiveType: LensProgressiveType;
 }
 
 interface LensFormState {
@@ -104,7 +105,7 @@ interface LensFormState {
 
   isActive: boolean;
   category: LensCategory;
-  progressiveType: ProgressiveType;
+  progressiveType: LensProgressiveType;
   featureIds: string[];
   tintIds: string[];
   usageIds: string[];
@@ -155,7 +156,7 @@ interface ExistingTintOption {
   opacity?: number;
   basePrice?: number;
   isActive?: boolean;
-  behavior?: TintBehavior;
+  behavior?: LensTintBehavior;
 }
 
 interface ExistingUsageOption {
@@ -183,7 +184,7 @@ interface EditingExistingTint extends ExistingTintOption {
   opacity?: number;
   basePrice?: number;
   isActive?: boolean;
-  behavior?: TintBehavior;
+  behavior?: LensTintBehavior;
   optionId?: string;
   extraPrice?: number;
   isDefault?: boolean;
@@ -463,7 +464,7 @@ const normalizeTintOptionFromRecord = (item: unknown): ExistingTintOption => {
         : nestedTint && typeof nestedTint.isActive === 'boolean'
           ? nestedTint.isActive
           : undefined,
-    behavior: (extractText(record, ['behavior']) || extractText(nestedTint, ['behavior']) || 'NONE') as TintBehavior,
+    behavior: (extractText(record, ['behavior']) || extractText(nestedTint, ['behavior']) || 'NONE') as LensTintBehavior,
   };
 };
 
@@ -722,7 +723,7 @@ const CreateLensPage = () => {
 
           isActive: Boolean(fetchedLens.isActive),
           category: (fetchedLens.category as LensCategory) || 'SINGLE_VISION',
-          progressiveType: (fetchedLens.progressiveType as ProgressiveType) || 'STANDARD',
+          progressiveType: (fetchedLens.progressiveType as LensProgressiveType) || 'STANDARD',
           featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
           tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
           usageIds,
@@ -735,7 +736,7 @@ const CreateLensPage = () => {
             extraPrice: String(item.extraPrice ?? 0),
             isRecommended: Boolean(item.isRecommended),
             isActive: Boolean(item.isActive),
-            progressiveType: (item.progressiveType as ProgressiveType) || 'STANDARD',
+            progressiveType: (item.progressiveType as LensProgressiveType) || 'STANDARD',
           })),
         }));
       } catch (error) {
@@ -1082,6 +1083,56 @@ const CreateLensPage = () => {
       return next;
     });
   }, [form.usageIds, (form.category === 'PROGRESSIVE')]);
+
+  // Progressive type options fetched from API (derive from catalog or existing lens data)
+  const [progressiveTypeOptions, setProgressiveTypeOptions] = useState<string[]>([]);
+
+  // use shared enums from hook
+  const { lensCategories, progressiveTypes, tintBehaviors, prescriptionUsages } = useLensEnums();
+
+  useEffect(() => {
+    let active = true;
+    const loadProgressiveTypes = async () => {
+      try {
+        const types = new Set<string>();
+
+        // add progressive types from shared enums (if any)
+        (progressiveTypes ?? []).forEach((t) => types.add(String(t)));
+
+        // If editing an existing lens, include its progressiveOptions/progressiveType
+        if (lens?.progressiveOptions && Array.isArray(lens.progressiveOptions)) {
+          lens.progressiveOptions.forEach((opt) => {
+            if (opt && opt.progressiveType) types.add(String(opt.progressiveType));
+          });
+        }
+
+        // If a catalog frame variant is selected, fetch catalog and extract progressive types
+        if (selectedCatalogFrameVariantId) {
+          try {
+            const catalog = await lensService.getLensCatalogForFrame(selectedCatalogFrameVariantId);
+            (catalog?.lenses ?? []).forEach((l) => {
+              (l.progressiveOptions ?? []).forEach((po: any) => {
+                if (po && po.progressiveType) types.add(String(po.progressiveType));
+              });
+            });
+          } catch (err) {
+            console.warn('Failed to load progressive types from catalog:', err);
+          }
+        }
+
+        if (!active) return;
+        setProgressiveTypeOptions(Array.from(types));
+      } catch (err) {
+        console.error('Error loading progressive types:', err);
+      }
+    };
+
+    loadProgressiveTypes();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCatalogFrameVariantId, lens, progressiveTypes]);
 
   const handleFieldChange = <K extends keyof LensFormState>(key: K, value: LensFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -1970,18 +2021,19 @@ const CreateLensPage = () => {
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 12 }}>
-                    <FormControl fullWidth>
+                      <FormControl fullWidth>
                       <InputLabel>Category</InputLabel>
                       <Select
                         value={form.category}
                         label="Category"
                         onChange={(e) => handleFieldChange('category', e.target.value as LensCategory)}
                       >
-                        <MenuItem value="SINGLE_VISION">Single Vision</MenuItem>
-                        <MenuItem value="BIFOCAL">Bifocal</MenuItem>
-                        <MenuItem value="PROGRESSIVE">Progressive</MenuItem>
-                        <MenuItem value="READING">Reading</MenuItem>
-                        <MenuItem value="FASHION">Fashion</MenuItem>
+                        {(lensCategories && lensCategories.length > 0
+                          ? lensCategories
+                          : ['SINGLE_VISION', 'BIFOCAL', 'PROGRESSIVE', 'READING', 'FASHION']
+                        ).map((c) => (
+                          <MenuItem key={c} value={c}>{formatEnumLabel(c)}</MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
                   </Grid>
@@ -2739,16 +2791,17 @@ const CreateLensPage = () => {
                                             onChange={(e) =>
                                               setEditingExistingTint((prev) =>
                                                 prev
-                                                  ? { ...prev, behavior: e.target.value as TintBehavior }
+                                                  ? { ...prev, behavior: e.target.value as LensTintBehavior }
                                                   : null,
                                               )
                                             }
                                           >
-                                            <MenuItem value="NONE">None</MenuItem>
-                                            <MenuItem value="SOLID">Solid</MenuItem>
-                                            <MenuItem value="PHOTOCHROMIC">Photochromic</MenuItem>
-                                            <MenuItem value="GRADIENT">Gradient</MenuItem>
-                                            <MenuItem value="MIRROR">Mirror</MenuItem>
+                                            {(tintBehaviors && tintBehaviors.length > 0
+                                              ? tintBehaviors
+                                              : ['NONE', 'SOLID', 'GRADIENT', 'MIRROR', 'PHOTOCHROMIC']
+                                            ).map((b) => (
+                                              <MenuItem key={b} value={b}>{formatEnumLabel(b)}</MenuItem>
+                                            ))}
                                           </Select>
                                         </FormControl>
                                       </Grid>
@@ -2992,12 +3045,13 @@ const CreateLensPage = () => {
                               <Grid size={{ xs: 12, md: 2 }}>
                                 <FormControl fullWidth>
                                   <InputLabel>Behavior</InputLabel>
-                                  <Select value={item.behavior} label="Behavior" onChange={(e) => setTintAt(index, 'behavior', e.target.value as TintBehavior)}>
-                                    <MenuItem value="NONE">None</MenuItem>
-                                    <MenuItem value="SOLID">Solid</MenuItem>
-                                    <MenuItem value="PHOTOCHROMIC">Photochromic</MenuItem>
-                                    <MenuItem value="GRADIENT">Gradient</MenuItem>
-                                    <MenuItem value="MIRROR">Mirror</MenuItem>
+                                  <Select value={item.behavior} label="Behavior" onChange={(e) => setTintAt(index, 'behavior', e.target.value as LensTintBehavior)}>
+                                    {(tintBehaviors && tintBehaviors.length > 0
+                                      ? tintBehaviors
+                                      : ['NONE', 'SOLID', 'GRADIENT', 'MIRROR', 'PHOTOCHROMIC']
+                                    ).map((b) => (
+                                      <MenuItem key={b} value={b}>{formatEnumLabel(b)}</MenuItem>
+                                    ))}
                                   </Select>
                                 </FormControl>
                               </Grid>
@@ -3638,12 +3692,20 @@ const CreateLensPage = () => {
                                 <Select
                                   value={item.progressiveType}
                                   label="Progressive Type"
-                                  onChange={(e) => setProgressiveOptionAt(index, 'progressiveType', e.target.value as ProgressiveType)}
+                                  onChange={(e) => setProgressiveOptionAt(index, 'progressiveType', e.target.value as LensProgressiveType)}
                                 >
-                                  <MenuItem value="STANDARD">Standard</MenuItem>
-                                  <MenuItem value="PREMIUM">Premium</MenuItem>
-                                  <MenuItem value="MID_RANGE">Mid Range</MenuItem>
-                                  <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
+                                  {progressiveTypeOptions && progressiveTypeOptions.length > 0 ? (
+                                    progressiveTypeOptions.map((pt) => (
+                                      <MenuItem key={pt} value={pt}>{formatEnumLabel(pt)}</MenuItem>
+                                    ))
+                                  ) : (
+                                    <>
+                                      <MenuItem value="STANDARD">Standard</MenuItem>
+                                      <MenuItem value="PREMIUM">Premium</MenuItem>
+                                      <MenuItem value="MID_RANGE">Mid Range</MenuItem>
+                                      <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
+                                    </>
+                                  )}
                                 </Select>
                               </FormControl>
                             </Grid>
