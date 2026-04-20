@@ -117,6 +117,19 @@ export interface WarrantyServicePriceResponse {
     isActive: boolean;
 }
 
+export interface WarrantyIssueTypeResponse {
+    id: string;
+    typeName: string;
+    description?: string;
+    isActive: boolean;
+}
+
+export interface UpdateWarrantyIssueTypeRequest {
+    typeName: string;
+    description?: string;
+    isActive?: boolean;
+}
+
 export interface UpdateWarrantyServicePriceRequest {
     serviceName: string;
     price: number;
@@ -314,6 +327,42 @@ export const warrantyApi = {
     deleteServicePrice: async (id: string): Promise<ApiResponse<void>> => {
         const response = await axiosInstance.delete<ApiResponse<void>>(
             API_ENDPOINTS.SHOP_WARRANTY.SERVICE_PRICE_BY_ID(id)
+        );
+        return response.data;
+    },
+
+    // --- Warranty Issue Types ---
+    getShopIssueTypes: async (shopId: string): Promise<ApiResponse<WarrantyIssueTypeResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyIssueTypeResponse[]>>(
+            API_ENDPOINTS.WARRANTY_PUBLIC.ISSUE_TYPES_BY_SHOP(shopId)
+        );
+        return response.data;
+    },
+
+    getMyIssueTypes: async (): Promise<ApiResponse<WarrantyIssueTypeResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WarrantyIssueTypeResponse[]>>(
+            API_ENDPOINTS.SHOP_WARRANTY.ISSUE_TYPES
+        );
+        return response.data;
+    },
+
+    createIssueType: async (request: UpdateWarrantyIssueTypeRequest): Promise<ApiResponse<WarrantyIssueTypeResponse>> => {
+        const response = await axiosInstance.post<ApiResponse<WarrantyIssueTypeResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.ISSUE_TYPES, request
+        );
+        return response.data;
+    },
+
+    updateIssueType: async (id: string, request: UpdateWarrantyIssueTypeRequest): Promise<ApiResponse<WarrantyIssueTypeResponse>> => {
+        const response = await axiosInstance.put<ApiResponse<WarrantyIssueTypeResponse>>(
+            API_ENDPOINTS.SHOP_WARRANTY.ISSUE_TYPE_BY_ID(id), request
+        );
+        return response.data;
+    },
+
+    deleteIssueType: async (id: string): Promise<ApiResponse<void>> => {
+        const response = await axiosInstance.delete<ApiResponse<void>>(
+            API_ENDPOINTS.SHOP_WARRANTY.ISSUE_TYPE_BY_ID(id)
         );
         return response.data;
     },
