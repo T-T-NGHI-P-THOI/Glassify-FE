@@ -58,6 +58,7 @@ import type { ShopDetailResponse } from '@/models/Shop';
 import { getApiErrorMessage } from '@/utils/api-error';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 import useLensEnums, { formatEnumLabel } from '@/hooks/useLensEnums';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 type LensScope = 'GLOBAL' | 'FRAME_VARIANT' | 'FRAME_GROUP';
 
@@ -2002,7 +2003,7 @@ const CreateLensPage = () => {
                       required
                       label="SKU"
                       value={form.sku}
-                      onChange={(e) => handleFieldChange('sku', e.target.value)}
+                      onChange={(e) => handleFieldChange('sku', sanitizeTextInput(e.target.value, { maxLength: 150 }))}
                       error={!!errors.sku}
                       helperText={errors.sku}
                     />
@@ -2014,7 +2015,7 @@ const CreateLensPage = () => {
                       required
                       label="Lens Name"
                       value={form.name}
-                      onChange={(e) => handleFieldChange('name', e.target.value)}
+                      onChange={(e) => handleFieldChange('name', sanitizeTextInput(e.target.value, { maxLength: 150 }))}
                       error={!!errors.name}
                       helperText={errors.name}
                     />
@@ -2384,7 +2385,7 @@ const CreateLensPage = () => {
                                           value={editingData.sku}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, sku: e.target.value } : null,
+                                              prev ? { ...prev, sku: sanitizeTextInput(e.target.value, { maxLength: 150 }) } : null,
                                             )
                                           }
                                         />
@@ -2396,7 +2397,7 @@ const CreateLensPage = () => {
                                           value={editingData.name}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, name: e.target.value } : null,
+                                              prev ? { ...prev, name: sanitizeTextInput(e.target.value, { maxLength: 150 }) } : null,
                                             )
                                           }
                                         />
@@ -2408,7 +2409,7 @@ const CreateLensPage = () => {
                                           value={editingData.description || ''}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, description: e.target.value } : null,
+                                              prev ? { ...prev, description: sanitizeTextInput(e.target.value, { maxLength: 1000 }) } : null,
                                             )
                                           }
                                         />

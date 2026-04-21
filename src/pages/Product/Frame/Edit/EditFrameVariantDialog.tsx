@@ -36,6 +36,7 @@ import type { Model3DFile } from '../Create/Upload3DModel';
 import type { FrameVariantResponse } from './../View/FrameGroupCard';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 import type { ProductSize } from '@/types/product.enums';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -519,7 +520,7 @@ const EditFrameVariantDialog = ({
                             label="Color Name"
                             value={formData.colorName}
                             onChange={e => {
-                                const name = e.target.value;
+                                const name = sanitizeTextInput(e.target.value, { maxLength: 150 });
                                 const found = colors.find(c => c.name === name);
                                 setField('colorName', name);
                                 if (found) setField('colorHex', found.hex);

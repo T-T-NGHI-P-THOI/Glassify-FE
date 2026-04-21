@@ -355,6 +355,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     if (activeFilters.brandIds?.length) count += activeFilters.brandIds.length;
     if (activeFilters.categoryNames?.length) count += activeFilters.categoryNames.length;
     if (activeFilters.shopCities?.length) count += activeFilters.shopCities.length;
+    if (activeFilters.ageGroups?.length) count += activeFilters.ageGroups.length;
     if (activeFilters.priceMin !== undefined || activeFilters.priceMax !== undefined) count++;
     if (activeFilters.minRating) count++;
     if (activeFilters.isFeatured) count++;
@@ -432,6 +433,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
                 </button>
               </div>
             ))}
+
+            {/* Age group tags are shown in the top filter bar */}
 
             {/* Price tag */}
             {(activeFilters.priceMin !== undefined || activeFilters.priceMax !== undefined) && (
@@ -562,6 +565,8 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
         )}
 
         
+        {/* Age Groups moved to top filter bar */}
+
         {/* Rating Filter */}
         <div className="filter-section">
           <button 

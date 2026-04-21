@@ -190,6 +190,7 @@ export interface ProductFilterParams {
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
   colors?: string[];
   frameShapes?: string[];
+  ageGroups?: string;
 }
 
 // Review filter parameters

@@ -5,6 +5,7 @@ export interface FilterOptions {
   brands: Array<{ id: string; name: string }>;
   categories: Array<{ id: string; name: string }>;
   shopCities: string[];
+  ageGroups: string[];
   priceRange: {
     min: number;
     max: number;
@@ -27,6 +28,7 @@ export interface ActiveFilters {
   inStock?: boolean;
   colors?: string[];
   frameShapes?: string[];
+  ageGroups?: string[];
 }
 
 export interface ColorVariant {

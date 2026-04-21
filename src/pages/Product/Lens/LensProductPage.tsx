@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { sanitizeSearchInput } from '@/utils/text-input';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import { lensApi, type LensResponse, type LensUsage, type LensWithProductResult } from '@/api/lens-api';
@@ -629,7 +630,7 @@ const LensProductPage = () => {
               placeholder="Search lenses by name, SKU, category"
               value={search}
               onChange={(e) => {
-                setSearch(e.target.value);
+                setSearch(sanitizeSearchInput(e.target.value));
                 setPage(1);
               }}
               sx={{ width: { xs: '100%', sm: 320 } }}

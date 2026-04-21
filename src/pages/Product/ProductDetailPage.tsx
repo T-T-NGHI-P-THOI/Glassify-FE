@@ -10,6 +10,7 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
 import ProductAPI, {
@@ -63,10 +64,17 @@ const ProductDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { addItem, addFrameWithLens, removeItem, cartData } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
+  const [isFrameProduct, setIsFrameProduct] = useState(false);
+  const [productWithFrameInfo, setProductWithFrameInfo] = useState<ProductWithFrameInfoData | null>(null);
+  const [frameGroup, setFrameGroup] = useState<ProductWithFrameInfoData['frameGroup'] | null>(null);
+  const [frameVariants, setFrameVariants] = useState<ApiFrameVariant[]>([]);
+  const [selectedFrameVariant, setSelectedFrameVariant] = useState<ApiFrameVariant | null>(null);
+  const [productResponse, setProductResponse] = useState<ApiProduct | null>(null);
   const [accessories, setAccessories] = useState<ApiProduct[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
   const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
   const [isLoading, setIsLoading] = useState(true);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
@@ -98,57 +106,86 @@ const ProductDetailPage: React.FC = () => {
     }
   }, [searchParams]);
 
+
   useEffect(() => {
     const fetchProduct = async () => {
-      if (!slug) return;
+      if (!slug) {
+        setIsNotFound(true);
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
+        setIsNotFound(false);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
-        let productWithFrameInfo: ProductWithFrameInfoData | null = null;
+        const normalizedProductType = (apiProduct.productType || '').toUpperCase();
+        const frameProduct = normalizedProductType === 'FRAME';
+        setIsFrameProduct(frameProduct);
 
-        try {
-          productWithFrameInfo = await ProductAPI.getProductWithFrameInfo(apiProduct.id);
-        } catch (error) {
-          console.warn('Unable to fetch frame info details, falling back to base product data:', error);
+        let localProductResponse = apiProduct;
+        let localFrameGroup: ProductWithFrameInfoData['frameGroup'] = null;
+        let localFrameVariants: ApiFrameVariant[] = [];
+        let localSelectedFrameVariant: ApiFrameVariant | null = null;
+
+        if (frameProduct) {
+          try {
+            const frameInfo = await ProductAPI.getProductWithFrameInfo(apiProduct.id);
+            setProductWithFrameInfo(frameInfo);
+            localProductResponse = frameInfo.productResponse ?? apiProduct;
+            localFrameGroup = frameInfo.frameGroup;
+            localFrameVariants = frameInfo.frameVariants ?? [];
+
+            localSelectedFrameVariant =
+              localFrameVariants.find((variant) => variant.id === localProductResponse.variantId) ||
+              localFrameVariants.find((variant) => variant.productId === localProductResponse.id) ||
+              localFrameVariants.find((variant) => variant.productResponse?.id === localProductResponse.id) ||
+              localFrameVariants[0] ||
+              null;
+          } catch (error) {
+            setProductWithFrameInfo(null);
+            console.warn('Unable to fetch frame info details, falling back to base product data:', error);
+          }
+        } else {
+          setProductWithFrameInfo(null);
         }
 
-        const productResponse = productWithFrameInfo?.productResponse ?? apiProduct;
-        const frameGroup = productWithFrameInfo?.frameGroup;
-        const frameVariants = productWithFrameInfo?.frameVariants ?? [];
+        setFrameGroup(localFrameGroup);
+        setFrameVariants(localFrameVariants);
+        setSelectedFrameVariant(localSelectedFrameVariant);
+        setProductResponse(localProductResponse);
 
-        const selectedFrameVariant =
-          frameVariants.find((variant) => variant.id === productResponse.variantId) ||
-          frameVariants.find((variant) => variant.productId === productResponse.id) ||
-          frameVariants.find((variant) => variant.productResponse?.id === productResponse.id) ||
-          frameVariants[0] ||
-          null;
 
-        const frameWidthMm = selectedFrameVariant?.frameWidthMm ?? 0;
-        const bridgeMm = selectedFrameVariant?.bridgeWidthMm ?? 0;
-        const lensWidthMm = selectedFrameVariant?.lensWidthMm ?? 0;
-        const lensHeightMm = selectedFrameVariant?.lensHeightMm ?? 0;
-        const templeLengthMm = selectedFrameVariant?.templeLengthMm ?? 0;
+        const frameWidthMm = localSelectedFrameVariant?.frameWidthMm ?? 0;
+        const bridgeMm = localSelectedFrameVariant?.bridgeWidthMm ?? 0;
+        const lensWidthMm = localSelectedFrameVariant?.lensWidthMm ?? 0;
+        const lensHeightMm = localSelectedFrameVariant?.lensHeightMm ?? 0;
+        const templeLengthMm = localSelectedFrameVariant?.templeLengthMm ?? 0;
 
-        const productImages = getProductImages(productResponse);
+        const productImages = getProductImages(localProductResponse);
         const primaryImage = productImages[0] || PLACEHOLDER_IMAGE;
 
-        const shapeLabel = formatEnumLabel(frameGroup?.frameShape);
-        const materialLabel = formatEnumLabel(frameGroup?.frameMaterial);
-        const rimLabel = formatEnumLabel(frameGroup?.frameStructure);
-        const sizeLabel = formatEnumLabel(selectedFrameVariant?.size);
+        const shapeLabel = formatEnumLabel(localFrameGroup?.frameShape);
+        const materialLabel = formatEnumLabel(localFrameGroup?.frameMaterial);
+        const rimLabel = formatEnumLabel(localFrameGroup?.frameStructure);
+        const sizeLabel = formatEnumLabel(localSelectedFrameVariant?.size);
 
         const sizeRange = frameWidthMm > 0
           ? `${Math.max(frameWidthMm - 3, 0)} - ${frameWidthMm + 3} mm / ${mmToInches(Math.max(frameWidthMm - 3, 0))} - ${mmToInches(frameWidthMm + 3)} in`
           : 'N/A';
 
-        const productFeatures = buildFeatures(productWithFrameInfo);
+        const productFeatures = buildFeatures(frameProduct ? {
+          frameGroup: localFrameGroup,
+          productResponse: localProductResponse,
+          frameVariants: localFrameVariants,
+          frameVariant: localSelectedFrameVariant,
+        } : null);
 
-        const variantColorOptions = frameVariants.length > 0
-          ? frameVariants.map((variant) => {
-            const variantProduct = variant.productResponse ?? (variant.id === selectedFrameVariant?.id ? productResponse : undefined);
-            const variantImages = getProductImages(variantProduct ?? productResponse);
-            const variantProductId = variantProduct?.id ?? variant.productId ?? productResponse.id;
+        const variantColorOptions = localFrameVariants.length > 0
+          ? localFrameVariants.map((variant) => {
+            const variantProduct = variant.productResponse ?? (variant.id === localSelectedFrameVariant?.id ? localProductResponse : undefined);
+            const variantImages = getProductImages(variantProduct ?? localProductResponse);
+            const variantProductId = variantProduct?.id ?? variant.productId ?? localProductResponse.id;
 
             return {
               name: variant.colorName || 'Default',
@@ -161,33 +198,33 @@ const ProductDetailPage: React.FC = () => {
           })
           : [
             {
-              name: selectedFrameVariant?.colorName || 'Default',
-              code: selectedFrameVariant?.colorHex || '#000000',
+              name: localSelectedFrameVariant?.colorName || 'Default',
+              code: localSelectedFrameVariant?.colorHex || '#000000',
               image: primaryImage,
               images: productImages,
-              productId: productResponse.id,
-              variantId: productResponse.variantId || selectedFrameVariant?.id || productResponse.id
+              productId: localProductResponse.id,
+              variantId: localProductResponse.variantId || localSelectedFrameVariant?.id || localProductResponse.id
             }
           ];
-        
+
         // Transform API product to Product format
         const transformedProduct: Product = {
-          id: productResponse.id,
-          shopId: productResponse.shopId,
-          shop: productResponse.shop,
-          slug: productResponse.slug,
-          name: productResponse.name,
-          sku: productResponse.sku,
-          price: productResponse.basePrice,
-          rating: productResponse.avgRating || 0,
-          reviewCount: productResponse.reviewCount || 0,
+          id: localProductResponse.id,
+          shopId: localProductResponse.shopId,
+          shop: localProductResponse.shop,
+          slug: localProductResponse.slug,
+          name: localProductResponse.name,
+          sku: localProductResponse.sku,
+          price: localProductResponse.basePrice,
+          rating: localProductResponse.avgRating || 0,
+          reviewCount: localProductResponse.reviewCount || 0,
           shape: shapeLabel,
-          category: productResponse.categoryName,
-          productType: productResponse.productType,
-          variantId: productResponse.variantId ?? selectedFrameVariant?.id ?? undefined,
-          frameGroupId: frameGroup?.id ?? selectedFrameVariant?.frameGroupId ?? undefined,
-          vrEnabled: Boolean(frameGroup?.vrEnabled),
-          stockQuantity: productResponse.stockQuantity,
+          category: localProductResponse.categoryName,
+          productType: localProductResponse.productType,
+          variantId: localProductResponse.variantId ?? localSelectedFrameVariant?.id ?? undefined,
+          frameGroupId: localFrameGroup?.id ?? localSelectedFrameVariant?.frameGroupId ?? undefined,
+          vrEnabled: Boolean(localFrameGroup?.vrEnabled),
+          stockQuantity: localProductResponse.stockQuantity,
           colors: variantColorOptions,
           images: productImages,
           frameMeasurements: {
@@ -213,7 +250,7 @@ const ProductDetailPage: React.FC = () => {
             bifocal: false,
             readers: false
           },
-          description: productResponse.description ?? frameGroup?.description ?? undefined,
+          description: localSelectedFrameVariant?.productResponse?.description ?? localProductResponse.description ?? localFrameGroup?.description ?? undefined,
           features: productFeatures
         };
 
@@ -231,9 +268,12 @@ const ProductDetailPage: React.FC = () => {
           setIsLoadingReviews(false);
         }
 
-        // Fetch accessories linked to current product
-        const accessoryProducts = await ProductAPI.getAccessoriesByParentProductId(apiProduct.id);
-        setAccessories(accessoryProducts.filter(item => item.isActive));
+        if (isFrameProduct) {
+          const accessoryProducts = await ProductAPI.getAccessoriesByParentProductId(apiProduct.id);
+          setAccessories(accessoryProducts.filter(item => item.isActive));
+        } else {
+          setAccessories([]);
+        }
 
         // Fetch recommended products
         const allProducts = await ProductAPI.getAllProducts();
@@ -256,6 +296,29 @@ const ProductDetailPage: React.FC = () => {
 
         setRecommendedProducts(recommended);
       } catch (error) {
+        const err = error as {
+          status?: number;
+          message?: string;
+          errors?: unknown;
+          originalError?: { response?: { status?: number; data?: { errors?: unknown } } };
+        };
+        const status = err.status ?? err.originalError?.response?.status;
+        const message = err.message?.toLowerCase();
+        const errors = Array.isArray(err.errors)
+          ? err.errors
+          : Array.isArray(err.originalError?.response?.data?.errors)
+            ? err.originalError.response.data.errors
+            : [];
+
+        const hasProductNotFoundError = errors.some(
+          (item) => typeof item === 'string' && item.toLowerCase().includes('product not found')
+        );
+
+        if (status === 404 || status === 400 && (message?.includes('product not found') || hasProductNotFoundError)) {
+          setIsNotFound(true);
+          setProduct(null);
+          return;
+        }
         console.error('Error fetching product:', error);
       } finally {
         setIsLoading(false);
@@ -565,6 +628,10 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
+  if (isNotFound) {
+    return <NotFoundPage />;
+  }
+
   if (!product || isLoading) {
     return <div className="loading">Loading...</div>;
   }
@@ -599,7 +666,7 @@ const ProductDetailPage: React.FC = () => {
 
           {hasAccessories && (
             <div className="product-details-column">
-              <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+              <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} productWithFrameInfo={isFrameProduct ? productWithFrameInfo : undefined} />
             </div>
           )}
         </div>
@@ -669,7 +736,7 @@ const ProductDetailPage: React.FC = () => {
 
       {!hasAccessories && (
         <div className="product-details-fullwidth">
-          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} />
+          <ProductDetails product={product} reviewData={reviewData} isLoadingReviews={isLoadingReviews} onLoadMoreReviews={loadMoreReviews} productWithFrameInfo={isFrameProduct ? productWithFrameInfo : undefined} />
         </div>
       )}
 

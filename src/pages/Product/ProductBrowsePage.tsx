@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
   FilterList,
@@ -55,6 +56,7 @@ const ProductBrowsePage: React.FC = () => {
     'Đồng Nai', 'Quảng Ninh', 'Khánh Hòa', 'Nghệ An', 'Thanh Hóa', 'Thừa Thiên Huế'
   ];
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -62,6 +64,7 @@ const ProductBrowsePage: React.FC = () => {
     brands: [],
     categories: [],
     shopCities: defaultShopCities,
+    ageGroups: ['KIDS', 'TEENS', 'ADULTS', 'SENIORS'],
     priceRange: { min: 0, max: 500 },
     ratings: [0, 1, 2, 3, 4]
   });
@@ -78,9 +81,38 @@ const ProductBrowsePage: React.FC = () => {
     minRating: searchParams.get('minRating') ? parseInt(searchParams.get('minRating')!) : undefined,
     colors: searchParams.getAll('colors').length > 0 ? searchParams.getAll('colors') : undefined,
     frameShapes: searchParams.get('frameShapes') ? [searchParams.get('frameShapes')!] : undefined,
+    ageGroups: searchParams.get('ageGroups') ? searchParams.get('ageGroups')!.split(',') : undefined,
   });
 
   useEffect(() => {
+    
+    if (location.state && location.state.resetFilters) {
+      if (location.state.resetFilters === 'LENSES') {
+        setActiveFilters({
+          productType: 'LENSES',
+          brandIds: [],
+          categoryNames: [],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ productType: 'LENSES' });
+      } else {
+        setActiveFilters({
+          productType: undefined,
+          brandIds: [],
+          categoryNames: [location.state.resetFilters],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ category: location.state.resetFilters });
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      return;
+    }
+
     const category = searchParams.get('category');
     const productType = searchParams.get('productType');
     const query = searchParams.get('q');
@@ -107,10 +139,15 @@ const ProductBrowsePage: React.FC = () => {
           updates.shopCities = [shopCity];
         }
 
+        const ageGroupsParam = searchParams.get('ageGroups');
+        if (ageGroupsParam) {
+          updates.ageGroups = ageGroupsParam.split(',');
+        }
+
         return { ...prev, ...updates };
       });
     }
-  }, [searchParams]);
+  }, [searchParams, location.state]);
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -123,9 +160,11 @@ const ProductBrowsePage: React.FC = () => {
   const [typeAnchor, setTypeAnchor] = useState<null | HTMLElement>(null);
   const [shapeAnchor, setShapeAnchor] = useState<null | HTMLElement>(null);
   const [colorAnchor, setColorAnchor] = useState<null | HTMLElement>(null);
+  const [ageAnchor, setAgeAnchor] = useState<null | HTMLElement>(null);
   const typeRef = useRef<HTMLDivElement>(null);
   const shapeRef = useRef<HTMLDivElement>(null);
   const colorRef = useRef<HTMLDivElement>(null);
+  const ageRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 10;
 
   const normalizeLocationText = (value: string) =>
@@ -165,6 +204,7 @@ const ProductBrowsePage: React.FC = () => {
       if (!typeRef.current?.contains(e.target as Node)) setTypeOpen(null);
       if (!shapeRef.current?.contains(e.target as Node)) setShapeOpen(null);
       if (!colorRef.current?.contains(e.target as Node)) setColorOpen(null);
+      if (!ageRef.current?.contains(e.target as Node)) setAgeAnchor(null);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -198,22 +238,27 @@ const ProductBrowsePage: React.FC = () => {
         setIsLoading(true);
 
         // Build filter params from activeFilters
-        const filterParams: ProductFilterParams = {
+        // Only send one of productType or categoryName
+        let filterParams: ProductFilterParams = {
           search: activeFilters.searchQuery || undefined,
           minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
           maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
           isActive: true,
           minRating: activeFilters.minRating || undefined,
-          productType: activeFilters.productType,
           brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
-          categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
           isFeatured: activeFilters.isFeatured,
           isReturnable: activeFilters.isReturnable,
           page: currentPage,
           unitPerPage: PAGE_SIZE,
           frameShapes: activeFilters.frameShapes || undefined,
           colors: activeFilters.colors || undefined,
+          ageGroups: activeFilters.ageGroups ? activeFilters.ageGroups.join(',') : undefined,
         };
+        if (activeFilters.productType) {
+          filterParams.productType = activeFilters.productType;
+        } else if (activeFilters.categoryNames.length > 0) {
+          filterParams.categoryName = activeFilters.categoryNames[0];
+        }
 
         // Map sortBy to API params
         if (activeFilters.sortBy) {
@@ -296,7 +341,7 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, currentPage]);
+  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups, currentPage]);
 
   // Apply location filtering client-side because product listing API does not currently expose city param.
   useEffect(() => {
@@ -331,16 +376,13 @@ const ProductBrowsePage: React.FC = () => {
     // Update URL params to match filters
     const params = new URLSearchParams();
 
-    // Convert productType to category name for URL
+    // Only set one of productType or category
     if (newFilters.productType) {
-      const categoryName = newFilters.categoryNames && newFilters.categoryNames.length > 0
-        ? newFilters.categoryNames[0]
-        : undefined;
       params.set('productType', newFilters.productType);
-      if (categoryName) {
-        params.set('category', categoryName);
-      }
+    } else if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
+      params.set('category', newFilters.categoryNames[0]);
     }
+
     if (newFilters.searchQuery) params.set('q', newFilters.searchQuery);
     if (newFilters.sortBy && newFilters.sortBy !== 'popular') params.set('sortBy', newFilters.sortBy);
     if (newFilters.priceMin !== undefined) params.set('minPrice', newFilters.priceMin.toString());
@@ -348,9 +390,6 @@ const ProductBrowsePage: React.FC = () => {
     if (newFilters.minRating) params.set('minRating', newFilters.minRating.toString());
     if (newFilters.brandIds && newFilters.brandIds.length > 0) {
       params.set('brandId', newFilters.brandIds[0]);
-    }
-    if (newFilters.categoryNames && newFilters.categoryNames.length > 0) {
-      params.set('category', newFilters.categoryNames[0]);
     }
     if (newFilters.shopCities && newFilters.shopCities.length > 0) {
       params.set('shopCity', newFilters.shopCities[0]);
@@ -360,6 +399,9 @@ const ProductBrowsePage: React.FC = () => {
     }
     if (newFilters.colors?.length) {
       newFilters.colors.forEach(c => params.append('colors', c));
+    }
+    if (newFilters.ageGroups?.length) {
+      params.set('ageGroups', newFilters.ageGroups.join(','));
     }
     setSearchParams(params);
   };
@@ -371,6 +413,7 @@ const ProductBrowsePage: React.FC = () => {
       brandIds: [],
       categoryNames: [],
       shopCities: [],
+      ageGroups: [],
       searchQuery: '',
       sortBy: 'popular'
     });
@@ -580,6 +623,53 @@ const ProductBrowsePage: React.FC = () => {
                   );
                 })}
               </Menu>
+
+              {/* Age Group (moved from sidebar) */}
+              <div ref={ageRef} style={{ display: 'inline-block' }}>
+                <DdButton
+                  onClick={e => setAgeAnchor(e.currentTarget)}
+                  endIcon={
+                    activeFilters.ageGroups?.length ? (
+                      <Chip label={activeFilters.ageGroups.length} size="small" sx={{
+                        height: 18, fontSize: 11, ml: 0.5,
+                        '& .MuiChip-label': {
+                          fontSize: 14,
+                          lineHeight: '18px',
+                        },
+                      }} />
+                    ) : (
+                      <KeyboardArrowDown fontSize="small" />
+                    )
+                  }
+                >
+                  Age group
+                </DdButton>
+
+                <Menu
+                  anchorEl={ageAnchor}
+                  open={Boolean(ageAnchor)}
+                  onClose={() => setAgeAnchor(null)}
+                  slotProps={{ paper: { sx: { mt: 0.5, borderRadius: 2, minWidth: 180 } } }}
+                >
+                  {(filterOptions.ageGroups || []).map(group => {
+                    const checked = activeFilters.ageGroups?.includes(group) ?? false;
+                    return (
+                      <MenuItem
+                        key={group}
+                        sx={{ fontSize: 13, py: 0.5 }}
+                        onClick={() => {
+                          const prev = activeFilters.ageGroups ?? [];
+                          const next = checked ? prev.filter(g => g !== group) : [...prev, group];
+                          handleFilterChange({ ...activeFilters, ageGroups: next });
+                        }}
+                      >
+                        <Checkbox checked={checked} size="small" sx={{ p: 0, mr: 1 }} />
+                        {group}
+                      </MenuItem>
+                    );
+                  })}
+                </Menu>
+              </div>
 
               <div className="view-controls">
                 <button

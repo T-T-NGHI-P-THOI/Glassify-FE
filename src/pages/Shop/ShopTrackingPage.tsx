@@ -32,6 +32,7 @@ import { adminApi } from '@/api/adminApi';
 import type { AdminShopItem } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { sanitizeSearchInput } from '@/utils/text-input';
 
 const ShopTrackingPage = () => {
   const theme = useTheme();
@@ -175,7 +176,7 @@ const ShopTrackingPage = () => {
               placeholder="Search shops..."
               size="small"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(sanitizeSearchInput(e.target.value))}
               sx={{ width: 300 }}
               slotProps={{
                 input: {
