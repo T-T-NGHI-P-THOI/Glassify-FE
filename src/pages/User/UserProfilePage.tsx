@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTheme } from '@mui/material/styles';
 import {
     Box,
     Typography,
     Paper,
+    Card,
+    CardContent,
     Chip,
     IconButton,
     Avatar,
@@ -18,45 +21,19 @@ import {
     DialogContent,
     DialogActions,
     Alert,
-    Snackbar,
-    CircularProgress,
-    Tooltip,
-    Badge,
-    Skeleton,
-    MenuItem,
-    Select,
-    FormControl,
+    Stack,
+    Autocomplete,
+    Checkbox,
     InputLabel,
+    Select,
+    MenuItem,
+    FormControl,
+    CircularProgress,
+    Badge,
+    Tooltip,
+    Skeleton
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import {
-    ArrowBack,
-    Edit,
-    Person,
-    Email,
-    CalendarMonth,
-    Verified,
-    CameraAlt,
-    Lock,
-    Google,
-    Visibility,
-    VisibilityOff,
-    CheckCircle,
-    Store,
-    ShoppingBag,
-    Star,
-    Settings,
-    Security,
-    LinkOff,
-    Link as LinkIcon,
-    Save,
-    Close,
-    Delete,
-    Phone,
-    LocationOn,
-    Add as AddIcon,
-    HomeOutlined,
-} from '@mui/icons-material';
+import Snackbar from '@mui/material/Snackbar';
 import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import {
@@ -70,9 +47,15 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { AutoAwesome } from '@mui/icons-material';
+import { ArrowBack, Edit, Close, Save, CameraAlt, Person, Verified, Email, Google, Lock, CheckCircle, CalendarMonth, Store, ShoppingBag, Star, MenuBook, Security, Settings, HomeOutlined, Phone, LocationOn, Add as AddIcon, Delete, LinkOff, Link as LinkIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import { RecommendationsTabContent } from './RecommendationTab';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
 import { userAddressApi, type UserAddressResponse, type UserAddressRequest } from '@/api/user-address-api';
+import lensService from '@/api/service/LensService';
+import type { PrescriptionValidationRequest, ValidationIssue } from '@/models/Lens';
+import { usePrescriptions } from '@/hooks/usePrescriptions';
+import type { Prescription, CreatePrescriptionData } from '@/models/Prescription';
+import { SaveAlt, Login } from '@mui/icons-material';
 
 // ==================== COMPONENT ====================
 
@@ -158,7 +141,7 @@ const UserProfilePage = () => {
             const response = await userApi.getMyProfile();
             console.log('User profile response LOGIN PAGE:', response.data);
             if (response) {
-                setUser(response.data);
+                setUser(response.data as unknown as UserResponse);
                 // setEditedFullName(response || '');
             } else {
                 setError('Failed to fetch user profile');
@@ -549,6 +532,246 @@ const UserProfilePage = () => {
         } finally { setSettingDefaultId(null); }
     };
 
+    // ========== PRESCRIPTIONS STATES & HANDLERS ==========
+    const { prescriptions, loading: loadingPrescriptions, error: prescriptionsError, fetchPrescriptions, createPrescription, updatePrescription, deletePrescription, setDefaultPrescription } = usePrescriptions();
+    const [prescriptionDialog, setPrescriptionDialog] = useState<{ open: boolean; mode: 'create' | 'edit'; data: Prescription | null }>({ open: false, mode: 'create', data: null });
+    const [prescriptionForm, setPrescriptionForm] = useState<CreatePrescriptionData>({
+        name: '',
+        sphR: 0,
+        cylR: 0,
+        axisR: 0,
+        sphL: 0,
+        cylL: 0,
+        axisL: 0,
+        prescriptionDate: new Date().toISOString(),
+        prescriptionUsage: 'DISTANCE',
+    });
+    const [prescriptionDraft, setPrescriptionDraft] = useState<import('@/models/Lens').Prescription>({
+        left_eye: { sphere: '0.00' },
+        right_eye: { sphere: '0.00' },
+    });
+    const [prescriptionMode, setPrescriptionMode] = useState<'saved' | 'manual'>('manual');
+    const [has2PD, setHas2PD] = useState(false);
+    const [savingPrescription, setSavingPrescription] = useState(false);
+    const [deletingPrescriptionId, setDeletingPrescriptionId] = useState<string | null>(null);
+    const [isValidatingPresc, setIsValidatingPresc] = useState(false);
+    const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+    const [warningConfirmOpenPresc, setWarningConfirmOpenPresc] = useState(false);
+    const [pendingWarningsPresc, setPendingWarningsPresc] = useState<ValidationIssue[]>([]);
+    const [warningsAcknowledgedPresc, setWarningsAcknowledgedPresc] = useState(false);
+    const [prescriptionValues, setPrescriptionValues] = useState<{
+        sphere: string[]; cylinder: string[]; add: string[]; pd: string[]; pdMonocular: string[];
+    } | null>(null);
+    const [isLoadingPrescriptionValues, setIsLoadingPrescriptionValues] = useState(false);
+
+    const openCreatePrescription = () => {
+        setPrescriptionForm({ name: '', sphR: 0, cylR: 0, axisR: 0, sphL: 0, cylL: 0, axisL: 0, prescriptionDate: new Date().toISOString(), prescriptionUsage: 'DISTANCE' });
+        setPrescriptionDialog({ open: true, mode: 'create', data: null });
+        setPrescriptionDraft({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' } });
+        setPrescriptionMode('manual');
+        setHas2PD(false);
+        setValidationIssues([]);
+        setPendingWarningsPresc([]);
+        setWarningsAcknowledgedPresc(false);
+    };
+
+    // Fetch prescription pick-lists when dialog opens
+    useEffect(() => {
+        const fetchValues = async () => {
+            if (!prescriptionDialog.open) return;
+            try {
+                setIsLoadingPrescriptionValues(true);
+                const values = await lensService.getAllPrescriptionValues();
+                setPrescriptionValues({ sphere: values.sphereValues, cylinder: values.cylinderValues, add: values.addValues, pd: values.pdValues, pdMonocular: values.pdMonocularValues });
+            } catch (err) {
+                console.error('Failed to load prescription values:', err);
+                setPrescriptionValues(null);
+            } finally {
+                setIsLoadingPrescriptionValues(false);
+            }
+        };
+
+        fetchValues();
+    }, [prescriptionDialog.open]);
+
+    const openEditPrescription = (p: Prescription) => {
+        setPrescriptionForm({
+            name: p.name,
+            sphR: p.sphR,
+            cylR: p.cylR,
+            axisR: p.axisR,
+            sphL: p.sphL,
+            cylL: p.cylL,
+            axisL: p.axisL,
+            pdSingle: p.pdSingle || undefined,
+            pdLeft: p.pdLeft || undefined,
+            pdRight: p.pdRight || undefined,
+            addPower: p.addPower || undefined,
+            prescriptionDate: p.prescriptionDate,
+            prescriptionUsage: p.prescriptionUsage,
+        });
+        setPrescriptionDialog({ open: true, mode: 'edit', data: p });
+        setPrescriptionDraft({
+            left_eye: {
+                sphere: p.sphL.toFixed(2),
+                cylinder: p.cylL !== 0 ? p.cylL.toFixed(2) : '0.00',
+                axis: p.axisL !== 0 ? String(p.axisL) : undefined,
+                add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdLeft !== 0 ? String(p.pdLeft) : undefined),
+            },
+            right_eye: {
+                sphere: p.sphR.toFixed(2),
+                cylinder: p.cylR !== 0 ? p.cylR.toFixed(2) : '0.00',
+                axis: p.axisR !== 0 ? String(p.axisR) : undefined,
+                add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdRight !== 0 ? String(p.pdRight) : undefined),
+            }
+        });
+        setPrescriptionMode('manual');
+        setHas2PD(p.pdSingle === 0 && (!!p.pdLeft || !!p.pdRight));
+        setValidationIssues([]);
+        setPendingWarningsPresc([]);
+        setWarningsAcknowledgedPresc(false);
+    };
+
+    const handlePrescriptionFieldChange = (eye: 'left_eye' | 'right_eye', field: string, value: string) => {
+        setPrescriptionDraft(prev => {
+            const next = { left_eye: { ...prev.left_eye }, right_eye: { ...prev.right_eye } };
+            (next as any)[eye] = { ...(next as any)[eye], [field]: value };
+
+            // Sync ADD across both eyes when edited
+            if (field === 'add') {
+                next.left_eye.add = value;
+                next.right_eye.add = value;
+            }
+
+            // If not using 2PD and PD updated, sync both eyes
+            if (field === 'pd' && !has2PD) {
+                next.left_eye.pd = value;
+                next.right_eye.pd = value;
+            }
+
+            return next;
+        });
+    };
+
+    const handleSavePrescription = async () => {
+        // Validate prescription via lensService before saving
+        setSavingPrescription(true);
+        setValidationIssues([]);
+        setPendingWarningsPresc([]);
+        try {
+            const req: PrescriptionValidationRequest = {
+                sphRight: parseFloat(prescriptionDraft.right_eye.sphere || '0'),
+                sphLeft: parseFloat(prescriptionDraft.left_eye.sphere || '0'),
+                cylRight: parseFloat(prescriptionDraft.right_eye.cylinder || '0'),
+                cylLeft: parseFloat(prescriptionDraft.left_eye.cylinder || '0'),
+                axisRight: parseFloat(prescriptionDraft.right_eye.axis || '0'),
+                axisLeft: parseFloat(prescriptionDraft.left_eye.axis || '0'),
+                add: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+','')) : undefined,
+                pd: !has2PD ? (prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd || '0') : undefined) : undefined,
+                pdLeft: has2PD ? (prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.left_eye.pd) : undefined) : undefined,
+                pdRight: has2PD ? (prescriptionDraft.right_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd) : undefined) : undefined,
+            };
+
+            setIsValidatingPresc(true);
+            const response = await lensService.validatePrescription(req);
+            setIsValidatingPresc(false);
+
+            const issues = response?.data?.issues ?? [];
+            if (Array.isArray(issues) && issues.length > 0) {
+                const mapped: ValidationIssue[] = issues.map((iss: any) => ({
+                    code: iss.code || 'VALIDATION',
+                    path: iss.field || iss.path || 'unknown',
+                    message: iss.message || String(iss),
+                    severity: (iss.level === 'ERROR' ? 'ERROR' : iss.level === 'WARNING' ? 'WARNING' : 'INFO'),
+                    meta: iss.metadata || {},
+                }));
+
+                const hasErrors = mapped.some(i => i.severity === 'ERROR');
+                const warnings = mapped.filter(i => i.severity === 'WARNING');
+
+                if (hasErrors) {
+                    setValidationIssues(mapped);
+                    setSavingPrescription(false);
+                    return;
+                }
+
+                if (warnings.length > 0 && !warningsAcknowledgedPresc) {
+                    setPendingWarningsPresc(warnings);
+                    setSavingPrescription(false);
+                    setWarningConfirmOpenPresc(true);
+                    return;
+                }
+            }
+
+            // If validation passed or user already acknowledged warnings, proceed to save
+            const createData: CreatePrescriptionData = {
+                name: prescriptionForm.name || (prescriptionDialog.mode === 'create' ? 'My Prescription' : prescriptionForm.name),
+                sphR: parseFloat(prescriptionDraft.right_eye.sphere || '0'),
+                cylR: parseFloat(prescriptionDraft.right_eye.cylinder || '0'),
+                axisR: prescriptionDraft.right_eye.axis ? parseFloat(prescriptionDraft.right_eye.axis) : 0,
+                sphL: parseFloat(prescriptionDraft.left_eye.sphere || '0'),
+                cylL: parseFloat(prescriptionDraft.left_eye.cylinder || '0'),
+                axisL: prescriptionDraft.left_eye.axis ? parseFloat(prescriptionDraft.left_eye.axis) : 0,
+                addPower: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+','')) : undefined,
+                prescriptionDate: prescriptionForm.prescriptionDate || new Date().toISOString(),
+                prescriptionUsage: prescriptionForm.prescriptionUsage || 'DISTANCE',
+            };
+
+            if (has2PD) {
+                createData.pdLeft = prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.left_eye.pd) : undefined;
+                createData.pdRight = prescriptionDraft.right_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd) : undefined;
+            } else {
+                createData.pdSingle = prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd || '0') : undefined;
+            }
+
+            if (prescriptionDialog.mode === 'create') {
+                await createPrescription(createData);
+                setSnackbar({ open: true, message: 'Prescription created', severity: 'success' });
+            } else if (prescriptionDialog.mode === 'edit' && prescriptionDialog.data) {
+                await updatePrescription(prescriptionDialog.data.id, createData as any);
+                setSnackbar({ open: true, message: 'Prescription updated', severity: 'success' });
+            }
+
+            setPrescriptionDialog({ open: false, mode: 'create', data: null });
+            await fetchPrescriptions();
+        } catch (err: any) {
+            console.error('Error saving prescription:', err);
+            setSnackbar({ open: true, message: err?.message || 'Failed to save prescription', severity: 'error' });
+        } finally {
+            setIsValidatingPresc(false);
+            setSavingPrescription(false);
+        }
+    };
+
+    const handleDeletePrescription = async (id: string) => {
+        setDeletingPrescriptionId(id);
+        try {
+            await deletePrescription(id);
+            setSnackbar({ open: true, message: 'Prescription deleted', severity: 'success' });
+            await fetchPrescriptions();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to delete prescription', severity: 'error' });
+        } finally { setDeletingPrescriptionId(null); }
+    };
+
+    const handleSetDefaultPrescription = async (id: string) => {
+        try {
+            await setDefaultPrescription(id, { isDefault: true } as any);
+            setSnackbar({ open: true, message: 'Default prescription set', severity: 'success' });
+            await fetchPrescriptions();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to set default prescription', severity: 'error' });
+        }
+    };
+
+    const mockStats: UserStats = {
+        totalOrders: 125,
+        totalSpent: 25430000,
+        totalReviews: 45,
+        memberSince: '2021-03-15',
+    };
     // ========== STAT CARD COMPONENT ==========
     const StatCard = ({
         icon,
@@ -970,6 +1193,7 @@ const UserProfilePage = () => {
                             <Tab icon={<Person sx={{ fontSize: 18 }} />} iconPosition="start" label="Personal Info" />
                             <Tab icon={<HomeOutlined sx={{ fontSize: 18 }} />} iconPosition="start" label="Addresses" />
                             <Tab icon={<AutoAwesome sx={{ fontSize: 18 }} />} iconPosition="start" label="Recommendation" />
+                            <Tab icon={<MenuBook sx={{ fontSize: 18 }} />} iconPosition="start" label="Prescriptions" />
                             <Tab icon={<Security sx={{ fontSize: 18 }} />} iconPosition="start" label="Security" />
                             <Tab icon={<Settings sx={{ fontSize: 18 }} />} iconPosition="start" label="Settings" />
                         </Tabs>
@@ -1268,8 +1492,56 @@ const UserProfilePage = () => {
                         />
                     )}
 
-                    {/* ========== TAB 3: Security ========== */}
+                    {/* ========== TAB 3: Prescriptions ========== */}
                     {activeTab === 3 && (
+                        <Box sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                                <Box>
+                                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>My Prescriptions</Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>Manage your saved prescriptions for lens selection</Typography>
+                                </Box>
+                                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreatePrescription} size="small">Add Prescription</Button>
+                            </Box>
+
+                            {loadingPrescriptions ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>
+                            ) : (!prescriptions || prescriptions.length === 0) ? (
+                                <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: 2, border: `1px dashed ${theme.palette.custom.border.main}` }}>
+                                    <MenuBook sx={{ fontSize: 52, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                                    <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>No prescriptions yet</Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 3 }}>Save your eyesight prescriptions to speed up lens ordering.</Typography>
+                                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreatePrescription}>Add Your First Prescription</Button>
+                                </Paper>
+                            ) : (
+                                <Grid container spacing={2}>
+                                    {prescriptions.map(p => (
+                                        <Grid size={{ xs: 12, md: 6 }} key={p.id}>
+                                            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1.5px solid ${p.isDefault ? theme.palette.primary.main : theme.palette.custom.border.light}`, position: 'relative', transition: 'all 0.2s', '&:hover': { borderColor: theme.palette.primary.main, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' } }}>
+                                                {p.isDefault && <Chip label="Default" size="small" color="primary" sx={{ position: 'absolute', top: 12, right: 12, fontWeight: 600, fontSize: 11 }} />}
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                                    <MenuBook sx={{ fontSize: 18, color: theme.palette.custom.neutral[400] }} />
+                                                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: 0.5 }}>{p.name}</Typography>
+                                                </Box>
+                                                <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 0.5 }}>{p.prescriptionUsage}</Typography>
+                                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], mb: 0.5 }}>Date: {new Date(p.prescriptionDate).toLocaleDateString()}</Typography>
+                                                <Divider sx={{ my: 1.5 }} />
+                                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                    {!p.isDefault && (
+                                                        <Button size="small" variant="outlined" onClick={() => handleSetDefaultPrescription(p.id)}>Set Default</Button>
+                                                    )}
+                                                    <Button size="small" variant="outlined" onClick={() => openEditPrescription(p)} startIcon={<Edit sx={{ fontSize: 14 }} />}>Edit</Button>
+                                                    <Button size="small" variant="outlined" color="error" onClick={() => handleDeletePrescription(p.id)} disabled={deletingPrescriptionId === p.id} startIcon={deletingPrescriptionId === p.id ? <CircularProgress size={12} color="error" /> : <Delete sx={{ fontSize: 14 }} />}>Delete</Button>
+                                                </Box>
+                                            </Paper>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            )}
+                        </Box>
+                    )}
+
+                    {/* ========== TAB 4: Security ========== */}
+                    {activeTab === 4 && (
                         <Box sx={{ p: 3 }}>
                             <Grid container spacing={3}>
                                 <Grid size={{ xs: 12, md: 6 }}>
@@ -1473,8 +1745,8 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 4: Settings ========== */}
-                    {activeTab === 4 && (
+                    {/* ========== TAB 5: Settings ========== */}
+                    {activeTab === 5 && (
                         <Box sx={{ p: 4, textAlign: 'center' }}>
                             <Settings
                                 sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }}
@@ -1586,6 +1858,359 @@ const UserProfilePage = () => {
                         startIcon={updating && <CircularProgress size={18} color="inherit" />}
                     >
                         {hasLocalAccount ? 'Change Password' : 'Set Password'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Warning Confirmation for prescription save */}
+            <Dialog open={warningConfirmOpenPresc} onClose={() => setWarningConfirmOpenPresc(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ fontWeight: 700 }}>Prescription Warnings</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ mb: 2 }}>The following warnings were detected. Proceed anyway?</Typography>
+                    {pendingWarningsPresc.map((w, i) => (
+                        <Alert key={i} severity="warning" sx={{ mb: 1 }}>{w.message} {w.path ? `(${w.path})` : ''}</Alert>
+                    ))}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setWarningConfirmOpenPresc(false); setPendingWarningsPresc([]); setWarningsAcknowledgedPresc(false); }}>Cancel</Button>
+                    <Button variant="contained" onClick={async () => {
+                        setWarningsAcknowledgedPresc(true);
+                        setWarningConfirmOpenPresc(false);
+                        // Retry saving after acknowledgement
+                        await handleSavePrescription();
+                    }}>Proceed</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ========== PRESCRIPTION DIALOG ========== */}
+            <Dialog open={prescriptionDialog.open} onClose={() => setPrescriptionDialog(d => ({ ...d, open: false }))} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+                    {prescriptionDialog.mode === 'create' ? 'Add Prescription' : 'Edit Prescription'}
+                </DialogTitle>
+                <DialogContent dividers>
+                    {validationIssues.length > 0 && (
+                        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setValidationIssues([])}>
+                            {validationIssues.map((v, i) => (
+                                <div key={i}>{v.severity}: {v.message} {v.path ? `(${v.path})` : ''}</div>
+                            ))}
+                        </Alert>
+                    )}
+                    {pendingWarningsPresc.length > 0 && (
+                        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setPendingWarningsPresc([])}>
+                            {pendingWarningsPresc.map((v, i) => (
+                                <div key={i}>{v.message} {v.path ? `(${v.path})` : ''}</div>
+                            ))}
+                        </Alert>
+                    )}
+                    <Grid container spacing={2} sx={{ pt: 1, mb: 2 }}>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField
+                                label="Prescription Name"
+                                value={prescriptionForm.name}
+                                onChange={e => setPrescriptionForm(f => ({ ...f, name: e.target.value }))}
+                                fullWidth
+                                size="small"
+                                placeholder="e.g. Daily Progressive 2026"
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField
+                                label="Prescription Date"
+                                type="date"
+                                value={prescriptionForm.prescriptionDate?.substring(0, 10) || ''}
+                                onChange={e => setPrescriptionForm(f => ({ ...f, prescriptionDate: e.target.value }))}
+                                fullWidth
+                                size="small"
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel id="usage-label">Usage</InputLabel>
+                                <Select
+                                    labelId="usage-label"
+                                    value={prescriptionForm.prescriptionUsage}
+                                    label="Usage"
+                                    onChange={e => setPrescriptionForm(f => ({ ...f, prescriptionUsage: e.target.value as any }))}
+                                >
+                                    <MenuItem value={'DISTANCE'}>Distance</MenuItem>
+                                    <MenuItem value={'READING'}>Reading</MenuItem>
+                                    <MenuItem value={'COMPUTER'}>Computer</MenuItem>
+                                    <MenuItem value={'PROGRESSIVE'}>Progressive</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                    </Grid>
+
+                    <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                        <Button
+                            variant={prescriptionMode === 'saved' ? 'contained' : 'outlined'}
+                            onClick={() => setPrescriptionMode('saved')}
+                            sx={{ flex: 1, textTransform: 'none' }}
+                        >
+                            Choose saved
+                        </Button>
+                        <Button
+                            variant={prescriptionMode === 'manual' ? 'contained' : 'outlined'}
+                            onClick={() => setPrescriptionMode('manual')}
+                            sx={{ flex: 1, textTransform: 'none' }}
+                        >
+                            Enter manually
+                        </Button>
+                    </Stack>
+
+                    {prescriptionMode === 'saved' ? (
+                        <Box>
+                            {loadingPrescriptions ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={24} /></Box>
+                            ) : prescriptionsError ? (
+                                <Alert severity="error">Unable to load prescriptions: {prescriptionsError}</Alert>
+                            ) : prescriptions.length === 0 ? (
+                                <Paper sx={{ p: 3, textAlign: 'center' }}>You don't have any saved prescriptions yet</Paper>
+                            ) : (
+                                <Stack spacing={1.5}>
+                                    {prescriptions.map(p => (
+                                        <Paper
+                                            key={p.id}
+                                            variant="outlined"
+                                            sx={{ p: 1.5, cursor: 'pointer', borderColor: theme.palette.custom.border.light, '&:hover': { borderColor: theme.palette.primary.main } }}
+                                            onClick={() => {
+                                                setPrescriptionDraft({
+                                                    left_eye: {
+                                                        sphere: p.sphL.toFixed(2),
+                                                        cylinder: p.cylL !== 0 ? p.cylL.toFixed(2) : '0.00',
+                                                        axis: p.axisL !== 0 ? String(p.axisL) : undefined,
+                                                        add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                                                        pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdLeft !== 0 ? String(p.pdLeft) : undefined),
+                                                    },
+                                                    right_eye: {
+                                                        sphere: p.sphR.toFixed(2),
+                                                        cylinder: p.cylR !== 0 ? p.cylR.toFixed(2) : '0.00',
+                                                        axis: p.axisR !== 0 ? String(p.axisR) : undefined,
+                                                        add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                                                        pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdRight !== 0 ? String(p.pdRight) : undefined),
+                                                    },
+                                                });
+                                                setPrescriptionForm(f => ({ ...f, name: p.name, prescriptionDate: p.prescriptionDate, prescriptionUsage: p.prescriptionUsage }));
+                                                setHas2PD(p.pdSingle === 0 && (!!p.pdLeft || !!p.pdRight));
+                                                setPrescriptionMode('manual');
+                                            }}
+                                        >
+                                            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{p.name}</Typography>
+                                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                                                {new Date(p.prescriptionDate).toLocaleDateString()} • {p.prescriptionUsage}
+                                            </Typography>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            )}
+                        </Box>
+                    ) : (
+                        <Paper sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                            {isLoadingPrescriptionValues && (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                                    <CircularProgress size={20} />
+                                </Box>
+                            )}
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 1.5, mb: 1.5 }}>
+                                <Box />
+                                <Typography variant="subtitle2" sx={{ textAlign: 'center', fontWeight: 700 }}>OD - Right</Typography>
+                                <Typography variant="subtitle2" sx={{ textAlign: 'center', fontWeight: 700 }}>OS - Left</Typography>
+                            </Box>
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 1.5, mb: 1.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}><Typography sx={{ fontWeight: 600 }}>SPH</Typography></Box>
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.sphere || []}
+                                    value={prescriptionDraft.right_eye.sphere}
+                                    onChange={(_, v) => handlePrescriptionFieldChange('right_eye', 'sphere', v || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" />}
+                                />
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.sphere || []}
+                                    value={prescriptionDraft.left_eye.sphere}
+                                    onChange={(_, v) => handlePrescriptionFieldChange('left_eye', 'sphere', v || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" />}
+                                />
+                            </Box>
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 1.5, mb: 1.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}><Typography sx={{ fontWeight: 600 }}>CYL</Typography></Box>
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.cylinder || []}
+                                    value={prescriptionDraft.right_eye.cylinder || '0.00'}
+                                    onChange={(_, v) => handlePrescriptionFieldChange('right_eye', 'cylinder', v || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" />}
+                                />
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.cylinder || []}
+                                    value={prescriptionDraft.left_eye.cylinder || '0.00'}
+                                    onChange={(_, v) => handlePrescriptionFieldChange('left_eye', 'cylinder', v || '0.00')}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" />}
+                                />
+                            </Box>
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 1.5, mb: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}><Typography sx={{ fontWeight: 600 }}>AXIS</Typography></Box>
+                                <TextField
+                                    size="small"
+                                    value={prescriptionDraft.right_eye.axis || ''}
+                                    placeholder="0"
+                                    disabled={(prescriptionDraft.right_eye.cylinder || '0.00') === '0.00'}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || (/^[0-9]+$/.test(v) && Number(v) <= 180)) {
+                                            handlePrescriptionFieldChange('right_eye', 'axis', v);
+                                        }
+                                    }}
+                                />
+                                <TextField
+                                    size="small"
+                                    value={prescriptionDraft.left_eye.axis || ''}
+                                    placeholder="0"
+                                    disabled={(prescriptionDraft.left_eye.cylinder || '0.00') === '0.00'}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || (/^[0-9]+$/.test(v) && Number(v) <= 180)) {
+                                            handlePrescriptionFieldChange('left_eye', 'axis', v);
+                                        }
+                                    }}
+                                />
+                            </Box>
+
+                            <Divider sx={{ my: 2 }} />
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 1.5, mb: 1.5, maxWidth: 420 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}><Typography sx={{ fontWeight: 600 }}>ADD *</Typography></Box>
+                                <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={prescriptionValues?.add || []}
+                                    value={prescriptionDraft.right_eye.add || ''}
+                                    onChange={(_, v) => {
+                                        const value = v || '';
+                                        handlePrescriptionFieldChange('right_eye', 'add', value);
+                                        handlePrescriptionFieldChange('left_eye', 'add', value);
+                                    }}
+                                    renderInput={(params) => <TextField {...params} placeholder="Select or type" />}
+                                />
+                            </Box>
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 1.5, maxWidth: 420 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography sx={{ fontWeight: 600 }}>PD *</Typography>
+                                    <Typography variant="caption" color="text.secondary">Pupillary distance</Typography>
+                                </Box>
+                                {!has2PD ? (
+                                    <Autocomplete
+                                        freeSolo
+                                        size="small"
+                                        options={prescriptionValues?.pd || []}
+                                        value={prescriptionDraft.right_eye.pd || ''}
+                                        onChange={(_, v) => {
+                                            const value = v || '';
+                                            handlePrescriptionFieldChange('right_eye', 'pd', value);
+                                            handlePrescriptionFieldChange('left_eye', 'pd', value);
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                placeholder="Enter your PD"
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    endAdornment: (
+                                                        <>
+                                                            <InputAdornment position="end">mm</InputAdornment>
+                                                            {params.InputProps.endAdornment}
+                                                        </>
+                                                    )
+                                                }}
+                                            />
+                                        )}
+                                    />
+                                ) : (
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            options={prescriptionValues?.pdMonocular || []}
+                                            value={prescriptionDraft.right_eye.pd || ''}
+                                            onChange={(_, v) => handlePrescriptionFieldChange('right_eye', 'pd', v || '')}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    placeholder="Right"
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        endAdornment: (
+                                                            <>
+                                                                <InputAdornment position="end">mm</InputAdornment>
+                                                                {params.InputProps.endAdornment}
+                                                            </>
+                                                        )
+                                                    }}
+                                                />
+                                            )}
+                                            sx={{ flex: 1 }}
+                                        />
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            options={prescriptionValues?.pdMonocular || []}
+                                            value={prescriptionDraft.left_eye.pd || ''}
+                                            onChange={(_, v) => handlePrescriptionFieldChange('left_eye', 'pd', v || '')}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    placeholder="Left"
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        endAdornment: (
+                                                            <>
+                                                                <InputAdornment position="end">mm</InputAdornment>
+                                                                {params.InputProps.endAdornment}
+                                                            </>
+                                                        )
+                                                    }}
+                                                />
+                                            )}
+                                            sx={{ flex: 1 }}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+
+                            <Box sx={{ mt: 1.5, ml: '120px', display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Checkbox
+                                    size="small"
+                                    checked={has2PD}
+                                    onChange={(e) => {
+                                        setHas2PD(e.target.checked);
+                                        if (!e.target.checked) {
+                                            const pd = prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd || '';
+                                            handlePrescriptionFieldChange('left_eye', 'pd', pd);
+                                            handlePrescriptionFieldChange('right_eye', 'pd', pd);
+                                        }
+                                    }}
+                                />
+                                <Typography variant="body2">I have 2 PD numbers</Typography>
+                            </Box>
+                        </Paper>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                    <Button onClick={() => setPrescriptionDialog(d => ({ ...d, open: false }))} color="inherit" disabled={savingPrescription}>Cancel</Button>
+                    <Button variant="contained" onClick={handleSavePrescription} disabled={savingPrescription} startIcon={savingPrescription ? <CircularProgress size={16} color="inherit" /> : <Save />}>
+                        {prescriptionDialog.mode === 'create' ? 'Add Prescription' : 'Save Changes'}
                     </Button>
                 </DialogActions>
             </Dialog>
