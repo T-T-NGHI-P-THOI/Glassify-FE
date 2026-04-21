@@ -51,6 +51,9 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopOrderResponse } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { reviewApi } from '@/api/review-api';
+import type { ReviewResponse } from '@/api/review-api';
+import { Star, StarBorder, RateReview } from '@mui/icons-material';
 
 // ─── Stepper ─────────────────────────────────────────────────────────────────
 
@@ -159,6 +162,7 @@ const ShipmentDetailPage = () => {
   const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [order, setOrder] = useState<ShopOrderResponse | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
+  const [itemReviews, setItemReviews] = useState<Record<string, ReviewResponse>>({});
   const [actionLoading, setActionLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -177,7 +181,21 @@ const ShipmentDetailPage = () => {
     if (!shop || !id) return;
     setLoadingOrder(true);
     shopApi.getShopOrderById(shop.id, id)
-      .then((res) => { if (res.data) setOrder(res.data); })
+      .then(async (res) => {
+        if (res.data) {
+          setOrder(res.data);
+          const reviewMap: Record<string, ReviewResponse> = {};
+          await Promise.all(
+            res.data.items.map(async (item) => {
+              try {
+                const rv = await reviewApi.getReviewByOrderItemId(item.id);
+                if (rv) reviewMap[item.id] = rv;
+              } catch { /* no review */ }
+            })
+          );
+          setItemReviews(reviewMap);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoadingOrder(false));
   }, [shop, id]);
@@ -682,6 +700,79 @@ const ShipmentDetailPage = () => {
             </Box>
           </Box>
         </Paper>
+
+        {/* ── Customer Reviews ── */}
+        {Object.keys(itemReviews).length > 0 && (
+          <Paper
+            elevation={0}
+            sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden', mb: 3 }}
+          >
+            <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <RateReview sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                Customer Review
+              </Typography>
+            </Box>
+
+            <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {order.items.map((item) => {
+                const review = itemReviews[item.id];
+                if (!review) return null;
+                return (
+                  <Box
+                    key={item.id}
+                    sx={{
+                      borderRadius: 2,
+                    }}
+                  >
+                    
+                    {/* Reviewer + rating */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+                        {review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
+                      </Typography>
+                    </Box>
+
+                    {/* Stars */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 1 }}>
+                      {[1, 2, 3, 4, 5].map((s) =>
+                        s <= (review.rating ?? 0)
+                          ? <Star key={s} sx={{ fontSize: 16, color: '#ffa500' }} />
+                          : <StarBorder key={s} sx={{ fontSize: 16, color: '#ffa500' }} />
+                      )}
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#ffa500', ml: 0.5 }}>
+                        {review.rating}/5
+                      </Typography>
+                    </Box>
+
+                    {/* Comment */}
+                    {review.comment && (
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                        {review.comment}
+                      </Typography>
+                    )}
+
+                    {/* Images */}
+                    {review.imageUrls && review.imageUrls.length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+                        {review.imageUrls.map((url, i) => (
+                          <Box
+                            key={i}
+                            component="img"
+                            src={url}
+                            alt={`review-img-${i}`}
+                            sx={{ width: 72, height: 72, borderRadius: 1, objectFit: 'cover', border: `1px solid ${theme.palette.custom.border.light}` }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Paper>
+        )}
+
       </Box>
     </Box>
 
