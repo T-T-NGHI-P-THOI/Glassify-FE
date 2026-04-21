@@ -31,9 +31,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { sanitizeSearchInput } from '@/utils/text-input';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import { lensApi, type LensResponse, type LensUsage, type LensWithProductResult } from '@/api/lens-api';
+import { formatEnumLabel } from '@/hooks/useLensEnums';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { CustomButton } from '@/components/custom';
@@ -628,7 +630,7 @@ const LensProductPage = () => {
               placeholder="Search lenses by name, SKU, category"
               value={search}
               onChange={(e) => {
-                setSearch(e.target.value);
+                setSearch(sanitizeSearchInput(e.target.value));
                 setPage(1);
               }}
               sx={{ width: { xs: '100%', sm: 320 } }}
@@ -739,8 +741,8 @@ const LensProductPage = () => {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 1 }}>
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Category</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {lens.category}
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {lens.category ? formatEnumLabel(String(lens.category)) : '-'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Price</Typography>
@@ -759,8 +761,8 @@ const LensProductPage = () => {
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Progressive</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {(lens.category === 'PROGRESSIVE') ? lens.progressiveType || 'Yes' : 'No'}
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {(lens.category === 'PROGRESSIVE') ? (lens.progressiveType ? formatEnumLabel(String(lens.progressiveType)) : 'Yes') : 'No'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Updated</Typography>

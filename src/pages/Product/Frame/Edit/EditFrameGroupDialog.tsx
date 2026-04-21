@@ -24,6 +24,7 @@ import Upload3DModelPage, { type Model3DFile } from '../Create/Upload3DModel';
 import ProductAPI from '@/api/product-api';
 import { toast } from 'react-toastify';
 import type { FrameGroup } from '../View/FrameGroupCard';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,7 +199,7 @@ const EditFrameGroupDialog = ({
     const handleInputChange =
         (field: keyof EditFrameGroupFormData) =>
             (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                setFormData(prev => ({ ...prev, [field]: e.target.value }));
+                setFormData(prev => ({ ...prev, [field]: sanitizeTextInput(e.target.value, { maxLength: field === 'description' ? 1000 : 150 }) }));
             };
 
     // Init data

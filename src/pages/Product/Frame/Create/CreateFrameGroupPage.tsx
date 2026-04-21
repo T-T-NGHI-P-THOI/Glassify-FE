@@ -23,6 +23,7 @@ import Upload3DModelPage, {
     type Upload3DModelPageRef,
 } from './Upload3DModel';
 import { toast } from "react-toastify";
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
         const handleInputChange =
             (field: keyof CreateFrameFormData) =>
                 (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+                    setFormData(prev => ({ ...prev, [field]: sanitizeTextInput(e.target.value, { maxLength: field === 'description' ? 1000 : 150 }) }));
                     clearError(field);
                 };
 

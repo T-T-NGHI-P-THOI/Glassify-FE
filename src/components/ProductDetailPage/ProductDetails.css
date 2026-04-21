@@ -1,3 +1,18 @@
+/* Lens options row for horizontal layout */
+.lens-options-row {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .lens-options-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
 .product-details-section {
   margin: 0;
   border-top: none;
