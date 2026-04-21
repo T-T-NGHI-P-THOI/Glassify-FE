@@ -94,6 +94,8 @@ export interface Review {
   id: string;
   productId: string;
   userId: string;
+  username?: string;
+  fullName?: string;
   rating: number;
   title: string;
   comment: string;

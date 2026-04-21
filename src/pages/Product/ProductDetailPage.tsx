@@ -65,7 +65,7 @@ const ProductDetailPage: React.FC = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [accessories, setAccessories] = useState<ApiProduct[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
-  const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
+  const [reviewData, setReviewData] = useState<ReviewResponse>({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0, avgRating: 0 } });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
@@ -226,7 +226,7 @@ const ProductDetailPage: React.FC = () => {
           setReviewData(response);
         } catch (error) {
           console.error('Error fetching reviews:', error);
-          setReviewData({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 } });
+          setReviewData({ reviews: [], summary: { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0, avgRating: 0 } });
         } finally {
           setIsLoadingReviews(false);
         }

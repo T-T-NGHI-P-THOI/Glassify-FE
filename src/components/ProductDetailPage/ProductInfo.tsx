@@ -51,14 +51,15 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       <p className="product-sku">{product.sku}</p>
       
       <div className="product-reviews">
-        <span className="reviews-label">REVIEWS ({product.reviewCount})</span>
         <div className="rating">
           {[...Array(5)].map((_, i) => (
-            i < Math.floor(product.rating) ? 
-            <Star key={i} className="star filled" /> : 
+            i < Math.floor(product.rating) ?
+            <Star key={i} className="star filled" /> :
             <StarBorder key={i} className="star" />
           ))}
+          <span className="rating-value">{product.rating > 0 ? product.rating.toFixed(1) : '—'}</span>
         </div>
+        <span className="reviews-label">({product.reviewCount} reviews)</span>
       </div>
 
       <div className="size-selector">

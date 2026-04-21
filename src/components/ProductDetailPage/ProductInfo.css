@@ -23,15 +23,27 @@
   gap: 15px;
 }
 
-.reviews-label {
-  font-size: 14px;
-  font-weight: bold;
-  color: #666;
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .rating .star {
   color: #ffa500;
   font-size: 20px;
+}
+
+.rating-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffa500;
+  margin-left: 6px;
+}
+
+.reviews-label {
+  font-size: 13px;
+  color: #888;
 }
 
 .size-selector {
