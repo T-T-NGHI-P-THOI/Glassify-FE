@@ -306,7 +306,7 @@ Cart items can be nested (parent → children). The tree shape:
 ```typescript
 interface CartItemWithDetails {
     id: string;
-    item_type: 'FRAME' | 'LENS' | 'ACCESSORY' | 'GIFT';
+    item_type: 'FRAME' | 'LENSES' | 'ACCESSORY' | 'GIFT';
     children: CartItemWithDetails[];   // Child items (e.g., lens inside a frame)
     lens_selection?: LensSelection;
     variant_details: { sku, color?, size?, image_url? };

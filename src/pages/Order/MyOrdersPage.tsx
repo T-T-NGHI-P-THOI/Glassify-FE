@@ -69,6 +69,7 @@ import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/
 import { createReturnRequest, listReturnRequests, uploadRefundEvidenceImages } from '@/api/refund-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { getApiErrorMessage } from '@/utils/api-error';
+import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
 
 // ==================== ENUMS (matching backend) ====================
 type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
@@ -423,6 +424,23 @@ const MyOrdersPage = () => {
   const [confirmingReceivedId, setConfirmingReceivedId] = useState<string | null>(null);
   const [demoActionId, setDemoActionId] = useState<string | null>(null);
 
+  // Platform settings (used to determine refund/return windows)
+  const [platformSetting, setPlatformSetting] = useState<PlatformSetting | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPlatformSetting = async () => {
+      try {
+        const setting = await getCurrentPlatformSetting();
+        if (mounted) setPlatformSetting(setting);
+      } catch (error) {
+        console.error('Failed to load platform settings:', error);
+      }
+    };
+    fetchPlatformSetting();
+    return () => { mounted = false; };
+  }, []);
+
   // Review Dialog States
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewTargetItem, setReviewTargetItem] = useState<OrderItem | null>(null);
@@ -698,6 +716,26 @@ const MyOrdersPage = () => {
   });
 
   const handleOpenReturnDialog = (orderItem: OrderItem) => {
+    if (!selectedOrder) {
+      toast.error('Order information not found');
+      return;
+    }
+
+    if (selectedOrder.status !== 'COMPLETED') {
+      toast.error('Cannot create return request: order is not in a suitable state.');
+      return;
+    }
+
+    const returnWindowDays = platformSetting?.returnWindowDays ?? null;
+    if (selectedOrder.completedAt && returnWindowDays != null) {
+      const completedTime = new Date(selectedOrder.completedAt).getTime();
+      const expiryTime = completedTime + returnWindowDays * 24 * 60 * 60 * 1000;
+      if (Date.now() > expiryTime) {
+        toast.error('Return window has expired.');
+        return;
+      }
+    }
+
     setSelectedReturnItemIds([orderItem.id]);
     setReturnItemForms({
       [orderItem.id]: createDefaultReturnItemForm(),
@@ -776,6 +814,23 @@ const MyOrdersPage = () => {
     if (selectedReturnItemIds.length === 0) {
       toast.error('Please select at least 1 product to create a request');
       return;
+    }
+
+    // Ensure order status is valid for return requests
+    if (selectedOrder.status !== 'COMPLETED') {
+      toast.error('Cannot create return request: order is not in a suitable state.');
+      return;
+    }
+
+    // Enforce platform-configured return window if available (based on completedAt)
+    const returnWindowDays = platformSetting?.returnWindowDays ?? null;
+    if (selectedOrder.completedAt && returnWindowDays != null) {
+      const completedTime = new Date(selectedOrder.completedAt).getTime();
+      const expiryTime = completedTime + returnWindowDays * 24 * 60 * 60 * 1000;
+      if (Date.now() > expiryTime) {
+        toast.error('Return window has expired.');
+        return;
+      }
     }
 
     try {
@@ -1800,7 +1855,7 @@ const MyOrdersPage = () => {
                                             -{formatCurrency(item.discountAmount)}
                                           </Typography>
                                         )}
-                                        {selectedOrder.status === 'DELIVERED' && (
+                                        {selectedOrder.status === 'COMPLETED' && (
                                           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                                             {itemRefundLookup[item.id]?.status && (
                                               <Chip

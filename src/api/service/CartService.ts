@@ -205,7 +205,7 @@ function transformSingleItem(
 function getProductTypeFromItemType(itemType: ItemType): string {
     switch (itemType) {
         case 'FRAME': return 'FRAME';
-        case 'LENS': return 'LENS';
+        case 'LENS': return 'LENSES';
         case 'ACCESSORY': return 'ACCESSORIES';
         case 'GIFT': return 'ACCESSORIES';
         default: return 'FRAME';
