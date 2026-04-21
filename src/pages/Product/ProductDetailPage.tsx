@@ -614,7 +614,7 @@ const ProductDetailPage: React.FC = () => {
       const totalPrice = product.price + lensOnlyPrice;
       setSnackbar({
         open: true,
-        message: `Đã thêm ${product.name} + ${selection.lens_type.name} vào giỏ hàng! Tổng: ${formatCurrency(totalPrice)}`,
+        message: `Added ${product.name} + ${selection.lens_type.name} into cart! Total: ${formatCurrency(totalPrice)}`,
         severity: 'success',
       });
 
@@ -623,7 +623,7 @@ const ProductDetailPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error adding to cart with lens:', error);
-      const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!';
+      const msg = (error as { message?: string }).message || 'Something went wrong while adding to cart, please try again!';
       setSnackbar({ open: true, message: msg, severity: 'error' });
     }
   };
