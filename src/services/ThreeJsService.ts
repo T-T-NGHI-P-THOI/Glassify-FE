@@ -390,27 +390,48 @@ export class ThreeJsService {
     applyTextureFromUrl(object: THREE.Object3D, url: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const loader = new THREE.TextureLoader();
-            loader.setCrossOrigin('anonymous'); // Tránh lỗi CORS
+            loader.setCrossOrigin('anonymous');
 
             loader.load(
                 url,
                 (texture) => {
-                    texture.colorSpace = "srgb"; // Đảm bảo màu sắc chuẩn
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.flipY = false;
+
                     object.traverse((child) => {
-                        if ((child as any).isMesh) {
-                            const mesh = child as THREE.Mesh;
-                            if (mesh.material) {
-                                (mesh.material as any).map = texture;
-                                (mesh.material as any).needsUpdate = true;
+                        if (!(child instanceof THREE.Mesh)) return;
+
+                        const applyToMaterial = (mat: THREE.Material): THREE.Material => {
+                            const cloned = mat.clone();
+
+                            if (
+                                cloned instanceof THREE.MeshStandardMaterial ||
+                                cloned instanceof THREE.MeshPhysicalMaterial
+                            ) {
+                                cloned.map = texture;
+                                cloned.needsUpdate = true;
+                                return cloned;
                             }
+
+                            return new THREE.MeshStandardMaterial({
+                                map: texture,
+                                color: (mat as any).color ?? new THREE.Color(0xffffff),
+                            });
+                        };
+
+                        if (Array.isArray(child.material)) {
+                            child.material = child.material.map(applyToMaterial);
+                        } else {
+                            child.material = applyToMaterial(child.material);
                         }
                     });
-                    console.log("Texture loaded successfully");
-                    resolve(); // Báo hiệu đã xong
+
+                    console.log('[Texture] loaded from URL successfully');
+                    resolve();
                 },
                 undefined,
                 (err) => {
-                    console.error("Texture load failed", err);
+                    console.error('[Texture] load from URL failed', err);
                     reject(err);
                 }
             );
@@ -427,22 +448,40 @@ export class ThreeJsService {
                 texture.colorSpace = THREE.SRGBColorSpace;
                 texture.flipY = false;
 
-                model.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        const mat = child.material;
+                let meshCount = 0;
 
-                        if (Array.isArray(mat)) {
-                            mat.forEach(m => {
-                                m.map = texture;
-                                m.needsUpdate = true;
-                            });
-                        } else {
-                            mat.map = texture;
-                            mat.needsUpdate = true;
+                model.traverse((child) => {
+                    if (!(child instanceof THREE.Mesh)) return;
+                    meshCount++;
+
+                    const applyToMaterial = (mat: THREE.Material): THREE.Material => {
+                        // ✅ Clone trước để tránh GLTF shared-material cache
+                        const cloned = mat.clone();
+
+                        if (
+                            cloned instanceof THREE.MeshStandardMaterial ||
+                            cloned instanceof THREE.MeshPhysicalMaterial
+                        ) {
+                            cloned.map = texture;
+                            cloned.needsUpdate = true;
+                            return cloned;
                         }
+
+                        // Fallback: replace bằng MeshStandardMaterial mới
+                        return new THREE.MeshStandardMaterial({
+                            map: texture,
+                            color: (mat as any).color ?? new THREE.Color(0xffffff),
+                        });
+                    };
+
+                    if (Array.isArray(child.material)) {
+                        child.material = child.material.map(applyToMaterial);
+                    } else {
+                        child.material = applyToMaterial(child.material);
                     }
                 });
 
+                console.log(`[Texture] applied to ${meshCount} mesh(es)`);
                 URL.revokeObjectURL(objectURL);
             },
             undefined,

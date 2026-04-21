@@ -1,6 +1,6 @@
 import CartAPI from '@/api/cart-api';
 import { TokenManager } from '@/api/axios.config';
-import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartItemRequest, BeCartResponse, ItemType } from './Type';
+import type { CartItemWithDetails, CartResponse, BeCartItemResponse, BeCartItemRequest, BeCartResponse, ItemType, ProductType } from './Type';
 import type { LensSelection } from '@/models/Lens';
 import ProductAPI from '@/api/product-api';
 
@@ -172,7 +172,7 @@ function transformSingleItem(
         shop_name: meta?.shopName,
         product: {
             id: beItem.productId || '',
-            product_type: productType as 'frame' | 'lens' | 'accessory',
+            product_type: productType as ProductType,
             name: meta?.productName || 'Product',
             slug: meta?.productSlug || '',
             description: meta?.description,
@@ -204,11 +204,11 @@ function transformSingleItem(
 
 function getProductTypeFromItemType(itemType: ItemType): string {
     switch (itemType) {
-        case 'FRAME': return 'frame';
-        case 'LENS': return 'lens';
-        case 'ACCESSORY': return 'accessory';
-        case 'GIFT': return 'accessory';
-        default: return 'frame';
+        case 'FRAME': return 'FRAME';
+        case 'LENS': return 'LENS';
+        case 'ACCESSORY': return 'ACCESSORIES';
+        case 'GIFT': return 'ACCESSORIES';
+        default: return 'FRAME';
     }
 }
 
@@ -385,6 +385,10 @@ export const CartService = {
             currentCartId = null;
             const freshCartId = await ensureCart();
             beCart = await CartAPI.addItem(freshCartId, beRequest);
+        }
+
+        if (!beCart) {
+            throw new Error('Failed to add item to cart');
         }
 
         currentCartId = beCart.id;

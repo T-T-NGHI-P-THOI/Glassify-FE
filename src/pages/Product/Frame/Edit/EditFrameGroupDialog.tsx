@@ -186,8 +186,8 @@ const EditFrameGroupDialog = ({
                 ProductAPI.updateFrameGroup(id, formData),
                 {
                     pending: "Updating...",
-                    success: "Updated successfully 🎉",
-                    error: "Update failed ❌",
+                    success: "Updated frame variant successfully",
+                    error: "Update failed",
                 }
             );
 
@@ -326,7 +326,7 @@ const EditFrameGroupDialog = ({
                             select
                             label="Frame structure"
                             value={formData.frameStructure}
-                            onChange={(e) => set('frameName', e.target.value)}
+                            onChange={(e) => set('frameStructure', e.target.value)}
                             fullWidth
                             size="small"
                             sx={fieldSx}

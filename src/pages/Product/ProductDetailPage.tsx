@@ -79,7 +79,7 @@ const ProductDetailPage: React.FC = () => {
   const [currentReviewPage, setCurrentReviewPage] = useState(1);
   const [currentAccessoryIndex, setCurrentAccessoryIndex] = useState(0);
   const [lensDialogOpen, setLensDialogOpen] = useState(false);
-  const [selectedLens, setSelectedLens] = useState<LensSelection | null>(null);
+  const [, setSelectedLens] = useState<LensSelection | null>(null);
   const [tryOnOpen, setTryOnOpen] = useState(false);
   const [preview3DOpen, setPreview3DOpen] = useState(false);
   const [preview3DVariants, setPreview3DVariants] = useState<Product3DVariantOption[]>([]);
@@ -388,11 +388,12 @@ const ProductDetailPage: React.FC = () => {
       }
 
       try {
-        const texturePromise = ProductAPI.getTextureFiles(product.frameGroupId);
-        // Use productWithFrameInfo from state if available
-        const frameVariantsFor3D = productWithFrameInfo?.frameVariants ?? [];
-        const textures = await texturePromise;
-        const variants = build3DVariants(textures, frameVariantsFor3D, product);
+        const texturePromise = ProductAPI.getVirtualTryOnParams(product.frameGroupId);
+        const productWithFrameInfoPromise = ProductAPI.getProductWithFrameInfo(product.id)
+          .catch(() => null);
+
+        const [textures, productWithFrameInfo] = await Promise.all([texturePromise, productWithFrameInfoPromise]);
+        const variants = build3DVariants(textures, productWithFrameInfo?.frameVariants ?? [], product);
 
         setPreview3DVariants(variants);
 
@@ -438,7 +439,8 @@ const ProductDetailPage: React.FC = () => {
       setSnackbar({ open: true, message: `Da them ${accessory.name} vao gio hang!`, severity: 'success' });
     } catch (error) {
       console.error('Error adding accessory to cart:', error);
-      setSnackbar({ open: true, message: 'Co loi xay ra khi them phu kien vao gio hang.', severity: 'error' });
+      const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm phụ kiện vào giỏ hàng.';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
     }
   };
 
@@ -555,7 +557,8 @@ const ProductDetailPage: React.FC = () => {
         }
       } catch (error) {
         console.error('Error adding frame to cart:', error);
-        setSnackbar({ open: true, message: 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!', severity: 'error' });
+        const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!';
+        setSnackbar({ open: true, message: msg, severity: 'error' });
       }
     } else {
       // Open lens selection dialog
@@ -620,7 +623,8 @@ const ProductDetailPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error adding to cart with lens:', error);
-      setSnackbar({ open: true, message: 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!', severity: 'error' });
+      const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
     }
   };
 

@@ -46,10 +46,15 @@ import {
   Close,
   CloudUpload,
   Delete,
+  WarningAmber,
+  TaskAlt,
+  Science,
+  AssignmentTurnedIn,
 } from '@mui/icons-material';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
+import { paymentApi } from '@/api/payment-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
 import { toast } from 'react-toastify';
@@ -62,7 +67,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -136,7 +141,7 @@ interface ItemRefundLookup {
 // Mock data removed - using real API
 
 // ==================== HELPERS ====================
-const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered'];
+const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered', 'Completed'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
@@ -145,10 +150,12 @@ const getStepIndex = (status: OrderStatus): number => {
     case 'PROCESSING':
     case 'READY_TO_SHIP':
     case 'SHIPPED':              return 2;
-    case 'TRANSPORTING':         return 3;
-    case 'DELIVERED':            return 4;
+    case 'TRANSPORTING':
+    case 'DELIVERED':            return 3;
+    case 'COMPLETED':            return 4;
     case 'RETURN_IN_TRANSIT':
-    case 'REJECTED_BY_CUSTOMER': return 4;
+    case 'REJECTED_BY_CUSTOMER': return 3;
+    case 'DELIVERY_FAILED':      return -2;
     case 'CANCELLED':            return -1;
     case 'REFUNDED':             return -1;
     default:                     return 0;
@@ -241,7 +248,9 @@ interface OrderStepperProps {
 const OrderStepper = ({ status }: OrderStepperProps) => {
   const theme = useTheme();
   const activeStep = getStepIndex(status);
-  const isCancelled = status === 'CANCELLED';
+  const isCancelled = status === 'CANCELLED' || status === 'REFUNDED';
+  const isDeliveryFailed = status === 'DELIVERY_FAILED';
+  const isReturned = status === 'REJECTED_BY_CUSTOMER' || status === 'RETURN_IN_TRANSIT';
 
   if (isCancelled) {
     return (
@@ -258,7 +267,49 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
       >
         <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.error.main }}>
-          Order has been cancelled
+          {status === 'REFUNDED' ? 'Order has been refunded' : 'Order has been cancelled'}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isDeliveryFailed) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          py: 1.5,
+          px: 2,
+          borderRadius: 1.5,
+          bgcolor: theme.palette.custom.status.warning.light,
+        }}
+      >
+        <WarningAmber sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+          Delivery attempt failed — awaiting re-attempt or return
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isReturned) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          py: 1.5,
+          px: 2,
+          borderRadius: 1.5,
+          bgcolor: theme.palette.custom.status.rose.light,
+        }}
+      >
+        <AssignmentReturn sx={{ fontSize: 20, color: theme.palette.custom.status.rose.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.rose.main }}>
+          {status === 'RETURN_IN_TRANSIT' ? 'Return in transit' : 'Order rejected — return in progress'}
         </Typography>
       </Box>
     );
@@ -269,6 +320,7 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
     <VerifiedUser key="confirmed" sx={{ fontSize: 18 }} />,
     <Inventory key="processing" sx={{ fontSize: 18 }} />,
     <CheckCircle key="delivered" sx={{ fontSize: 18 }} />,
+    <TaskAlt key="completed" sx={{ fontSize: 18 }} />,
   ];
 
   return (
@@ -363,6 +415,9 @@ const MyOrdersPage = () => {
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
+  const [confirmingReceivedId, setConfirmingReceivedId] = useState<string | null>(null);
+  const [demoActionId, setDemoActionId] = useState<string | null>(null);
+
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedReturnItemIds, setSelectedReturnItemIds] = useState<string[]>([]);
@@ -431,6 +486,108 @@ const MyOrdersPage = () => {
     } catch (error) {
       console.error('Failed to re-order:', error);
       toast.error('Failed to re-order');
+    }
+  };
+
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+
+  const handlePayNow = async (order: Order) => {
+    try {
+      setPayingOrderId(order.id);
+      if (order.paymentMethod === 'VNPAY') {
+        const res = await paymentApi.createVnpayPayment({ orderId: order.id });
+        if (res.data) {
+          window.location.href = res.data;
+        }
+      } else if (order.paymentMethod === 'E_WALLET') {
+        await paymentApi.payFromWallet({ orderId: order.id });
+        toast.success('Payment successful!');
+        await fetchOrders();
+        setDetailDialogOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Payment failed');
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const getPaymentDeadline = (orderedAt: string): Date => {
+    const d = new Date(orderedAt);
+    d.setHours(d.getHours() + 24);
+    return d;
+  };
+
+  const isUnpaidPrePayment = (order: Order) =>
+    order.status === 'PENDING' &&
+    order.paymentStatus === 'PENDING' &&
+    (order.paymentMethod === 'VNPAY' || order.paymentMethod === 'E_WALLET');
+
+  const handleConfirmReceived = async (orderId: string) => {
+    try {
+      setConfirmingReceivedId(orderId);
+      await orderApi.confirmReceived(orderId);
+      toast.success('Order confirmed as received');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to confirm receipt'));
+    } finally {
+      setConfirmingReceivedId(null);
+    }
+  };
+
+  const handleDemoDeliveryFailed = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.markDeliveryFailed(orderId);
+      toast.info('[DEMO] Delivery marked as failed');
+      await fetchOrders();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoRefuseDelivery = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.refuseDelivery(orderId);
+      toast.info('[DEMO] Delivery refused — order returned');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoReattempt = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.forceStatus(orderId, 'SHIPPED');
+      toast.info('[DEMO] Re-attempt scheduled — status back to Shipped');
+      await fetchOrders();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoReturn = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.refuseDelivery(orderId);
+      toast.info('[DEMO] Order returned to sender');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
     }
   };
 
@@ -639,6 +796,10 @@ const MyOrdersPage = () => {
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'DELIVERED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'COMPLETED':
+        return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'DELIVERY_FAILED':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'CANCELLED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       case 'REFUNDED':
@@ -694,6 +855,8 @@ const MyOrdersPage = () => {
       case 'REFUNDED':             return 'Refunded';
       case 'RETURN_IN_TRANSIT':    return 'Return in Transit';
       case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
+      case 'DELIVERY_FAILED':      return 'Delivery Failed';
+      case 'COMPLETED':            return 'Completed';
       default: return status;
     }
   };
@@ -712,6 +875,38 @@ const MyOrdersPage = () => {
     return amount.toLocaleString('vi-VN') + ' VND';
   };
 
+  const DemoActionButton = ({
+    onClick,
+    loading,
+    children,
+  }: {
+    onClick: () => void;
+    loading?: boolean;
+    children: ReactNode;
+  }) => (
+    <Button
+      variant="outlined"
+      size="small"
+      disabled={loading}
+      onClick={onClick}
+      startIcon={<Science sx={{ fontSize: 14 }} />}
+      sx={{
+        textTransform: 'none',
+        fontWeight: 600,
+        fontSize: 12,
+        borderRadius: '10px',
+        borderStyle: 'dashed',
+        borderColor: '#f59e0b',
+        color: '#b45309',
+        bgcolor: '#fffbeb',
+        px: 2,
+        '&:hover': { bgcolor: '#fef3c7', borderColor: '#d97706' },
+      }}
+    >
+      {children}
+    </Button>
+  );
+
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return order.status === 'PENDING';
@@ -720,6 +915,9 @@ const MyOrdersPage = () => {
     if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
     if (activeTab === 5) return order.status === 'DELIVERED';
     if (activeTab === 6) return order.status === 'CANCELLED';
+    if (activeTab === 7) return order.status === 'DELIVERY_FAILED';
+    if (activeTab === 8) return order.status === 'COMPLETED';
+    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(order.status);
     return true;
   });
 
@@ -729,6 +927,9 @@ const MyOrdersPage = () => {
   const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
+  const deliveryFailedCount = orders.filter((o) => o.status === 'DELIVERY_FAILED').length;
+  const completedCount = orders.filter((o) => o.status === 'COMPLETED').length;
+  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(o.status)).length;
 
   const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
@@ -811,6 +1012,9 @@ const MyOrdersPage = () => {
             <Tab label={`Shipped (${shippedCount})`} />
             <Tab label={`Delivered (${deliveredCount})`} />
             <Tab label={`Cancelled (${cancelledCount})`} />
+            <Tab label={`Delivery Failed (${deliveryFailedCount})`} />
+            <Tab label={`Completed (${completedCount})`} />
+            <Tab label={`Returned (${returnedCount})`} />
           </Tabs>
         </Paper>
 
@@ -1032,7 +1236,7 @@ const MyOrdersPage = () => {
                       {formatCurrency(order.totalAmount)}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
                       <Button
                         variant="outlined"
@@ -1048,6 +1252,74 @@ const MyOrdersPage = () => {
                         }}
                       >
                         {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                      </Button>
+                    )}
+                    {order.status === 'SHIPPED' && (
+                      <>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoDeliveryFailed(order.id)}
+                        >
+                          Delivery Failed
+                        </DemoActionButton>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoRefuseDelivery(order.id)}
+                        >
+                          Refuse Delivery
+                        </DemoActionButton>
+                      </>
+                    )}
+                    {order.status === 'DELIVERY_FAILED' && (
+                      <>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoReattempt(order.id)}
+                        >
+                          Re-attempt
+                        </DemoActionButton>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoReturn(order.id)}
+                        >
+                          Return
+                        </DemoActionButton>
+                      </>
+                    )}
+                    {order.status === 'DELIVERED' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        disabled={confirmingReceivedId === order.id}
+                        startIcon={<AssignmentTurnedIn sx={{ fontSize: 16 }} />}
+                        onClick={() => handleConfirmReceived(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                        }}
+                      >
+                        {confirmingReceivedId === order.id ? 'Confirming...' : 'Confirm Received'}
+                      </Button>
+                    )}
+                    {order.status === 'COMPLETED' && (
+                      <Button
+                        variant="contained"
+                        disabled={cancellingOrderId === order.id}
+                        onClick={() => handleReOrder(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                          bgcolor: '#111',
+                          '&:hover': { bgcolor: '#333' },
+                        }}
+                      >
+                        Buy Again
                       </Button>
                     )}
                     <Button
@@ -1137,6 +1409,26 @@ const MyOrdersPage = () => {
                 <Box sx={{ mb: 3, px: 2 }}>
                   <OrderStepper status={selectedOrder.status} />
                 </Box>
+
+                {/* Payment Deadline Alert */}
+                {isUnpaidPrePayment(selectedOrder) && (() => {
+                  const deadline = getPaymentDeadline(selectedOrder.orderedAt);
+                  const now = new Date();
+                  const msLeft = deadline.getTime() - now.getTime();
+                  const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
+                  const minutesLeft = Math.max(0, Math.floor((msLeft % 3600000) / 60000));
+                  return (
+                    <Alert
+                      severity="warning"
+                      sx={{ mb: 2, fontSize: 13 }}
+                      icon={<AccessTime fontSize="small" />}
+                    >
+                      <strong>Chờ thanh toán</strong> — Đơn hàng sẽ tự động huỷ sau{' '}
+                      <strong>{hoursLeft}h {minutesLeft}m</strong> nếu không thanh toán.
+                      Hạn chót: {deadline.toLocaleString('vi-VN')}.
+                    </Alert>
+                  );
+                })()}
 
                 <Divider sx={{ mb: 3 }} />
 
@@ -1554,9 +1846,18 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (() => {
-                  return (
+                {selectedOrder.status === 'DELIVERED' && (
                   <>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      disabled={confirmingReceivedId === selectedOrder.id}
+                      startIcon={<AssignmentTurnedIn sx={{ fontSize: 16 }} />}
+                      onClick={() => handleConfirmReceived(selectedOrder.id)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {confirmingReceivedId === selectedOrder.id ? 'Confirming...' : 'Confirm Received'}
+                    </Button>
                     <Button
                       variant="contained"
                       onClick={() => handleReOrder(selectedOrder.id)}
@@ -1570,8 +1871,69 @@ const MyOrdersPage = () => {
                       Buy Again
                     </Button>
                   </>
-                  );
-                })()}
+                )}
+                {selectedOrder.status === 'COMPLETED' && (
+                  <Button
+                    variant="contained"
+                    onClick={() => handleReOrder(selectedOrder.id)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: '#111',
+                      '&:hover': { bgcolor: '#333' },
+                    }}
+                  >
+                    Buy Again
+                  </Button>
+                )}
+                {selectedOrder.status === 'SHIPPED' && (
+                  <>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoDeliveryFailed(selectedOrder.id)}
+                    >
+                      Delivery Failed
+                    </DemoActionButton>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoRefuseDelivery(selectedOrder.id)}
+                    >
+                      Refuse Delivery
+                    </DemoActionButton>
+                  </>
+                )}
+                {selectedOrder.status === 'DELIVERY_FAILED' && (
+                  <>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoReattempt(selectedOrder.id)}
+                    >
+                      Re-attempt
+                    </DemoActionButton>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoReturn(selectedOrder.id)}
+                    >
+                      Return
+                    </DemoActionButton>
+                  </>
+                )}
+                {isUnpaidPrePayment(selectedOrder) && (
+                  <Button
+                    variant="contained"
+                    disabled={payingOrderId === selectedOrder.id}
+                    onClick={() => handlePayNow(selectedOrder)}
+                    startIcon={payingOrderId === selectedOrder.id ? <CircularProgress size={16} color="inherit" /> : <CreditCard />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: '#111',
+                      '&:hover': { bgcolor: '#333' },
+                    }}
+                  >
+                    {payingOrderId === selectedOrder.id ? 'Processing...' : 'Pay Now'}
+                  </Button>
+                )}
                 {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"

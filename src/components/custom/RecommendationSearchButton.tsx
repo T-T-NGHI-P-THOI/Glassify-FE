@@ -52,7 +52,7 @@ const faceShapeLabel: Record<string, string> = {
 const buildSearchParams = (rec: UserRecommendationResponse): URLSearchParams => {
     const params = new URLSearchParams();
     rec.recommendedFrameStyles?.forEach(style => params.append('frameShapes', style));
-    rec.luckyColors?.forEach(color => params.append('colors', color));
+    rec.luckyColors?.forEach(color => params.append('colors', color.toUpperCase()));
     return params;
 };
 
@@ -86,10 +86,18 @@ export const RecommendationSearchButton = () => {
 
     const handleSearchNow = () => {
         if (!selectedRec) return;
-        navigate(`/products?${buildSearchParams(selectedRec).toString()}`);
+
+        const url = `/products?${buildSearchParams(selectedRec).toString()}`;
+
+        if (window.location.pathname === "/products") {
+            window.location.href = url; // reload full page
+        } else {
+            navigate(url);
+        }
+
         handleClose();
     };
-
+    
     return (
         <>
             <Button
@@ -98,12 +106,12 @@ export const RecommendationSearchButton = () => {
                 sx={{
                     width: 45,
                     height: 40,
-                    minWidth: 0, 
+                    minWidth: 0,
                     borderRadius: '50%',
                     borderColor: '#e5e7eb',
                     color: '#1f2937',
                     backgroundColor: '#fff',
-                    p: 0, 
+                    p: 0,
                     '&:hover': {
                         borderColor: theme.palette.custom.status.teal.light,
                         backgroundColor: '#f5f3ff'

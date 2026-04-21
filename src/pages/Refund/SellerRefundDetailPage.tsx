@@ -55,6 +55,7 @@ import {
   getReturnRequestDetail,
   confirmItemReceived,
   processRefund,
+  proposeRefund,
   submitShopAppeal,
 } from '@/api/refund-api';
 import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
@@ -411,11 +412,22 @@ const SellerRefundDetailPage = () => {
     
     try {
       setSubmitting(true);
-      await processRefund(requestId, {
-        refundType: selectedRefundType,
-        partialAmount: selectedRefundType === RefundProcessType.PARTIAL ? parseNumber(partialAmount) : undefined,
-      });
-      toast.success('Refund completed');
+      
+      if (isReturnAndRefundDecision) {
+        await proposeRefund(requestId, {
+          proposedRefundType: selectedRefundType as RefundProcessType,
+          proposedAmount: selectedRefundType === RefundProcessType.PARTIAL ? parseNumber(partialAmount) : request?.refundAmount,
+          proposalNote: 'Proposed via Seller Dashboard',
+        });
+        toast.success('Refund proposal sent to customer');
+      } else {
+        await processRefund(requestId, {
+          refundType: selectedRefundType as RefundProcessType,
+          partialAmount: selectedRefundType === RefundProcessType.PARTIAL ? parseNumber(partialAmount) : undefined,
+        });
+        toast.success('Refund completed');
+      }
+      
       setRefundDialogOpen(false);
       setRefundType(RefundProcessType.FULL);
       setResolutionAction(RefundProcessType.FULL);
@@ -432,7 +444,7 @@ const SellerRefundDetailPage = () => {
         return;
       }
 
-      toast.error(getApiErrorMessage(error, 'Error processing refund'));
+      toast.error(getApiErrorMessage(error, isReturnAndRefundDecision ? 'Error proposing refund' : 'Error processing refund'));
     } finally {
       setSubmitting(false);
     }
@@ -533,7 +545,7 @@ const SellerRefundDetailPage = () => {
     || normalizedStatus === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
     isAppealEligibleStatus &&
-    !isReturnAndRefundDecision &&
+    // !isReturnAndRefundDecision &&
     hasNoAppeal &&
     isAppealWindowOpen;
   const steps = getStatusSteps(normalizedStatus);
@@ -823,7 +835,7 @@ const SellerRefundDetailPage = () => {
                 {isReturnAndRefundDecision && (
                   <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
                     <Typography sx={{ fontWeight: 700, mb: 2.5 }}>
-                      Case 2: Platform Decided Return & Refund
+                      Platform Decided Return & Refund
                     </Typography>
 
                     <Stack spacing={1.5} sx={{ mb: 2.5 }}>
@@ -1313,7 +1325,7 @@ const SellerRefundDetailPage = () => {
             }
             sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
           >
-            {resolutionAction === 'RETURN_AND_REFUND' ? 'Keep Return & Refund' : 'Confirm & Issue Refund'}
+            {resolutionAction === 'RETURN_AND_REFUND' ? 'Keep Return & Refund' : (isReturnAndRefundDecision ? 'Send Proposal' : 'Confirm & Issue Refund')}
           </Button>
         </DialogActions>
       </Dialog>

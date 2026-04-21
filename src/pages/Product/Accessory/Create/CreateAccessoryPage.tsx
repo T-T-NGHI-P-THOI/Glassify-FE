@@ -121,7 +121,6 @@ const formatFileSize = (bytes: number) => {
 const registrationSteps = [
     { label: 'Accessory Info', key: 'ACCESSORY_INFO' },
     { label: 'Accessory Variant', key: 'VARIANT' },
-    { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
 // ─── Step 0: Accessory Info ───────────────────────────────────────────────────
@@ -415,83 +414,6 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
     );
 };
 
-// ─── Step 2: Review ───────────────────────────────────────────────────────────
-
-interface Step2Props {
-    groupData: CreateAccessoryFormData;
-    variantData: CreateAccessoryVariantFormData;
-}
-
-const Step2Review = ({ groupData, variantData }: Step2Props) => {
-    const theme = useTheme();
-
-    return (
-        <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: theme.palette.custom.status.success.main, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle sx={{ color: '#fff', fontSize: 20 }} />
-                </Box>
-                <Box>
-                    <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Review & Submit</Typography>
-                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Please review all information before submitting</Typography>
-                </Box>
-            </Box>
-
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                        <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 2 }}>Accessory Info</Typography>
-                        <Divider sx={{ mb: 2 }} />
-                        {[{ label: 'Name', value: groupData.name }, { label: 'Type', value: groupData.type }].map(({ label, value }) => (
-                            <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75 }}>
-                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>{label}</Typography>
-                                <Typography sx={{ fontSize: 13, fontWeight: 500 }}>{value || '—'}</Typography>
-                            </Box>
-                        ))}
-                    </Paper>
-                </Grid>
-
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                        <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 2 }}>Variant Info</Typography>
-                        <Divider sx={{ mb: 2 }} />
-                        {[
-                            { label: 'Color', value: variantData.color },
-                            { label: 'Size', value: variantData.size },
-                            { label: 'Base Price', value: variantData.basePrice ? variantData.basePrice.toLocaleString('vi-VN') + '₫' : '—' },
-                            { label: 'Stock', value: variantData.stock ? variantData.stock + ' units' : '—' },
-                        ].map(({ label, value }) => (
-                            <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75 }}>
-                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>{label}</Typography>
-                                <Typography sx={{ fontSize: 13, fontWeight: 500 }}>{value || '—'}</Typography>
-                            </Box>
-                        ))}
-                    </Paper>
-                </Grid>
-
-                {variantData.productImages.length > 0 && (
-                    <Grid size={{ xs: 12 }}>
-                        <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                            <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 2 }}>Product Images</Typography>
-                            <Divider sx={{ mb: 2 }} />
-                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                                {variantData.productImages.map((img, i) => (
-                                    <Avatar
-                                        key={i}
-                                        variant="rounded"
-                                        src={img.preview}
-                                        sx={{ width: 100, height: 80, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}
-                                    />
-                                ))}
-                            </Box>
-                        </Paper>
-                    </Grid>
-                )}
-            </Grid>
-        </Box>
-    );
-};
-
 // ─── Main CreateAccessoryPage ─────────────────────────────────────────────────
 
 const CreateAccessoryPage = () => {
@@ -570,22 +492,18 @@ const CreateAccessoryPage = () => {
             if (activeStep === 0) {
                 if (!validateStep0()) return;
 
-                const payload = toFormData(groupData);
-                if (shop?.id) payload.append("shopId", shop.id);
-                const response = await ProductAPI.createAccessory(payload);
+                if (!accessoryId || accessoryId.trim() === "") {
+                    const payload = toFormData(groupData);
+                    if (shop?.id) payload.append("shopId", shop.id);
+                    const response = await ProductAPI.createAccessory(payload);
+                    setAccessoryId(response.id);
+                }
+                else {
+                    const requestBody = { ...groupData, shopId: shop?.id }
 
-                console.log("API Res:", response.id)
-                setAccessoryId(response.id);
+                    await ProductAPI.updateAccessory(accessoryId, requestBody);
+                }
                 toast.success('Accessory info saved!');
-            } else if (activeStep === 1) {
-                if (!validateStep1()) return;
-
-                const payload = toFormData(variantData);
-                if (shop?.id) payload.append("shopId", shop.id);
-                if (accessoryId) payload.append("accessoryId", accessoryId);
-                await ProductAPI.createAccessoryVariant(payload)
-
-                toast.success('Variant saved!');
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         }
@@ -597,6 +515,14 @@ const CreateAccessoryPage = () => {
     const handleBack = () => setActiveStep(prev => Math.max(prev - 1, 0));
 
     const handleSubmit = async () => {
+        if (!validateStep1()) return;
+
+        const payload = toFormData(variantData);
+        if (shop?.id) payload.append("shopId", shop.id);
+        if (accessoryId) payload.append("accessoryId", accessoryId);
+        await ProductAPI.createAccessoryVariant(payload)
+
+        toast.success('Send accessory variant verification successful!');
         navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY ?? PAGE_ENDPOINTS.SHOP.PRODUCTS);
     };
 
@@ -669,9 +595,6 @@ const CreateAccessoryPage = () => {
                     )}
                     {activeStep === 1 && (
                         <Step1Variant formData={variantData} setFormData={setVariantData} errors={variantErrors} setErrors={setVariantErrors} />
-                    )}
-                    {activeStep === 2 && (
-                        <Step2Review groupData={groupData} variantData={variantData} />
                     )}
 
                     {/* Navigation */}

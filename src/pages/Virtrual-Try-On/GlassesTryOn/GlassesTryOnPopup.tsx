@@ -1,4 +1,4 @@
-import { Box, Portal, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useState, useCallback, useEffect } from "react";
 import { type FaceAnalysisResult } from "@/services/FaceShapeAnalyzer";
 import { FaceShapeSuggestionPanel } from "../FaceShapeSuggestionPanel";
@@ -9,7 +9,7 @@ import {
     LENS_VENDORS,
     type DrawerType,
     type LensOption,
-    type TextureVariant,
+    type VirtualTryOnParams,
 } from "./TryOnTypes";
 import ProductAPI from "@/api/product-api";
 import type { FengShuiResult } from "@/services/FengShuiAnalyzer";
@@ -231,13 +231,14 @@ const LensDrawer = ({
 );
 
 const RecDrawer = ({
-    result, fengShuiResult, setSaveModalOpen, setRecommendedFrameStyles, setRecommendedLens
+    result, fengShuiResult, handleClose, setSaveModalOpen, setRecommendedFrameStyles, setRecommendedLens
 }: {
     result: FaceAnalysisResult | null;
     fengShuiResult: FengShuiResult | null;
     setSaveModalOpen: (open: boolean) => void;
     setRecommendedFrameStyles: (frame: FrameShape[]) => void;
     setRecommendedLens: (lenses: string) => void;
+    handleClose?: () => void;
 }) => {
     if (!result) {
         return (
@@ -275,7 +276,7 @@ const RecDrawer = ({
                 fengShuiResult={fengShuiResult}
                 setSaveModalOpen={setSaveModalOpen}
                 isAnalyzing={false}
-
+                handleClose={handleClose}
                 onRecommendReady={(frames, lens) => {
                     setRecommendedFrameStyles(frames);
                     setRecommendedLens(lens);
@@ -297,13 +298,13 @@ const GlassesTryOnPopup = ({
 
     const [mode, setMode] = useState<"video" | "image">("video");
     const [drawer, setDrawer] = useState<DrawerType>(null);
-    const [activeTexture, setActiveTexture] = useState<TextureVariant | null>(null);
+    const [activeVariant, setActiveVariant] = useState<VirtualTryOnParams | null>(null);
     const [activeLens, setActiveLens] = useState<LensOption | null>(null);
     const [analysisResult, setAnalysisResult] = useState<FaceAnalysisResult | null>(null);
     const [fengShuiResult, setFengShuiResult] = useState<FengShuiResult | null>(null);
     const [reloadSignal, setReloadSignal] = useState(0);
-    const [textures, setTextures] = useState<TextureVariant[]>([]);
-    const [loadingTextures, setLoadingTextures] = useState(false);
+    const [vrParams, setVRParams] = useState<VirtualTryOnParams[]>([]);
+    const [loadingParams, setLoadingParams] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [recommendedFrameStyles, setRecommendedFrameStyles] = useState<FrameShape[]>([]);
@@ -371,14 +372,14 @@ const GlassesTryOnPopup = ({
         if (!frameGroupId || !isTryOn) return;
         const fetchTextures = async () => {
             try {
-                setLoadingTextures(true);
-                const data = await ProductAPI.getTextureFiles(frameGroupId);
-                setTextures(data);
-                if (data.length > 0) setActiveTexture(data[0]);
+                setLoadingParams(true);
+                const data = await ProductAPI.getVirtualTryOnParams(frameGroupId);
+                setVRParams(data);
+                if (data.length > 0) setActiveVariant(data[0]);
             } catch (err) {
                 console.error(err);
             } finally {
-                setLoadingTextures(false);
+                setLoadingParams(false);
             }
         };
         fetchTextures();
@@ -436,7 +437,7 @@ const GlassesTryOnPopup = ({
                         {mode === "video" ? (
                             <VideoTryOn
                                 frameGroupId={frameGroupId}
-                                activeTexture={activeTexture}
+                                activeVariant={activeVariant}
                                 isTryOn={isTryOn}
                                 onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
                                 onAgeReady={() => { }}
@@ -445,7 +446,7 @@ const GlassesTryOnPopup = ({
                         ) : (
                             <ImageTryOn
                                 frameGroupId={frameGroupId}
-                                activeTexture={activeTexture}
+                                activeVariant={activeVariant}
                                 isTryOn={isTryOn}
                                 onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
                                 onFengShuiReady={isTryOn ? () => { } : setFengShuiResult}
@@ -533,12 +534,12 @@ const GlassesTryOnPopup = ({
                                 <Typography sx={{ fontFamily: T.fontSans, fontSize: "0.7rem", color: T.overlayTextMuted }}>
                                     Variant:
                                 </Typography>
-                                {textures.map((tv) => {
-                                    const isActive = activeTexture?.colorHex === tv.colorHex;
+                                {vrParams.map((tv) => {
+                                    const isActive = activeVariant?.colorHex === tv.colorHex;
                                     return (
                                         <Box
                                             key={tv.colorHex}
-                                            onClick={() => setActiveTexture(tv)}
+                                            onClick={() => setActiveVariant(tv)}
                                             sx={{
                                                 width: 25, height: 25, borderRadius: "50%",
                                                 cursor: "pointer",
@@ -626,6 +627,7 @@ const GlassesTryOnPopup = ({
                                     setSaveModalOpen={() => setModalOpen(true)}
                                     setRecommendedFrameStyles={setRecommendedFrameStyles}
                                     setRecommendedLens={setRecommendedLens}
+                                    handleClose={handleClose}
                                 />
                             )}
                         </Box>
@@ -634,13 +636,13 @@ const GlassesTryOnPopup = ({
                             <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${T.borderSubtle}` }}>
                                 {activeLens && (
                                     <Typography sx={{ fontSize: "0.72rem", color: T.textMuted, mb: 0.8 }}>
-                                        {activeLens.name} · {activeTexture?.colorHex}
+                                        {activeLens.name} · {activeVariant?.colorHex}
                                     </Typography>
                                 )}
                                 <Box
                                     component="button"
                                     disabled={!activeLens}
-                                    onClick={() => onAddToCart?.(activeLens?.id ?? null, activeTexture!.colorHex)}
+                                    onClick={() => onAddToCart?.(activeLens?.id ?? null, activeVariant!.colorHex)}
                                     sx={{
                                         width: "100%", borderRadius: "8px", border: "none",
                                         bgcolor: activeLens ? T.teal : T.bgTertiary, color: "#fff",

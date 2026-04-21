@@ -47,6 +47,8 @@ import LensDetailPage from "@/pages/Product/Lens/LensDetailPage";
 import CreateFramePage from "@/pages/Product/Frame/Create/CreateFramePage";
 import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage";
 import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
+import ProductVerificationPage from "@/pages/Admin/ProductVerificationPage";
+import ShopProductVerificationPage from "@/pages/Product/Verification/ShopProductVerificationPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -123,6 +125,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <CreateAccessoryPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+              <Route
+                path={PAGE_ENDPOINTS.SHOP.PRODUCT_VERIFICATION}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={[ 'SHOP_OWNER', 'ADMIN']}>
+                            <ShopProductVerificationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }
@@ -391,6 +404,16 @@ const PrivateRoutesComponent = () => {
                     </AuthGuard>
                 }
             />
+            <Route
+                path={PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['SHOP_OWNER', 'ADMIN']}>
+                            <ShopWarrantyPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
 
             <Route
                 path={PAGE_ENDPOINTS.ADMIN.SHOP_APPROVAL}
@@ -565,6 +588,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['ADMIN']}>
                             <AdminTransactionsPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.VERIFY_PRODUCT}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <ProductVerificationPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

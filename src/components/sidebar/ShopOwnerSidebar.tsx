@@ -35,6 +35,7 @@ import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useAuth } from '@/hooks/useAuth';
 import { logOut } from '@/auth/Reducer';
 import { shopApi } from '@/api/shopApi';
+import { Verified } from 'lucide-react';
 
 interface ShopOwnerSidebarProps {
   activeMenu?: string;
@@ -62,7 +63,7 @@ export const ShopOwnerSidebar = ({
   const [shopLogo, setShopLogo] = useState(shopLogoProp);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     Products: location.pathname.startsWith('/shop/products') || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
-    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES,
+    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES,
   });
 
   useEffect(() => {
@@ -124,6 +125,7 @@ export const ShopOwnerSidebar = ({
         { label: 'Accessory List', path: PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY }
       ],
     },
+    { icon: <Verified />, label: 'Product Verification', path: PAGE_ENDPOINTS.SHOP.PRODUCT_VERIFICATION },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
     { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
@@ -135,6 +137,7 @@ export const ShopOwnerSidebar = ({
       children: [
         { label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
         { label: 'Policies & Pricing', path: PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES },
+        { label: 'Issue Types', path: PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES },
       ],
     },
   ];

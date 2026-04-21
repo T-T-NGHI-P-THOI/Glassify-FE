@@ -353,8 +353,8 @@ const FrameProductPage = () => {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
-        loading={deleteLoading}
         itemName={deleteTarget?.frameName}
+        frameGroupId={deleteTarget?.id}
       />
     </Box>
   );

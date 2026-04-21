@@ -18,14 +18,19 @@ import {
     BarChart,
     ViewInAr,
     Inventory2,
+    Star,
+    StarBorder,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
 import FrameVariantDetailDialog from '../View/FrameVariantDetailDialog';
 import CreateFrameVariantPopup from '../Create/CreateFrameVariantPopup';
 import ProductAPI from '@/api/product-api';
 import EditFrameVariantDialog, { type EditFrameVariantFormData } from '../Edit/EditFrameVariantDialog';
 import type { EditFrameGroupFormData } from '../Edit/EditFrameGroupDialog';
+import DeleteVariantDialog from '../Delete/DeleteVariantDialog';
+import type { ProductSize } from '@/types/product.enums';
+import SetFeaturedDialog from '../Edit/SetFeaturedDialog';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -39,7 +44,7 @@ export interface FrameVariantResponse {
     lensHeightMm: number;
     bridgeWidthMm: number;
     templeLengthMm: number;
-    size: 'SMALL' | 'MEDIUM' | 'LARGE' | string;
+    size: ProductSize;
     isActive: boolean | null;
     productId: string | null;
     productName: string | null;
@@ -135,11 +140,11 @@ interface VariantPanelProps {
     shopId: string;
     variants: FrameVariantResponse[];
     vrEnabled?: boolean;
-    productImages: string[];
     setFrameGroups: React.Dispatch<React.SetStateAction<FrameGroup[]>>;
+    setImages: React.Dispatch<React.SetStateAction<string[]>>
 }
 
-const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages, setFrameGroups }: VariantPanelProps) => {
+const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroups, setImages }: VariantPanelProps) => {
     const theme = useTheme();
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedVariant, setSelectedVariant] = useState<
@@ -148,6 +153,12 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
     const [addVariantOpen, setAddVariantOpen] = useState(false);
     const [updateVaraintOpen, setUpdateVaraintOpen] = useState(false);
     const [editingVariant, setEditingVariant] = useState<FrameVariantResponse | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [selectedDeleteVariant, setSelectedDeleteVariant] =
+        useState<FrameVariantResponse | null>(null);
+    const [featuredOpen, setFeaturedOpen] = useState(false);
+    const [selectedFeaturedVariant, setSelectedFeaturedVariant] =
+        useState<FrameVariantResponse | null>(null);
 
     if (variants.length === 0) {
         return (
@@ -168,6 +179,84 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
             </Box>
         );
     }
+
+    const handleVariantCreated = (
+        variantId: string,
+        productId: string,
+        data: EditFrameVariantFormData
+    ) => {
+        setFrameGroups(prev =>
+            prev.map(group => {
+                if (group.id !== frameGroupId) return group;
+
+                const newVariant: FrameVariantResponse = {
+                    id: variantId,
+                    frameGroupId: frameGroupId,
+
+                    colorName: data.colorName,
+                    colorHex: data.colorHex,
+                    size: data.size,
+
+                    frameWidthMm: data.frameWidthMm,
+                    lensWidthMm: data.lensWidthMm,
+                    lensHeightMm: data.lensHeightMm,
+                    bridgeWidthMm: data.bridgeWidthMm,
+                    templeLengthMm: data.templeLengthMm,
+
+                    isActive: true,
+                    productId: productId,
+                    productName: null,
+                    slug: null,
+
+                    basePrice: data.basePrice,
+                    costPrice: data.costPrice,
+
+                    stock: data.stock,
+                    stockThreshold: data.stockThreshold,
+                    qtyOnHand: data.stock,
+                    qtyReserved: 0,
+                    qtyAvailable: data.stock,
+
+                    lowStockThreshold: data.stockThreshold,
+
+                    warrantyMonths: data.warrantyMonths,
+                    isReturnable: data.isReturnable,
+                    isFeatured: data.isFeatured,
+
+                    productResponse: {
+                        id: productId,
+                        basePrice: data.basePrice,
+                        costPrice: data.costPrice,
+                        stockQuantity: data.stock,
+                        isActive: true,
+                        isFeatured: data.isFeatured,
+                        isReturnable: data.isReturnable,
+                        warrantyMonths: data.warrantyMonths,
+                        viewCount: 0,
+                        soldCount: 0,
+                        avgRating: 0,
+                        reviewCount: 0,
+                        metaTitle: '',
+                        metaDescription: '',
+                        productType: 'FRAME',
+                        productImages:
+                            data.newImages?.map(img => img.preview) ?? [],
+                        fileResponses: [],
+                    },
+
+                    textureFile: data.newTextureFile?.preview ?? '',
+                };
+
+                return {
+                    ...group,
+                    frameVariantResponses: [
+                        ...(group.frameVariantResponses ?? []),
+                        newVariant
+                    ],
+                };
+            })
+        );
+    };
 
     const handleVariantUpdated = (variantId: string, data: EditFrameVariantFormData) => {
         setFrameGroups(prev =>
@@ -356,6 +445,34 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                                         borderTop: `0.5px solid ${theme.palette.custom.border.light}`,
                                     }}
                                 >
+                                    <Tooltip title={v.productResponse.isFeatured ? "Featured product" : "Set as featured"}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                if (!v.productResponse.isFeatured) {
+                                                    setSelectedFeaturedVariant(v);
+                                                    setFeaturedOpen(true);
+                                                }
+                                            }}
+                                            sx={{
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: 0.75,
+                                                bgcolor: v.productResponse.isFeatured
+                                                    ? '#fef9c3'
+                                                    : theme.palette.custom.neutral[100],
+                                                '&:hover': {
+                                                    bgcolor: v.productResponse.isFeatured ? '#fde68a' : theme.palette.custom.neutral[200],
+                                                },
+                                            }}
+                                        >
+                                            {v.productResponse.isFeatured ? (
+                                                <Star sx={{ fontSize: 12, color: '#eab308' }} />
+                                            ) : (
+                                                <StarBorder sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} />
+                                            )}
+                                        </IconButton>
+                                    </Tooltip>
                                     <Tooltip title="View detail">
                                         <IconButton
                                             size="small"
@@ -393,6 +510,10 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                                     <Tooltip title="Delete variant">
                                         <IconButton
                                             size="small"
+                                            onClick={() => {
+                                                setSelectedDeleteVariant(v);
+                                                setDeleteOpen(true);
+                                            }}
                                             sx={{
                                                 width: 22, height: 22, borderRadius: 0.75,
                                                 bgcolor: theme.palette.custom.status.error.light,
@@ -450,6 +571,9 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                     frameGroupId={frameGroupId}
                     shopId={shopId}
                     onClose={() => setAddVariantOpen(false)}
+                    onCreated={(variantId, productId, formData) => {
+                        handleVariantCreated(variantId, productId, formData);
+                    }}
                 />
             )}
 
@@ -470,6 +594,54 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, productImages
                     }}
                 />
             )}
+
+            {selectedDeleteVariant && (
+                <DeleteVariantDialog
+                    open={deleteOpen}
+                    variantId={selectedDeleteVariant.id}
+                    variantSize={selectedDeleteVariant.size}
+                    colorName={selectedDeleteVariant.colorName}
+                    onClose={() => {
+                        setDeleteOpen(false);
+                        setSelectedDeleteVariant(null);
+                    }}
+                    onConfirm={() => {
+                        setFrameGroups(prev =>
+                            prev.map(group => ({
+                                ...group,
+                                frameVariantResponses: group.frameVariantResponses.filter(
+                                    v => v.id !== selectedDeleteVariant.id
+                                )
+                            }))
+                        );
+                    }}
+                />
+            )}
+
+            <SetFeaturedDialog
+                open={featuredOpen}
+                variant={selectedFeaturedVariant}
+                onClose={() => {
+                    setFeaturedOpen(false);
+                    setSelectedFeaturedVariant(null);
+                }}
+                onSuccess={() => {
+                    setFrameGroups(prev =>
+                        prev.map(group => ({
+                            ...group,
+                            frameVariantResponses: group.frameVariantResponses.map(v => ({
+                                ...v,
+                                productResponse: {
+                                    ...v.productResponse,
+                                    isFeatured:
+                                        v.id === selectedFeaturedVariant?.id
+                                }
+                            }))
+                        }))
+                    );
+                    setImages(selectedFeaturedVariant?.productResponse.productImages ?? []);
+                }}
+            />
         </>
     );
 };
@@ -508,8 +680,7 @@ const FrameGroupCard = ({
     const featuredFrameVariant = fg.frameVariantResponses.find(
         fv => fv.productResponse?.isFeatured
     ) ?? null;
-    const images = ProductAPI.getImageUrls(featuredFrameVariant?.productResponse);
-
+    const [images, setImages] = useState<string[]>([]);
     const [imgIndex, setImgIndex] = useState(0);
 
     const isActive =
@@ -528,6 +699,14 @@ const FrameGroupCard = ({
     const colorSwatches = Array.from(
         new Map(variants.map((v) => [v.colorHex, v.colorName])).entries()
     );
+
+    useEffect(() => {
+        const urls = ProductAPI.getImageUrls(
+            featuredFrameVariant?.productResponse
+        );
+
+        setImages(urls);
+    }, [featuredFrameVariant]);
 
     return (
         <Paper
@@ -885,8 +1064,9 @@ const FrameGroupCard = ({
                     shopId={shopId}
                     variants={variants}
                     vrEnabled={fg.vrEnabled}
-                    productImages={featuredFrameVariant?.productResponse.productImages || []}
-                    setFrameGroups={setFrameGroups} />
+                    setFrameGroups={setFrameGroups}
+                    setImages={setImages}
+                />
             )}
         </Paper>
     );

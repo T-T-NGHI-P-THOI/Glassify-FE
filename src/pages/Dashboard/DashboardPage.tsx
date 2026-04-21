@@ -48,7 +48,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { adminApi, type AdminOverviewStats, type AdminOrderResponse } from '@/api/adminApi';
+import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';

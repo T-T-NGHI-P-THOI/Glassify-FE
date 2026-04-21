@@ -1,6 +1,7 @@
 import { clamp, eyeMid, mid, qDelta, toPixels, toV } from "@/utils/face-detect-helpers";
 import * as vision from "@mediapipe/tasks-vision";
 import * as THREE from 'three';
+import { buildVideoCfg, buildImageCfg, type GlassesMeasurements } from '@/utils/glasses-cfg';
 
 export const LM = {
     leftEyeOuter: 33,
@@ -49,6 +50,29 @@ const sm = {
     prev: new THREE.Vector3()
 };
 
+const smallMeasurements = {
+    frameWidthMm: 130 / 2,
+    lensWidthMm: 48 / 2,
+    lensHeightMm: 36 / 2,
+    bridgeWidthMm: 16 / 2,
+    templeLengthMm: 135 / 2,
+};
+
+const measurements = {
+    frameWidthMm: 140,
+    lensWidthMm: 52,
+    lensHeightMm: 40,
+    bridgeWidthMm: 18,
+    templeLengthMm: 140,
+};
+
+const largeMeasurements = {
+    frameWidthMm: 150 * 2,
+    lensWidthMm: 56 * 2,
+    lensHeightMm: 44 * 2,
+    bridgeWidthMm: 20 * 2,
+    templeLengthMm: 145 * 2,
+};
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared engine creator — avoids duplicating the MediaPipe boilerplate
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,6 +104,7 @@ export class FaceLandmarkerService {
     private glassesObj?: THREE.Object3D;
     private faceObj?: THREE.Mesh;
     private baseScale!: THREE.Vector3;
+    private measurements?: GlassesMeasurements;
 
     /** Optional callback fired each frame a face is detected. Used for face shape analysis. */
     onLandmarksDetected?: (
@@ -92,6 +117,10 @@ export class FaceLandmarkerService {
         this.glassesObj = glasses;
         this.faceObj = face;
         this.baseScale = this.glassesObj.scale.clone();
+    }
+
+    setMeasurements(m: GlassesMeasurements) {
+        this.measurements = m;
     }
 
     async initializeEngine() {
@@ -152,10 +181,17 @@ export class FaceLandmarkerService {
         }
 
         const results = this.faceLandmarker.detectForVideo(video, performance.now());
+        if (!this.measurements) {
+            this.scheduleNextPrediction(video);
+            this.predictionInFlight = false;
+            return;
+        }
+
+        const videoCfg = buildVideoCfg(this.measurements);
 
         if (results.faceLandmarks && results.faceLandmarks.length > 0) {
             if (this.glassesObj) this.glassesObj.visible = true;
-            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, CFG);
+            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, videoCfg);
             this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
@@ -314,7 +350,11 @@ export class ImageFaceLandmarkerService {
      * Run detection on a static HTMLImageElement and place glasses once.
      * Returns { found, landmarks } — landmarks are used for face shape analysis.
      */
-    async detectAndApply(img: HTMLImageElement, isTryOn: boolean): Promise<{
+    async detectAndApply(
+        img: HTMLImageElement,
+        isTryOn: boolean,
+        glassesMeasurements: GlassesMeasurements
+    ): Promise<{
         found: boolean;
         landmarks: vision.NormalizedLandmark[] | null;
     }> {
@@ -332,11 +372,14 @@ export class ImageFaceLandmarkerService {
         }
 
         this.setVisibility(true, isTryOn);
+
+        console.log(glassesMeasurements)
+        const imageCfg = buildImageCfg(glassesMeasurements);
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],
             img.naturalWidth,
             img.naturalHeight,
-            IMAGE_CFG
+            imageCfg
         );
 
         return { found: true, landmarks: results.faceLandmarks[0] };

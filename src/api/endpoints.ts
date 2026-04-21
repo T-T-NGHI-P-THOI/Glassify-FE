@@ -36,7 +36,7 @@ export const API_ENDPOINTS = {
     GET_SHOP_ACCESSORY: (shopId: string) => `${API_ENDPOINT}/product/accessory/shop/${shopId}`,
     GET_MODEL_3D: `${API_ENDPOINT}/product/frame-group/model-3d`,
     GET_COLORS: `${API_ENDPOINT}/product/frame-variant/colors`,
-    GET_TEXTURE_FILES: `${API_ENDPOINT}/product/frame-group/texture-files`,
+    GET_VIRTUAL_TRY_ON_PARAMS: (frameGroupId: string) => `${API_ENDPOINT}/product/frame-group/virtual-try-on-params/${frameGroupId}`,
 
     CREATE_FRAME_GROUP: `${API_ENDPOINT}/product/frame-group`,
     CREATE_FRAME_VARIANT: `${API_ENDPOINT}/product/frame-variant`,
@@ -44,10 +44,15 @@ export const API_ENDPOINTS = {
     CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
 
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    SET_FEATURE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/feature/${id}`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
+    DELETE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     UPDATE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
+    DELETE_FRAME_VARIANT: (id: string) => `${API_ENDPOINT}/product/frame-variant/${id}`,
     UPDATE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
+    DELETE_ACCESSORY: (id: string) => `${API_ENDPOINT}/product/accessory/${id}`,
     UPDATE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
+    DELETE_ACCESSORY_VARIANT: (id: string) => `${API_ENDPOINT}/product/accessory/variant/${id}`,
     UPLOAD_3D_MODEL: `${API_ENDPOINT}/product/frame-variant/upload-3d-model`,
   },
   CATEGORIES: {
@@ -121,6 +126,10 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}`,
     CANCEL: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/cancel`,
     RE_ORDER: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/re-order`,
+    CONFIRM_RECEIVED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/confirm-received`,
+    DELIVERY_FAILED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/delivery-failed`,
+    REFUSE_DELIVERY: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/refuse-delivery`,
+    FORCE_STATUS: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/admin/force-status`,
   },
   PAYMENTS: {
     CREATE_VNPAY: `${API_ENDPOINT}/payments/create-vnpay`,
@@ -168,10 +177,13 @@ export const API_ENDPOINTS = {
     SERVICE_PRICE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-service-prices/${id}`,
     POLICIES: `${API_ENDPOINT}/shop/warranty-policies`,
     POLICY_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-policies/${id}`,
+    ISSUE_TYPES: `${API_ENDPOINT}/shop/warranty-issue-types`,
+    ISSUE_TYPE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-issue-types/${id}`,
   },
   WARRANTY_PUBLIC: {
     SERVICE_PRICES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-service-prices`,
     POLICIES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-policies`,
+    ISSUE_TYPES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-issue-types`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
@@ -203,6 +215,22 @@ export const API_ENDPOINTS = {
     MY_SHOP_UPLOAD_LOGO: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/upload-logo`,
     MY_SHOP_DEACTIVATION_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/deactivation-status`,
     MY_SHOP_CLOSURE_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/closure-status`,
+  },
+  REFUNDS: {
+    BASE: `${API_ENDPOINT}/refunds`,
+    LIST: `${API_ENDPOINT}/refunds`,
+    GET_BY_ID: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
+    CREATE: `${API_ENDPOINT}/refunds`,
+    UPDATE: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
+    CANCEL: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
+    UPDATE_TRACKING: (id: string) => `${API_ENDPOINT}/refunds/${id}/tracking`,
+    CONFIRM_RECEIVED: (id: string) => `${API_ENDPOINT}/refunds/${id}/confirm-received`,
+    PROCESS_REFUND: (id: string) => `${API_ENDPOINT}/refunds/${id}/process-refund`,
+    SHOP_APPEAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/shop-appeal`,
+    EVIDENCE_IMAGES: (id: string) => `${API_ENDPOINT}/refunds/${id}/evidence-images`,
+    PROPOSE_REFUND: (id: string) => `${API_ENDPOINT}/refunds/${id}/propose-refund`,
+    ACCEPT_PROPOSAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/proposal/accept`,
+    REJECT_PROPOSAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/proposal/reject`,
   },
   ADMIN: {
     STATS: {
@@ -304,12 +332,15 @@ export const PAGE_ENDPOINTS = {
     PRODUCT_ACCESSORY: `/shop/product/accessory`,
     CREATE_ACCESSORY: `/shop/product/accessory/create`,
 
+    PRODUCT_VERIFICATION: `/shop/product-verfication`,
+
     ORDERS: `/shop/orders`,
     ORDER_DETAIL: `/shop/orders/:id`,
     REFUND_REVIEW: `/shop/refunds/review`,
     STAFF: `/shop/staff`,
     WARRANTY: `/shop/warranty`,
     WARRANTY_POLICIES: `/shop/warranty/policies`,
+    WARRANTY_ISSUE_TYPES: `/shop/warranty/issue-types`,
   },
 
   ADMIN: {
@@ -323,6 +354,7 @@ export const PAGE_ENDPOINTS = {
     WARRANTIES: `/admin/warranties`,
     WARRANTY_DETAIL: `/admin/warranties/:id`,
     TRANSACTIONS: `/admin/transactions`,
+    VERIFY_PRODUCT: `/admin/verify-product`,
   },
 
   ORDER: {

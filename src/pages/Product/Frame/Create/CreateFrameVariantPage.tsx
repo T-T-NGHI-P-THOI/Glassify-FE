@@ -27,6 +27,7 @@ import { ThreeJsService } from '@/services/ThreeJsService';
 import type { Model3DFile, Upload3DModelPageRef } from './Upload3DModel';
 import { toast } from 'react-toastify';
 import { formatCurrency, formatNumber, parseNumber } from '@/utils/formatCurrency';
+import { ProductSize } from '@/types/product.enums';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ export interface TextureFile {
 export interface CreateFrameVariantFormData {
     colorName: string;
     colorHex: string;
-    size: 'SMALL' | 'MEDIUM' | 'LARGE' | '';
+    size: ProductSize;
     frameWidthMm: number;
     lensWidthMm: number;
     lensHeightMm: number;
@@ -98,7 +99,7 @@ const UploadArea = styled(Box)(({ theme }) => ({
 const DEFAULT_FORM: CreateFrameVariantFormData = {
     colorName: '',
     colorHex: '#000000',
-    size: '',
+    size: ProductSize.MEDIUM,
     frameWidthMm: 1,
     lensWidthMm: 1,
     lensHeightMm: 1,
@@ -113,6 +114,30 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     isReturnable: false,
     images: [],
     textureFile: null,
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Polls until `service.viewerModel` is populated, then applies the texture.
+ * Stops after `maxAttempts` to avoid infinite loops if the model never loads.
+ */
+const applyTextureWhenReady = (
+    service: ThreeJsService,
+    file: File,
+    intervalMs = 100,
+    maxAttempts = 50
+) => {
+    let attempts = 0;
+    const tryApply = () => {
+        attempts++;
+        if (service.viewerModel) {
+            service.applyTextureToModel(service.viewerModel, file);
+        } else if (attempts < maxAttempts) {
+            setTimeout(tryApply, intervalMs);
+        }
+    };
+    tryApply();
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,14 +161,22 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
         const cleanupRef = useRef<(() => void) | null>(null);
         const threeServiceRef = useRef<ThreeJsService | null>(null);
 
+        // Keep a ref to the latest textureFile so the viewer init effect can
+        // access it without needing it as a dependency (avoids re-mounting).
+        const textureFileRef = useRef<TextureFile | null>(formData.textureFile);
+        useEffect(() => {
+            textureFileRef.current = formData.textureFile;
+        }, [formData.textureFile]);
+
+        const sizeOptions = Object.values(ProductSize);
+
         useEffect(() => {
             const fetchColors = async () => {
                 try {
                     const response = await ProductAPI.getColors();
-                    console.log(response)
                     setColors(response);
                 } catch (error) {
-                    toast.error("Cannot load color!")
+                    toast.error("Cannot load color!");
                 }
             };
             fetchColors();
@@ -169,11 +202,10 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 threeServiceRef.current = service;
                 cleanupRef.current = service.initializeThreeDViewer(canvas, modelFile.file);
 
-                // Nếu đã có texture khi viewer khởi (restore từ back), apply luôn
-                if (formData.textureFile?.file) {
-                    if (service.viewerModel) {
-                        service.applyTextureToModel(service.viewerModel, formData.textureFile!.file);
-                    }
+                // If a texture was already chosen (e.g. restored from back-navigation),
+                // apply it as soon as the model finishes loading.
+                if (textureFileRef.current?.file) {
+                    applyTextureWhenReady(service, textureFileRef.current.file);
                 }
             };
 
@@ -303,13 +335,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                 const response = await ProductAPI.createFrameVariant(payload);
                 onCreated?.(response.id, response.productId, formData);
-                toast.success("Save frame variant success!");
+                toast.success("Send frame variant registration form successful!");
             }
             catch (error: any) {
                 error?.errors.map((err: any) => {
                     toast.error(err);
-                })
-                throw new Error("Cannot save frame variant!")
+                });
+                throw new Error("Cannot save frame variant!");
             }
             finally {
                 setLoading(false);
@@ -367,13 +399,15 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             const texture: TextureFile = { name: file.name, size: file.size, preview, file };
             setField('textureFile', texture);
 
-            // Apply vào local viewer (Step 1)
+            // Apply to local viewer — poll until viewerModel is populated by the
+            // async GLTF/OBJ loader (viewerModel is null until loading completes).
             const service = threeServiceRef.current;
-            if (service?.viewerModel) {
-                service.applyTextureToModel(service.viewerModel, file);
+            if (service) {
+                console.log("applyTextureWhenReady applyTextureWhenReady")
+                applyTextureWhenReady(service, file);
             }
 
-            // Apply vào viewer Step 0 nếu vẫn còn mount
+            // Also apply to the Step-0 viewer if it's still mounted.
             upload3DModelRef?.current?.applyTexture(file);
 
             e.target.value = '';
@@ -417,7 +451,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
 
                                 setField("colorName", selectedName);
 
-                                // auto set hex khi chọn
                                 if (selectedColor) {
                                     setField("colorHex", selectedColor.hex);
                                 }
@@ -428,7 +461,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             {colors?.map((color) => (
                                 <MenuItem key={color.name} value={color.name}>
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                        {/* preview màu */}
                                         <Box
                                             sx={{
                                                 width: 14,
@@ -468,11 +500,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             <Select
                                 value={formData.size}
                                 label="Frame Size"
-                                onChange={e => setField('size', e.target.value as 'SMALL' | 'MEDIUM' | 'LARGE')}
+                                onChange={e => setField('size', e.target.value as typeof sizeOptions[number])}
                             >
-                                <MenuItem value="SMALL">Small</MenuItem>
-                                <MenuItem value="MEDIUM">Medium</MenuItem>
-                                <MenuItem value="LARGE">Large</MenuItem>
+                                {sizeOptions.map(size => (
+                                    <MenuItem key={size} value={size}>
+                                        {size.replace('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+                                    </MenuItem>
+                                ))}
                             </Select>
                             {errors.size && (
                                 <Typography color="error" fontSize={12} sx={{ mt: 0.5, ml: 1.5 }}>
@@ -724,187 +758,189 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 <Divider sx={{ my: 4 }} />
 
                 {/* ── Texture Map + 3D Viewer ── */}
-                <Typography
-                    sx={{
-                        fontSize: 16,
-                        fontWeight: 600,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                    }}
-                >
-                    <ViewInArIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-                    Texture Map
-                    <Typography
-                        component="span"
-                        sx={{ fontSize: 13, fontWeight: 400, color: theme.palette.custom.neutral[500], ml: 0.5 }}
-                    >
-                        (optional — PNG, JPG, WEBP)
-                    </Typography>
-                </Typography>
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
-                    {modelFile
-                        ? 'Upload a texture to apply onto the 3D model below.'
-                        : 'No 3D model uploaded in the previous step.'}
-                </Typography>
-
-                {/* Texture upload / preview */}
-                {!formData.textureFile ? (
+                {modelFile?.file && (
                     <>
-                        <input
-                            type="file"
-                            id="texture-upload"
-                            accept=".png,.jpg,.jpeg,.webp"
-                            style={{ display: 'none' }}
-                            onChange={handleTextureUpload}
-                        />
-                        <label htmlFor="texture-upload">
-                            <UploadArea
+                        <Typography
+                            sx={{
+                                fontSize: 16,
+                                fontWeight: 600,
+                                mb: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                            }}
+                        >
+                            <ViewInArIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                            Texture Map
+                            <Typography
+                                component="span"
+                                sx={{ fontSize: 13, fontWeight: 400, color: theme.palette.custom.neutral[500], ml: 0.5 }}
+                            >
+                                (optional — PNG, JPG, WEBP)
+                            </Typography>
+                        </Typography>
+                        <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500], mb: 3 }}>
+                            {modelFile
+                                ? 'Upload a texture to apply onto the 3D model below.'
+                                : 'No 3D model uploaded in the previous step.'}
+                        </Typography>
+
+                        {/* Texture upload / preview */}
+                        {!formData.textureFile ? (
+                            <>
+                                <input
+                                    type="file"
+                                    id="texture-upload"
+                                    accept=".png,.jpg,.jpeg,.webp"
+                                    style={{ display: 'none' }}
+                                    onChange={handleTextureUpload}
+                                />
+                                <label htmlFor="texture-upload">
+                                    <UploadArea
+                                        sx={{
+                                            py: 3,
+                                            ...(errors.textureFile ? { borderColor: theme.palette.error.main } : {}),
+                                        }}
+                                    >
+                                        <CloudUpload sx={{ fontSize: 36, color: theme.palette.custom.neutral[400], mb: 1 }} />
+                                        <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+                                            Click to upload texture
+                                        </Typography>
+                                    </UploadArea>
+                                </label>
+                                {errors.textureFile && (
+                                    <Typography color="error" fontSize={12} sx={{ mt: 1 }}>
+                                        {errors.textureFile}
+                                    </Typography>
+                                )}
+                            </>
+                        ) : (
+                            <Paper
+                                elevation={0}
                                 sx={{
-                                    py: 3,
-                                    ...(errors.textureFile ? { borderColor: theme.palette.error.main } : {}),
+                                    p: 2,
+                                    mb: 2,
+                                    borderRadius: 2,
+                                    border: `1px solid ${theme.palette.custom.border.light}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 2,
                                 }}
                             >
-                                <CloudUpload sx={{ fontSize: 36, color: theme.palette.custom.neutral[400], mb: 1 }} />
-                                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
-                                    Click to upload texture
-                                </Typography>
-                            </UploadArea>
-                        </label>
-                        {errors.textureFile && (
-                            <Typography color="error" fontSize={12} sx={{ mt: 1 }}>
-                                {errors.textureFile}
-                            </Typography>
+                                <Box
+                                    component="img"
+                                    src={formData.textureFile.preview}
+                                    sx={{
+                                        width: 56,
+                                        height: 56,
+                                        borderRadius: 1,
+                                        objectFit: 'cover',
+                                        flexShrink: 0,
+                                        border: `1px solid ${theme.palette.custom.border.light}`,
+                                    }}
+                                />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {formData.textureFile.name}
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
+                                        {formatFileSize(formData.textureFile.size)}
+                                    </Typography>
+                                </Box>
+
+                                <label htmlFor="texture-upload" style={{ cursor: 'pointer' }}>
+                                    <input
+                                        type="file"
+                                        id="texture-upload"
+                                        accept=".png,.jpg,.jpeg,.webp"
+                                        style={{ display: 'none' }}
+                                        onChange={handleTextureUpload}
+                                    />
+                                    <Button
+                                        component="span"
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<Refresh sx={{ fontSize: 16 }} />}
+                                        sx={{ fontSize: 13, textTransform: 'none', mr: 1 }}
+                                    >
+                                        Replace
+                                    </Button>
+                                </label>
+
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRemoveTexture}
+                                    sx={{ color: theme.palette.custom.status.error.main }}
+                                >
+                                    <Delete />
+                                </IconButton>
+                            </Paper>
                         )}
-                    </>
-                ) : (
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            p: 2,
-                            mb: 2,
-                            borderRadius: 2,
-                            border: `1px solid ${theme.palette.custom.border.light}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 2,
-                        }}
-                    >
+
+                        {/* ── Local 3D viewer ── */}
                         <Box
-                            component="img"
-                            src={formData.textureFile.preview}
+                            ref={containerRef}
                             sx={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: 1,
-                                objectFit: 'cover',
-                                flexShrink: 0,
+                                borderRadius: 2,
+                                overflow: 'hidden',
                                 border: `1px solid ${theme.palette.custom.border.light}`,
+                                position: 'relative',
+                                width: '100%',
+                                height: 380,
+                                mt: 2,
                             }}
-                        />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {formData.textureFile.name}
-                            </Typography>
-                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                                {formatFileSize(formData.textureFile.size)}
-                            </Typography>
-                        </Box>
-
-                        <label htmlFor="texture-upload" style={{ cursor: 'pointer' }}>
-                            <input
-                                type="file"
-                                id="texture-upload"
-                                accept=".png,.jpg,.jpeg,.webp"
-                                style={{ display: 'none' }}
-                                onChange={handleTextureUpload}
-                            />
-                            <Button
-                                component="span"
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Refresh sx={{ fontSize: 16 }} />}
-                                sx={{ fontSize: 13, textTransform: 'none', mr: 1 }}
-                            >
-                                Replace
-                            </Button>
-                        </label>
-
-                        <IconButton
-                            size="small"
-                            onClick={handleRemoveTexture}
-                            sx={{ color: theme.palette.custom.status.error.main }}
                         >
-                            <Delete />
-                        </IconButton>
-                    </Paper>
-                )}
+                            <canvas
+                                ref={canvasRef}
+                                style={{ width: '100%', height: '100%', display: 'block' }}
+                            />
 
-                {/* ── Local 3D viewer — chỉ hiện khi có modelFile ── */}
-                {modelFile?.file && (
-                    <Box
-                        ref={containerRef}
-                        sx={{
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                            border: `1px solid ${theme.palette.custom.border.light}`,
-                            position: 'relative',
-                            width: '100%',
-                            height: 380,
-                            mt: 2,
-                        }}
-                    >
-                        <canvas
-                            ref={canvasRef}
-                            style={{ width: '100%', height: '100%', display: 'block' }}
-                        />
+                            {/* Texture badge */}
+                            {formData.textureFile && (
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 10,
+                                        left: 12,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        bgcolor: 'rgba(0,0,0,0.5)',
+                                        borderRadius: 1,
+                                        px: 1.5,
+                                        py: 0.5,
+                                        pointerEvents: 'none',
+                                    }}
+                                >
+                                    <Box
+                                        component="img"
+                                        src={formData.textureFile.preview}
+                                        sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }}
+                                    />
+                                    <Typography sx={{ fontSize: 11, color: '#fff' }}>
+                                        {formData.textureFile.name}
+                                    </Typography>
+                                </Box>
+                            )}
 
-                        {/* Texture badge */}
-                        {formData.textureFile && (
                             <Box
                                 sx={{
                                     position: 'absolute',
-                                    top: 10,
-                                    left: 12,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    bgcolor: 'rgba(0,0,0,0.5)',
+                                    bottom: 12,
+                                    right: 14,
+                                    bgcolor: 'rgba(0,0,0,0.45)',
                                     borderRadius: 1,
                                     px: 1.5,
                                     py: 0.5,
                                     pointerEvents: 'none',
                                 }}
                             >
-                                <Box
-                                    component="img"
-                                    src={formData.textureFile.preview}
-                                    sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }}
-                                />
                                 <Typography sx={{ fontSize: 11, color: '#fff' }}>
-                                    {formData.textureFile.name}
+                                    Drag to rotate · Scroll to zoom
                                 </Typography>
                             </Box>
-                        )}
-
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                bottom: 12,
-                                right: 14,
-                                bgcolor: 'rgba(0,0,0,0.45)',
-                                borderRadius: 1,
-                                px: 1.5,
-                                py: 0.5,
-                                pointerEvents: 'none',
-                            }}
-                        >
-                            <Typography sx={{ fontSize: 11, color: '#fff' }}>
-                                Drag to rotate · Scroll to zoom
-                            </Typography>
                         </Box>
-                    </Box>
+                    </>
                 )}
 
                 {loading && (

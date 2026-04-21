@@ -2,7 +2,7 @@ import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 import type { ApiResponse } from '@/models/ApiResponse';
 
-export type LensCategory = 'SINGLE_VISION' | 'BIFOCAL' | 'PROGRESSIVE' | 'READING' | string;
+export type LensCategory = 'SINGLE_VISION' | 'BIFOCAL' | 'PROGRESSIVE' | 'READING' | 'FASHION' | string;
 
 export type LensProgressiveType = 'STANDARD' | 'PREMIUM' | 'MID_RANGE' | 'NEAR_RANGE' | string;
 
@@ -34,7 +34,7 @@ export interface LensTintCreateInput {
   name: string;
   cssValue: string;
   opacity: number;
-  basePrice: number;
+  basePrice?: number;
   isActive: boolean;
   behavior: LensTintBehavior;
   tintDetailData?: {
@@ -76,6 +76,22 @@ export interface LensProgressiveOptionCreateInput {
   progressiveType: LensProgressiveType;
 }
 
+export interface LensProductResponse {
+  id?: string;
+  shopId?: string;
+  sku?: string;
+  name?: string;
+  basePrice?: number;
+  costPrice?: number;
+  compareAtPrice?: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  warrantyMonths?: number;
+  isReturnable?: boolean;
+  isFeatured?: boolean;
+  productType?: string;
+}
+
 export interface CreateLensDetailDataInput {
   featureIds?: string[];
   tintIds?: string[];
@@ -102,7 +118,13 @@ export interface CreateLensRequest extends LensDetailFields {
   name: string;
   imageFile?: File;
   basePrice: number;
-  isProgressive: boolean;
+  costPrice?: number;
+  compareAtPrice?: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  warrantyMonths?: number;
+  isReturnable: boolean;
+  isFeatured: boolean;
   isActive: boolean;
   category: LensCategory;
   progressiveType?: LensProgressiveType;
@@ -195,6 +217,7 @@ export interface LensTintOption {
   tintCode?: string;
   tintName?: string;
   tintBehavior?: LensTintBehavior;
+  basePrice?: number;
   extraPrice?: number;
   isDefault?: boolean;
   tint?: LensTint;
@@ -238,7 +261,6 @@ export interface LensResponse {
   imageFileId?: string;
   imageUrl?: string;
   basePrice: number;
-  isProgressive: boolean;
   isActive: boolean;
   category: LensCategory;
   progressiveType?: LensProgressiveType;
@@ -300,6 +322,11 @@ export interface LensDetailResponse {
   };
 }
 
+export interface LensWithProductResult {
+  lens: LensResponse;
+  product?: LensProductResponse;
+}
+
 export interface LensFilterRequest {
   page?: number;
   unitPerPage?: number;
@@ -310,7 +337,7 @@ export interface LensFilterRequest {
   minPrice?: number;
   maxPrice?: number;
   isActive?: boolean;
-  isProgressive?: boolean;
+  
   category?: LensCategory;
   progressiveType?: LensProgressiveType;
   sortBy?: string;
@@ -322,8 +349,16 @@ export interface UpdateLensRequest extends LensDetailFields {
   sku?: string;
   name?: string;
   imageFile?: File;
+  keepImageUrls?: string[];
   basePrice?: number;
-  isProgressive?: boolean;
+  costPrice?: number;
+  compareAtPrice?: number;
+  stockQuantity?: number;
+  lowStockThreshold?: number;
+  warrantyMonths?: number;
+  isReturnable?: boolean;
+  isFeatured?: boolean;
+  
   isActive?: boolean;
   category?: LensCategory;
   progressiveType?: LensProgressiveType;
@@ -352,6 +387,35 @@ const compactRequestObject = <T extends Record<string, unknown>>(payload: T): T 
     Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
   );
   return result as T;
+};
+
+const extractLensResponse = (value: unknown): LensResponse | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const record = value as Record<string, unknown>;
+  if (record.lens && typeof record.lens === 'object') {
+    return record.lens as LensResponse;
+  }
+
+  return value as LensResponse;
+};
+
+const mergeLensWithProduct = (value: unknown): LensResponse & Partial<LensProductResponse> | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const record = value as Record<string, unknown>;
+  const lens = record.lens && typeof record.lens === 'object' ? (record.lens as LensResponse) : null;
+  const product = record.product && typeof record.product === 'object' ? (record.product as LensProductResponse) : null;
+
+  if (lens && product) {
+    return { ...product, ...lens };
+  }
+
+  if (lens) {
+    return lens;
+  }
+
+  return value as LensResponse & Partial<LensProductResponse>;
 };
 
 const appendLensMultipartRequest = (
@@ -540,7 +604,7 @@ export interface LensCatalogLensOption {
   lensSku?: string;
   lensName?: string;
   basePrice?: number;
-  isProgressive?: boolean;
+  
   usages?: LensCatalogUsageOption[];
   features?: LensCatalogFeatureOption[];
   tints?: LensCatalogTintOption[];
@@ -574,7 +638,7 @@ const sanitizeLensDetailFields = (payload: LensDetailFields): LensDetailFields =
 
 export const sanitizeCreateLensPayload = (payload: CreateLensRequest): CreateLensRequest => ({
   ...payload,
-  progressiveType: payload.isProgressive ? payload.progressiveType : undefined,
+  progressiveType: (payload.category === 'PROGRESSIVE') ? payload.progressiveType : undefined,
   ...sanitizeLensDetailFields(payload),
 });
 
@@ -586,29 +650,34 @@ export const lensApi = {
     return response.data?.data ?? null;
   },
 
-  getById: async (id: string): Promise<LensDetailResponse> => {
-    const response = await axiosInstance.get<ApiResponse<LensDetailResponse>>(
+  getById: async (id: string): Promise<LensWithProductResult> => {
+    const response = await axiosInstance.get<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.GET_BY_ID(id),
     );
-    return response.data?.data as LensDetailResponse;
+    return response.data?.data as LensWithProductResult;
   },
 
-  getMany: async (filter: LensFilterRequest = {}): Promise<LensResponse[]> => {
-    const response = await axiosInstance.get<ApiResponse<LensResponse[] | LensResponse>>(
+  getMany: async (filter: LensFilterRequest = {}): Promise<Array<LensResponse & Partial<LensProductResponse>>> => {
+    const response = await axiosInstance.get<ApiResponse<Array<LensResponse | LensWithProductResult> | LensResponse | LensWithProductResult>>(
       API_ENDPOINTS.LENS.GET_ALL,
       { params: filter },
     );
     const payload = response.data?.data;
-    if (Array.isArray(payload)) return payload;
-    if (payload && typeof payload === 'object') return [payload];
+    if (Array.isArray(payload)) {
+      return payload
+        .map((item) => mergeLensWithProduct(item))
+        .filter((item): item is LensResponse & Partial<LensProductResponse> => Boolean(item));
+    }
+    const lens = mergeLensWithProduct(payload);
+    if (lens) return [lens];
     return [];
   },
 
-  create: async (payload: CreateLensRequest): Promise<ApiResponse<LensResponse>> => {
+  create: async (payload: CreateLensRequest): Promise<ApiResponse<LensWithProductResult>> => {
     assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
-    const response = await axiosInstance.post<ApiResponse<LensResponse>>(
+    const response = await axiosInstance.post<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.CREATE,
       formData,
     );
@@ -618,11 +687,11 @@ export const lensApi = {
   createForFrame: async (
     frameVariantId: string,
     payload: CreateLensRequest,
-  ): Promise<ApiResponse<LensResponse>> => {
+  ): Promise<ApiResponse<LensWithProductResult>> => {
     assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
-    const response = await axiosInstance.post<ApiResponse<LensResponse>>(
+    const response = await axiosInstance.post<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.CREATE_FOR_FRAME(frameVariantId),
       formData,
     );
@@ -632,23 +701,23 @@ export const lensApi = {
   createForFrameGroup: async (
     frameGroupId: string,
     payload: CreateLensRequest,
-  ): Promise<ApiResponse<LensResponse>> => {
+  ): Promise<ApiResponse<LensWithProductResult>> => {
     assertDecimal10_2(payload.basePrice, 'basePrice');
     const sanitizedPayload = sanitizeCreateLensPayload(payload);
     const formData = buildCreateLensFormData(sanitizedPayload);
-    const response = await axiosInstance.post<ApiResponse<LensResponse>>(
+    const response = await axiosInstance.post<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.CREATE_FOR_FRAME_GROUP(frameGroupId),
       formData,
     );
     return response.data;
   },
 
-  update: async (id: string, payload: UpdateLensRequest): Promise<ApiResponse<LensResponse>> => {
+  update: async (id: string, payload: UpdateLensRequest): Promise<ApiResponse<LensWithProductResult>> => {
     if (typeof payload.basePrice === 'number') {
       assertDecimal10_2(payload.basePrice, 'basePrice');
     }
     const formData = buildUpdateLensFormData(payload);
-    const response = await axiosInstance.put<ApiResponse<LensResponse>>(
+    const response = await axiosInstance.put<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.UPDATE(id),
       formData,
     );

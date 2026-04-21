@@ -290,6 +290,18 @@ const ShipmentDetailPage = () => {
               Order: #{order.shopOrderNumber}
             </Typography>
           </Box>
+          {currentStatus === 'PENDING' && order.paymentStatus === 'PENDING' && order.paymentMethod !== 'COD' && (
+            <Chip
+              label="Unpaid"
+              sx={{
+                backgroundColor: theme.palette.custom.status.warning.light,
+                color: theme.palette.custom.status.warning.main,
+                fontWeight: 600,
+                fontSize: 13,
+                px: 1,
+              }}
+            />
+          )}
           <Chip
             label={getStatusLabel(currentStatus)}
             sx={{
@@ -518,14 +530,46 @@ const ShipmentDetailPage = () => {
                 {order.trackingNumber ?? '—'}
               </Typography>
             </Box> */}
-            <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>SHIPPED AT</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formatDate(order.shippedAt)}
-              </Typography>
-            </Box>
           </Paper>
         </Box>
+
+        {/* Cancellation Reason */}
+        {currentStatus === 'CANCELLED' && (
+          <Paper
+            elevation={0}
+            sx={{ p: 3, mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.status.error.light}`, bgcolor: theme.palette.custom.status.error.light }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <ReportProblem sx={{ fontSize: 18, color: theme.palette.custom.status.error.main }} />
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.status.error.main, textTransform: 'uppercase' }}>
+                Cancellation Reason
+              </Typography>
+            </Box>
+            <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>
+              {order.cancelReason ?? '—'}
+            </Typography>
+            {order.paymentMethod !== 'COD' && (
+              <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.palette.custom.status.error.main}26` }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                    Refund Amount
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: order.refundedAt ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[500] }}>
+                    {order.refundAmount != null ? formatCurrency(order.refundAmount) : '—'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                    Refund Status
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 500, color: order.refundedAt ? theme.palette.custom.status.success.main : theme.palette.custom.status.warning.main }}>
+                    {order.refundedAt ? `Refunded · ${formatDate(order.refundedAt)}` : 'Pending'}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </Paper>
+        )}
 
         {/* Item List */}
         <Paper
