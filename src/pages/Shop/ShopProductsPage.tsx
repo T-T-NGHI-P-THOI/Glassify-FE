@@ -62,7 +62,7 @@ const ShopProductsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'FRAME' | 'LENS' | 'ACCESSORIES'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'FRAME' | 'LENSES' | 'ACCESSORIES'>('ALL');
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
