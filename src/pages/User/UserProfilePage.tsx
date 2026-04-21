@@ -174,13 +174,15 @@ const UserProfilePage = () => {
     // ========== FETCH USER STATS ==========
     const fetchUserStats = async () => {
         try {
-            // const response = await userApi.getMyStats();
-
-            // if (response.status === 200 && response.data) {
-            //     setStats(response.data);
-            // }
-
-            setStats(mockStats); // Remove this line when API is ready
+            const response = await userApi.getMyStats();
+            if (response.data) {
+                setStats({
+                    totalOrders: response.data.totalOrders,
+                    totalSpent: Number(response.data.totalSpent),
+                    totalReviews: response.data.totalReviews,
+                    memberSince: response.data.memberSince,
+                });
+            }
         } catch (err) {
             console.error('Error fetching user stats:', err);
         }
@@ -547,12 +549,6 @@ const UserProfilePage = () => {
         } finally { setSettingDefaultId(null); }
     };
 
-    const mockStats: UserStats = {
-        totalOrders: 125,
-        totalSpent: 25430000,
-        totalReviews: 45,
-        memberSince: '2021-03-15',
-    };
     // ========== STAT CARD COMPONENT ==========
     const StatCard = ({
         icon,
@@ -568,53 +564,53 @@ const UserProfilePage = () => {
         <Paper
             elevation={0}
             sx={{
-                p: 2.5,
+                p: 1.5,
                 borderRadius: 2,
                 border: `1px solid ${theme.palette.custom.border.light}`,
+                textAlign: 'center',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                    borderColor: theme.palette.custom.border.main,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                 },
             }}
         >
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                <Box
-                    sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: `${color}20`,
-                    }}
-                >
-                    {icon}
-                </Box>
-                <Box>
-                    <Typography
-                        sx={{
-                            fontSize: 12,
-                            color: theme.palette.custom.neutral[500],
-                            mb: 0.5,
-                            textTransform: 'uppercase',
-                            letterSpacing: 0.5,
-                        }}
-                    >
-                        {label}
-                    </Typography>
-                    <Typography
-                        sx={{
-                            fontSize: 20,
-                            fontWeight: 700,
-                            color: theme.palette.custom.neutral[800],
-                        }}
-                    >
-                        {value}
-                    </Typography>
-                </Box>
+            <Box
+                sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: `${color}18`,
+                    mx: 'auto',
+                    mb: 1,
+                }}
+            >
+                {icon}
             </Box>
+            <Typography
+                sx={{
+                    fontSize: 17,
+                    fontWeight: 700,
+                    color: theme.palette.custom.neutral[800],
+                    lineHeight: 1.2,
+                    mb: 0.25,
+                }}
+            >
+                {value}
+            </Typography>
+            <Typography
+                sx={{
+                    fontSize: 11,
+                    color: theme.palette.custom.neutral[500],
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    fontWeight: 500,
+                }}
+            >
+                {label}
+            </Typography>
         </Paper>
     );
 
@@ -911,11 +907,11 @@ const UserProfilePage = () => {
 
                 {/* ==================== STATS CARDS ==================== */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 4 }}>
                         <StatCard
                             icon={
                                 <ShoppingBag
-                                    sx={{ fontSize: 24, color: theme.palette.custom.status.info.main }}
+                                    sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }}
                                 />
                             }
                             label="Total Orders"
@@ -923,29 +919,11 @@ const UserProfilePage = () => {
                             color={theme.palette.custom.status.info.main}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <StatCard
-                            icon={
-                                <Typography
-                                    sx={{
-                                        fontSize: 20,
-                                        fontWeight: 700,
-                                        color: theme.palette.custom.status.success.main,
-                                    }}
-                                >
-                                    ₫
-                                </Typography>
-                            }
-                            label="Total Spent"
-                            value={formatCurrency(stats?.totalSpent || 0)}
-                            color={theme.palette.custom.status.success.main}
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 4 }}>
                         <StatCard
                             icon={
                                 <Star
-                                    sx={{ fontSize: 24, color: theme.palette.custom.status.warning.main }}
+                                    sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }}
                                 />
                             }
                             label="Reviews Given"
@@ -953,11 +931,11 @@ const UserProfilePage = () => {
                             color={theme.palette.custom.status.warning.main}
                         />
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Grid size={{ xs: 12, sm: 4, md: 4 }}>
                         <StatCard
                             icon={
                                 <CalendarMonth
-                                    sx={{ fontSize: 24, color: theme.palette.custom.status.rose?.main || '#E11D48' }}
+                                    sx={{ fontSize: 20, color: theme.palette.custom.status.rose?.main || '#E11D48' }}
                                 />
                             }
                             label="Member Since"
