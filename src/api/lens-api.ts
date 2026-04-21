@@ -593,6 +593,20 @@ export const lensApi = {
     return response.data?.data ?? null;
   },
 
+  /**
+   * Get lens related enums (categories, progressive types, tint behaviors, usages)
+   */
+  getEnums: async (): Promise<{
+    lensCategories?: string[];
+    progressiveTypes?: string[];
+    lensTintBehaviors?: string[];
+    prescriptionUsages?: string[];
+  } | null> => {
+    const url = `${API_ENDPOINTS.LENS.BASE}/enums`;
+    const response = await axiosInstance.get<ApiResponse<Record<string, unknown>>>(url);
+    return response.data?.data ?? null;
+  },
+
   getById: async (id: string): Promise<LensWithProductResult> => {
     const response = await axiosInstance.get<ApiResponse<LensWithProductResult>>(
       API_ENDPOINTS.LENS.GET_BY_ID(id),

@@ -34,6 +34,7 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import { lensApi, type LensResponse, type LensUsage, type LensWithProductResult } from '@/api/lens-api';
+import { formatEnumLabel } from '@/hooks/useLensEnums';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { CustomButton } from '@/components/custom';
@@ -739,8 +740,8 @@ const LensProductPage = () => {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 1 }}>
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Category</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {lens.category}
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {lens.category ? formatEnumLabel(String(lens.category)) : '-'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Price</Typography>
@@ -759,8 +760,8 @@ const LensProductPage = () => {
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Progressive</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
-                    {(lens.category === 'PROGRESSIVE') ? lens.progressiveType || 'Yes' : 'No'}
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                    {(lens.category === 'PROGRESSIVE') ? (lens.progressiveType ? formatEnumLabel(String(lens.progressiveType)) : 'Yes') : 'No'}
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Updated</Typography>

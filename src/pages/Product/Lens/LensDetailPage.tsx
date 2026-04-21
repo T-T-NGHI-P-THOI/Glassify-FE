@@ -21,6 +21,7 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import { lensApi, type LensResponse } from '@/api/lens-api';
+import useLensEnums, { formatEnumLabel } from '@/hooks/useLensEnums';
 import ProductAPI from '@/api/product-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopDetailResponse } from '@/models/Shop';
@@ -242,9 +243,13 @@ const LensDetailPage = () => {
     preferredKeys.forEach((key) => {
       const value = typed[key];
       if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+        let displayValue = String(value);
+        if (key === 'progressiveType' || key === 'behavior' || key === 'type' || key === 'category') {
+          displayValue = formatEnumLabel(String(value));
+        }
         fields.push({
           label: toDisplayLabel(key),
-          value: String(value),
+          value: displayValue,
         });
       }
     });
@@ -539,11 +544,11 @@ const LensDetailPage = () => {
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Category</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.category || '-'}</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.category ? formatEnumLabel(String(lensDetail.category)) : '-'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Progressive Type</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.progressiveType || '-'}</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.progressiveType ? formatEnumLabel(String(lensDetail.progressiveType)) : '-'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Status</Typography>

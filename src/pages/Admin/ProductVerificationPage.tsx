@@ -44,7 +44,7 @@ const TypeChip = styled(Chip)<{ ptype: ProductType }>(({ ptype }) => ({
     height: 20, fontSize: 10, fontWeight: 600, borderRadius: 3,
     ...(ptype === 'FRAME' && { background: '#EFF6FF', color: '#1D4ED8' }),
     ...(ptype === 'ACCESSORY' && { background: '#F3E8FF', color: '#7C3AED' }),
-    ...(ptype === 'LENS' && { background: '#ECFDF5', color: '#047857' }),
+    ...(ptype === 'LENSES' && { background: '#ECFDF5', color: '#047857' }),
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

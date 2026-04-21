@@ -58,7 +58,7 @@ const ProductBrowsePage: React.FC = () => {
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-    productTypes: ['FRAME', 'LENS', 'ACCESSORIES'],
+    productTypes: ['FRAME', 'LENSES', 'ACCESSORIES'],
     brands: [],
     categories: [],
     shopCities: defaultShopCities,
@@ -460,7 +460,7 @@ const ProductBrowsePage: React.FC = () => {
                 {[
                   { val: undefined, label: 'All types' },
                   { val: 'FRAME' as ProductType, label: 'Frames' },
-                  { val: 'LENS' as ProductType, label: 'Lenses' },
+                  { val: 'LENSES' as ProductType, label: 'Lenses' },
                   { val: 'ACCESSORIES' as ProductType, label: 'Accessories' },
                 ].map(opt => (
                   <MenuItem
