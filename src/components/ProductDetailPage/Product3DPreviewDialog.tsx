@@ -45,10 +45,7 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 	const [modelError, setModelError] = useState<string | null>(null);
 	const [viewerInitToken, setViewerInitToken] = useState(0);
 
-	const activeVariant = useMemo(
-		() => variants.find((variant) => variant.id === activeVariantId) ?? null,
-		[variants, activeVariantId]
-	);
+	const activeVariant = variants.find(v => v.id === activeVariantId) ?? null;
 
 	useEffect(() => {
 		if (open) return;
@@ -98,6 +95,15 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 					if (service.viewerModel) {
 						setModelLoading(false);
 						setModelError(null);
+						if (activeVariant?.textureUrl) {
+							service
+								.applyTextureFromUrl(service.viewerModel, activeVariant.textureUrl)
+								.catch((error) => {
+									console.error('Failed to apply selected variant texture:', error);
+								});
+						}
+
+
 						if (loadCheckTimer) window.clearInterval(loadCheckTimer);
 						loadCheckTimer = null;
 						return;
