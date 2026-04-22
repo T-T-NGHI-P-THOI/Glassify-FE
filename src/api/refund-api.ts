@@ -9,8 +9,6 @@ import type {
   ProcessRefundDto,
   SubmitShopAppealDto,
   RefundRequestFilter,
-  ProposeRefundDto,
-  ProposalResponseDto,
 } from '../models/Refund';
 
 const REFUND_BASE_URL = '/api/v1/refunds';
@@ -118,52 +116,6 @@ export const submitShopAppeal = async (
   const response = await axios.post<ApiResponse<RefundRequest>>(
     `${REFUND_BASE_URL}/${requestId}/shop-appeal`,
     data
-  );
-  return response.data;
-};
-
-// ── Propose-Refund flow (shop → customer) ──────────────────────────────────
-
-/**
- * Shop proposes a refund amount (partial or full) to the customer without
- * requiring item return. Only valid for REFUND_WITHOUT_RETURN admin decisions
- * at APPROVED status.
- */
-export const proposeRefund = async (
-  requestId: string,
-  data: ProposeRefundDto
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/propose-refund`,
-    data
-  );
-  return response.data;
-};
-
-/**
- * Customer accepts the shop's refund proposal.
- * Refund is processed immediately to their wallet.
- */
-export const acceptProposal = async (
-  requestId: string
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/proposal/accept`
-  );
-  return response.data;
-};
-
-/**
- * Customer rejects the shop's refund proposal.
- * The request proceeds to the original admin decision (RETURN_AND_REFUND).
- */
-export const rejectProposal = async (
-  requestId: string,
-  data?: ProposalResponseDto
-): Promise<ApiResponse<RefundRequest>> => {
-  const response = await axios.post<ApiResponse<RefundRequest>>(
-    `${REFUND_BASE_URL}/${requestId}/proposal/reject`,
-    data ?? {}
   );
   return response.data;
 };
