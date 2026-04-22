@@ -26,8 +26,8 @@ import {
   TuneRounded,
 } from '@mui/icons-material';
 import ProductGrid from '../../components/ProductBrowse/ProductGrid';
-import type { BrowseProduct } from '../../types/filter';
-import type { ApiShopInfo } from '../../api/product-api';
+import type { BrowseProduct } from '@/types/filter.ts';
+import type { ApiShopInfo } from '@/api/product-api.ts';
 import ProductAPI from '../../api/product-api';
 import { useLayout } from '../../layouts/LayoutContext';
 
@@ -104,6 +104,9 @@ const ShopDetailPage: React.FC = () => {
               variantId: p.variantId || p.id,
             },
           ],
+          shopId: p.shopId,
+          shopCity: p.shop?.city,
+          shopAddress: p.shop?.address,
         }));
 
         setProducts(browseProducts);

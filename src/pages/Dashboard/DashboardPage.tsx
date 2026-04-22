@@ -48,7 +48,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse } from '@/api/adminApi';
+import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse, type AdminShopStats } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';
@@ -75,6 +75,7 @@ const DashboardPage = () => {
   const [refundRequests, setRefundRequests] = useState<AdminRefundResponse[]>([]);
   const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<AdminOrderResponse[]>([]);
+  const [shopStats, setShopStats] = useState<AdminShopStats[]>([]);
 
   useEffect(() => {
     adminApi.getShops().then((res) => { if (res.data) setShops(res.data); }).catch(() => {});
@@ -82,6 +83,7 @@ const DashboardPage = () => {
     adminApi.getRefunds('REQUESTED', 0, 3).then((res) => { if (res.data) setRefundRequests(res.data.content); }).catch(() => {});
     adminApi.getOverviewStats().then((res) => { if (res.data) setOverviewStats(res.data); }).catch(() => {});
     adminApi.getOrders(undefined, 0, 5).then((res) => { if (res.data) setRecentOrders(res.data.content); }).catch(() => {});
+    adminApi.getShopStats().then((res) => { if (res.data) setShopStats(res.data); }).catch(() => {});
   }, []);
 
   const totalShops = shops.length;
@@ -151,7 +153,7 @@ const DashboardPage = () => {
               Dashboard
             </Typography>
             <Typography sx={{ color: theme.palette.custom.neutral[500], fontSize: 14 }}>
-              Tổng quan hoạt động kinh doanh của hệ thống Glassify
+              Overview of Glassify's business operations.
             </Typography>
           </Box>
           <Tabs
@@ -161,6 +163,7 @@ const DashboardPage = () => {
           >
             <Tab label="Overview" />
             <Tab label="Revenue & Shipping" icon={<TrendingUp sx={{ fontSize: 16 }} />} iconPosition="start" />
+            <Tab label="Shop Performance" icon={<Storefront sx={{ fontSize: 16 }} />} iconPosition="start" />
           </Tabs>
         </Box>
 
@@ -411,6 +414,142 @@ const DashboardPage = () => {
                   </Paper>
                 </Box>
               </Box>
+            </>
+          )}
+
+          {/* ═══════════════ TAB 2 — SHOP PERFORMANCE ═══════════════ */}
+          {activeTab === 2 && (
+            <>
+              {/* Charts row */}
+              {shopStats.length > 0 && (() => {
+                const top8 = shopStats.slice(0, 8);
+                const shortName = (name: string) => name.length > 12 ? name.slice(0, 11) + '…' : name;
+                const revenueData = top8.map((s) => ({ name: shortName(s.shopName), revenue: s.totalRevenue }));
+                const rateData = top8.map((s) => ({ name: shortName(s.shopName), delivery: s.deliveryRate, cancel: s.cancelRate }));
+                return (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+                    {/* Revenue bar chart */}
+                    <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: 13, color: theme.palette.custom.neutral[700], mb: 2 }}>
+                        Top {top8.length} Shops — Revenue (đ)
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={revenueData} margin={{ top: 4, right: 8, left: 0, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.neutral[100]} />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: theme.palette.custom.neutral[500] }} angle={-30} textAnchor="end" interval={0} />
+                          <YAxis tick={{ fontSize: 10, fill: theme.palette.custom.neutral[400] }} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} width={45} />
+                          <Tooltip formatter={(v: number) => [formatVND(v), 'Revenue']} />
+                          <Bar dataKey="revenue" fill={theme.palette.custom.status.success.main} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Paper>
+
+                    {/* Delivery vs Cancel rate chart */}
+                    <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: 13, color: theme.palette.custom.neutral[700], mb: 2 }}>
+                        Top {top8.length} Shops — Delivery vs Cancel Rate (%)
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={rateData} margin={{ top: 4, right: 8, left: 0, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.neutral[100]} />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: theme.palette.custom.neutral[500] }} angle={-30} textAnchor="end" interval={0} />
+                          <YAxis tick={{ fontSize: 10, fill: theme.palette.custom.neutral[400] }} unit="%" width={38} domain={[0, 100]} />
+                          <Tooltip formatter={(v: number, name: string) => [`${v.toFixed(1)}%`, name === 'delivery' ? 'Delivery Rate' : 'Cancel Rate']} />
+                          <Legend formatter={(v) => v === 'delivery' ? 'Delivery Rate' : 'Cancel Rate'} wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="delivery" fill={theme.palette.custom.status.success.main} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="cancel" fill={theme.palette.custom.status.error.main} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Paper>
+                  </Box>
+                );
+              })()}
+
+              <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Store sx={{ color: theme.palette.custom.neutral[500], fontSize: 18 }} />
+                  <Typography sx={{ fontWeight: 600, fontSize: 15, color: theme.palette.custom.neutral[800] }}>
+                    Shop Revenue & Performance
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], ml: 1 }}>
+                    ({shopStats.length} shops, sorted by revenue)
+                  </Typography>
+                </Box>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
+                        {['#', 'Shop', 'Total Revenue', 'Total Orders', 'Delivered', 'Cancelled', 'Delivery Rate', 'Cancel Rate', 'Avg Rating'].map((h) => (
+                          <TableCell key={h} sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12, whiteSpace: 'nowrap' }}>{h}</TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {shopStats.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} align="center" sx={{ py: 6, color: theme.palette.custom.neutral[400] }}>
+                            No shop data available
+                          </TableCell>
+                        </TableRow>
+                      ) : shopStats.map((s, idx) => (
+                        <TableRow key={s.shopId} hover>
+                          <TableCell sx={{ color: theme.palette.custom.neutral[400], fontSize: 12 }}>{idx + 1}</TableCell>
+                          <TableCell>
+                            <Box>
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{s.shopName}</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>{s.shopCode}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
+                              {formatVND(s.totalRevenue)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.totalOrders.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.deliveredOrders.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.cancelledOrders.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={Math.min(s.deliveryRate, 100)}
+                                sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { bgcolor: theme.palette.custom.status.success.main } }}
+                              />
+                              <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.success.main, minWidth: 40 }}>
+                                {s.deliveryRate.toFixed(1)}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={Math.min(s.cancelRate, 100)}
+                                sx={{ flex: 1, height: 6, borderRadius: 3, bgcolor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { bgcolor: theme.palette.custom.status.error.main } }}
+                              />
+                              <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.status.error.main, minWidth: 40 }}>
+                                {s.cancelRate.toFixed(1)}%
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            {s.avgRating != null ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Star sx={{ fontSize: 14, color: '#f59e0b' }} />
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                  {Number(s.avgRating).toFixed(1)}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>—</Typography>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
             </>
           )}
 

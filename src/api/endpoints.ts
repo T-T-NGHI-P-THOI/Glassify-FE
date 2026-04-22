@@ -224,6 +224,7 @@ export const API_ENDPOINTS = {
   ADMIN: {
     STATS: {
       OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
+      SHOPS: `${API_ENDPOINT}/admin/stats/shops`,
     },
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
