@@ -68,7 +68,7 @@ const PrivateRoutesComponent = () => {
                 path={PAGE_ENDPOINTS.TRACKING.SHOPS}
                 element={
                     <AuthGuard>
-                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER']}>
+                        <RoleBasedGuard accessibleRoles={['CUSTOMER', 'SHOP_OWNER', 'ADMIN']}>
                             <ShopTrackingPage />
                         </RoleBasedGuard>
                     </AuthGuard>
