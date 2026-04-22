@@ -34,8 +34,9 @@ export function useVerification(options: {
     shopId?: string;
     page: number;
     pageSize: number;
+    enabled?: boolean;
 }) {
-    const { status, productType, search, shopId, page, pageSize } = options;
+    const { status, productType, search, shopId, page, pageSize, enabled = true } = options;
 
     const [state, setState] = useState<UseVerificationState>({
         items: [],
@@ -53,6 +54,7 @@ export function useVerification(options: {
     // ── Fetch list ────────────────────────────────────────────────────────────
 
     const fetchList = useCallback(async () => {
+        if (!enabled) return;
         setState(prev => ({ ...prev, loading: true }));
         try {
             const data = await VerificationAPI.list({
@@ -74,7 +76,7 @@ export function useVerification(options: {
             toast.error(err?.response?.data?.message ?? 'Failed to load verifications');
             setState(prev => ({ ...prev, loading: false }));
         }
-    }, [status, productType, search, page, pageSize]);
+    }, [status, productType, search, page, pageSize, shopId, enabled]);
 
     // ── Fetch stats ───────────────────────────────────────────────────────────
 
@@ -98,6 +100,8 @@ export function useVerification(options: {
     // ── Debounced re-fetch when filters change ────────────────────────────────
 
     useEffect(() => {
+        if (!enabled) return;
+
         if (debounceRef.current) clearTimeout(debounceRef.current);
         // Debounce search input; fire immediately for non-search filter changes
         const delay = search !== undefined ? 400 : 0;
@@ -105,7 +109,7 @@ export function useVerification(options: {
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-    }, [fetchList]);
+    }, [fetchList, enabled]);
 
     // ── Fetch stats once on mount and when list changes ───────────────────────
 
