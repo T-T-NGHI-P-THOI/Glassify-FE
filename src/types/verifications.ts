@@ -3,7 +3,7 @@
 import type { Accessory, AccessoryProductResponse, AccessoryVariantResponse } from "@/pages/Product/Accessory/View/AccessoryCard";
 import type { FrameGroup, FrameVariantResponse } from "@/pages/Product/Frame/View/FrameGroupCard";
 
-export type ProductType = 'FRAME' | 'LENS' | 'ACCESSORY';
+export type ProductType = 'FRAME' | 'LENSES' | 'ACCESSORY';
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type VerificationType = 'INITIAL' | 'UPDATE';
 

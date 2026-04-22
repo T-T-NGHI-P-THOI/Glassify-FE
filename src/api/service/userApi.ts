@@ -9,7 +9,8 @@ import type {
     UpdateProfileRequest,
     UploadAvatarResponse,
     UserResponse,
-    UserProfileResponse
+    UserProfileResponse,
+    UserStats
 } from "@/models/User.ts";
 import axiosInstance, { TokenManager } from "@/api/axios.config.ts";
 import type { ApiResponse } from "@/models/ApiResponse.ts";
@@ -220,6 +221,15 @@ export const userApi = {
         const response = await axiosInstance.get(`${USER_BASE_URL}/me/export`, {
             responseType: 'blob',
         });
+        return response.data;
+    },
+
+    // ==================== STATS ====================
+
+    getMyStats: async (): Promise<ApiResponse<UserStats>> => {
+        const response = await axiosInstance.get<ApiResponse<UserStats>>(
+            `${USER_BASE_URL}/me/stats`
+        );
         return response.data;
     },
 

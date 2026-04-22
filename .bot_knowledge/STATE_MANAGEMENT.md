@@ -135,7 +135,7 @@ interface AddToCartParams {
     productName: string;
     productSlug: string;
     productId: string;
-    productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
+    productType: 'FRAME' | 'LENSES' | 'ACCESSORIES';
     brandName?: string;
     shopName?: string;
     sku?: string;

@@ -22,6 +22,7 @@ import {
   Inventory,
   PendingActions,
   MoreVert,
+  HourglassEmpty,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -134,8 +135,14 @@ const ShopOrdersPage = () => {
     navigate(PAGE_ENDPOINTS.SHOP.ORDER_DETAIL.replace(':id', orderId));
   };
 
+  const isUnpaid = (o: ShopOrderResponse) =>
+    o.status === 'PENDING' &&
+    o.paymentStatus === 'PENDING' &&
+    o.paymentMethod !== 'COD';
+
   const totalOrders = orderList.length;
-  const pendingCount = orderList.filter(o => o.status === 'PENDING' || o.status === 'CONFIRMED').length;
+  const unpaidCount = orderList.filter(isUnpaid).length;
+  const pendingCount = orderList.filter(o => (o.status === 'PENDING' || o.status === 'CONFIRMED') && !isUnpaid(o)).length;
   const processingCount = orderList.filter(o => ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orderList.filter(o => o.status === 'DELIVERED').length;
 
@@ -145,24 +152,35 @@ const ShopOrdersPage = () => {
       label: 'Total Orders',
       value: totalOrders.toLocaleString(),
       bgColor: theme.palette.custom.status.pink.light,
+      highlight: false,
+    },
+    {
+      icon: <HourglassEmpty sx={{ color: theme.palette.warning.dark }} />,
+      label: 'Awaiting Payment',
+      value: unpaidCount.toLocaleString(),
+      bgColor: theme.palette.warning.light,
+      highlight: unpaidCount > 0,
     },
     {
       icon: <PendingActions sx={{ color: theme.palette.warning.main }} />,
       label: 'Awaiting Action',
       value: pendingCount.toLocaleString(),
       bgColor: theme.palette.warning.light,
+      highlight: false,
     },
     {
       icon: <Inventory sx={{ color: theme.palette.custom.status.purple.main }} />,
       label: 'In Progress',
       value: processingCount.toLocaleString(),
       bgColor: theme.palette.custom.status.purple.light,
+      highlight: false,
     },
     {
       icon: <FlightTakeoff sx={{ color: theme.palette.success.main }} />,
       label: 'Delivered',
       value: deliveredCount.toLocaleString(),
       bgColor: theme.palette.success.light,
+      highlight: false,
     },
   ];
 
@@ -194,10 +212,11 @@ const ShopOrdersPage = () => {
                 flex: 1,
                 p: 2.5,
                 borderRadius: 2,
-                border: `1px solid ${theme.palette.divider}`,
+                border: `1px solid ${stat.highlight ? theme.palette.warning.main : theme.palette.divider}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
+                ...(stat.highlight && { bgcolor: '#fffbf0' }),
               }}
             >
               <Box
@@ -217,7 +236,7 @@ const ShopOrdersPage = () => {
                 <Typography sx={{ fontSize: 13, color: theme.palette.text.secondary, fontWeight: 500 }}>
                   {stat.label}
                 </Typography>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.text.primary }}>
+                <Typography sx={{ fontSize: 24, fontWeight: 700, color: stat.highlight ? theme.palette.warning.dark : theme.palette.text.primary }}>
                   {stat.value}
                 </Typography>
               </Box>
@@ -313,6 +332,7 @@ const ShopOrdersPage = () => {
                     orderList.map((row) => {
                       const statusStyle = getStatusColor(row.status);
                       const trackingDisplay = row.ghnOrderCode ?? row.trackingNumber;
+                      const unpaid = isUnpaid(row);
                       return (
                         <TableRow
                           key={row.id}
@@ -395,17 +415,33 @@ const ShopOrdersPage = () => {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Chip
-                              label={ORDER_STATUS_LABEL[row.status] ?? row.status}
-                              size="small"
-                              sx={{
-                                backgroundColor: statusStyle.bg,
-                                color: statusStyle.color,
-                                fontWeight: 600,
-                                fontSize: 12,
-                                borderRadius: 1,
-                              }}
-                            />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Chip
+                                label={ORDER_STATUS_LABEL[row.status] ?? row.status}
+                                size="small"
+                                sx={{
+                                  backgroundColor: statusStyle.bg,
+                                  color: statusStyle.color,
+                                  fontWeight: 600,
+                                  fontSize: 12,
+                                  borderRadius: 1,
+                                }}
+                              />
+                              {unpaid && (
+                                <Chip
+                                  icon={<HourglassEmpty sx={{ fontSize: '12px !important' }} />}
+                                  label="Awaiting Payment"
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: theme.palette.warning.light,
+                                    color: theme.palette.warning.dark,
+                                    fontWeight: 600,
+                                    fontSize: 11,
+                                    borderRadius: 1,
+                                  }}
+                                />
+                              )}
+                            </Box>
                           </TableCell>
                           <TableCell align="right">
                             <IconButton size="small" onClick={(e) => e.stopPropagation()}>

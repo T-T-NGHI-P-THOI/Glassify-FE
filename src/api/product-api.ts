@@ -78,7 +78,7 @@ export interface ApiProduct {
   reviewCount: number;
   metaTitle: string;
   metaDescription: string;
-  productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
   fileResponses?: {
@@ -140,6 +140,11 @@ export interface ProductWithFrameInfoData {
 }
 
 export interface ApiTextureFile {
+  frameWidthMm: number;
+  lensWidthMm: number;
+  lensHeightMm: number;
+  bridgeWidthMm: number;
+  templeLengthMm: number;
   colorHex: string;
   url: string;
 }
@@ -175,7 +180,7 @@ export interface ProductFilterParams {
   isActive?: boolean;
   isFeatured?: boolean;
   isReturnable?: boolean;
-  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType?: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   minStock?: number;
   maxStock?: number;
   lowStockOnly?: boolean;
@@ -185,6 +190,7 @@ export interface ProductFilterParams {
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
   colors?: string[];
   frameShapes?: string[];
+  ageGroups?: string;
 }
 
 // Review filter parameters
@@ -205,6 +211,7 @@ export interface ReviewResponse {
       5: number;
     };
     total: number;
+    avgRating: number;
   };
 }
 
@@ -394,7 +401,8 @@ export default class ProductAPI {
         reviews: [],
         summary: {
           counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-          total: 0
+          total: 0,
+          avgRating: 0
         }
       };
     }
@@ -461,6 +469,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async setIsFeaturedProduct(productId: string) {
+    const response = await axiosInstance.patch(
+      API_ENDPOINTS.PRODUCTS.SET_FEATURE_PRODUCT(productId)
+    );
+    return response.data.data;
+  }
+
   static async upload3DModelFile(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.UPLOAD_3D_MODEL,
@@ -502,10 +517,8 @@ export default class ProductAPI {
     return response.data as Blob;
   }
 
-  static async getTextureFiles(frameGroupId: string): Promise<ApiTextureFile[]> {
-    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_TEXTURE_FILES, {
-      params: { frameGroupId }
-    });
+  static async getVirtualTryOnParams(frameGroupId: string): Promise<ApiTextureFile[]> {
+    const response = await axiosInstance.get(API_ENDPOINTS.PRODUCTS.GET_VIRTUAL_TRY_ON_PARAMS(frameGroupId));
     return response.data.data as ApiTextureFile[];
   }
 
@@ -518,6 +531,13 @@ export default class ProductAPI {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return response.data.data;
+  }
+
+  static async deleteFrameGroup(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_FRAME_GROUP(id),
     );
     return response.data.data;
   }
@@ -535,6 +555,12 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async deleteFrameVariant(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_FRAME_VARIANT(id),
+    );
+    return response.data.data;
+  }
   // ------------------------------------------------------------
   // ----------------------- ACCESSORY --------------------------
   // ------------------------------------------------------------
@@ -561,6 +587,13 @@ export default class ProductAPI {
     return response.data.data;
   }
 
+  static async deleteAccessory(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_ACCESSORY(id),
+    );
+    return response.data.data;
+  }
+
   static async createAccessoryVariant(body: FormData) {
     const response = await axiosInstance.post(
       API_ENDPOINTS.PRODUCTS.CREATE_ACCESSORY_VARIANT,
@@ -578,6 +611,13 @@ export default class ProductAPI {
           'Content-Type': 'multipart/form-data',
         },
       }
+    );
+    return response.data.data;
+  }
+
+  static async deleteAccessoryVariant(id: string) {
+    const response = await axiosInstance.delete(
+      API_ENDPOINTS.PRODUCTS.DELETE_ACCESSORY_VARIANT(id),
     );
     return response.data.data;
   }

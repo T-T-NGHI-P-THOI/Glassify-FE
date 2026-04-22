@@ -13,6 +13,7 @@ import { Close, CloudUpload, Delete, Save } from '@mui/icons-material';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { toast } from 'react-toastify';
 import ProductAPI from '@/api/product-api';
+import { sanitizeTextInput } from '@/utils/text-input';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 import { ProductSize } from '@/types/product.enums';
 
@@ -156,7 +157,7 @@ export default function CreateAccessoryVariantPopup({
                 if (img.file) payload.append('productImages', img.file);
             });
             const response = await ProductAPI.createAccessoryVariant(payload);
-            onCreated?.(response.id, response.productId, formData);
+            onCreated?.(response.id, response.productResponse.id, formData);
             toast.success('Accessory variant created successfully!');
             setFormData(DEFAULT_FORM);
             onClose();
@@ -220,7 +221,7 @@ export default function CreateAccessoryVariantPopup({
                         <TextField
                             fullWidth label="Variant Name"
                             value={formData.name}
-                            onChange={e => setField('name', e.target.value)}
+                            onChange={e => setField('name', sanitizeTextInput(e.target.value, { maxLength: 150 }))}
                             size="small" sx={fieldSx}
                             placeholder="e.g. Black Large Case"
                             InputProps={{

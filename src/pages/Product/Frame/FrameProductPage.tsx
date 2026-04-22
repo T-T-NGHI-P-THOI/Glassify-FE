@@ -33,6 +33,7 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import ProductAPI from '@/api/product-api';
 import EditFrameGroupDialog, { type EditFrameGroupFormData } from './Edit/EditFrameGroupDialog';
+import { sanitizeSearchInput } from '@/utils/text-input';
 import DeleteConfirmDialog from './Delete/DeleteConfirmDialog';
 import FrameGroupCard, { type FrameGroup } from './View/FrameGroupCard';
 import ViewFrameGroupDialog from './View/ViewFrameGroupDialog';
@@ -252,7 +253,7 @@ const FrameProductPage = () => {
             placeholder="Search frames..."
             size="small"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => { setSearch(sanitizeSearchInput(e.target.value)); setPage(1); }}
             sx={{ width: 280 }}
             InputProps={{
               startAdornment: (
@@ -352,8 +353,8 @@ const FrameProductPage = () => {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
-        loading={deleteLoading}
         itemName={deleteTarget?.frameName}
+        frameGroupId={deleteTarget?.id}
       />
     </Box>
   );

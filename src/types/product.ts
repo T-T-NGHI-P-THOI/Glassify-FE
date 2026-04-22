@@ -20,7 +20,7 @@ export interface Product {
   reviewCount: number;
   shape: string;
   category: string;
-  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType?: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   variantId?: string;
   frameGroupId?: string;
   vrEnabled?: boolean;
@@ -94,6 +94,8 @@ export interface Review {
   id: string;
   productId: string;
   userId: string;
+  username?: string;
+  fullName?: string;
   rating: number;
   title: string;
   comment: string;

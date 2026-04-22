@@ -69,7 +69,7 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 // ==================== ENUMS (matching backend) ====================
 type WarrantyStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'ITEM_RECEIVED' | 'REJECTED' | 'QUOTED' | 'QUOTE_REJECTED' | 'IN_REPAIR' | 'IN_PROGRESS' | 'RETURNING_TO_CUSTOMER' | 'COMPLETED' | 'DELIVERED';
-type WarrantyIssueType = 'BROKEN_FRAME' | 'BROKEN_LENS' | 'LOOSE_HINGE' | 'COATING_DAMAGE' | 'OTHER';
+type WarrantyIssueType = string;
 
 // ==================== INTERFACES (matching backend models) ====================
 interface WarrantyClaim {
@@ -166,7 +166,7 @@ const maintenanceProcess = [
 ];
 
 // ==================== HELPERS ====================
-const getIssueTypeLabel = (type: WarrantyIssueType) => {
+const getIssueTypeLabel = (type: string) => {
   switch (type) {
     case 'BROKEN_FRAME': return 'Broken Frame';
     case 'BROKEN_LENS': return 'Broken Lens';
@@ -297,6 +297,9 @@ const WarrantyPage = () => {
     issueType: '' as WarrantyIssueType | '',
     issueDescription: '',
   });
+
+  const [shopIssueTypes, setShopIssueTypes] = useState<{ id: string; typeName: string }[]>([]);
+  const [loadingIssueTypes, setLoadingIssueTypes] = useState(false);
 
   // Order selection state
   const [deliveredOrders, setDeliveredOrders] = useState<OrderResponse[]>([]);
@@ -497,7 +500,23 @@ const WarrantyPage = () => {
     setSelectedProvinceId(''); setSelectedDistrictId(''); setSelectedWardCode('');
     setProvinceName(''); setDistrictName(''); setWardName('');
     setPickupErrors({});
+    setLoadingIssueTypes(false);
+    setShopIssueTypes([]);
     setShowAddressSelector(false);
+  };
+
+  const fetchShopIssueTypes = async (shopId: string) => {
+    try {
+      setLoadingIssueTypes(true);
+      const res = await warrantyApi.getShopIssueTypes(shopId);
+      if (res.data) {
+        setShopIssueTypes(res.data);
+      }
+    } catch {
+      toast.error('Failed to load issue types for this shop');
+    } finally {
+      setLoadingIssueTypes(false);
+    }
   };
 
   const handleSubmitClaim = async () => {
@@ -1583,14 +1602,14 @@ const WarrantyPage = () => {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.custom.border.light}`, gap: 1 }}>
-              {selectedClaim.status === 'QUOTED' && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
+              {(selectedClaim.status === 'QUOTED' || selectedClaim.status === 'QUOTE_REJECTED') && selectedClaim.customerPays != null && selectedClaim.paymentStatus !== 'PAID' && (
                 <Button
                   variant="contained"
                   startIcon={<Payment />}
                   onClick={() => { setDetailDialogOpen(false); handleOpenPay(); }}
                   sx={{ textTransform: 'none', fontWeight: 600, px: 3, borderRadius: '8px', bgcolor: theme.palette.custom.status.warning.main, '&:hover': { bgcolor: '#b45309' } }}
                 >
-                  Pay Now — {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
+                  Pay Shipping Fee — {selectedClaim.customerPays === 0 ? 'Free' : `${Number(selectedClaim.customerPays).toLocaleString('vi-VN')} VND`}
                 </Button>
               )}
               {selectedClaim.status === 'QUOTED' && (
@@ -1705,7 +1724,8 @@ const WarrantyPage = () => {
                   onChange={(e) => {
                     const order = deliveredOrders.find((o) => o.id === e.target.value) ?? null;
                     setSelectedOrder(order);
-                    setFormData({ ...formData, orderItemId: '' });
+                    setFormData({ ...formData, orderItemId: '', issueType: '' });
+                    setShopIssueTypes([]);
                   }}
                   label="Select Order"
                   disabled={loadingOrders}
@@ -1732,7 +1752,15 @@ const WarrantyPage = () => {
                   <InputLabel>Select Item</InputLabel>
                   <Select
                     value={formData.orderItemId}
-                    onChange={(e) => setFormData({ ...formData, orderItemId: e.target.value })}
+                    onChange={(e) => {
+                      const itemId = e.target.value;
+                      setFormData({ ...formData, orderItemId: itemId, issueType: '' });
+                      setShopIssueTypes([]);
+                      const item = selectedOrder.items.find((i) => i.id === itemId);
+                      if (item) {
+                        fetchShopIssueTypes(item.shopId);
+                      }
+                    }}
                     label="Select Item"
                   >
                     {selectedOrder.items.map((item) => {
@@ -1766,13 +1794,19 @@ const WarrantyPage = () => {
                 <InputLabel>Issue Type</InputLabel>
                 <Select
                   value={formData.issueType}
-                  onChange={(e) => setFormData({ ...formData, issueType: e.target.value as WarrantyIssueType })}
+                  onChange={(e) => setFormData({ ...formData, issueType: e.target.value })}
                   label="Issue Type"
+                  disabled={loadingIssueTypes || !formData.orderItemId}
                 >
-                  <MenuItem value="BROKEN_FRAME">Broken Frame</MenuItem>
-                  <MenuItem value="BROKEN_LENS">Broken Lens</MenuItem>
-                  <MenuItem value="LOOSE_HINGE">Loose Hinge</MenuItem>
-                  <MenuItem value="COATING_DAMAGE">Coating Damage</MenuItem>
+                  {loadingIssueTypes && <MenuItem disabled>Loading options...</MenuItem>}
+                  {!loadingIssueTypes && shopIssueTypes.length === 0 && formData.orderItemId && (
+                    <MenuItem disabled>No issue types defined by shop</MenuItem>
+                  )}
+                  {shopIssueTypes.map((type) => (
+                    <MenuItem key={type.id} value={type.typeName}>
+                      {type.typeName}
+                    </MenuItem>
+                  ))}
                   <MenuItem value="OTHER">Other</MenuItem>
                 </Select>
               </FormControl>
@@ -2038,7 +2072,9 @@ const WarrantyPage = () => {
                 <Payment sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Pay for Warranty Service</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 700 }}>
+                  {selectedClaim?.status === 'QUOTE_REJECTED' ? 'Pay Return Shipping Fee' : 'Pay for Warranty Service'}
+                </Typography>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{selectedClaim?.claimNumber}</Typography>
               </Box>
             </Box>

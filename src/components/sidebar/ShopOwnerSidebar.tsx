@@ -63,7 +63,7 @@ export const ShopOwnerSidebar = ({
   const [shopLogo, setShopLogo] = useState(shopLogoProp);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     Products: location.pathname.startsWith('/shop/products') || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCTS || activeMenu === PAGE_ENDPOINTS.SHOP.PRODUCT_LENS,
-    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES,
+    Warranty: location.pathname.startsWith('/shop/warranty') || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES || activeMenu === PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES,
   });
 
   useEffect(() => {
@@ -137,6 +137,7 @@ export const ShopOwnerSidebar = ({
       children: [
         { label: 'Warranty Claims', path: PAGE_ENDPOINTS.SHOP.WARRANTY },
         { label: 'Policies & Pricing', path: PAGE_ENDPOINTS.SHOP.WARRANTY_POLICIES },
+        { label: 'Issue Types', path: PAGE_ENDPOINTS.SHOP.WARRANTY_ISSUE_TYPES },
       ],
     },
   ];

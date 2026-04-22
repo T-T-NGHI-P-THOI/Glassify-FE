@@ -24,6 +24,7 @@ import Upload3DModelPage, { type Model3DFile } from '../Create/Upload3DModel';
 import ProductAPI from '@/api/product-api';
 import { toast } from 'react-toastify';
 import type { FrameGroup } from '../View/FrameGroupCard';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -185,8 +186,8 @@ const EditFrameGroupDialog = ({
                 ProductAPI.updateFrameGroup(id, formData),
                 {
                     pending: "Updating...",
-                    success: "Updated successfully 🎉",
-                    error: "Update failed ❌",
+                    success: "Updated frame variant successfully",
+                    error: "Update failed",
                 }
             );
 
@@ -198,7 +199,7 @@ const EditFrameGroupDialog = ({
     const handleInputChange =
         (field: keyof EditFrameGroupFormData) =>
             (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                setFormData(prev => ({ ...prev, [field]: e.target.value }));
+                setFormData(prev => ({ ...prev, [field]: sanitizeTextInput(e.target.value, { maxLength: field === 'description' ? 1000 : 150 }) }));
             };
 
     // Init data
@@ -325,7 +326,7 @@ const EditFrameGroupDialog = ({
                             select
                             label="Frame structure"
                             value={formData.frameStructure}
-                            onChange={(e) => set('frameName', e.target.value)}
+                            onChange={(e) => set('frameStructure', e.target.value)}
                             fullWidth
                             size="small"
                             sx={fieldSx}

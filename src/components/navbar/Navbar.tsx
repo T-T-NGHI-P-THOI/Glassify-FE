@@ -44,6 +44,7 @@ import { useLayout } from '@/layouts/LayoutContext';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
 import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 import { RecommendationSearchButton } from "../custom/RecommendationSearchButton";
+import { sanitizeSearchInput } from '@/utils/text-input';
 
 export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,10 +102,12 @@ export const Navbar = () => {
   };
 
   const handleCategoryClick = (item: typeof mainCategories[0]) => {
-    if (item.category) {
-      navigate(`${item.path}?category=${encodeURIComponent(item.category)}`);
+    if (item.label === 'Lenses') {
+      navigate(`/products?productType=LENSES`, { state: { resetFilters: 'LENSES' } });
+    } else if (item.category) {
+      navigate(`${item.path}?category=${encodeURIComponent(item.category)}`, { replace: true, state: { resetFilters: item.category } });
     } else {
-      navigate(item.path);
+      navigate(item.path, { replace: true, state: { resetFilters: null } });
     }
   };
 
@@ -158,7 +161,7 @@ export const Navbar = () => {
                 size="small"
                 placeholder="Search glasses"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(sanitizeSearchInput(e.target.value))}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -451,7 +454,7 @@ export const Navbar = () => {
               size="small"
               placeholder="Search glasses"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(sanitizeSearchInput(e.target.value))}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

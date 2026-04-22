@@ -16,12 +16,16 @@ import {
     InfoOutlined,
     BarChart,
     Category,
+    Star, StarBorder
 } from '@mui/icons-material';
 import { useState } from 'react';
 import AccessoryVariantDetailDialog from './AccessoryVariantDetailDialog';
 import CreateAccessoryVariantPopup from '../Create/CreateAccessoryVariantPopup';
 import EditAccessoryVariantDialog, { type EditAccessoryVariantFormData } from '../Edit/EditAccessoryVariantDialog';
-
+import { } from '@mui/icons-material';
+import DeleteAccessoryVariantDialog from '../Delete/DeleteAccessoryVariantDialog';
+import SetAccessoryFeaturedDialog from '../Edit/SetAccessoryFeaturedDialog';
+import type { ProductSize } from '@/types/product.enums';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AccessoryVariantResponse {
@@ -30,7 +34,7 @@ export interface AccessoryVariantResponse {
     name: string | null;
     color: string | null;
     colorHex: string | null;
-    size: string | null;
+    size: ProductSize;
     isFeatured: boolean | null;
     productId: string | null;
     productName: string | null;
@@ -105,6 +109,11 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
     const [addVariantOpen, setAddVariantOpen] = useState(false);
     const [editVariantOpen, setEditVariantOpen] = useState(false);
     const [editingVariant, setEditingVariant] = useState<AccessoryVariantResponse | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [selectedDeleteVariant, setSelectedDeleteVariant] = useState<AccessoryVariantResponse | null>(null);
+    const [featuredOpen, setFeaturedOpen] = useState(false);
+    const [selectedFeaturedVariant, setSelectedFeaturedVariant] = useState<AccessoryVariantResponse | null>(null);
+
 
     if (variants.length === 0) {
         return (
@@ -176,7 +185,7 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
             })
         );
     };
-    
+
     const handleVariantUpdated = (variantId: string, data: EditAccessoryVariantFormData) => {
         setAccessories(prev =>
             prev.map(acc => ({
@@ -193,6 +202,31 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                         }
                     } : v
                 ),
+            }))
+        );
+    };
+
+    const handleDeleteConfirm = () => {
+        setAccessories(prev =>
+            prev.map(acc => ({
+                ...acc,
+                variants: acc.variants.filter(v => v.id !== selectedDeleteVariant?.id),
+            }))
+        );
+    };
+
+    // Handler onSuccess featured
+    const handleFeaturedSuccess = () => {
+        setAccessories(prev =>
+            prev.map(acc => ({
+                ...acc,
+                variants: acc.variants.map(v => ({
+                    ...v,
+                    productResponse: {
+                        ...v.productResponse,
+                        isFeatured: v.id === selectedFeaturedVariant?.id,
+                    },
+                })),
             }))
         );
     };
@@ -328,6 +362,30 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                         borderTop: `0.5px solid ${theme.palette.custom.border.light}`,
                                     }}
                                 >
+                                    <Tooltip title={v.productResponse?.isFeatured ? "Featured product" : "Set as featured"}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                if (!v.productResponse?.isFeatured) {
+                                                    setSelectedFeaturedVariant(v);
+                                                    console.log("Feature v", v)
+                                                    setFeaturedOpen(true);
+                                                }
+                                            }}
+                                            sx={{
+                                                width: 22, height: 22, borderRadius: 0.75,
+                                                bgcolor: v.productResponse?.isFeatured ? '#fef9c3' : theme.palette.custom.neutral[100],
+                                                '&:hover': {
+                                                    bgcolor: v.productResponse?.isFeatured ? '#fde68a' : theme.palette.custom.neutral[200],
+                                                },
+                                            }}
+                                        >
+                                            {v.productResponse?.isFeatured
+                                                ? <Star sx={{ fontSize: 12, color: '#eab308' }} />
+                                                : <StarBorder sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} />
+                                            }
+                                        </IconButton>
+                                    </Tooltip>
                                     <Tooltip title="View detail">
                                         <IconButton
                                             size="small"
@@ -363,6 +421,10 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                                 width: 22, height: 22, borderRadius: 0.75,
                                                 bgcolor: theme.palette.custom.status.error.light,
                                                 '&:hover': { bgcolor: '#fecaca' },
+                                            }}
+                                            onClick={() => {
+                                                setSelectedDeleteVariant(v);
+                                                setDeleteOpen(true);
                                             }}
                                         >
                                             <DeleteOutline sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }} />
@@ -423,6 +485,34 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                     }}
                 />
             )}
+            {selectedDeleteVariant && (
+                <DeleteAccessoryVariantDialog
+                    open={deleteOpen}
+                    variantId={selectedDeleteVariant.id}
+                    colorName={selectedDeleteVariant.color ?? selectedDeleteVariant.name ?? undefined}
+                    variantSize={selectedDeleteVariant.size}
+                    onClose={() => { setDeleteOpen(false); setSelectedDeleteVariant(null); }}
+                    onConfirm={() => {
+                        handleDeleteConfirm();
+                        setDeleteOpen(false);
+                        setSelectedDeleteVariant(null);
+                    }}
+                />
+            )}
+
+            <SetAccessoryFeaturedDialog
+                open={featuredOpen}
+                productId={selectedFeaturedVariant?.productResponse.id}
+                accessoryName={selectedFeaturedVariant?.name ?? ''}
+                variantSize={selectedFeaturedVariant?.size}
+                colorName={selectedFeaturedVariant?.color ?? ''}
+                onClose={() => { setFeaturedOpen(false); setSelectedFeaturedVariant(null); }}
+                onSuccess={() => {
+                    handleFeaturedSuccess();
+                    setFeaturedOpen(false);
+                    setSelectedFeaturedVariant(null);
+                }}
+            />
         </>
     );
 };
@@ -631,10 +721,10 @@ const AccessoryCard = ({
                     {price ? (
                         <>
                             <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                                {price.base.toLocaleString('vi-VN')}₫
+                                {(price?.base ?? 0).toLocaleString('vi-VN')}₫
                             </Typography>
                             <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], ml: 'auto' }}>
-                                Cost: {price.cost.toLocaleString('vi-VN')}₫
+                                Cost: {(price?.cost ?? 0).toLocaleString('vi-VN')}₫
                             </Typography>
                         </>
                     ) : (

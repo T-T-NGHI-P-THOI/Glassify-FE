@@ -23,7 +23,7 @@ const fontSerif = "'Playfair Display', serif";
 const buildSearchParams = (recommendedFrameStyles: FrameShape[], luckColors: string[]): URLSearchParams => {
     const params = new URLSearchParams();
     recommendedFrameStyles.forEach(style => params.append("frameShapes", style));
-    luckColors.forEach(color => params.append("colors", color));
+    luckColors.forEach(color => params.append("colors", color.toUpperCase()));
     return params;
 };
 
@@ -183,6 +183,7 @@ interface Props {
     setSaveModalOpen: (open: boolean) => void;
     isAnalyzing?: boolean;
     onRecommendReady?: (frames: FrameShape[], lens: string) => void;
+    handleClose?: () => void;
 }
 
 export const FaceShapeSuggestionPanel = ({
@@ -191,6 +192,7 @@ export const FaceShapeSuggestionPanel = ({
     setSaveModalOpen,
     isAnalyzing = false,
     onRecommendReady,
+    handleClose
 }: Props) => {
     const navigate = useNavigate();
     const [visible, setVisible] = useState(false);
@@ -216,7 +218,14 @@ export const FaceShapeSuggestionPanel = ({
             getFrameShapes(result.shape),
             fengShuiResult?.luckyColors ?? [],
         );
-        navigate(`/products?${params.toString()}`);
+        handleClose?.();
+        const url = `/products?${params.toString()}`;
+        
+        if (window.location.pathname === "/products") {
+            window.location.href = url;
+        } else {
+            navigate(url);
+        }
     };
 
     if (!result && !isAnalyzing) return null;

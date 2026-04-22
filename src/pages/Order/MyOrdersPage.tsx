@@ -46,12 +46,21 @@ import {
   Close,
   CloudUpload,
   Delete,
+  WarningAmber,
+  TaskAlt,
+  Science,
+  AssignmentTurnedIn,
+  Star,
+  StarBorder,
+  RateReview,
 } from '@mui/icons-material';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderApi } from '@/api/order-api';
+import { paymentApi } from '@/api/payment-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
+import { reviewApi } from '@/api/review-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import AccessTime from '@mui/icons-material/AccessTime';
@@ -60,9 +69,10 @@ import { ReturnReason, ReturnStatus, ReturnType, RETURN_REASON_LABELS } from '@/
 import { createReturnRequest, listReturnRequests, uploadRefundEvidenceImages } from '@/api/refund-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { getApiErrorMessage } from '@/utils/api-error';
+import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -70,6 +80,7 @@ type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
 // ==================== INTERFACES (matching backend models) ====================
 interface OrderItem {
   id: string;
+  productId?: string;
   productName: string;
   productSku?: string;
   productImageUrl?: string;
@@ -136,7 +147,7 @@ interface ItemRefundLookup {
 // Mock data removed - using real API
 
 // ==================== HELPERS ====================
-const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered'];
+const ORDER_STEPS = ['Pending', 'Confirmed', 'Processing', 'Delivered', 'Completed'];
 
 const getStepIndex = (status: OrderStatus): number => {
   switch (status) {
@@ -145,10 +156,12 @@ const getStepIndex = (status: OrderStatus): number => {
     case 'PROCESSING':
     case 'READY_TO_SHIP':
     case 'SHIPPED':              return 2;
-    case 'TRANSPORTING':         return 3;
-    case 'DELIVERED':            return 4;
+    case 'TRANSPORTING':
+    case 'DELIVERED':            return 3;
+    case 'COMPLETED':            return 4;
     case 'RETURN_IN_TRANSIT':
-    case 'REJECTED_BY_CUSTOMER': return 4;
+    case 'REJECTED_BY_CUSTOMER': return 3;
+    case 'DELIVERY_FAILED':      return -2;
     case 'CANCELLED':            return -1;
     case 'REFUNDED':             return -1;
     default:                     return 0;
@@ -241,7 +254,9 @@ interface OrderStepperProps {
 const OrderStepper = ({ status }: OrderStepperProps) => {
   const theme = useTheme();
   const activeStep = getStepIndex(status);
-  const isCancelled = status === 'CANCELLED';
+  const isCancelled = status === 'CANCELLED' || status === 'REFUNDED';
+  const isDeliveryFailed = status === 'DELIVERY_FAILED';
+  const isReturned = status === 'REJECTED_BY_CUSTOMER' || status === 'RETURN_IN_TRANSIT';
 
   if (isCancelled) {
     return (
@@ -258,7 +273,49 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
       >
         <Cancel sx={{ fontSize: 20, color: theme.palette.custom.status.error.main }} />
         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.error.main }}>
-          Order has been cancelled
+          {status === 'REFUNDED' ? 'Order has been refunded' : 'Order has been cancelled'}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isDeliveryFailed) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          py: 1.5,
+          px: 2,
+          borderRadius: 1.5,
+          bgcolor: theme.palette.custom.status.warning.light,
+        }}
+      >
+        <WarningAmber sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.warning.main }}>
+          Delivery attempt failed — awaiting re-attempt or return
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isReturned) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          py: 1.5,
+          px: 2,
+          borderRadius: 1.5,
+          bgcolor: theme.palette.custom.status.rose.light,
+        }}
+      >
+        <AssignmentReturn sx={{ fontSize: 20, color: theme.palette.custom.status.rose.main }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.rose.main }}>
+          {status === 'RETURN_IN_TRANSIT' ? 'Return in transit' : 'Order rejected — return in progress'}
         </Typography>
       </Box>
     );
@@ -269,6 +326,7 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
     <VerifiedUser key="confirmed" sx={{ fontSize: 18 }} />,
     <Inventory key="processing" sx={{ fontSize: 18 }} />,
     <CheckCircle key="delivered" sx={{ fontSize: 18 }} />,
+    <TaskAlt key="completed" sx={{ fontSize: 18 }} />,
   ];
 
   return (
@@ -363,6 +421,35 @@ const MyOrdersPage = () => {
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
+  const [confirmingReceivedId, setConfirmingReceivedId] = useState<string | null>(null);
+  const [demoActionId, setDemoActionId] = useState<string | null>(null);
+
+  // Platform settings (used to determine refund/return windows)
+  const [platformSetting, setPlatformSetting] = useState<PlatformSetting | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPlatformSetting = async () => {
+      try {
+        const setting = await getCurrentPlatformSetting();
+        if (mounted) setPlatformSetting(setting);
+      } catch (error) {
+        console.error('Failed to load platform settings:', error);
+      }
+    };
+    fetchPlatformSetting();
+    return () => { mounted = false; };
+  }, []);
+
+  // Review Dialog States
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTargetItem, setReviewTargetItem] = useState<OrderItem | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<{ file: File; preview: string }[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewedItemIds, setReviewedItemIds] = useState<Set<string>>(new Set());
+
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedReturnItemIds, setSelectedReturnItemIds] = useState<string[]>([]);
@@ -388,6 +475,9 @@ const MyOrdersPage = () => {
     fetchOrders();
     userAddressApi.getAll().then((res) => {
       if (res.data) setUserAddresses(res.data);
+    }).catch(() => {});
+    reviewApi.getMyReviewedOrderItemIds().then((ids) => {
+      setReviewedItemIds(new Set(ids));
     }).catch(() => {});
   }, [fetchOrders]);
 
@@ -434,6 +524,108 @@ const MyOrdersPage = () => {
     }
   };
 
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+
+  const handlePayNow = async (order: Order) => {
+    try {
+      setPayingOrderId(order.id);
+      if (order.paymentMethod === 'VNPAY') {
+        const res = await paymentApi.createVnpayPayment({ orderId: order.id });
+        if (res.data) {
+          window.location.href = res.data;
+        }
+      } else if (order.paymentMethod === 'E_WALLET') {
+        await paymentApi.payFromWallet({ orderId: order.id });
+        toast.success('Payment successful!');
+        await fetchOrders();
+        setDetailDialogOpen(false);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Payment failed');
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const getPaymentDeadline = (orderedAt: string): Date => {
+    const d = new Date(orderedAt);
+    d.setHours(d.getHours() + 24);
+    return d;
+  };
+
+  const isUnpaidPrePayment = (order: Order) =>
+    order.status === 'PENDING' &&
+    order.paymentStatus === 'PENDING' &&
+    (order.paymentMethod === 'VNPAY' || order.paymentMethod === 'E_WALLET');
+
+  const handleConfirmReceived = async (orderId: string) => {
+    try {
+      setConfirmingReceivedId(orderId);
+      await orderApi.confirmReceived(orderId);
+      toast.success('Order confirmed as received');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Failed to confirm receipt'));
+    } finally {
+      setConfirmingReceivedId(null);
+    }
+  };
+
+  const handleDemoDeliveryFailed = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.markDeliveryFailed(orderId);
+      toast.info('[DEMO] Delivery marked as failed');
+      await fetchOrders();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoRefuseDelivery = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.refuseDelivery(orderId);
+      toast.info('[DEMO] Delivery refused — order returned');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoReattempt = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.forceStatus(orderId, 'SHIPPED');
+      toast.info('[DEMO] Re-attempt scheduled — status back to Shipped');
+      await fetchOrders();
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
+  const handleDemoReturn = async (orderId: string) => {
+    try {
+      setDemoActionId(orderId);
+      await orderApi.refuseDelivery(orderId);
+      toast.info('[DEMO] Order returned to sender');
+      await fetchOrders();
+      if (selectedOrder?.id === orderId) setDetailDialogOpen(false);
+    } catch (error: any) {
+      toast.error(getApiErrorMessage(error, 'Demo action failed'));
+    } finally {
+      setDemoActionId(null);
+    }
+  };
+
   const fetchItemRefundLookup = useCallback(async (orderId: string) => {
     try {
       const response = await listReturnRequests({
@@ -461,6 +653,61 @@ const MyOrdersPage = () => {
     }
   }, []);
 
+  // Review Handlers
+  const handleOpenReviewDialog = (item: OrderItem) => {
+    setReviewTargetItem(item);
+    setReviewRating(5);
+    setReviewComment('');
+    setReviewImages([]);
+    setReviewDialogOpen(true);
+  };
+
+  const handleCloseReviewDialog = () => {
+    reviewImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setReviewImages([]);
+    setReviewDialogOpen(false);
+    setReviewTargetItem(null);
+  };
+
+  const handleReviewImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      setReviewImages((prev) => {
+        if (prev.length >= 3) return prev;
+        return [...prev, { file, preview: URL.createObjectURL(file) }];
+      });
+    });
+    e.target.value = '';
+  };
+
+  const handleRemoveReviewImage = (index: number) => {
+    setReviewImages((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTargetItem) return;
+    try {
+      setSubmittingReview(true);
+      await reviewApi.createReview({
+        orderItemId: reviewTargetItem.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+        images: reviewImages.map((img) => img.file),
+      });
+      setReviewedItemIds(prev => new Set(prev).add(reviewTargetItem.id));
+      handleCloseReviewDialog();
+      toast.success('Review submitted successfully!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   // Return Request Handlers
   const createDefaultReturnItemForm = (): ReturnItemForm => ({
     reason: ReturnReason.DEFECTIVE,
@@ -469,6 +716,26 @@ const MyOrdersPage = () => {
   });
 
   const handleOpenReturnDialog = (orderItem: OrderItem) => {
+    if (!selectedOrder) {
+      toast.error('Order information not found');
+      return;
+    }
+
+    if (selectedOrder.status !== 'COMPLETED') {
+      toast.error('Cannot create return request: order is not in a suitable state.');
+      return;
+    }
+
+    const returnWindowDays = platformSetting?.returnWindowDays ?? null;
+    if (selectedOrder.completedAt && returnWindowDays != null) {
+      const completedTime = new Date(selectedOrder.completedAt).getTime();
+      const expiryTime = completedTime + returnWindowDays * 24 * 60 * 60 * 1000;
+      if (Date.now() > expiryTime) {
+        toast.error('Return window has expired.');
+        return;
+      }
+    }
+
     setSelectedReturnItemIds([orderItem.id]);
     setReturnItemForms({
       [orderItem.id]: createDefaultReturnItemForm(),
@@ -547,6 +814,23 @@ const MyOrdersPage = () => {
     if (selectedReturnItemIds.length === 0) {
       toast.error('Please select at least 1 product to create a request');
       return;
+    }
+
+    // Ensure order status is valid for return requests
+    if (selectedOrder.status !== 'COMPLETED') {
+      toast.error('Cannot create return request: order is not in a suitable state.');
+      return;
+    }
+
+    // Enforce platform-configured return window if available (based on completedAt)
+    const returnWindowDays = platformSetting?.returnWindowDays ?? null;
+    if (selectedOrder.completedAt && returnWindowDays != null) {
+      const completedTime = new Date(selectedOrder.completedAt).getTime();
+      const expiryTime = completedTime + returnWindowDays * 24 * 60 * 60 * 1000;
+      if (Date.now() > expiryTime) {
+        toast.error('Return window has expired.');
+        return;
+      }
     }
 
     try {
@@ -639,6 +923,10 @@ const MyOrdersPage = () => {
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'DELIVERED':
         return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'COMPLETED':
+        return { bg: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main };
+      case 'DELIVERY_FAILED':
+        return { bg: theme.palette.custom.status.warning.light, color: theme.palette.custom.status.warning.main };
       case 'CANCELLED':
         return { bg: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main };
       case 'REFUNDED':
@@ -694,6 +982,8 @@ const MyOrdersPage = () => {
       case 'REFUNDED':             return 'Refunded';
       case 'RETURN_IN_TRANSIT':    return 'Return in Transit';
       case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
+      case 'DELIVERY_FAILED':      return 'Delivery Failed';
+      case 'COMPLETED':            return 'Completed';
       default: return status;
     }
   };
@@ -712,6 +1002,38 @@ const MyOrdersPage = () => {
     return amount.toLocaleString('vi-VN') + ' VND';
   };
 
+  const DemoActionButton = ({
+    onClick,
+    loading,
+    children,
+  }: {
+    onClick: () => void;
+    loading?: boolean;
+    children: ReactNode;
+  }) => (
+    <Button
+      variant="outlined"
+      size="small"
+      disabled={loading}
+      onClick={onClick}
+      startIcon={<Science sx={{ fontSize: 14 }} />}
+      sx={{
+        textTransform: 'none',
+        fontWeight: 600,
+        fontSize: 12,
+        borderRadius: '10px',
+        borderStyle: 'dashed',
+        borderColor: '#f59e0b',
+        color: '#b45309',
+        bgcolor: '#fffbeb',
+        px: 2,
+        '&:hover': { bgcolor: '#fef3c7', borderColor: '#d97706' },
+      }}
+    >
+      {children}
+    </Button>
+  );
+
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 0) return true;
     if (activeTab === 1) return order.status === 'PENDING';
@@ -720,6 +1042,9 @@ const MyOrdersPage = () => {
     if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
     if (activeTab === 5) return order.status === 'DELIVERED';
     if (activeTab === 6) return order.status === 'CANCELLED';
+    if (activeTab === 7) return order.status === 'DELIVERY_FAILED';
+    if (activeTab === 8) return order.status === 'COMPLETED';
+    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(order.status);
     return true;
   });
 
@@ -729,6 +1054,9 @@ const MyOrdersPage = () => {
   const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
+  const deliveryFailedCount = orders.filter((o) => o.status === 'DELIVERY_FAILED').length;
+  const completedCount = orders.filter((o) => o.status === 'COMPLETED').length;
+  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(o.status)).length;
 
   const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
@@ -811,6 +1139,9 @@ const MyOrdersPage = () => {
             <Tab label={`Shipped (${shippedCount})`} />
             <Tab label={`Delivered (${deliveredCount})`} />
             <Tab label={`Cancelled (${cancelledCount})`} />
+            <Tab label={`Delivery Failed (${deliveryFailedCount})`} />
+            <Tab label={`Completed (${completedCount})`} />
+            <Tab label={`Returned (${returnedCount})`} />
           </Tabs>
         </Paper>
 
@@ -1032,7 +1363,7 @@ const MyOrdersPage = () => {
                       {formatCurrency(order.totalAmount)}
                     </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
                       <Button
                         variant="outlined"
@@ -1048,6 +1379,74 @@ const MyOrdersPage = () => {
                         }}
                       >
                         {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                      </Button>
+                    )}
+                    {order.status === 'SHIPPED' && (
+                      <>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoDeliveryFailed(order.id)}
+                        >
+                          Delivery Failed
+                        </DemoActionButton>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoRefuseDelivery(order.id)}
+                        >
+                          Refuse Delivery
+                        </DemoActionButton>
+                      </>
+                    )}
+                    {order.status === 'DELIVERY_FAILED' && (
+                      <>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoReattempt(order.id)}
+                        >
+                          Re-attempt
+                        </DemoActionButton>
+                        <DemoActionButton
+                          loading={demoActionId === order.id}
+                          onClick={() => handleDemoReturn(order.id)}
+                        >
+                          Return
+                        </DemoActionButton>
+                      </>
+                    )}
+                    {order.status === 'DELIVERED' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        disabled={confirmingReceivedId === order.id}
+                        startIcon={<AssignmentTurnedIn sx={{ fontSize: 16 }} />}
+                        onClick={() => handleConfirmReceived(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                        }}
+                      >
+                        {confirmingReceivedId === order.id ? 'Confirming...' : 'Confirm Received'}
+                      </Button>
+                    )}
+                    {order.status === 'COMPLETED' && (
+                      <Button
+                        variant="contained"
+                        disabled={cancellingOrderId === order.id}
+                        onClick={() => handleReOrder(order.id)}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          borderRadius: '10px',
+                          px: 2.5,
+                          bgcolor: '#111',
+                          '&:hover': { bgcolor: '#333' },
+                        }}
+                      >
+                        Buy Again
                       </Button>
                     )}
                     <Button
@@ -1137,6 +1536,26 @@ const MyOrdersPage = () => {
                 <Box sx={{ mb: 3, px: 2 }}>
                   <OrderStepper status={selectedOrder.status} />
                 </Box>
+
+                {/* Payment Deadline Alert */}
+                {isUnpaidPrePayment(selectedOrder) && (() => {
+                  const deadline = getPaymentDeadline(selectedOrder.orderedAt);
+                  const now = new Date();
+                  const msLeft = deadline.getTime() - now.getTime();
+                  const hoursLeft = Math.max(0, Math.floor(msLeft / 3600000));
+                  const minutesLeft = Math.max(0, Math.floor((msLeft % 3600000) / 60000));
+                  return (
+                    <Alert
+                      severity="warning"
+                      sx={{ mb: 2, fontSize: 13 }}
+                      icon={<AccessTime fontSize="small" />}
+                    >
+                      <strong>Chờ thanh toán</strong> — Đơn hàng sẽ tự động huỷ sau{' '}
+                      <strong>{hoursLeft}h {minutesLeft}m</strong> nếu không thanh toán.
+                      Hạn chót: {deadline.toLocaleString('vi-VN')}.
+                    </Alert>
+                  );
+                })()}
 
                 <Divider sx={{ mb: 3 }} />
 
@@ -1436,7 +1855,7 @@ const MyOrdersPage = () => {
                                             -{formatCurrency(item.discountAmount)}
                                           </Typography>
                                         )}
-                                        {selectedOrder.status === 'DELIVERED' && (
+                                        {selectedOrder.status === 'COMPLETED' && (
                                           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                                             {itemRefundLookup[item.id]?.status && (
                                               <Chip
@@ -1450,6 +1869,42 @@ const MyOrdersPage = () => {
                                                   color: theme.palette.custom.status.info.main,
                                                 }}
                                               />
+                                            )}
+                                            {reviewedItemIds.has(item.id) ? (
+                                              <Chip
+                                                label="Reviewed"
+                                                size="small"
+                                                sx={{
+                                                  height: 22,
+                                                  fontSize: 10,
+                                                  fontWeight: 600,
+                                                  bgcolor: theme.palette.custom.status.success.light,
+                                                  color: theme.palette.custom.status.success.main,
+                                                }}
+                                              />
+                                            ) : (
+                                              <Button
+                                                size="small"
+                                                variant="outlined"
+                                                // startIcon={<RateReview sx={{ fontSize: 12 }} />}
+                                                onClick={() => handleOpenReviewDialog(item)}
+                                                sx={{
+                                                  textTransform: 'none',
+                                                  fontWeight: 600,
+                                                  fontSize: 10,
+                                                  lineHeight: 1,
+                                                  minHeight: 22,
+                                                  height: 22,
+                                                  minWidth: 'unset',
+                                                  px: 1.25,
+                                                  py: 0,
+                                                  borderRadius: '8px',
+                                                  borderColor: theme.palette.custom.status.warning.main,
+                                                  color: theme.palette.custom.status.warning.main,
+                                                }}
+                                              >
+                                                Write Review
+                                              </Button>
                                             )}
                                             <Button
                                               size="small"
@@ -1554,9 +2009,18 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (() => {
-                  return (
+                {selectedOrder.status === 'DELIVERED' && (
                   <>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      disabled={confirmingReceivedId === selectedOrder.id}
+                      startIcon={<AssignmentTurnedIn sx={{ fontSize: 16 }} />}
+                      onClick={() => handleConfirmReceived(selectedOrder.id)}
+                      sx={{ textTransform: 'none', fontWeight: 600 }}
+                    >
+                      {confirmingReceivedId === selectedOrder.id ? 'Confirming...' : 'Confirm Received'}
+                    </Button>
                     <Button
                       variant="contained"
                       onClick={() => handleReOrder(selectedOrder.id)}
@@ -1570,8 +2034,69 @@ const MyOrdersPage = () => {
                       Buy Again
                     </Button>
                   </>
-                  );
-                })()}
+                )}
+                {selectedOrder.status === 'COMPLETED' && (
+                  <Button
+                    variant="contained"
+                    onClick={() => handleReOrder(selectedOrder.id)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: '#111',
+                      '&:hover': { bgcolor: '#333' },
+                    }}
+                  >
+                    Buy Again
+                  </Button>
+                )}
+                {selectedOrder.status === 'SHIPPED' && (
+                  <>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoDeliveryFailed(selectedOrder.id)}
+                    >
+                      Delivery Failed
+                    </DemoActionButton>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoRefuseDelivery(selectedOrder.id)}
+                    >
+                      Refuse Delivery
+                    </DemoActionButton>
+                  </>
+                )}
+                {selectedOrder.status === 'DELIVERY_FAILED' && (
+                  <>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoReattempt(selectedOrder.id)}
+                    >
+                      Re-attempt
+                    </DemoActionButton>
+                    <DemoActionButton
+                      loading={demoActionId === selectedOrder.id}
+                      onClick={() => handleDemoReturn(selectedOrder.id)}
+                    >
+                      Return
+                    </DemoActionButton>
+                  </>
+                )}
+                {isUnpaidPrePayment(selectedOrder) && (
+                  <Button
+                    variant="contained"
+                    disabled={payingOrderId === selectedOrder.id}
+                    onClick={() => handlePayNow(selectedOrder)}
+                    startIcon={payingOrderId === selectedOrder.id ? <CircularProgress size={16} color="inherit" /> : <CreditCard />}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      bgcolor: '#111',
+                      '&:hover': { bgcolor: '#333' },
+                    }}
+                  >
+                    {payingOrderId === selectedOrder.id ? 'Processing...' : 'Pay Now'}
+                  </Button>
+                )}
                 {(selectedOrder.status === 'PENDING' || selectedOrder.status === 'CONFIRMED') && (
                   <Button
                     variant="outlined"
@@ -1651,6 +2176,133 @@ const MyOrdersPage = () => {
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== REVIEW DIALOG ==================== */}
+      <Dialog open={reviewDialogOpen} onClose={handleCloseReviewDialog} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <RateReview sx={{ fontSize: 22, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Write a Review
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseReviewDialog}><Close /></IconButton>
+          </Box>
+          {reviewTargetItem && (
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5, pl: 0.5 }}>
+              {reviewTargetItem.productName}
+            </Typography>
+          )}
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Box sx={{ pt: 1 }}>
+            {/* Star Rating */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Rating
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, mb: 2.5 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <IconButton
+                  key={star}
+                  size="small"
+                  onClick={() => setReviewRating(star)}
+                  sx={{ p: 0.25 }}
+                >
+                  {star <= reviewRating
+                    ? <Star sx={{ fontSize: 32, color: '#f59e0b' }} />
+                    : <StarBorder sx={{ fontSize: 32, color: theme.palette.custom.neutral[300] }} />
+                  }
+                </IconButton>
+              ))}
+            </Box>
+
+            {/* Comment */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Review <Typography component="span" sx={{ fontSize: 12, fontWeight: 400, color: theme.palette.custom.neutral[400] }}>(optional)</Typography>
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Share your experience..."
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value.slice(0, 50))}
+              inputProps={{ maxLength: 50 }}
+              helperText={`${reviewComment.length}/50`}
+              size="small"
+              sx={{ mb: 2.5 }}
+            />
+
+            {/* Photos */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Photos{' '}
+              <Typography component="span" sx={{ fontSize: 12, fontWeight: 400, color: theme.palette.custom.neutral[400] }}>
+                (optional, max 3)
+              </Typography>
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {reviewImages.map((img, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'relative',
+                    width: 72, height: 72,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    border: `1px solid ${theme.palette.custom.border.light}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <img src={img.preview} alt={`review-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemoveReviewImage(index)}
+                    sx={{
+                      position: 'absolute', top: 2, right: 2,
+                      bgcolor: 'rgba(0,0,0,0.55)', color: '#fff', p: 0.25,
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                    }}
+                  >
+                    <Close sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              ))}
+              {reviewImages.length < 3 && (
+                <Button
+                  component="label"
+                  variant="outlined"
+                  sx={{
+                    width: 72, height: 72, borderRadius: 2, borderStyle: 'dashed',
+                    display: 'flex', flexDirection: 'column', gap: 0.5,
+                    minWidth: 'unset', p: 0,
+                  }}
+                >
+                  <CloudUpload sx={{ fontSize: 22, color: theme.palette.custom.neutral[400] }} />
+                  <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400] }}>Add</Typography>
+                  <input type="file" hidden accept="image/*" multiple onChange={handleReviewImageUpload} />
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button onClick={handleCloseReviewDialog} disabled={submittingReview} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitReview}
+            disabled={submittingReview || reviewRating === 0}
+            startIcon={submittingReview ? <CircularProgress size={16} color="inherit" /> : <RateReview />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {submittingReview ? 'Submitting...' : 'Submit Review'}
           </Button>
         </DialogActions>
       </Dialog>
