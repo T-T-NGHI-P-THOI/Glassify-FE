@@ -39,6 +39,9 @@ const MainPage = () => {
       try {
         setIsLoading(true);
         const products = await ProductAPI.getAllProducts({
+          isActive: true,
+          isFeatured: true,
+          productType: "FRAME",
           sortBy: 'soldCount',
           sortDirection: 'DESC',
           unitPerPage: 8,
