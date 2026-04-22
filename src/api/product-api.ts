@@ -507,7 +507,7 @@ export default class ProductAPI {
   }
 
   static async getFrameGroupModel3D(frameGroupId: string): Promise<Blob> {
-    const modelUrl = `${API_CONFIG.BASE_URL}api/v1/product/frame-group/model-3d?frameGroupId=${encodeURIComponent(frameGroupId)}`;
+    const modelUrl = `${API_CONFIG.BASE_URL}/api/v1/product/frame-group/model-3d?frameGroupId=${encodeURIComponent(frameGroupId)}`;
     const response = await axiosInstance.get(modelUrl, {
       responseType: 'blob',
     });
