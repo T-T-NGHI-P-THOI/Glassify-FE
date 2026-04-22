@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -85,7 +85,7 @@ const ProductBrowsePage: React.FC = () => {
   });
 
   useEffect(() => {
-    
+
     if (location.state && location.state.resetFilters) {
       if (location.state.resetFilters === 'LENSES') {
         setActiveFilters({
@@ -125,7 +125,7 @@ const ProductBrowsePage: React.FC = () => {
           searchQuery: query || '',
         };
 
-        // Handle productType (FRAME, LENS, ACCESSORIES)
+        // Handle productType (FRAME, LENSES, ACCESSORIES)
         if (productType) {
           updates.productType = productType as ActiveFilters['productType'];
         }
@@ -152,8 +152,6 @@ const ProductBrowsePage: React.FC = () => {
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
   const [typeOpen, setTypeOpen] = useState<HTMLElement | null>(null);
   const [shapeOpen, setShapeOpen] = useState<HTMLElement | null>(null);
   const [colorOpen, setColorOpen] = useState<HTMLElement | null>(null);
@@ -165,7 +163,11 @@ const ProductBrowsePage: React.FC = () => {
   const shapeRef = useRef<HTMLDivElement>(null);
   const colorRef = useRef<HTMLDivElement>(null);
   const ageRef = useRef<HTMLDivElement>(null);
-  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const PAGE_SIZE = 20;
 
   const normalizeLocationText = (value: string) =>
     value
@@ -290,7 +292,7 @@ const ProductBrowsePage: React.FC = () => {
         const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
 
         // Transform API products to BrowseProduct format
-        const transformedProducts: BrowseProduct[] = apiProducts.map((product) => {
+        const transformedProducts = apiProducts.map((product) => {
           const productLocation = extractProductLocation(product);
           const productImage = ProductAPI.getPrimaryImageUrl(product);
 
@@ -333,6 +335,7 @@ const ProductBrowsePage: React.FC = () => {
 
         setProducts(transformedProducts);
         setHasNextPage(transformedProducts.length === PAGE_SIZE);
+        setCurrentPage(1);
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
@@ -341,8 +344,128 @@ const ProductBrowsePage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups, currentPage]);
+  }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups]);
 
+  // Load more products when reaching bottom
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasNextPage) return;
+
+    try {
+      setIsLoadingMore(true);
+      const nextPage = currentPage + 1;
+
+      let filterParams : ProductFilterParams = {
+        search: activeFilters.searchQuery || undefined,
+        minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
+        maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
+        isActive: true,
+        minRating: activeFilters.minRating || undefined,
+        productType: activeFilters.productType || undefined,
+        categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
+        brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
+        isFeatured: activeFilters.isFeatured,
+        isReturnable: activeFilters.isReturnable,
+        page: nextPage,
+        unitPerPage: PAGE_SIZE,
+        frameShapes: activeFilters.frameShapes || undefined,
+        colors: activeFilters.colors || undefined,
+        ageGroups: activeFilters.ageGroups ? activeFilters.ageGroups.join(',') : undefined,
+      };
+      if (activeFilters.productType) {
+        filterParams.productType = activeFilters.productType;
+      } else if (activeFilters.categoryNames.length > 0) {
+        filterParams.categoryName = activeFilters.categoryNames[0];
+      }
+
+      // Map sortBy to API params
+      if (activeFilters.sortBy) {
+        switch (activeFilters.sortBy) {
+          case 'price-asc':
+            filterParams.sortBy = 'basePrice';
+            filterParams.sortDirection = 'ASC';
+            break;
+          case 'price-desc':
+            filterParams.sortBy = 'basePrice';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'rating':
+            filterParams.sortBy = 'avgRating';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'newest':
+            filterParams.sortBy = 'createdAt';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'popular':
+          default:
+            filterParams.sortBy = 'soldCount';
+            filterParams.sortDirection = 'DESC';
+            break;
+        }
+      }
+
+      const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
+
+      const transformedProducts = apiProducts.map((product) => {
+        const productLocation = extractProductLocation(product);
+        const productImage = ProductAPI.getPrimaryImageUrl(product);
+
+        return {
+          id: product.id,
+          slug: product.slug,
+          productId: product.id,
+          variantId: product.variantId || product.id,
+          name: product.name,
+          sku: product.sku,
+          price: product.basePrice,
+          rating: product.avgRating || 0,
+          reviewCount: product.reviewCount || 0,
+          productType: product.productType,
+          image: productImage,
+          colorVariants: [],
+          isFeatured: product.isFeatured,
+          isNew: false,
+          stockQuantity: product.stockQuantity,
+          brandId: product.brandId,
+          categoryId: product.categoryId,
+          categoryName: product.categoryName,
+          shopCity: productLocation.city,
+          shopAddress: productLocation.address
+        };
+      });
+
+      setProducts(prev => [...prev, ...transformedProducts]);
+      setCurrentPage(nextPage);
+      setHasNextPage(transformedProducts.length === PAGE_SIZE);
+    } catch (error) {
+      console.error('Error loading more products:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, isLoadingMore, activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !isLoading && !isLoadingMore && hasNextPage) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const target = observerTarget.current;
+    if (target) {
+      observer.observe(target);
+    }
+
+    return () => {
+      if (target) {
+        observer.unobserve(target);
+      }
+    };
+  }, [loadMore, isLoading, isLoadingMore, hasNextPage]);
   // Apply location filtering client-side because product listing API does not currently expose city param.
   useEffect(() => {
     let nextProducts = products;
@@ -370,7 +493,6 @@ const ProductBrowsePage: React.FC = () => {
   }, [products, activeFilters.shopCities]);
 
   const handleFilterChange = (newFilters: ActiveFilters) => {
-    setCurrentPage(1);
     setActiveFilters(newFilters);
 
     // Update URL params to match filters
@@ -407,7 +529,6 @@ const ProductBrowsePage: React.FC = () => {
   };
 
   const handleClearFilters = () => {
-    setCurrentPage(1);
     setActiveFilters({
       productType: undefined,
       brandIds: [],
@@ -695,7 +816,7 @@ const ProductBrowsePage: React.FC = () => {
                 : 'All Products'}
             </h1>
             <p className="results-count">
-              Showing {filteredProducts.length} of {products.length} products
+              Showing {filteredProducts.length} products
             </p>
           </div>
 
@@ -710,22 +831,10 @@ const ProductBrowsePage: React.FC = () => {
                 onAddToFavorites={(id) => console.log('Add to favorites:', id)}
                 viewMode={viewMode}
               />
-              <div className="pagination-controls">
-                <button
-                  className="pagination-btn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => p - 1)}
-                >
-                  ← Previous
-                </button>
-                <span className="pagination-info">Page {currentPage}</span>
-                <button
-                  className="pagination-btn"
-                  disabled={!hasNextPage}
-                  onClick={() => setCurrentPage(p => p + 1)}
-                >
-                  Next →
-                </button>
+              <div ref={observerTarget} style={{ height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '40px' }}>
+                {isLoadingMore && (
+                  <p style={{ fontSize: '14px', color: '#666' }}>Loading more products...</p>
+                )}
               </div>
             </>
           ) : (
