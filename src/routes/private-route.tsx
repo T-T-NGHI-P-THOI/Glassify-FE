@@ -49,6 +49,7 @@ import AccessoryProductPage from "@/pages/Product/Accessory/AccessoryProductPage
 import CreateAccessoryPage from "@/pages/Product/Accessory/Create/CreateAccessoryPage";
 import ProductVerificationPage from "@/pages/Admin/ProductVerificationPage";
 import ShopProductVerificationPage from "@/pages/Product/Verification/ShopProductVerificationPage";
+import AdminSettingsPage from "@/pages/Admin/AdminSettingsPage";
 
 const LensDetailRedirect = () => {
     const { lensId } = useParams();
@@ -610,6 +611,17 @@ const PrivateRoutesComponent = () => {
                     <AuthGuard>
                         <RoleBasedGuard accessibleRoles={['CUSTOMER']}>
                             <UserBankAccountPage />
+                        </RoleBasedGuard>
+                    </AuthGuard>
+                }
+            />
+
+            <Route
+                path={PAGE_ENDPOINTS.ADMIN.SETTINGS}
+                element={
+                    <AuthGuard>
+                        <RoleBasedGuard accessibleRoles={['ADMIN']}>
+                            <AdminSettingsPage />
                         </RoleBasedGuard>
                     </AuthGuard>
                 }

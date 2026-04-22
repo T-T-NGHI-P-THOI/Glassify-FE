@@ -275,7 +275,14 @@ export const API_ENDPOINTS = {
     CREATE: `${API_BASE}/users/recommendation`,
     UPDATE_NAME: (id: string) => `${API_BASE}/users/recommendation/${id}`,
     DELETE: (id: string) => `${API_BASE}/users/recommendation/${id}`,
-  }
+  },
+  PLATFORM_SETTINGS: {
+    CURRENT: `${API_ENDPOINT}/platform-settings/current`,
+    HISTORY: `${API_ENDPOINT}/platform-settings/history`,
+    UPDATE_AS_NEW: `${API_ENDPOINT}/platform-settings/admin/update-as-new`,
+    RESET_PRESCRIPTION: `${API_ENDPOINT}/platform-settings/reset-prescription-config`,
+    RESET_REFUND: `${API_ENDPOINT}/platform-settings/reset-refund-policy-config`,
+  },
 } as const;
 
 
@@ -339,6 +346,7 @@ export const PAGE_ENDPOINTS = {
     WARRANTY_DETAIL: `/admin/warranties/:id`,
     TRANSACTIONS: `/admin/transactions`,
     VERIFY_PRODUCT: `/admin/verify-product`,
+    SETTINGS: `/admin/settings`,
   },
 
   ORDER: {

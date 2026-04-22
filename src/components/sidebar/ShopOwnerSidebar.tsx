@@ -24,7 +24,6 @@ import {
   Store,
   ExpandMore,
   ExpandLess,
-  PeopleAlt,
   Build,
   Logout,
 } from '@mui/icons-material';
@@ -130,7 +129,6 @@ export const ShopOwnerSidebar = ({
     { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
-    { icon: <PeopleAlt />, label: 'Staff', path: PAGE_ENDPOINTS.SHOP.STAFF },
     {
       icon: <Build />,
       label: 'Warranty',
