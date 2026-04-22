@@ -45,7 +45,14 @@ export class ThreeJsService {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
-        const camera = await this.createCamera(vw, vh);
+        const hw = (vw / 2) / 2;  // half-width thu nhỏ = zoom in
+        const hh = (vh / 2) / 2;
+        const camera = new THREE.OrthographicCamera(
+            -hw, hw,
+            hh, -hh,
+            0.1, 5000
+        );
+        camera.position.set(-vw / 2, -vh / 2, 500);
         this.camera = camera;
 
         const bgResult = await this.createVideoBackground(video, camera);
@@ -143,9 +150,21 @@ export class ThreeJsService {
      * @param file    File object (.glb/.gltf/...) từ user upload
      * @returns       cleanup function — gọi khi unmount hoặc đổi file
      */
-    initializeThreeDViewer(canvas: HTMLCanvasElement, file: File): () => void {
+    initializeThreeDViewer(
+        canvas: HTMLCanvasElement,
+        file: File,
+        zoomOptions?: {
+            initDistance?: number;  // khoảng cách camera ban đầu (default: 5)
+            minDistance?: number;   // zoom in tối đa (default: 2.5)
+            maxDistance?: number;   // zoom out tối đa (default: 7)
+        }
+    ): () => void {
         const w = canvas.width;
         const h = canvas.height;
+
+        const initDistance = zoomOptions?.initDistance ?? 3.3;
+        const minDistance = zoomOptions?.minDistance ?? 2.5;
+        const maxDistance = zoomOptions?.maxDistance ?? 4.5;
 
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -158,28 +177,18 @@ export class ThreeJsService {
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 1000);
-        camera.position.set(0, 2, 6);
+        camera.position.set(0, 2, initDistance); // ← init zoom
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.enablePan = false;
-        controls.minDistance = 2.5;
-        controls.maxDistance = 7;
-        controls.minPolarAngle = 1.5;
-        controls.maxPolarAngle = Math.PI / 2 + 0.2;
+        controls.minDistance = minDistance; // ← zoom in tối đa
+        controls.maxDistance = maxDistance; // ← zoom out tối đa
+        controls.minPolarAngle = 0.9;
+        controls.maxPolarAngle = Math.PI / 2 + 0.6;
         controls.autoRotateSpeed = 1.5;
         controls.target.set(0, 1, 0);
         controls.update();
-
-        // Ground
-        // const groundGeometry = new THREE.PlaneGeometry(20, 20, 32, 32);
-        // groundGeometry.rotateX(-Math.PI / 2);
-        // const groundMesh = new THREE.Mesh(
-        //     groundGeometry,
-        //     new THREE.MeshStandardMaterial({ color: 0x555555, side: THREE.DoubleSide })
-        // );
-        // groundMesh.receiveShadow = true;
-        // scene.add(groundMesh);
 
         // Lights
         const ambient = new THREE.AmbientLight(0xffffff, 1.2);
@@ -199,7 +208,6 @@ export class ThreeJsService {
         rimLight.position.set(4, 2, -4);
         scene.add(rimLight);
 
-        // Load model từ File object
         const objectURL = URL.createObjectURL(file);
         const loader = new GLTFLoader();
         loader.load(
@@ -213,14 +221,21 @@ export class ThreeJsService {
 
                 this.normalizeModelForViewer(mesh);
 
+                // Sau normalize, tính center thực tế để focus camera
                 const box = new THREE.Box3().setFromObject(mesh);
                 const center = new THREE.Vector3();
                 box.getCenter(center);
+
                 controls.target.set(center.x, center.y, center.z);
+
+                // Đặt camera nhìn vào center từ khoảng initDistance
+                camera.position.set(center.x, center.y, center.z + initDistance);
+                camera.lookAt(center);
+
                 controls.update();
 
                 scene.add(mesh);
-                this.viewerModel = mesh; // ✅ lưu lại để apply texture sau
+                this.viewerModel = mesh;
                 URL.revokeObjectURL(objectURL);
             },
             (xhr) => {
@@ -234,7 +249,6 @@ export class ThreeJsService {
             }
         );
 
-        // Resize
         const onResize = () => {
             const cw = canvas.clientWidth;
             const ch = canvas.clientHeight;
@@ -245,7 +259,6 @@ export class ThreeJsService {
         };
         window.addEventListener('resize', onResize);
 
-        // Animate loop
         let animId: number;
         const animate = () => {
             animId = requestAnimationFrame(animate);
@@ -387,46 +400,34 @@ export class ThreeJsService {
     }
 
     // Trong ThreeJsService.ts
-    applyTextureFromUrl(object: THREE.Object3D, url: string): Promise<void> {
+    applyTextureFromUrl(object: THREE.Object3D, textureUrl: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            const loader = new THREE.TextureLoader();
-            loader.setCrossOrigin('anonymous');
+            const textureLoader = new THREE.TextureLoader();
 
-            loader.load(
-                url,
-                (texture) => {
-                    texture.colorSpace = THREE.SRGBColorSpace;
-                    texture.flipY = false;
+            textureLoader.load(
+                textureUrl,
+                (diffuseMap) => {
+                    diffuseMap.colorSpace = THREE.SRGBColorSpace;
+                    diffuseMap.flipY = false;
 
                     object.traverse((child) => {
                         if (!(child instanceof THREE.Mesh)) return;
 
-                        const applyToMaterial = (mat: THREE.Material): THREE.Material => {
-                            const cloned = mat.clone();
+                        child.castShadow = true;
+                        child.receiveShadow = true;
 
-                            if (
-                                cloned instanceof THREE.MeshStandardMaterial ||
-                                cloned instanceof THREE.MeshPhysicalMaterial
-                            ) {
-                                cloned.map = texture;
-                                cloned.needsUpdate = true;
-                                return cloned;
-                            }
+                        child.material = child.material.clone();
+                        child.material.map = diffuseMap;
+                        child.material.emissiveMap = diffuseMap;
+                        child.material.emissive = new THREE.Color(0x888888);
+                        child.material.color = new THREE.Color(0xffffff);
+                        child.material.metalness = 0;
+                        child.material.roughness = 1;
+                        child.material.needsUpdate = true;
 
-                            return new THREE.MeshStandardMaterial({
-                                map: texture,
-                                color: (mat as any).color ?? new THREE.Color(0xffffff),
-                            });
-                        };
-
-                        if (Array.isArray(child.material)) {
-                            child.material = child.material.map(applyToMaterial);
-                        } else {
-                            child.material = applyToMaterial(child.material);
-                        }
+                        console.log("UV: ", child.geometry.attributes.uv);
                     });
 
-                    console.log('[Texture] loaded from URL successfully');
                     resolve();
                 },
                 undefined,
@@ -444,9 +445,9 @@ export class ThreeJsService {
 
         loader.load(
             objectURL,
-            (texture) => {
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.flipY = false;
+            (diffuseMap) => {
+                diffuseMap.colorSpace = THREE.SRGBColorSpace;
+                diffuseMap.flipY = false;
 
                 let meshCount = 0;
 
@@ -454,23 +455,33 @@ export class ThreeJsService {
                     if (!(child instanceof THREE.Mesh)) return;
                     meshCount++;
 
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+
                     const applyToMaterial = (mat: THREE.Material): THREE.Material => {
-                        // ✅ Clone trước để tránh GLTF shared-material cache
                         const cloned = mat.clone();
 
                         if (
                             cloned instanceof THREE.MeshStandardMaterial ||
                             cloned instanceof THREE.MeshPhysicalMaterial
                         ) {
-                            cloned.map = texture;
+                            cloned.map = diffuseMap;
+                            cloned.emissiveMap = diffuseMap;
+                            cloned.emissive = new THREE.Color(0x888888);
+                            cloned.color = new THREE.Color(0xffffff);
+                            cloned.metalness = 0;
+                            cloned.roughness = 1;
                             cloned.needsUpdate = true;
                             return cloned;
                         }
 
-                        // Fallback: replace bằng MeshStandardMaterial mới
                         return new THREE.MeshStandardMaterial({
-                            map: texture,
-                            color: (mat as any).color ?? new THREE.Color(0xffffff),
+                            map: diffuseMap,
+                            emissiveMap: diffuseMap,
+                            emissive: new THREE.Color(0x888888),
+                            color: new THREE.Color(0xffffff),
+                            metalness: 0,
+                            roughness: 1,
                         });
                     };
 
@@ -479,6 +490,8 @@ export class ThreeJsService {
                     } else {
                         child.material = applyToMaterial(child.material);
                     }
+
+                    console.log("UV: ", child.geometry.attributes.uv);
                 });
 
                 console.log(`[Texture] applied to ${meshCount} mesh(es)`);
