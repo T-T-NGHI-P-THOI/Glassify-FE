@@ -23,6 +23,8 @@ import ProductAPI, {
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useCart } from '../../hooks/useCart';
 import './ProductDetailPage.css';
+import userApi from '@/api/service/userApi';
+import { TokenManager } from '@/api/axios.config';
 
 const PLACEHOLDER_IMAGE = 'https://placehold.co/600x400/000000/FFFFFF?text=Product';
 
@@ -283,6 +285,7 @@ const ProductDetailPage: React.FC = () => {
           .map(p => ({
             id: p.id,
             slug: p.slug,
+            sku: p.sku,
             productId: p.id,
             variantId: p.variantId || p.id,
             name: p.name,
@@ -636,6 +639,8 @@ const ProductDetailPage: React.FC = () => {
     return <div className="loading">Loading...</div>;
   }
 
+  const isAuthenticated = TokenManager.isAuthenticated();
+
   return (
     <div className="product-detail-page">
       <nav className="breadcrumb">
@@ -653,8 +658,8 @@ const ProductDetailPage: React.FC = () => {
               images={product.images} 
               productName={product.name}
               onTryOn={handleOpenTryOn}
-              showTryOn={Boolean(product.vrEnabled && product.frameGroupId)}
-              showPreview3D={Boolean(product.vrEnabled && product.frameGroupId)}
+              showTryOn={Boolean(product.vrEnabled && product.frameGroupId && isAuthenticated)}
+              showPreview3D={Boolean(product.vrEnabled && product.frameGroupId && isAuthenticated)}
               onPreview3D={handleOpen3DPreview}
             />
             {product.shop && (

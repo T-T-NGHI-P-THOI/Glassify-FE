@@ -71,7 +71,7 @@ const CustomProductCarousel = (props: PropType) => {
                   sx={{
                     width: '100%',
                     height: 200,
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                   }}
                 />
                 <Box sx={{ p: 2 }}>

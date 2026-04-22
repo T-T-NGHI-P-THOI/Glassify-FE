@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
-import type { Product, ProductColor } from '../../types/product';
+import type { Product, ProductColor } from '@/types/product.ts';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useAuth } from '@/hooks/useAuth';
 import './ProductInfo.css';
@@ -30,9 +30,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   );
 
   const handleSelectLenses = () => {
-    // TODO: Navigate to lens selection page or open lens configurator
-    console.log('Navigate to lens selection');
-    if (onAddToCart) {
+      if (onAddToCart) {
       onAddToCart(false); // with lenses
     }
   };
@@ -44,6 +42,8 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       onAddToCart(true); // frame only
     }
   };
+
+  const inStock = product.stockQuantity !== undefined ? product.stockQuantity > 0 : false;
 
   return (
     <div className="product-info">
@@ -79,6 +79,10 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         <button className="size-chart-link" onClick={() => setShowSizeChart(true)}>
           <Straighten fontSize="small" /> Size Chart
         </button>
+
+        <div>
+          {inStock ? `In stock (${product.stockQuantity} available)` : 'Out of stock'}
+        </div>
       </div>
 
       <div className="price-section">
