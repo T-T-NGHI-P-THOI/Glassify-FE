@@ -273,7 +273,7 @@ const ProductBrowsePage: React.FC = () => {
           unitPerPage: PAGE_SIZE,
           frameShapes: activeFilters.frameShapes || undefined,
           colors: activeFilters.colors || undefined,
-          ageGroups: activeFilters.ageGroups ? activeFilters.ageGroups.join(',') : undefined,
+          ageGroups: activeFilters.ageGroups || undefined,
         };
         if (activeFilters.productType) {
           filterParams.productType = activeFilters.productType;
@@ -334,6 +334,7 @@ const ProductBrowsePage: React.FC = () => {
             brandId: product.brandId,
             categoryId: product.categoryId,
             categoryName: product.categoryName,
+            shopId: product.shopId,
             shopCity: productLocation.city,
             shopAddress: productLocation.address
           };
@@ -388,7 +389,7 @@ const ProductBrowsePage: React.FC = () => {
         unitPerPage: PAGE_SIZE,
         frameShapes: activeFilters.frameShapes || undefined,
         colors: activeFilters.colors || undefined,
-        ageGroups: activeFilters.ageGroups ? activeFilters.ageGroups.join(',') : undefined,
+        ageGroups: activeFilters.ageGroups || undefined,
       };
       if (activeFilters.productType) {
         filterParams.productType = activeFilters.productType;
@@ -448,6 +449,7 @@ const ProductBrowsePage: React.FC = () => {
           brandId: product.brandId,
           categoryId: product.categoryId,
           categoryName: product.categoryName,
+          shopId: product.shopId,
           shopCity: productLocation.city,
           shopAddress: productLocation.address
         };

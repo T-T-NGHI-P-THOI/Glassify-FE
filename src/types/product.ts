@@ -78,6 +78,7 @@ export interface PrescriptionDetails {
 export interface RecommendedProduct {
   id: string;
   slug: string;
+  sku: string;
   productId: string;
   variantId: string;
   name: string;

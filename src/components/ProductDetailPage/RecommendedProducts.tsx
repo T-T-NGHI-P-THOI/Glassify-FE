@@ -66,7 +66,7 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
           {products.map((product) => (
             <Link 
               key={product.id} 
-              to={`/product/${product.slug}/${product.id}`}
+              to={`/product/${product.slug}/${product.sku}`}
               className="product-card"
             >
               <button className="favorite-btn" onClick={(e) => e.preventDefault()}>
@@ -74,6 +74,7 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
               </button>
               <img src={product.image} alt={product.name} className="product-image" />
               <div className="product-card-info">
+                <p className="product-name"><b>{product.name}</b></p>
                 <p className="product-price">{formatCurrency(product.price)}</p>
                 <div className="product-rating">
                   <Star className="star" />

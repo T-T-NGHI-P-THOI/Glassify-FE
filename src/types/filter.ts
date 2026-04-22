@@ -58,6 +58,7 @@ export interface BrowseProduct {
   stockQuantity: number;
   brandId: string | null;
   categoryName?: string;
+  shopId: string;
   shopCity?: string;
   shopAddress?: string;
 }
