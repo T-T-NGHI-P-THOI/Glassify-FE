@@ -14,6 +14,7 @@ import {
     CardContent,
     TextField,
     FormControl,
+    FormHelperText,
     Select,
     MenuItem,
     Chip,
@@ -218,6 +219,17 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         pdMonocular: string[];
     }>();
     const [isLoadingPrescriptionValues, setIsLoadingPrescriptionValues] = useState(false);
+
+    const axisOptions = useMemo(
+        () => Array.from({ length: 180 }, (_, index) => (index + 1).toString()),
+        []
+    );
+
+    const isNonZeroNumericValue = (input?: string) => {
+        if (!input) return false;
+        const numeric = Number(input);
+        return Number.isFinite(numeric) && numeric !== 0;
+    };
 
     const hasRestoredRef = useRef(false);
 
@@ -553,7 +565,22 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     return;
                 }
             }
-            
+
+                if (!selectedLensType?.isProgressive) {
+                    const requiresRightAxis = isNonZeroNumericValue(prescription.right_eye.cylinder);
+                    const requiresLeftAxis = isNonZeroNumericValue(prescription.left_eye.cylinder);
+
+                    if (requiresRightAxis && !isNonZeroNumericValue(prescription.right_eye.axis)) {
+                        setApiError('Please select AXIS (1-180) for right eye when CYL is not 0');
+                        return;
+                    }
+
+                    if (requiresLeftAxis && !isNonZeroNumericValue(prescription.left_eye.axis)) {
+                        setApiError('Please select AXIS (1-180) for left eye when CYL is not 0');
+                        return;
+                    }
+                }
+
             try {
                 setIsValidating(true);
                 setValidationIssues([]);
@@ -911,7 +938,16 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     hasPD = !!(pdRight && pdRight !== '0' && pdRight !== '0.0' && pdRight !== '0.00' &&
                               pdLeft && pdLeft !== '0' && pdLeft !== '0.0' && pdLeft !== '0.00');
                 }
-                
+
+                if (!selectedLensType?.isProgressive) {
+                    const requiresRightAxis = isNonZeroNumericValue(prescription.right_eye.cylinder);
+                    const requiresLeftAxis = isNonZeroNumericValue(prescription.left_eye.cylinder);
+                    const hasValidRightAxis = !requiresRightAxis || isNonZeroNumericValue(prescription.right_eye.axis);
+                    const hasValidLeftAxis = !requiresLeftAxis || isNonZeroNumericValue(prescription.left_eye.axis);
+
+                    return hasAdd && hasPD && hasValidRightAxis && hasValidLeftAxis;
+                }
+
                 return hasAdd && hasPD; 
             }
             case 2:
@@ -1353,13 +1389,37 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         value: string
     ) => {
         setPrescription((prev) => {
+            const isZeroValue = (input?: string) => {
+                if (input === undefined || input === null) return true;
+                const normalized = input.trim();
+                if (normalized === '') return true;
+                const numeric = Number(normalized);
+                return Number.isFinite(numeric) && numeric === 0;
+            };
+
             const updated = {
                 ...prev,
                 [eye]: { ...prev[eye], [field]: value },
             };
 
+            if (field === 'axis' && isZeroValue(value)) {
+                updated[eye] = { ...updated[eye], cylinder: '0.00' };
+            }
+
+            if (field === 'cylinder' && isZeroValue(value)) {
+                updated[eye] = { ...updated[eye], axis: '' };
+            }
+
             if (eye === 'right_eye' && syncBothEyes[field as keyof typeof syncBothEyes]) {
                 updated.left_eye = { ...updated.left_eye, [field]: value };
+
+                if (field === 'axis' && isZeroValue(value)) {
+                    updated.left_eye = { ...updated.left_eye, cylinder: '0.00' };
+                }
+
+                if (field === 'cylinder' && isZeroValue(value)) {
+                    updated.left_eye = { ...updated.left_eye, axis: '' };
+                }
             }
 
             return updated;
@@ -1496,6 +1556,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     };
 
     const renderPrescriptionStep = () => {
+        const rightAxisEnabled = isNonZeroNumericValue(prescription.right_eye.cylinder);
+        const leftAxisEnabled = isNonZeroNumericValue(prescription.left_eye.cylinder);
+        const rightAxisMissing = rightAxisEnabled && !isNonZeroNumericValue(prescription.right_eye.axis);
+        const leftAxisMissing = leftAxisEnabled && !isNonZeroNumericValue(prescription.left_eye.axis);
+
         return (
             <Box sx={{ py: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -1717,7 +1782,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                             Addition (ADD)
                                                         </Typography>
                                                         <Typography variant="body2" fontWeight={600}>
-                                                            +{saved.right_eye.add || saved.left_eye.add}
+                                                            {saved.right_eye.add || saved.left_eye.add}
                                                         </Typography>
                                                     </Box>
                                                 )}
@@ -1836,48 +1901,62 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>Axis</Typography>
                                     </Box>
-                                    <TextField
+                                    <FormControl
                                         size="small"
                                         fullWidth
-                                        placeholder="0"
-                                        type="text"
                                         disabled={
-                                            prescription.right_eye.sphere === '0.00' || 
-                                            prescription.right_eye.cylinder === '0.00'
+                                            !prescription.right_eye.cylinder ||
+                                            !Number.isFinite(Number(prescription.right_eye.cylinder)) ||
+                                            Number(prescription.right_eye.cylinder) === 0
                                         }
-                                        inputProps={{ 
-                                            pattern: '[0-9]*',
-                                            inputMode: 'numeric',
-                                        }}
-                                        value={prescription.right_eye.axis || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            if (value === '' || (/^\d+$/.test(value) && parseInt(value) <= 180)) {
-                                                handlePrescriptionFieldChange('right_eye', 'axis', value);
-                                            }
-                                        }}
-                                    />
-                                    <TextField
+                                        error={rightAxisMissing}
+                                    >
+                                        <Select
+                                            displayEmpty
+                                            value={!isNonZeroNumericValue(prescription.right_eye.axis) ? '' : prescription.right_eye.axis || ''}
+                                            onChange={(e) => handlePrescriptionFieldChange('right_eye', 'axis', String(e.target.value))}
+                                        >
+                                            <MenuItem value="">
+                                                <em>Select axis</em>
+                                            </MenuItem>
+                                            {axisOptions.map((axis) => (
+                                                <MenuItem key={`axis-right-${axis}`} value={axis}>
+                                                    {axis}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                        {rightAxisMissing && (
+                                            <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
+                                        )}
+                                    </FormControl>
+                                    <FormControl
                                         size="small"
                                         fullWidth
-                                        placeholder="0"
-                                        type="text"
                                         disabled={
-                                            prescription.left_eye.sphere === '0.00' || 
-                                            prescription.left_eye.cylinder === '0.00'
+                                            !prescription.left_eye.cylinder ||
+                                            !Number.isFinite(Number(prescription.left_eye.cylinder)) ||
+                                            Number(prescription.left_eye.cylinder) === 0
                                         }
-                                        inputProps={{ 
-                                            pattern: '[0-9]*',
-                                            inputMode: 'numeric',
-                                        }}
-                                        value={prescription.left_eye.axis || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            if (value === '' || (/^\d+$/.test(value) && parseInt(value) <= 180)) {
-                                                handlePrescriptionFieldChange('left_eye', 'axis', value);
-                                            }
-                                        }}
-                                    />
+                                        error={leftAxisMissing}
+                                    >
+                                        <Select
+                                            displayEmpty
+                                            value={!isNonZeroNumericValue(prescription.left_eye.axis) ? '' : prescription.left_eye.axis || ''}
+                                            onChange={(e) => handlePrescriptionFieldChange('left_eye', 'axis', String(e.target.value))}
+                                        >
+                                            <MenuItem value="">
+                                                <em>Select axis</em>
+                                            </MenuItem>
+                                            {axisOptions.map((axis) => (
+                                                <MenuItem key={`axis-left-${axis}`} value={axis}>
+                                                    {axis}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                        {leftAxisMissing && (
+                                            <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
+                                        )}
+                                    </FormControl>
                                 </Box>
                             )}
 
@@ -2583,7 +2662,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 <Box sx={{ display: 'flex', gap: 3 }}>
                                     {(prescription.right_eye.add || prescription.left_eye.add) && (
                                         <Typography variant="body2">
-                                            <strong>ADD (Addition):</strong> +{prescription.right_eye.add || prescription.left_eye.add}
+                                            <strong>ADD (Addition):</strong> {prescription.right_eye.add || prescription.left_eye.add}
                                         </Typography>
                                     )}
                                     {!has2PD && (prescription.right_eye.pd || prescription.left_eye.pd) && (
@@ -2974,7 +3053,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
                             {(prescription.right_eye.add || prescription.left_eye.add) && (
                                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                                    <strong>ADD (Addition):</strong> +{prescription.right_eye.add || prescription.left_eye.add}
+                                    <strong>ADD (Addition):</strong> {prescription.right_eye.add || prescription.left_eye.add}
                                 </Typography>
                             )}
                             {!has2PD && (prescription.right_eye.pd || prescription.left_eye.pd) && (

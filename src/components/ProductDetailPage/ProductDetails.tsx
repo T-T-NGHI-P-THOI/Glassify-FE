@@ -65,7 +65,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
 
       try {
         if (normalizedProductType === 'LENSES' || normalizedProductType === 'LENS') {
-          const detail = await lensApi.getById(lookupId);
+          const detail = await lensApi.getById(lookupId) as LensDetailResponse;
           if (!cancelled) setLensDetail(detail);
           return;
         }
