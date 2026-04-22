@@ -4,8 +4,6 @@ import { PAGE_ENDPOINTS } from "../api/endpoints";
 import MainPage from "@/pages/MainPage";
 import AuthPage from "@/pages/auth/Login";
 import PaymentResultPage from "@/pages/checkout/PaymentResultPage";
-import VirtualTryOnPage from "@/pages/Virtrual-Try-On/VitrualTryOnPage";
-import ImageTryOnPage from "@/pages/Virtrual-Try-On/ImageTryOnPage";
 import HelpPage from "@/pages/Help/HelpPage";
 import TestTryOnPage from "@/pages/Virtrual-Try-On/GlassesTryOn/TestTryOnPage";
 
@@ -34,25 +32,7 @@ const PublicRoutesComponent = () => {
                     </GuestGuard>
                 }
             />
-            <Route
-                path={'/virtual-try-on'}
-                element={
-                    <GuestGuard>
-                        <VirtualTryOnPage />
-                    </GuestGuard>
-                }
-            />
-
-            <Route
-                path={'/image-try-on'}
-                element={
-                    <GuestGuard>
-                        <ImageTryOnPage />
-                    </GuestGuard>
-                }
-            />
-
-
+           
             <Route
                 path={PAGE_ENDPOINTS.PAYMENT.RESULT}
                 element={<PaymentResultPage />}
