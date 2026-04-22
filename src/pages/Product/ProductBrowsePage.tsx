@@ -50,6 +50,15 @@ const colorOptions: { val: Color; hex: string }[] = [
   { val: Color.TRANSPARENT, hex: '#dbeafe' },
 ];
 
+const normalizeProductTypeParam = (value?: string | null): ProductType | undefined => {
+  if (!value) return undefined;
+  const normalized = value.toUpperCase();
+  if (normalized === 'FRAME') return 'FRAME';
+  if (normalized === 'ACCESSORIES') return 'ACCESSORIES';
+  if (normalized === 'LENSES' || normalized === 'LENS' || normalized === 'LENSES') return 'LENSES';
+  return undefined;
+};
+
 const ProductBrowsePage: React.FC = () => {
   const defaultShopCities = [
     'Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Bình Dương',
@@ -70,7 +79,7 @@ const ProductBrowsePage: React.FC = () => {
   });
 
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({
-    productType: searchParams.get('productType') as ActiveFilters['productType'] || undefined,
+    productType: normalizeProductTypeParam(searchParams.get('productType')),
     brandIds: searchParams.get('brandId') ? [searchParams.get('brandId')!] : [],
     categoryNames: searchParams.get('categoryName') ? [searchParams.get('categoryName')!] : [],
     shopCities: searchParams.get('shopCity') ? [searchParams.get('shopCity')!] : [],
@@ -87,7 +96,17 @@ const ProductBrowsePage: React.FC = () => {
   useEffect(() => {
 
     if (location.state && location.state.resetFilters) {
-      if (location.state.resetFilters === 'LENSES') {
+      if (location.state.resetFilters === 'FRAME') {
+        setActiveFilters({
+          productType: 'FRAME',
+          brandIds: [],
+          categoryNames: [],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ productType: 'FRAME' });
+      } else if (location.state.resetFilters === 'LENSE' || location.state.resetFilters === 'LENSES') {
         setActiveFilters({
           productType: 'LENSES',
           brandIds: [],
@@ -96,7 +115,7 @@ const ProductBrowsePage: React.FC = () => {
           searchQuery: '',
           sortBy: 'popular'
         });
-        setSearchParams({ productType: 'LENSES' });
+        setSearchParams({ productType: 'LENSE' });
       } else {
         setActiveFilters({
           productType: undefined,
@@ -127,7 +146,7 @@ const ProductBrowsePage: React.FC = () => {
 
         // Handle productType (FRAME, LENSES, ACCESSORIES)
         if (productType) {
-          updates.productType = productType as ActiveFilters['productType'];
+          updates.productType = normalizeProductTypeParam(productType);
         }
 
         // Handle category name - set it to categoryNames array for API filtering
