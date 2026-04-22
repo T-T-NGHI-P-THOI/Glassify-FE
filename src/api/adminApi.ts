@@ -262,10 +262,30 @@ export interface AdminShopWithdrawalResponse {
   rejectionReason?: string;
 }
 
+export interface AdminShopStats {
+  shopId: string;
+  shopCode: string;
+  shopName: string;
+  totalRevenue: number;
+  totalOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  deliveryRate: number;
+  cancelRate: number;
+  avgRating: number | null;
+}
+
 export const adminApi = {
   getOverviewStats: async (): Promise<ApiResponse<AdminOverviewStats>> => {
     const response = await axiosInstance.get<ApiResponse<AdminOverviewStats>>(
       API_ENDPOINTS.ADMIN.STATS.OVERVIEW,
+    );
+    return response.data;
+  },
+
+  getShopStats: async (): Promise<ApiResponse<AdminShopStats[]>> => {
+    const response = await axiosInstance.get<ApiResponse<AdminShopStats[]>>(
+      API_ENDPOINTS.ADMIN.STATS.SHOPS,
     );
     return response.data;
   },
