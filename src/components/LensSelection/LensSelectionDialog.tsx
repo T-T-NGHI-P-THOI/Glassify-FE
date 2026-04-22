@@ -45,6 +45,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '@/hooks/useAuth';
 import { usePrescriptions } from '@/hooks/usePrescriptions';
+import useLensEnums from '@/hooks/useLensEnums';
 import type {
     LensUsage,
     LensType,
@@ -163,6 +164,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const theme = useTheme();
     const { isAuthenticated } = useAuth();
     const { prescriptions, loading: prescriptionsLoading, error: prescriptionsError, createPrescription, fetchPrescriptions } = usePrescriptions();
+    const { prescriptionUsages } = useLensEnums();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
@@ -412,7 +414,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             name: feature.name,
             description: feature.description,
             price: feature.extraPrice,
-            category: 'other' as const,
+            category: 'other',
         }));
     }, [selectedLensType, apiLensData]);
 
@@ -1281,7 +1283,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 axisL: parseFloat(prescription.left_eye.axis || '0'),
                 addPower: parseFloat(prescription.right_eye.add || prescription.left_eye.add || '0'),
                 prescriptionDate: new Date().toISOString(),
-                prescriptionUsage: 'DISTANCE' as const,
+                prescriptionUsage: (prescriptionUsages && prescriptionUsages.length > 0) ? prescriptionUsages[0] : 'DISTANCE',
                 isDefault: false,
             };
 

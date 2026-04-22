@@ -23,7 +23,7 @@ const fontSerif = "'Playfair Display', serif";
 const buildSearchParams = (recommendedFrameStyles: FrameShape[], luckColors: string[]): URLSearchParams => {
     const params = new URLSearchParams();
     recommendedFrameStyles.forEach(style => params.append("frameShapes", style));
-    luckColors.forEach(color => params.append("colors", color));
+    luckColors.forEach(color => params.append("colors", color.toUpperCase()));
     return params;
 };
 
@@ -219,7 +219,13 @@ export const FaceShapeSuggestionPanel = ({
             fengShuiResult?.luckyColors ?? [],
         );
         handleClose?.();
-        navigate(`/products?${params.toString()}`);
+        const url = `/products?${params.toString()}`;
+        
+        if (window.location.pathname === "/products") {
+            window.location.href = url;
+        } else {
+            navigate(url);
+        }
     };
 
     if (!result && !isAnalyzing) return null;

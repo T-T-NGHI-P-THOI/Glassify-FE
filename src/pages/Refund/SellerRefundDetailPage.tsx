@@ -533,7 +533,7 @@ const SellerRefundDetailPage = () => {
     || normalizedStatus === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
     isAppealEligibleStatus &&
-    !isReturnAndRefundDecision &&
+    // !isReturnAndRefundDecision &&
     hasNoAppeal &&
     isAppealWindowOpen;
   const steps = getStatusSteps(normalizedStatus);

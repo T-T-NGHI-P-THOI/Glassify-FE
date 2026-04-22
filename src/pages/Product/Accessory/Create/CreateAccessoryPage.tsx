@@ -42,6 +42,7 @@ import { toast } from 'react-toastify';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 import ProductAPI from '@/api/product-api';
 import { ProductSize } from '@/types/product.enums';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ const Step0AccessoryInfo = ({ formData, setFormData, errors }: Step0Props) => {
     const handleInputChange =
         (field: keyof CreateAccessoryFormData) =>
             (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                setFormData(prev => ({ ...prev, [field]: e.target.value }));
+                setFormData(prev => ({ ...prev, [field]: sanitizeTextInput(e.target.value, { maxLength: 1000 }) }));
             };
 
     return (
@@ -155,7 +156,7 @@ const Step0AccessoryInfo = ({ formData, setFormData, errors }: Step0Props) => {
                     <TextField
                         fullWidth required label="Accessory Name"
                         value={formData.name}
-                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, name: sanitizeTextInput(e.target.value, { maxLength: 150 }) }))}
                         error={!!errors.name} helperText={errors.name}
                         placeholder="Enter accessory name"
                         inputProps={{ minLength: 3, maxLength: 150 }}
@@ -167,7 +168,7 @@ const Step0AccessoryInfo = ({ formData, setFormData, errors }: Step0Props) => {
                     <TextField
                         select fullWidth required label="Accessory Type"
                         value={formData.type}
-                        onChange={e => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, type: sanitizeTextInput(e.target.value, { maxLength: 50 }) }))}
                         error={!!errors.type} helperText={errors.type}
                         sx={fieldSx}
                     >

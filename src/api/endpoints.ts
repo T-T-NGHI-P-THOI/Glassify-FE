@@ -177,10 +177,13 @@ export const API_ENDPOINTS = {
     SERVICE_PRICE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-service-prices/${id}`,
     POLICIES: `${API_ENDPOINT}/shop/warranty-policies`,
     POLICY_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-policies/${id}`,
+    ISSUE_TYPES: `${API_ENDPOINT}/shop/warranty-issue-types`,
+    ISSUE_TYPE_BY_ID: (id: string) => `${API_ENDPOINT}/shop/warranty-issue-types/${id}`,
   },
   WARRANTY_PUBLIC: {
     SERVICE_PRICES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-service-prices`,
     POLICIES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-policies`,
+    ISSUE_TYPES_BY_SHOP: (shopId: string) => `${API_ENDPOINT}/shops/${shopId}/warranty-issue-types`,
   },
   RETURNS: {
     REQUESTS: `${API_ENDPOINT}/return-requests`,
@@ -321,6 +324,7 @@ export const PAGE_ENDPOINTS = {
     STAFF: `/shop/staff`,
     WARRANTY: `/shop/warranty`,
     WARRANTY_POLICIES: `/shop/warranty/policies`,
+    WARRANTY_ISSUE_TYPES: `/shop/warranty/issue-types`,
   },
 
   ADMIN: {

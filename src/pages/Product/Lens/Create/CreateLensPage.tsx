@@ -49,15 +49,18 @@ import {
   type LensFeatureFrameCompatibilityCreateRequest,
   type LensFeatureFrameCompatibilityUpdateRequest,
   type LensResponse,
+  type LensWithProductResult,
+  type LensCategory,
+  type LensProgressiveType,
+  type LensTintBehavior,
 } from '@/api/lens-api';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { getApiErrorMessage } from '@/utils/api-error';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
+import useLensEnums, { formatEnumLabel } from '@/hooks/useLensEnums';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 type LensScope = 'GLOBAL' | 'FRAME_VARIANT' | 'FRAME_GROUP';
-type LensCategory = 'SINGLE_VISION' | 'BIFOCAL' | 'PROGRESSIVE' | 'READING';
-type ProgressiveType = 'STANDARD' | 'PREMIUM' | 'MID_RANGE' | 'NEAR_RANGE';
-type TintBehavior = 'NONE' | 'SOLID' | 'GRADIENT' | 'MIRROR' | 'PHOTOCHROMIC';
 
 interface FeatureDraft {
   sku: string;
@@ -71,8 +74,9 @@ interface TintDraft {
   cssValue: string;
   opacity: string;
   basePrice: string;
+
   isActive: boolean;
-  behavior: TintBehavior;
+  behavior: LensTintBehavior;
 }
 
 interface ProgressiveOptionDraft {
@@ -82,7 +86,7 @@ interface ProgressiveOptionDraft {
   extraPrice: string;
   isRecommended: boolean;
   isActive: boolean;
-  progressiveType: ProgressiveType;
+  progressiveType: LensProgressiveType;
 }
 
 interface LensFormState {
@@ -92,10 +96,17 @@ interface LensFormState {
   sku: string;
   name: string;
   basePrice: string;
-  isProgressive: boolean;
+  costPrice: string;
+  compareAtPrice: string;
+  stockQuantity: string;
+  lowStockThreshold: string;
+  warrantyMonths: string;
+  isReturnable: boolean;
+  isFeatured: boolean;
+
   isActive: boolean;
   category: LensCategory;
-  progressiveType: ProgressiveType;
+  progressiveType: LensProgressiveType;
   featureIds: string[];
   tintIds: string[];
   usageIds: string[];
@@ -146,7 +157,7 @@ interface ExistingTintOption {
   opacity?: number;
   basePrice?: number;
   isActive?: boolean;
-  behavior?: TintBehavior;
+  behavior?: LensTintBehavior;
 }
 
 interface ExistingUsageOption {
@@ -174,7 +185,7 @@ interface EditingExistingTint extends ExistingTintOption {
   opacity?: number;
   basePrice?: number;
   isActive?: boolean;
-  behavior?: TintBehavior;
+  behavior?: LensTintBehavior;
   optionId?: string;
   extraPrice?: number;
   isDefault?: boolean;
@@ -195,8 +206,17 @@ const DEFAULT_TINT: TintDraft = {
   cssValue: '#b3b3b3',
   opacity: '0.4',
   basePrice: '0',
+
   isActive: true,
   behavior: 'NONE',
+};
+
+const resolveLensResponse = (
+  value?: LensResponse | LensWithProductResult | null,
+): LensResponse | null => {
+  if (!value) return null;
+  if ('lens' in value) return value.lens ?? null;
+  return value;
 };
 const DEFAULT_PROGRESSIVE_OPTION: ProgressiveOptionDraft = {
   name: '',
@@ -215,7 +235,14 @@ const DEFAULT_FORM: LensFormState = {
   sku: '',
   name: '',
   basePrice: '',
-  isProgressive: false,
+  costPrice: '',
+  compareAtPrice: '',
+  stockQuantity: '',
+  lowStockThreshold: '',
+  warrantyMonths: '',
+  isReturnable: true,
+  isFeatured: true,
+
   isActive: true,
   category: 'SINGLE_VISION',
   progressiveType: 'STANDARD',
@@ -262,31 +289,6 @@ const formatScopeLabel = (scope: LensScope) => {
 
 const isCatalogableFrameVariant = (variant: FrameVariantLite) => Boolean(variant.id && variant.productId);
 
-const DECIMAL_INPUT_REGEX = /^\d*(\.\d*)?$/;
-const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
-
-const sanitizeDecimalInput = (value: string) => {
-  const normalized = value.replace(',', '.').replace(/[^\d.]/g, '');
-  const firstDot = normalized.indexOf('.');
-  if (firstDot === -1) return normalized;
-  return `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, '')}`;
-};
-
-const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
-
-const getBasePriceError = (value: string): string | undefined => {
-  const parsedValue = parseDecimalInput(value);
-  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
-    return 'Base price must be greater than 0';
-  }
-
-  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
-    return 'Base price must be <= 99,999,999.99';
-  }
-
-  return undefined;
-};
-
 const shouldBlockNonNumericKey = (event: KeyboardEvent<HTMLElement>) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
   if (event.key.length !== 1) return false;
@@ -311,6 +313,50 @@ const UUID_LIKE_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isUuidLike = (value: string): boolean => UUID_LIKE_REGEX.test(value.trim());
+
+const DECIMAL_10_2_MAX_ABS = 99_999_999.99;
+
+const sanitizeDecimalInput = (value: string) => {
+  if (!value) return '';
+  let v = String(value).trim();
+
+  if (v.includes('.') && v.includes(',')) {
+    v = v.replace(/\./g, '').replace(/,/g, '.');
+  } else if (!v.includes('.') && v.includes(',')) {
+    const parts = v.split(',');
+    const decimal = parts.pop();
+    v = parts.join('') + (decimal !== undefined ? '.' + decimal : '');
+  } else if (v.includes('.') && !v.includes(',')) {
+    const parts = v.split('.');
+    if (parts.length > 2) {
+      const decimal = parts.pop();
+      v = parts.join('') + (decimal !== undefined ? '.' + decimal : '');
+    }
+  }
+
+  v = v.replace(/[^0-9.]/g, '');
+  const firstDot = v.indexOf('.');
+  if (firstDot !== -1) {
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, '');
+  }
+
+  return v;
+};
+
+const parseDecimalInput = (value: string): number => Number(sanitizeDecimalInput(value));
+
+const getBasePriceError = (value: string): string | undefined => {
+  const parsedValue = parseNumber(value);
+  if (!value || !Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return 'Base price must be greater than 0';
+  }
+
+  if (parsedValue > DECIMAL_10_2_MAX_ABS) {
+    return 'Base price must be <= 99,999,999.99';
+  }
+
+  return undefined;
+};
 
 const extractText = (record: unknown, keys: string[]): string => {
   if (!isRecord(record)) return '';
@@ -419,7 +465,7 @@ const normalizeTintOptionFromRecord = (item: unknown): ExistingTintOption => {
         : nestedTint && typeof nestedTint.isActive === 'boolean'
           ? nestedTint.isActive
           : undefined,
-    behavior: (extractText(record, ['behavior']) || extractText(nestedTint, ['behavior']) || 'NONE') as TintBehavior,
+    behavior: (extractText(record, ['behavior']) || extractText(nestedTint, ['behavior']) || 'NONE') as LensTintBehavior,
   };
 };
 
@@ -594,7 +640,9 @@ const CreateLensPage = () => {
     (async () => {
       try {
         setLensLoading(true);
-        const fetchedLens = await lensApi.getById(lensId);
+        const fetchedLensResult = await lensApi.getById(lensId);
+        const fetchedLens = fetchedLensResult.lens;
+        const fetchedProduct = fetchedLensResult.product;
         setLens(fetchedLens);
         setCurrentLensImageUrl(fetchedLens.imageUrl || '');
         setSelectedLensImageFile(null);
@@ -642,7 +690,7 @@ const CreateLensPage = () => {
           .map((item) =>
             normalizeUsageRuleDraftFromRecord(item, {
               allowTint: true,
-              allowProgressive: Boolean(fetchedLens.isProgressive),
+              allowProgressive: Boolean((fetchedLens.category === 'PROGRESSIVE')),
               minPriceAdjustment: 0,
             }),
           )
@@ -663,13 +711,20 @@ const CreateLensPage = () => {
 
         setForm((prev) => ({
           ...prev,
-          sku: String(fetchedLens.sku || ''),
+          sku: String(fetchedProduct?.sku || ''),
           name: String(fetchedLens.name || ''),
-          basePrice: String(fetchedLens.basePrice ?? ''),
-          isProgressive: Boolean(fetchedLens.isProgressive),
+          basePrice: String(fetchedProduct?.basePrice ?? fetchedLens.basePrice ?? ''),
+          costPrice: String(fetchedProduct?.costPrice ?? ''),
+          compareAtPrice: String(fetchedProduct?.compareAtPrice ?? ''),
+          stockQuantity: String(fetchedProduct?.stockQuantity ?? ''),
+          lowStockThreshold: String(fetchedProduct?.lowStockThreshold ?? ''),
+          warrantyMonths: String(fetchedProduct?.warrantyMonths ?? ''),
+          isReturnable: fetchedProduct?.isReturnable ?? true,
+          isFeatured: fetchedProduct?.isFeatured ?? true,
+
           isActive: Boolean(fetchedLens.isActive),
           category: (fetchedLens.category as LensCategory) || 'SINGLE_VISION',
-          progressiveType: (fetchedLens.progressiveType as ProgressiveType) || 'STANDARD',
+          progressiveType: (fetchedLens.progressiveType as LensProgressiveType) || 'STANDARD',
           featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
           tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
           usageIds,
@@ -682,7 +737,7 @@ const CreateLensPage = () => {
             extraPrice: String(item.extraPrice ?? 0),
             isRecommended: Boolean(item.isRecommended),
             isActive: Boolean(item.isActive),
-            progressiveType: (item.progressiveType as ProgressiveType) || 'STANDARD',
+            progressiveType: (item.progressiveType as LensProgressiveType) || 'STANDARD',
           })),
         }));
       } catch (error) {
@@ -758,7 +813,7 @@ const CreateLensPage = () => {
             .map((item) =>
               normalizeUsageRuleDraftFromRecord(item, {
                 allowTint: true,
-                allowProgressive: Boolean(form.isProgressive),
+                allowProgressive: Boolean((form.category === 'PROGRESSIVE')),
                 minPriceAdjustment: 0,
               }),
             )
@@ -1022,13 +1077,63 @@ const CreateLensPage = () => {
         next[usageId] = prev[usageId] ?? {
           usageId,
           allowTint: true,
-          allowProgressive: form.isProgressive,
+          allowProgressive: (form.category === 'PROGRESSIVE'),
           minPriceAdjustment: 0,
         };
       });
       return next;
     });
-  }, [form.usageIds, form.isProgressive]);
+  }, [form.usageIds, (form.category === 'PROGRESSIVE')]);
+
+  // Progressive type options fetched from API (derive from catalog or existing lens data)
+  const [progressiveTypeOptions, setProgressiveTypeOptions] = useState<string[]>([]);
+
+  // use shared enums from hook
+  const { lensCategories, progressiveTypes, tintBehaviors, prescriptionUsages } = useLensEnums();
+
+  useEffect(() => {
+    let active = true;
+    const loadProgressiveTypes = async () => {
+      try {
+        const types = new Set<string>();
+
+        // add progressive types from shared enums (if any)
+        (progressiveTypes ?? []).forEach((t) => types.add(String(t)));
+
+        // If editing an existing lens, include its progressiveOptions/progressiveType
+        if (lens?.progressiveOptions && Array.isArray(lens.progressiveOptions)) {
+          lens.progressiveOptions.forEach((opt) => {
+            if (opt && opt.progressiveType) types.add(String(opt.progressiveType));
+          });
+        }
+
+        // If a catalog frame variant is selected, fetch catalog and extract progressive types
+        if (selectedCatalogFrameVariantId) {
+          try {
+            const catalog = await lensService.getLensCatalogForFrame(selectedCatalogFrameVariantId);
+            (catalog?.lenses ?? []).forEach((l) => {
+              (l.progressiveOptions ?? []).forEach((po: any) => {
+                if (po && po.progressiveType) types.add(String(po.progressiveType));
+              });
+            });
+          } catch (err) {
+            console.warn('Failed to load progressive types from catalog:', err);
+          }
+        }
+
+        if (!active) return;
+        setProgressiveTypeOptions(Array.from(types));
+      } catch (err) {
+        console.error('Error loading progressive types:', err);
+      }
+    };
+
+    loadProgressiveTypes();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCatalogFrameVariantId, lens, progressiveTypes]);
 
   const handleFieldChange = <K extends keyof LensFormState>(key: K, value: LensFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -1040,32 +1145,21 @@ const CreateLensPage = () => {
     });
   };
 
-  const handlePriceFieldChange = (key: 'basePrice', value: string) => {
-    const sanitized = sanitizeDecimalInput(value);
-    if (!DECIMAL_INPUT_REGEX.test(sanitized)) return;
-    handleFieldChange(key, sanitized);
-    const error = getBasePriceError(sanitized);
-    setErrors((prev) => {
-      const next = { ...prev };
-      if (error) {
-        next[key] = error;
-      } else {
-        delete next[key];
-      }
-      return next;
-    });
-  };
-
   const validateStep = (step: number): boolean => {
     const nextErrors: Record<string, string> = {};
 
     if (step === 0) {
       if (!form.sku.trim()) nextErrors.sku = 'SKU is required';
       if (!form.name.trim()) nextErrors.name = 'Lens name is required';
-      const basePriceError = getBasePriceError(form.basePrice);
-      if (basePriceError) {
-        nextErrors.basePrice = basePriceError;
+      if (!form.basePrice.trim()) {
+        nextErrors.basePrice = 'Base price is required';
+      } else {
+        const basePriceError = getBasePriceError(form.basePrice);
+        if (basePriceError) {
+          nextErrors.basePrice = basePriceError;
+        }
       }
+            
 
       if (!isEditMode && form.scope === 'FRAME_VARIANT' && !form.frameVariantId) {
         nextErrors.frameVariantId = 'Please select a frame variant';
@@ -1075,7 +1169,7 @@ const CreateLensPage = () => {
         nextErrors.frameGroupId = 'Please select a frame group';
       }
 
-      if (form.isProgressive && !form.progressiveType) {
+      if ((form.category === 'PROGRESSIVE') && !form.progressiveType) {
         nextErrors.progressiveType = 'Progressive type is required when lens is progressive';
       }
     }
@@ -1099,7 +1193,7 @@ const CreateLensPage = () => {
         }
       });
 
-      if (form.isProgressive) {
+      if ((form.category === 'PROGRESSIVE')) {
         form.progressiveOptions.forEach((option, index) => {
           if (!option.name.trim()) {
             nextErrors[`progressiveOptions.${index}.name`] = 'Progressive option name is required';
@@ -1124,12 +1218,22 @@ const CreateLensPage = () => {
   };
 
   const buildPayload = (): CreateLensRequest => {
-    const basePriceError = getBasePriceError(form.basePrice);
-    if (basePriceError) {
-      throw new Error(basePriceError);
-    }
-    const parsedBasePrice = parseDecimalInput(form.basePrice);
+    const parseOptionalDecimal = (value: string) => {
+      const trimmed = (value || '').trim();
+      if (!trimmed) return undefined;
+      const parsed = parseNumber(trimmed);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const parseOptionalInteger = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? Math.trunc(parsed) : undefined;
+    };
 
+    const parsedBasePrice = parseNumber(form.basePrice || '');
+
+    
     const featureIds = form.featureIds.length ? form.featureIds : undefined;
     const tintIds = form.tintIds.length ? form.tintIds : undefined;
     const usageIds = form.usageIds.length ? form.usageIds : undefined;
@@ -1147,7 +1251,7 @@ const CreateLensPage = () => {
         isActive: x.isActive,
         behavior: x.behavior,
       }));
-    const progressiveOptions = form.isProgressive
+    const progressiveOptions = (form.category === 'PROGRESSIVE')
       ? form.progressiveOptions
           .filter((x) => x.name.trim())
           .map((x) => ({
@@ -1168,10 +1272,17 @@ const CreateLensPage = () => {
       name: form.name.trim(),
       imageFile: selectedLensImageFile ?? undefined,
       basePrice: parsedBasePrice,
-      isProgressive: form.isProgressive,
+      costPrice: parseOptionalDecimal(form.costPrice),
+      compareAtPrice: parseOptionalDecimal(form.compareAtPrice),
+      stockQuantity: parseOptionalInteger(form.stockQuantity),
+      lowStockThreshold: parseOptionalInteger(form.lowStockThreshold),
+      warrantyMonths: parseOptionalInteger(form.warrantyMonths),
+      isReturnable: form.isReturnable,
+      isFeatured: form.isFeatured,
+      
       isActive: form.isActive,
       category: form.category,
-      progressiveType: form.isProgressive ? form.progressiveType : undefined,
+      progressiveType: (form.category === 'PROGRESSIVE') ? form.progressiveType : undefined,
       featureIds,
       tintIds,
       usageIds,
@@ -1298,7 +1409,7 @@ const CreateLensPage = () => {
           shopId: shop.id,
           usageId,
           allowTint: usageRuleDraft?.allowTint ?? true,
-          allowProgressive: usageRuleDraft?.allowProgressive ?? payload.isProgressive,
+          allowProgressive: usageRuleDraft?.allowProgressive ?? (payload.category === 'PROGRESSIVE'),
           minPriceAdjustment: usageRuleDraft?.minPriceAdjustment ?? 0,
         });
         assertApiSuccess(usageRuleResult, 'Failed to map usage to lens');
@@ -1310,7 +1421,7 @@ const CreateLensPage = () => {
       }
     }
 
-    if (payload.isProgressive) {
+    if ((payload.category === 'PROGRESSIVE')) {
       const progressiveOptions = payload.progressiveOptions ?? [];
       for (let i = 0; i < progressiveOptions.length; i += 1) {
         const option = progressiveOptions[i];
@@ -1435,11 +1546,25 @@ const CreateLensPage = () => {
           sku: payload.sku,
           name: payload.name,
           imageFile: selectedLensImageFile ?? undefined,
+          keepImageUrls: selectedLensImageFile || !currentLensImageUrl ? [] : [currentLensImageUrl],
           basePrice: payload.basePrice,
-          isProgressive: payload.isProgressive,
+          costPrice: payload.costPrice,
+          compareAtPrice: payload.compareAtPrice,
+          stockQuantity: payload.stockQuantity,
+          lowStockThreshold: payload.lowStockThreshold,
+          warrantyMonths: payload.warrantyMonths,
+          isReturnable: payload.isReturnable,
+          isFeatured: payload.isFeatured,
           isActive: payload.isActive,
           category: payload.category,
           progressiveType: payload.progressiveType,
+          featureIds: payload.featureIds,
+          tintIds: payload.tintIds,
+          usageIds: payload.usageIds,
+          featuresToCreate: payload.featuresToCreate,
+          tintsToCreate: payload.tintsToCreate,
+          usagesToCreate: payload.usagesToCreate,
+          progressiveOptions: payload.progressiveOptions,
         });
       } else if (form.scope === 'FRAME_VARIANT') {
         if (!selectedCatalogFrameVariantId) {
@@ -1453,7 +1578,7 @@ const CreateLensPage = () => {
         response = await lensApi.create(payload);
       }
 
-      const updatedOrCreatedLens = response?.data;
+      const updatedOrCreatedLens = resolveLensResponse(response?.data ?? null);
       const responseStatus = Number(response?.status ?? 0);
 
       // Some APIs wrap business errors in response body (status >= 400)
@@ -1800,6 +1925,11 @@ const CreateLensPage = () => {
             <Grid container spacing={2.5} alignItems="stretch" sx={{ pt: 0.5 }}>
               <Grid size={{ xs: 12, lg: 7 }}>
                 <Grid container spacing={2.5}>
+                  {/* Basic Info */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Basic Info</Typography>
+                  </Grid>
+
                   <Grid size={{ xs: 12 }}>
                     <FormControl>
                       <FormLabel>Apply Scope</FormLabel>
@@ -1873,7 +2003,7 @@ const CreateLensPage = () => {
                       required
                       label="SKU"
                       value={form.sku}
-                      onChange={(e) => handleFieldChange('sku', e.target.value)}
+                      onChange={(e) => handleFieldChange('sku', sanitizeTextInput(e.target.value, { maxLength: 150 }))}
                       error={!!errors.sku}
                       helperText={errors.sku}
                     />
@@ -1885,82 +2015,127 @@ const CreateLensPage = () => {
                       required
                       label="Lens Name"
                       value={form.name}
-                      onChange={(e) => handleFieldChange('name', e.target.value)}
+                      onChange={(e) => handleFieldChange('name', sanitizeTextInput(e.target.value, { maxLength: 150 }))}
                       error={!!errors.name}
                       helperText={errors.name}
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      required
-                      type="text"
-                      label="Base Price"
-                      value={form.basePrice ? formatNumber(parseNumber(form.basePrice)) : ''}
-                      onChange={(e) => {
-                        const sanitized = e.target.value.replace(/\D/g, '');
-                        handlePriceFieldChange('basePrice', sanitized);
-                      }}
-                      onKeyDown={(e) => {
-                        if (shouldBlockNonNumericKey(e)) e.preventDefault();
-                      }}
-                      inputProps={{ inputMode: 'numeric' }}
-                      error={!!errors.basePrice}
-                      helperText={errors.basePrice}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <FormControl fullWidth>
+                  <Grid size={{ xs: 12, md: 12 }}>
+                      <FormControl fullWidth>
                       <InputLabel>Category</InputLabel>
                       <Select
                         value={form.category}
                         label="Category"
                         onChange={(e) => handleFieldChange('category', e.target.value as LensCategory)}
                       >
-                        <MenuItem value="SINGLE_VISION">Single Vision</MenuItem>
-                        <MenuItem value="BIFOCAL">Bifocal</MenuItem>
-                        <MenuItem value="PROGRESSIVE">Progressive</MenuItem>
-                        <MenuItem value="READING">Reading</MenuItem>
+                        {(lensCategories && lensCategories.length > 0
+                          ? lensCategories
+                          : ['SINGLE_VISION', 'BIFOCAL', 'PROGRESSIVE', 'READING', 'FASHION']
+                        ).map((c) => (
+                          <MenuItem key={c} value={c}>{formatEnumLabel(c)}</MenuItem>
+                        ))}
                       </Select>
                     </FormControl>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 12 }}>
+                    <Grid container spacing={2.5}>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Tooltip title="Enable this to make the lens visible and sellable in the shop. Disable it to hide the lens from the storefront while keeping its data.">
+                          <FormControlLabel
+                            control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
+                            label="Active Lens"
+                          />
+                        </Tooltip>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                          control={<Switch checked={form.isFeatured} onChange={(e) => handleFieldChange('isFeatured', e.target.checked)} />}
+                          label="Featured Lens"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                  
+                  {/* Pricing */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Pricing</Typography>
                   </Grid>
 
                   <Grid size={{ xs: 12, md: 4 }}>
-                    <FormControl fullWidth disabled={!form.isProgressive} error={!!errors.progressiveType}>
-                      <InputLabel>Progressive Type</InputLabel>
-                      <Select
-                        value={form.progressiveType}
-                        label="Progressive Type"
-                        onChange={(e) => handleFieldChange('progressiveType', e.target.value as ProgressiveType)}
-                      >
-                        <MenuItem value="STANDARD">Standard</MenuItem>
-                        <MenuItem value="PREMIUM">Premium</MenuItem>
-                        <MenuItem value="MID_RANGE">Mid Range</MenuItem>
-                        <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
-                      </Select>
-                      {!!errors.progressiveType && <Typography color="error" fontSize={12}>{errors.progressiveType}</Typography>}
-                    </FormControl>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Base Price"
+                      value={formatNumber(parseNumber(form.basePrice || ''))}
+                      onChange={(e) => handleFieldChange('basePrice', String(parseNumber(e.target.value)))}
+                      error={!!errors.basePrice}
+                      helperText={errors.basePrice}
+                      inputProps={{ inputMode: 'decimal' }}
+                    />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Tooltip title="Enable this if the lens supports progressive/multifocal vision. When enabled, the shop should choose a Progressive Type and can configure Progressive Options.">
-                      <FormControlLabel
-                        control={<Switch checked={form.isProgressive} onChange={(e) => handleFieldChange('isProgressive', e.target.checked)} />}
-                        label="Progressive Lens"
-                      />
-                    </Tooltip>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Cost Price"
+                      value={formatNumber(parseNumber(form.costPrice || ''))}
+                      onChange={(e) => handleFieldChange('costPrice', String(parseNumber(e.target.value)))}
+                      inputProps={{ inputMode: 'decimal' }}
+                    />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <Tooltip title="Enable this to make the lens visible and sellable in the shop. Disable it to hide the lens from the storefront while keeping its data.">
-                      <FormControlLabel
-                        control={<Switch checked={form.isActive} onChange={(e) => handleFieldChange('isActive', e.target.checked)} />}
-                        label="Active Lens"
-                      />
-                    </Tooltip>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Compare At Price"
+                      value={formatNumber(parseNumber(form.compareAtPrice || ''))}
+                      onChange={(e) => handleFieldChange('compareAtPrice', String(parseNumber(e.target.value)))}
+                      inputProps={{ inputMode: 'decimal' }}
+                    />
                   </Grid>
+
+                  {/* Inventory */}
+                  <Grid size={{ xs: 12 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>Inventory</Typography>
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Stock Quantity"
+                      type="number"
+                      value={form.stockQuantity}
+                      onChange={(e) => handleFieldChange('stockQuantity', e.target.value)}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Low Stock Threshold"
+                      type="number"
+                      value={form.lowStockThreshold}
+                      onChange={(e) => handleFieldChange('lowStockThreshold', e.target.value)}
+                    />
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="Warranty Months"
+                      type="number"
+                      value={form.warrantyMonths}
+                      onChange={(e) => handleFieldChange('warrantyMonths', e.target.value)}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                        <FormControlLabel
+                          control={<Switch checked={form.isReturnable} onChange={(e) => handleFieldChange('isReturnable', e.target.checked)} />}
+                          label="Returnable"
+                        />
+                      </Grid>
                 </Grid>
               </Grid>
 
@@ -1981,7 +2156,7 @@ const CreateLensPage = () => {
                   <>
                     <Box
                       sx={{
-                        width: 'min(100%, 180px)',
+                        width: 'min(100%, 280px)',
                         flex: '0 0 auto',
                         aspectRatio: '1 / 1',
                         borderRadius: 1.5,
@@ -2008,7 +2183,10 @@ const CreateLensPage = () => {
                       )}
                     </Box>
 
-                    <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{
+                        mx: 'auto',
+                      }}>
+                      <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
                       <Button
                         variant="outlined"
                         component="label"
@@ -2034,6 +2212,7 @@ const CreateLensPage = () => {
                         ? selectedLensImageFile.name
                         : 'No file selected (image is optional)'}
                     </Typography>
+                    </Box>
                   </>
                 </Paper>
               </Grid>
@@ -2100,7 +2279,7 @@ const CreateLensPage = () => {
                       </Tooltip>
                     }
                   />
-                  {form.isProgressive && (
+                  {(form.category === 'PROGRESSIVE') && (
                     <Tab
                       value="PROGRESSIVE"
                       label={
@@ -2206,7 +2385,7 @@ const CreateLensPage = () => {
                                           value={editingData.sku}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, sku: e.target.value } : null,
+                                              prev ? { ...prev, sku: sanitizeTextInput(e.target.value, { maxLength: 150 }) } : null,
                                             )
                                           }
                                         />
@@ -2218,7 +2397,7 @@ const CreateLensPage = () => {
                                           value={editingData.name}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, name: e.target.value } : null,
+                                              prev ? { ...prev, name: sanitizeTextInput(e.target.value, { maxLength: 150 }) } : null,
                                             )
                                           }
                                         />
@@ -2230,7 +2409,7 @@ const CreateLensPage = () => {
                                           value={editingData.description || ''}
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
-                                              prev ? { ...prev, description: e.target.value } : null,
+                                              prev ? { ...prev, description: sanitizeTextInput(e.target.value, { maxLength: 1000 }) } : null,
                                             )
                                           }
                                         />
@@ -2244,7 +2423,7 @@ const CreateLensPage = () => {
                                           onChange={(e) =>
                                             setEditingExistingFeature((prev) =>
                                               prev
-                                                ? { ...prev, extraPrice: Number(parseNumber(e.target.value)) }
+                                                ? { ...prev, extraPrice: parseNumber(e.target.value) }
                                                 : null,
                                             )
                                           }
@@ -2613,16 +2792,17 @@ const CreateLensPage = () => {
                                             onChange={(e) =>
                                               setEditingExistingTint((prev) =>
                                                 prev
-                                                  ? { ...prev, behavior: e.target.value as TintBehavior }
+                                                  ? { ...prev, behavior: e.target.value as LensTintBehavior }
                                                   : null,
                                               )
                                             }
                                           >
-                                            <MenuItem value="NONE">None</MenuItem>
-                                            <MenuItem value="SOLID">Solid</MenuItem>
-                                            <MenuItem value="PHOTOCHROMIC">Photochromic</MenuItem>
-                                            <MenuItem value="GRADIENT">Gradient</MenuItem>
-                                            <MenuItem value="MIRROR">Mirror</MenuItem>
+                                            {(tintBehaviors && tintBehaviors.length > 0
+                                              ? tintBehaviors
+                                              : ['NONE', 'SOLID', 'GRADIENT', 'MIRROR', 'PHOTOCHROMIC']
+                                            ).map((b) => (
+                                              <MenuItem key={b} value={b}>{formatEnumLabel(b)}</MenuItem>
+                                            ))}
                                           </Select>
                                         </FormControl>
                                       </Grid>
@@ -2866,12 +3046,13 @@ const CreateLensPage = () => {
                               <Grid size={{ xs: 12, md: 2 }}>
                                 <FormControl fullWidth>
                                   <InputLabel>Behavior</InputLabel>
-                                  <Select value={item.behavior} label="Behavior" onChange={(e) => setTintAt(index, 'behavior', e.target.value as TintBehavior)}>
-                                    <MenuItem value="NONE">None</MenuItem>
-                                    <MenuItem value="SOLID">Solid</MenuItem>
-                                    <MenuItem value="PHOTOCHROMIC">Photochromic</MenuItem>
-                                    <MenuItem value="GRADIENT">Gradient</MenuItem>
-                                    <MenuItem value="MIRROR">Mirror</MenuItem>
+                                  <Select value={item.behavior} label="Behavior" onChange={(e) => setTintAt(index, 'behavior', e.target.value as LensTintBehavior)}>
+                                    {(tintBehaviors && tintBehaviors.length > 0
+                                      ? tintBehaviors
+                                      : ['NONE', 'SOLID', 'GRADIENT', 'MIRROR', 'PHOTOCHROMIC']
+                                    ).map((b) => (
+                                      <MenuItem key={b} value={b}>{formatEnumLabel(b)}</MenuItem>
+                                    ))}
                                   </Select>
                                 </FormControl>
                               </Grid>
@@ -2937,7 +3118,7 @@ const CreateLensPage = () => {
                                     prev[usageId] ?? {
                                       usageId,
                                       allowTint: true,
-                                      allowProgressive: form.isProgressive,
+                                      allowProgressive: (form.category === 'PROGRESSIVE'),
                                       minPriceAdjustment: 0,
                                     },
                                 }));
@@ -3072,7 +3253,7 @@ const CreateLensPage = () => {
                                                     usageId: id,
                                                     ruleId: resolvedRuleId,
                                                     allowTint: editingData.allowTint ?? true,
-                                                    allowProgressive: editingData.allowProgressive ?? form.isProgressive,
+                                                    allowProgressive: editingData.allowProgressive ?? (form.category === 'PROGRESSIVE'),
                                                     minPriceAdjustment: editingData.minPriceAdjustment ?? 0,
                                                   },
                                                 }));
@@ -3113,7 +3294,7 @@ const CreateLensPage = () => {
                                                   usageId: id,
                                                   ruleId: resolvedRuleId,
                                                   allowTint: editingData.allowTint ?? true,
-                                                  allowProgressive: editingData.allowProgressive ?? form.isProgressive,
+                                                  allowProgressive: editingData.allowProgressive ?? (form.category === 'PROGRESSIVE'),
                                                   minPriceAdjustment: editingData.minPriceAdjustment ?? 0,
                                                 },
                                               }));
@@ -3175,7 +3356,7 @@ const CreateLensPage = () => {
                                               ruleId: baseRule?.ruleId ?? rule?.id,
                                               allowTint: baseRule?.allowTint ?? rule?.allowTint ?? true,
                                               allowProgressive:
-                                                baseRule?.allowProgressive ?? rule?.allowProgressive ?? form.isProgressive,
+                                                baseRule?.allowProgressive ?? rule?.allowProgressive ?? (form.category === 'PROGRESSIVE'),
                                               minPriceAdjustment:
                                                 baseRule?.minPriceAdjustment ?? (rule?.minPriceAdjustment || 0),
                                             } as EditingExistingUsage);
@@ -3512,12 +3693,20 @@ const CreateLensPage = () => {
                                 <Select
                                   value={item.progressiveType}
                                   label="Progressive Type"
-                                  onChange={(e) => setProgressiveOptionAt(index, 'progressiveType', e.target.value as ProgressiveType)}
+                                  onChange={(e) => setProgressiveOptionAt(index, 'progressiveType', e.target.value as LensProgressiveType)}
                                 >
-                                  <MenuItem value="STANDARD">Standard</MenuItem>
-                                  <MenuItem value="PREMIUM">Premium</MenuItem>
-                                  <MenuItem value="MID_RANGE">Mid Range</MenuItem>
-                                  <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
+                                  {progressiveTypeOptions && progressiveTypeOptions.length > 0 ? (
+                                    progressiveTypeOptions.map((pt) => (
+                                      <MenuItem key={pt} value={pt}>{formatEnumLabel(pt)}</MenuItem>
+                                    ))
+                                  ) : (
+                                    <>
+                                      <MenuItem value="STANDARD">Standard</MenuItem>
+                                      <MenuItem value="PREMIUM">Premium</MenuItem>
+                                      <MenuItem value="MID_RANGE">Mid Range</MenuItem>
+                                      <MenuItem value="NEAR_RANGE">Near Range</MenuItem>
+                                    </>
+                                  )}
                                 </Select>
                               </FormControl>
                             </Grid>
@@ -3590,10 +3779,10 @@ const CreateLensPage = () => {
                     <Typography sx={{ fontWeight: 600, mb: 1.5 }}>Basic</Typography>
                     <Typography sx={{ fontSize: 13 }}>SKU: {form.sku || 'N/A'}</Typography>
                     <Typography sx={{ fontSize: 13 }}>Name: {form.name || 'N/A'}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Base Price: {form.basePrice || '0'}</Typography>
+
                     <Typography sx={{ fontSize: 13 }}>Category: {form.category}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Progressive: {form.isProgressive ? 'Yes' : 'No'}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Progressive Type: {form.isProgressive ? form.progressiveType : 'N/A'}</Typography>
+                    <Typography sx={{ fontSize: 13 }}>Progressive: {(form.category === 'PROGRESSIVE') ? 'Yes' : 'No'}</Typography>
+                    <Typography sx={{ fontSize: 13 }}>Progressive Type: {(form.category === 'PROGRESSIVE') ? form.progressiveType : 'N/A'}</Typography>
                     <Typography sx={{ fontSize: 13 }}>Active status: {form.isActive ? 'Yes' : 'No'}</Typography>
                   </Paper>
                 </Grid>
@@ -3605,7 +3794,7 @@ const CreateLensPage = () => {
                     <Typography sx={{ fontSize: 13 }}>Existing Usage Rules: {form.usageIds.length}</Typography>
                     <Typography sx={{ fontSize: 13 }}>New Features: {form.featuresToCreate.filter((x) => x.name.trim()).length}</Typography>
                     <Typography sx={{ fontSize: 13 }}>New Tints: {form.tintsToCreate.filter((x) => x.name.trim()).length}</Typography>
-                    <Typography sx={{ fontSize: 13 }}>Progressive Options: {form.isProgressive ? form.progressiveOptions.filter((x) => x.name.trim()).length : 0}</Typography>
+                    <Typography sx={{ fontSize: 13 }}>Progressive Options: {(form.category === 'PROGRESSIVE') ? form.progressiveOptions.filter((x) => x.name.trim()).length : 0}</Typography>
                   </Paper>
                 </Grid>
               </Grid>

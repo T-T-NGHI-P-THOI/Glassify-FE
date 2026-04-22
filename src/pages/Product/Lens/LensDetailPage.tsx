@@ -21,9 +21,11 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { shopApi } from '@/api/shopApi';
 import { lensApi, type LensResponse } from '@/api/lens-api';
+import useLensEnums, { formatEnumLabel } from '@/hooks/useLensEnums';
 import ProductAPI from '@/api/product-api';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopDetailResponse } from '@/models/Shop';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 type FrameSpecificLensDetail = {
   frameGroupId?: string;
@@ -143,7 +145,6 @@ const LensDetailPage = () => {
       sku: 'SKU',
       code: 'Code',
       extraPrice: 'Extra Price',
-      basePrice: 'Base Price',
       isDefault: 'Default',
       allowTint: 'Allow Tint',
       allowProgressive: 'Allow Progressive',
@@ -242,9 +243,13 @@ const LensDetailPage = () => {
     preferredKeys.forEach((key) => {
       const value = typed[key];
       if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+        let displayValue = String(value);
+        if (key === 'progressiveType' || key === 'behavior' || key === 'type' || key === 'category') {
+          displayValue = formatEnumLabel(String(value));
+        }
         fields.push({
           label: toDisplayLabel(key),
-          value: String(value),
+          value: displayValue,
         });
       }
     });
@@ -341,8 +346,16 @@ const LensDetailPage = () => {
         const myShop = shopRes.data?.[0] ?? null;
         setShop(myShop);
 
-        const detail = await lensApi.getById(lensId);
+        const detailResult = await lensApi.getById(lensId);
+        const detail = detailResult.lens;
+        const product = detailResult.product;
         const catalogDetails = await findLensDetailsFromCatalog(lensId, myShop?.id);
+
+        let mergedDetail: any = { ...detail };
+        if (product) {
+          // Merge product fields into lensDetail for display
+          mergedDetail = { ...mergedDetail, ...product };
+        }
 
         if (catalogDetails.length > 0) {
           const firstCatalogDetail = catalogDetails[0];
@@ -385,7 +398,7 @@ const LensDetailPage = () => {
           }) || [];
 
           setLensDetail({
-            ...detail,
+            ...mergedDetail,
             frameVariantId: firstCatalogDetail.frameVariantId,
             frameVariantSku: firstCatalogDetail.frameVariantSku,
             featureMappings: enrichedFeatures,
@@ -394,7 +407,7 @@ const LensDetailPage = () => {
             frameLensDetails: catalogDetails,
           } as LensResponse & Record<string, unknown>);
         } else {
-          setLensDetail(detail as LensResponse & Record<string, unknown>);
+          setLensDetail(mergedDetail as LensResponse & Record<string, unknown>);
         }
       } catch (error) {
         console.error('Failed to load lens detail:', error);
@@ -503,7 +516,7 @@ const LensDetailPage = () => {
         <Grid container spacing={2.5}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-              <Typography sx={{ fontWeight: 700, mb: 1.5 }}>Basic Info</Typography>
+              <Typography sx={{ fontWeight: 700, mb: 1.5 }}>Lens Info</Typography>
               <Box
                 component="img"
                 src={lensImageSrc}
@@ -530,23 +543,12 @@ const LensDetailPage = () => {
                   <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.name || '-'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Base Price</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
-                    {typeof lensDetail?.basePrice === 'number'
-                      ? lensDetail.basePrice.toLocaleString('vi-VN')
-                      : '0'}{' '}
-                    VND
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Category</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.category || '-'}</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.category ? formatEnumLabel(String(lensDetail.category)) : '-'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Progressive</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
-                    {lensDetail?.isProgressive ? (lensDetail?.progressiveType as string) || 'Yes' : 'No'}
-                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Progressive Type</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.progressiveType ? formatEnumLabel(String(lensDetail.progressiveType)) : '-'}</Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Status</Typography>
@@ -565,6 +567,67 @@ const LensDetailPage = () => {
                       ? new Date(String(lensDetail.updatedAt)).toLocaleString('vi-VN')
                       : '-'}
                   </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          {/* Product Info Section */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+              <Typography sx={{ fontWeight: 700, mb: 1.5 }}>Product Info</Typography>
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Base Price</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.basePrice === 'number' ? formatCurrency(lensDetail.basePrice) : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Cost Price</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.costPrice === 'number' ? formatCurrency(lensDetail.costPrice) : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Compare At Price</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.compareAtPrice === 'number' ? formatCurrency(lensDetail.compareAtPrice) : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Stock Quantity</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.stockQuantity === 'number' ? lensDetail.stockQuantity : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Low Stock Threshold</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.lowStockThreshold === 'number' ? lensDetail.lowStockThreshold : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Warranty (months)</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.warrantyMonths === 'number' ? lensDetail.warrantyMonths : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Returnable</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.isReturnable === true ? 'Yes' : lensDetail?.isReturnable === false ? 'No' : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Featured</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.isFeatured === true ? 'Yes' : lensDetail?.isFeatured === false ? 'No' : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Product Type</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.productType === 'string' ? lensDetail.productType : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Slug</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.slug === 'string' ? lensDetail.slug : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Description</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.description === 'string' && lensDetail.description ? lensDetail.description : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Created At</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.createdAt ? new Date(String(lensDetail.createdAt)).toLocaleString('vi-VN') : '-'}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Updated At</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{lensDetail?.updatedAt ? new Date(String(lensDetail.updatedAt)).toLocaleString('vi-VN') : '-'}</Typography>
                 </Grid>
               </Grid>
             </Paper>
