@@ -44,6 +44,7 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 	const [modelLoading, setModelLoading] = useState(true);
 	const [modelError, setModelError] = useState<string | null>(null);
 	const [viewerInitToken, setViewerInitToken] = useState(0);
+	const [textureLoading, setTextureLoading] = useState(false);
 
 	const activeVariant = variants.find(v => v.id === activeVariantId) ?? null;
 
@@ -96,10 +97,15 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 						setModelLoading(false);
 						setModelError(null);
 						if (activeVariant?.textureUrl) {
+							setTextureLoading(true);
+
 							service
 								.applyTextureFromUrl(service.viewerModel, activeVariant.textureUrl)
 								.catch((error) => {
 									console.error('Failed to apply selected variant texture:', error);
+								})
+								.finally(() => {
+									setTextureLoading(false);
 								});
 						}
 
@@ -187,11 +193,17 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 			attempts += 1;
 
 			if (service.viewerModel) {
+				setTextureLoading(true);
+
 				service
 					.applyTextureFromUrl(service.viewerModel, activeVariant.textureUrl)
 					.catch((error) => {
 						console.error('Failed to apply selected variant texture:', error);
+					})
+					.finally(() => {
+						setTextureLoading(false);
 					});
+
 				window.clearInterval(timer);
 				return;
 			}
@@ -259,7 +271,7 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 				>
 					<canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
 
-					{(modelLoading || modelError) && (
+					{(modelLoading || textureLoading || modelError) && (
 						<Box
 							sx={{
 								position: 'absolute',
@@ -275,6 +287,8 @@ const Product3DPreviewDialog: React.FC<Product3DPreviewDialogProps> = ({
 							{modelLoading && <CircularProgress size={28} sx={{ color: '#fff' }} />}
 							<Typography sx={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>
 								{modelLoading ? 'Loading 3D model...' : modelError}
+								{textureLoading && 'Applying texture...'}
+								{modelError}
 							</Typography>
 						</Box>
 					)}

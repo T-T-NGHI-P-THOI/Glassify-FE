@@ -376,7 +376,7 @@ const ImageTryOn = ({
                         {loadingStep === "load_model" && "Loading 3D model…"}
                         {loadingStep === "load_texture" && "Applying texture…"}
                         {loadingStep === "detect_face" && "Detecting landmarks…"}
-                        {loadingStep === "detect_age" && "Analyzing age…"}
+                        {/* {loadingStep === "detect_age" && "Analyzing age…"} */}
                     </Typography>
                 </Box>
             )}
