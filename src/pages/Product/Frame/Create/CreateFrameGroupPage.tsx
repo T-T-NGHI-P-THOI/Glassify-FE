@@ -150,7 +150,7 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
             try {
                 const payload = new FormData();
                 payload.append('shopId', shopId ?? '');
-                payload.append('productName', formData.frameName.trim());
+                payload.append('frameName', formData.frameName.trim());
                 payload.append('frameShape', formData.frameShape);
                 payload.append('frameStructure', formData.frameStructure);
                 payload.append('frameMaterial', formData.frameMaterial);
