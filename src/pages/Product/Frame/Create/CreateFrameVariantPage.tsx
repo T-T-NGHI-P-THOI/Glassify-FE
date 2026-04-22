@@ -403,7 +403,6 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
             // async GLTF/OBJ loader (viewerModel is null until loading completes).
             const service = threeServiceRef.current;
             if (service) {
-                console.log("applyTextureWhenReady applyTextureWhenReady")
                 applyTextureWhenReady(service, file);
             }
 

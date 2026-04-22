@@ -32,10 +32,10 @@ const VerificationAPI = {
             page: params.page ?? 0,
             size: params.size ?? 10,
         };
-        if (params.status && params.status !== 'ALL')      query.status      = params.status;
+        if (params.status && params.status !== 'ALL') query.status = params.status;
         if (params.productType && params.productType !== 'ALL') query.productType = params.productType;
-        if (params.search?.trim())                          query.search      = params.search.trim();
-
+        if (params.search?.trim()) query.search = params.search.trim();
+        if (params.shopId) query.shopId = params.shopId;
         const res = await axiosInstance.get('/api/v1/product-verifications', { params: query });
         return res.data.data;
     },

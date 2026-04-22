@@ -97,7 +97,7 @@ export const RecommendationSearchButton = () => {
 
         handleClose();
     };
-    
+
     return (
         <>
             <Button
@@ -144,7 +144,7 @@ export const RecommendationSearchButton = () => {
                     </Box>
                     <Box sx={{ flex: 1 }}>
                         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#1f2937' }}>
-                            AI Recommendations
+                            Recommendations
                         </Typography>
                         <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>
                             Choose a recommedation profile to find suitable products
@@ -160,6 +160,17 @@ export const RecommendationSearchButton = () => {
                         <Box sx={{ py: 6, textAlign: 'center' }}>
                             <CircularProgress size={32} />
                             <Typography sx={{ mt: 1, fontSize: 14, color: '#6b7280' }}>Đang tải...</Typography>
+                        </Box>
+                    ) : recs.length === 0 ? (
+                        // 👉 EMPTY STATE
+                        <Box sx={{ py: 6, textAlign: 'center' }}>
+                            <AutoAwesome sx={{ fontSize: 36, color: '#d1d5db', mb: 1 }} />
+                            <Typography sx={{ fontSize: 14, color: '#6b7280', fontWeight: 500 }}>
+                                No recommendations yet
+                            </Typography>
+                            <Typography sx={{ fontSize: 12, color: '#9ca3af', mt: 0.5 }}>
+                                Try scanning your face to get personalized suggestions
+                            </Typography>
                         </Box>
                     ) : (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

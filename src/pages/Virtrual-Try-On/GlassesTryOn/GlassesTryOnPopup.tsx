@@ -440,8 +440,10 @@ const GlassesTryOnPopup = ({
                                 activeVariant={activeVariant}
                                 isTryOn={isTryOn}
                                 onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
+                                onFengShuiReady={isTryOn ? () => { } : setFengShuiResult}
                                 onAgeReady={() => { }}
                                 onReload={handleReload}
+                                reloadSignal={reloadSignal}
                             />
                         ) : (
                             <ImageTryOn
@@ -558,7 +560,7 @@ const GlassesTryOnPopup = ({
 
                         {/* Icon buttons — lens chỉ hiện khi try-on, rec chỉ hiện khi recommend */}
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, ml: "auto" }}>
-                            {isTryOn && (
+                            {/* {isTryOn && (
                                 <CanvasIconBtn
                                     onClick={() => toggleDrawer("lens")}
                                     active={drawer === "lens"}
@@ -569,8 +571,8 @@ const GlassesTryOnPopup = ({
                                         <line x1="10.5" y1="12" x2="13.5" y2="12" />
                                     </svg>
                                 </CanvasIconBtn>
-                            )}
-
+                            )} */}
+                            z
                             {!isTryOn && (
                                 <CanvasIconBtn
                                     onClick={() => toggleDrawer("rec")}

@@ -45,14 +45,7 @@ export class ThreeJsService {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
-        const hw = (vw / 2) / 2;  // half-width thu nhỏ = zoom in
-        const hh = (vh / 2) / 2;
-        const camera = new THREE.OrthographicCamera(
-            -hw, hw,
-            hh, -hh,
-            0.1, 5000
-        );
-        camera.position.set(-vw / 2, -vh / 2, 500);
+        const camera = await this.createCamera(vw, vh);
         this.camera = camera;
 
         const bgResult = await this.createVideoBackground(video, camera);
@@ -425,9 +418,7 @@ export class ThreeJsService {
                         child.material.roughness = 1;
                         child.material.needsUpdate = true;
 
-                        console.log("UV: ", child.geometry.attributes.uv);
                     });
-
                     resolve();
                 },
                 undefined,
@@ -490,8 +481,6 @@ export class ThreeJsService {
                     } else {
                         child.material = applyToMaterial(child.material);
                     }
-
-                    console.log("UV: ", child.geometry.attributes.uv);
                 });
 
                 console.log(`[Texture] applied to ${meshCount} mesh(es)`);

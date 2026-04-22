@@ -181,18 +181,18 @@ export class FaceLandmarkerService {
         }
 
         const results = this.faceLandmarker.detectForVideo(video, performance.now());
-        if (!this.measurements) {
-            this.scheduleNextPrediction(video);
-            this.predictionInFlight = false;
-            return;
-        }
 
-        const videoCfg = buildVideoCfg(this.measurements);
 
         if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+            const landmarks = results.faceLandmarks[0];
+
             if (this.glassesObj) this.glassesObj.visible = true;
-            this.applyLandmarks(results.faceLandmarks[0], video.videoWidth, video.videoHeight, videoCfg);
+            if (this.measurements && this.glassesObj) {
+                const videoCfg = buildVideoCfg(this.measurements);
+                this.applyLandmarks(landmarks, video.videoWidth, video.videoHeight, videoCfg);
+            }
             this.onLandmarksDetected?.(results.faceLandmarks[0], video.videoWidth, video.videoHeight);
+
         } else {
             if (this.glassesObj) this.glassesObj.visible = false;
             if (this.faceObj) this.faceObj.visible = false;
@@ -373,7 +373,6 @@ export class ImageFaceLandmarkerService {
 
         this.setVisibility(true, isTryOn);
 
-        console.log(glassesMeasurements)
         const imageCfg = buildImageCfg(glassesMeasurements);
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],

@@ -516,6 +516,7 @@ const ShopProductVerificationPage = () => {
         search,
         page,
         pageSize: PAGE_SIZE,
+        enabled: !!shop?.id,
     });
 
     // ── Stat cards ────────────────────────────────────────────────────────────
