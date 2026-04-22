@@ -7,6 +7,7 @@ import { analyzeFaceShape, type FaceAnalysisResult } from "../../../services/Fac
 import { AgeDetectionService, type AgeGenderResult } from "../../../services/AgeDetectionService";
 import { T, type VirtualTryOnParams } from "./TryOnTypes";
 import type { GlassesMeasurements } from "@/utils/glasses-cfg";
+import { analyzeFengShui, type FengShuiResult } from "@/services/FengShuiAnalyzer";
 
 type Status = "idle" | "loading" | "done" | "error";
 type LoadingStep =
@@ -14,7 +15,9 @@ type LoadingStep =
     | "init_engine"
     | "init_three"
     | "load_texture"
+    | "detect_face_shape"
     | "detect_face"
+    | "analyze_fengshui"
     | "detect_age";
 
 interface VideoTryOnProps {
@@ -22,8 +25,10 @@ interface VideoTryOnProps {
     activeVariant: VirtualTryOnParams | null;
     isTryOn: boolean; // true = skip face analysis; false = skip Three.js/glasses
     onAnalysisReady: (result: FaceAnalysisResult) => void;
+    onFengShuiReady: (result: FengShuiResult) => void;
     onAgeReady: (result: AgeGenderResult) => void;
     onReload: () => void;
+    reloadSignal: number;
 }
 
 const VideoTryOn = ({
@@ -31,8 +36,10 @@ const VideoTryOn = ({
     activeVariant,
     isTryOn,
     onAnalysisReady,
+    onFengShuiReady,
     onAgeReady,
     onReload,
+    reloadSignal
 }: VideoTryOnProps) => {
     const webcamRef = useRef<Webcam>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,6 +51,10 @@ const VideoTryOn = ({
     const hasAnalyzedRef = useRef(false);
     const ageThrottleRef = useRef(0);
     const AGE_INTERVAL_MS = 4000;
+
+    const [countdown, setCountdown] = useState<number | null>(null);
+    const countdownRef = useRef(false);
+    const countdownRefState = useRef<number | null>(1);
 
     const [status, setStatus] = useState<Status>("idle");
     const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
@@ -59,6 +70,32 @@ const VideoTryOn = ({
         const result = await svc.detectFromVideo(video);
         if (result) onAgeReady(result);
     }, [onAgeReady, isTryOn]);
+
+    const startCountdown = useCallback(() => {
+        if (countdownRef.current) return;
+        countdownRef.current = true;
+
+        let count = 3;
+        setCountdown(count);
+
+        const interval = setInterval(() => {
+            count--;
+            if (count <= 0) {
+                clearInterval(interval);
+                setCountdown(null);
+            } else {
+                setCountdown(count);
+            }
+        }, 1000);
+    }, []);
+
+    useEffect(() => {
+        countdownRefState.current = countdown;
+
+        if (countdown === null) {
+            hasAnalyzedRef.current = false;
+        }
+    }, [countdown]);
 
     // ── Init ──
     useEffect(() => {
@@ -147,22 +184,39 @@ const VideoTryOn = ({
                     hasAnalyzedRef.current = false;
 
                     faceEngine.onLandmarksDetected = (landmarks, width, height) => {
-                        console.log(landmarks, width, height)
-                        setLoadingStep("detect_face");
-                        detectAge(video);
+                        if (countdownRefState.current !== null) return;
 
                         if (hasAnalyzedRef.current) return;
                         hasAnalyzedRef.current = true;
 
+                        setLoadingStep("detect_face_shape");
                         const result = analyzeFaceShape(landmarks, width, height);
                         onAnalysisReady(result);
-                        setLoadingStep("detect_age");
+
+                        setLoadingStep("analyze_fengshui");
+                        const fengShui = analyzeFengShui(
+                            landmarks,
+                            width,
+                            height,
+                            result.shape,
+                            result.measurements
+                        );
+                        onFengShuiReady(fengShui);
+
+                        setLoadingStep("detect_face");
+                        detectAge(video);
                     };
                 }
 
                 faceEngine.scheduleNextPrediction(video);
                 setStatus("done");
                 setLoadingStep(null);
+
+                if (!isTryOn) {
+                    setTimeout(() => {
+                        startCountdown();
+                    }, 300);
+                }
 
             } catch (err) {
                 console.error("VideoTryOn init error:", err);
@@ -176,7 +230,20 @@ const VideoTryOn = ({
         return () => {
             cancelled = true;
         };
-    }, [isTryOn, frameGroupId]);
+    }, [isTryOn, frameGroupId, reloadSignal]);
+
+    useEffect(() => {
+        hasAnalyzedRef.current = false;
+        ageThrottleRef.current = 0;
+
+        // reset countdown
+        setCountdown(null);
+        countdownRef.current = false;
+        countdownRefState.current = null;
+
+        // nếu bạn dùng readyRef thì reset luôn
+        countdownRefState.current = 1;
+    }, [reloadSignal]);
 
     useEffect(() => {
         if (!isTryOn) return;
@@ -214,19 +281,29 @@ const VideoTryOn = ({
         updateTexture();
     }, [activeVariant, isTryOn]);
 
-    // ── Reload ──
-    const handleReload = useCallback(() => {
-        hasAnalyzedRef.current = false;
-        ageThrottleRef.current = 0;
-        const video = webcamRef.current?.video;
-        if (video && faceEngineRef.current) {
-            faceEngineRef.current.scheduleNextPrediction(video);
-        }
-        onReload();
-    }, [onReload]);
-
+    
     return (
         <Box sx={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", bgcolor: "#000" }}>
+            {countdown !== null && (
+                <Box sx={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: "rgba(0,0,0,0.4)",
+                    zIndex: 10
+                }}>
+                    <Typography sx={{
+                        fontSize: "4rem",
+                        color: "#fff",
+                        fontWeight: "bold"
+                    }}>
+                        {countdown}
+                    </Typography>
+                </Box>
+            )}
+
             <Webcam
                 ref={webcamRef}
                 mirrored={false}
@@ -252,6 +329,8 @@ const VideoTryOn = ({
                         {loadingStep === "init_three" && "Initializing 3D scene…"}
                         {loadingStep === "load_texture" && "Applying texture…"}
                         {loadingStep === "detect_face" && "Detecting landmarks…"}
+                        {loadingStep === "detect_face_shape" && "Detecting face shape..."}
+                        {loadingStep === "analyze_fengshui" && "Analyzing fengshui…"}
                         {loadingStep === "detect_age" && "Analyzing age…"}
                         {!loadingStep && "Loading…"}
                     </Typography>

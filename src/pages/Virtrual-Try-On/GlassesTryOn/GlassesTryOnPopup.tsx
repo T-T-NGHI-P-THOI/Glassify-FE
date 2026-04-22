@@ -440,8 +440,10 @@ const GlassesTryOnPopup = ({
                                 activeVariant={activeVariant}
                                 isTryOn={isTryOn}
                                 onAnalysisReady={isTryOn ? () => { } : setAnalysisResult}
+                                onFengShuiReady={isTryOn ? () => { } : setFengShuiResult}
                                 onAgeReady={() => { }}
                                 onReload={handleReload}
+                                reloadSignal={reloadSignal}
                             />
                         ) : (
                             <ImageTryOn
@@ -570,7 +572,7 @@ const GlassesTryOnPopup = ({
                                     </svg>
                                 </CanvasIconBtn>
                             )} */}
-z
+                            z
                             {!isTryOn && (
                                 <CanvasIconBtn
                                     onClick={() => toggleDrawer("rec")}
