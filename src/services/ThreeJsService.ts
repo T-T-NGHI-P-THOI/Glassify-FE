@@ -418,9 +418,7 @@ export class ThreeJsService {
                         child.material.roughness = 1;
                         child.material.needsUpdate = true;
 
-                        console.log("UV: ", child.geometry.attributes.uv);
                     });
-
                     resolve();
                 },
                 undefined,
@@ -483,8 +481,6 @@ export class ThreeJsService {
                     } else {
                         child.material = applyToMaterial(child.material);
                     }
-
-                    console.log("UV: ", child.geometry.attributes.uv);
                 });
 
                 console.log(`[Texture] applied to ${meshCount} mesh(es)`);

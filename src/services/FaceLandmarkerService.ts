@@ -373,7 +373,6 @@ export class ImageFaceLandmarkerService {
 
         this.setVisibility(true, isTryOn);
 
-        console.log(glassesMeasurements)
         const imageCfg = buildImageCfg(glassesMeasurements);
         this.videoService.applyLandmarks(
             results.faceLandmarks[0],
