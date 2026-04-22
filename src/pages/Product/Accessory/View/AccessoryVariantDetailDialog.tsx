@@ -214,7 +214,7 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                                             <Typography sx={{ fontSize: 13, fontWeight: 500 }}>
                                                 {variant.color ?? '—'}
                                             </Typography>
-                                            
+
                                         </Box>
                                     }
                                 />
@@ -226,39 +226,9 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                                 <InfoRow label="Returnable" value={<BoolBadge value={variant.productResponse?.isReturnable ?? false} />} />
                             </Paper>
 
-                            <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
-                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
-                                <InfoRow
-                                    label="Stock"
-                                    value={
-                                        <Typography sx={{
-                                            fontSize: 13, fontWeight: 700,
-                                            color: (variant.productResponse?.stockQuantity ?? 0) === 0
-                                                ? theme.palette.error.main
-                                                : theme.palette.success.main,
-                                        }}>
-                                            {variant.productResponse?.stockQuantity ?? variant.stock ?? '—'} units
-                                        </Typography>
-                                    }
-                                />
-                                <Divider sx={{ my: 0.5 }} />
-                                <InfoRow label="Warranty" value={variant.productResponse?.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
-                            </Paper>
-
-                            <SectionTitle icon={<PriceIcon fontSize="small" />} label="Pricing" />
-                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                                <InfoRow label="Cost Price" value={formatPrice(variant.costPrice ?? variant.productResponse?.costPrice ?? 0)} />
-                                <Divider sx={{ my: 0.5 }} />
-                                <InfoRow
-                                    label="Base Price"
-                                    value={
-                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.primary.main }}>
-                                            {formatPrice(variant.basePrice ?? variant.productResponse?.basePrice ?? 0)}
-                                        </Typography>
-                                    }
-                                />
-                            </Paper>
                         </Grid>
+
+
 
                         {/* Right */}
                         <Grid size={{ xs: 12, md: 6 }}>
@@ -307,6 +277,60 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                                     )}
                                 </Box>
                             )}
+
+
+                        </Grid>
+
+                        {/* Bottom */}
+                        <Grid size={{ xs: 12, md: 12 }}>
+                            <Grid container spacing={3}>
+
+                                {/* Inventory */}
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <SectionTitle icon={<InventoryIcon fontSize="small" />} label="Inventory" />
+                                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
+                                        <InfoRow
+                                            label="Available"
+                                            value={
+                                                <Typography sx={{
+                                                    fontSize: 13, fontWeight: 700,
+                                                    color: (variant.qtyAvailable ?? 0) === 0
+                                                        ? theme.palette.error.main
+                                                        : (variant.qtyAvailable ?? 0) <= (variant.lowStockThreshold ?? 10)
+                                                            ? '#ca8a04'
+                                                            : theme.palette.success.main,
+                                                }}>
+                                                    {variant.qtyAvailable ?? '—'} units
+                                                </Typography>
+                                            }
+                                        />
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <InfoRow label="On Hand" value={variant.qtyOnHand != null ? `${variant.qtyOnHand} units` : '—'} />
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <InfoRow label="Reserved (in carts)" value={variant.qtyReserved != null ? `${variant.qtyReserved} units` : '—'} />
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <InfoRow label="Low Stock Threshold" value={variant.lowStockThreshold != null ? `${variant.lowStockThreshold} units` : '—'} />
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <InfoRow label="Warranty" value={variant.productResponse.warrantyMonths ? `${variant.productResponse.warrantyMonths} months` : '—'} />
+                                    </Paper>
+                                </Grid>
+
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                    <SectionTitle icon={<PriceIcon fontSize="small" />} label="Pricing" />
+                                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                                        <InfoRow label="Cost Price" value={formatPrice(variant.costPrice ?? variant.productResponse?.costPrice ?? 0)} />
+                                        <Divider sx={{ my: 0.5 }} />
+                                        <InfoRow
+                                            label="Base Price"
+                                            value={
+                                                <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.primary.main }}>
+                                                    {formatPrice(variant.basePrice ?? variant.productResponse?.basePrice ?? 0)}
+                                                </Typography>
+                                            }
+                                        />
+                                    </Paper>
+                                </Grid>
+                            </Grid>
                         </Grid>
                     </Grid>
                 </DialogContent>

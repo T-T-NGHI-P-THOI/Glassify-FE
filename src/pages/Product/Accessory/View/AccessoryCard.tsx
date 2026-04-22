@@ -45,6 +45,12 @@ export interface AccessoryVariantResponse {
     stockThreshold: number;
     warrantyMonths: number;
     isReturnable: boolean;
+
+    qtyOnHand: number;
+    qtyAvailable: number;
+    qtyReserved: number;
+    lowStockThreshold: number;
+
     productResponse: AccessoryProductResponse;
 }
 
@@ -157,6 +163,11 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                     warrantyMonths: data.warrantyMonths ?? 0,
                     isReturnable: data.isReturnable ?? false,
 
+                    qtyOnHand: 0,
+                    qtyAvailable: data.stock ?? 0,
+                    qtyReserved: 0,
+                    lowStockThreshold: data.stockThreshold ?? 0,
+
                     productResponse: {
                         id: productId,
                         basePrice: data.basePrice ?? 0,
@@ -193,6 +204,9 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                 variants: acc.variants.map(v =>
                     v.id === variantId ? {
                         ...v, ...data,
+                        qtyOnHand: data.stock,
+                        qtyAvailable: data.stock - v.qtyReserved,
+                        lowStockThreshold: data.stockThreshold,
                         productResponse: {
                             ...v.productResponse,
                             productImages:
@@ -255,7 +269,7 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
 
                 <Box sx={{ display: 'flex', gap: 1, p: 1, overflowX: 'auto' }}>
                     {variants.map((v) => {
-                        const st = getVariantStatus(v.stock ?? v.productResponse?.stockQuantity ?? 0);
+                        const st = getVariantStatus(v.qtyAvailable ?? 0);
                         const sc = statusConfig[st];
 
                         return (
@@ -341,7 +355,7 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
                                         Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>
-                                            {v.stock ?? v.productResponse?.stockQuantity ?? 0}
+                                            {v.qtyAvailable ?? 0}
                                         </Box>
                                     </Typography>
                                     <Chip
