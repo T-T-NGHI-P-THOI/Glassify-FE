@@ -65,7 +65,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
 
       try {
         if (normalizedProductType === 'LENSES' || normalizedProductType === 'LENS') {
-          const detail = await lensApi.getById(lookupId);
+          const detail = await lensApi.getById(lookupId) as LensDetailResponse;
           if (!cancelled) setLensDetail(detail);
           return;
         }
@@ -298,6 +298,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
               <div className="average-rating">
                 <span className="rating-number">{summary.total > 0 ? summary.avgRating.toFixed(1) : '—'}</span>
                 <div className="stars">
+                  {[...Array(5)].map((_, i) => (i < Math.floor(product.rating) ? <Star key={i} className="star filled" /> : <StarBorder key={i} className="star" />))}
                   {[...Array(5)].map((_, i) => (
                     i < Math.floor(summary.avgRating) ?
                     <Star key={i} className="star filled" /> :

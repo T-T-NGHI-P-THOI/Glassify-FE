@@ -30,23 +30,23 @@ const MainPage = () => {
     sku: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState<typeof bestSellerProducts>([]);
+  const [newProducts, setNewProducts] = useState<typeof bestSellerProducts>([]);
 
   useLayoutConfig({ showNavbar: true, showFooter: true });
 
   // Fetch best seller products from API
   useEffect(() => {
-    const fetchBestSellers = async () => {
+    const fetchSections = async () => {
       try {
         setIsLoading(true);
-        const products = await ProductAPI.getAllProducts({
-          sortBy: 'soldCount',
-          sortDirection: 'DESC',
-          unitPerPage: 8,
-          page: 0
-        });
+        const [featured, popular, newest] = await Promise.all([
+          ProductAPI.getAllProducts({ isActive: true, isFeatured: true, productType: 'FRAME', unitPerPage: 8 }),
+          ProductAPI.getAllProducts({ isActive: true, productType: 'FRAME', sortBy: 'soldCount', sortDirection: 'DESC', unitPerPage: 8 }),
+          ProductAPI.getAllProducts({ isActive: true, productType: 'FRAME', sortBy: 'createdAt', sortDirection: 'DESC', unitPerPage: 8 }),
+        ]);
 
-        // Transform API products to carousel format
-        const transformedProducts = products.map((product) => ({
+        const mapToCarousel = (products: any[]) => products.map((product) => ({
           id: product.id,
           title: product.name,
           price: `${formatCurrency(product.basePrice)}`,
@@ -58,15 +58,17 @@ const MainPage = () => {
           sku: product.sku,
         }));
 
-        setBestSellerProducts(transformedProducts);
+        setFeaturedProducts(mapToCarousel(featured ?? []));
+        setBestSellerProducts(mapToCarousel(popular ?? []));
+        setNewProducts(mapToCarousel(newest ?? []));
       } catch (error) {
-        console.error('Error fetching best sellers:', error);
+        console.error('Error fetching product sections:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchBestSellers();
+    fetchSections();
   }, []);
 
   const collections = [
@@ -233,6 +235,86 @@ const MainPage = () => {
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography>No products available</Typography>
+            </Box>
+          )}
+        </Container>
+      </Box>
+
+      {/* Featured Section */}
+      <Box sx={{ py: 8, bgcolor: '#fff' }}>
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 4,
+            }}
+          >
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '1.75rem', md: '2.5rem' },
+                textTransform: 'uppercase',
+              }}
+            >
+              Featured
+            </Typography>
+            <CustomButton variant="contained" color="primary" onClick={() => navigate('/products')}>
+              Shop all
+            </CustomButton>
+          </Box>
+
+          {isLoading ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>Loading products...</Typography>
+            </Box>
+          ) : featuredProducts.length > 0 ? (
+            <CustomProductCarousel slides={featuredProducts} options={PRODUCT_OPTIONS} />
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>No featured products</Typography>
+            </Box>
+          )}
+        </Container>
+      </Box>
+
+      {/* New Arrivals Section */}
+      <Box sx={{ py: 8, bgcolor: '#f9fafb' }}>
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 4,
+            }}
+          >
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '1.75rem', md: '2.5rem' },
+                textTransform: 'uppercase',
+              }}
+            >
+              New Arrivals
+            </Typography>
+            <CustomButton variant="contained" color="primary" onClick={() => navigate('/products')}>
+              Shop all
+            </CustomButton>
+          </Box>
+
+          {isLoading ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>Loading products...</Typography>
+            </Box>
+          ) : newProducts.length > 0 ? (
+            <CustomProductCarousel slides={newProducts} options={PRODUCT_OPTIONS} />
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography>No new arrivals</Typography>
             </Box>
           )}
         </Container>
