@@ -78,7 +78,7 @@ export interface ApiProduct {
   reviewCount: number;
   metaTitle: string;
   metaDescription: string;
-  productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   createdAt: string;
   updatedAt: string;
   fileResponses?: {
@@ -180,7 +180,7 @@ export interface ProductFilterParams {
   isActive?: boolean;
   isFeatured?: boolean;
   isReturnable?: boolean;
-  productType?: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType?: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   minStock?: number;
   maxStock?: number;
   lowStockOnly?: boolean;

@@ -102,7 +102,9 @@ export const Navbar = () => {
   };
 
   const handleCategoryClick = (item: typeof mainCategories[0]) => {
-    if (item.label === 'Lenses') {
+    if (item.label === 'Eyeglasses' || item.label === 'Sunglasses') {
+      navigate(`/products?productType=FRAME`, { state: { resetFilters: 'FRAME' } });
+    } else if (item.label === 'Lenses') {
       navigate(`/products?productType=LENSES`, { state: { resetFilters: 'LENSES' } });
     } else if (item.category) {
       navigate(`${item.path}?category=${encodeURIComponent(item.category)}`, { replace: true, state: { resetFilters: item.category } });
