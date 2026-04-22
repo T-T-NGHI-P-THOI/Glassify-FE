@@ -106,7 +106,7 @@ const ProductBrowsePage: React.FC = () => {
           sortBy: 'popular'
         });
         setSearchParams({ productType: 'FRAME' });
-      } else if (location.state.resetFilters === 'LENSE' || location.state.resetFilters === 'LENSES') {
+      } else if (location.state.resetFilters === 'LENSES') {
         setActiveFilters({
           productType: 'LENSES',
           brandIds: [],
@@ -115,7 +115,7 @@ const ProductBrowsePage: React.FC = () => {
           searchQuery: '',
           sortBy: 'popular'
         });
-        setSearchParams({ productType: 'LENSE' });
+        setSearchParams({ productType: 'LENSES' });
       } else {
         setActiveFilters({
           productType: undefined,
