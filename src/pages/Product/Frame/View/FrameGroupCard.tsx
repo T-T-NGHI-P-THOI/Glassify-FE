@@ -160,26 +160,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
     const [selectedFeaturedVariant, setSelectedFeaturedVariant] =
         useState<FrameVariantResponse | null>(null);
 
-    if (variants.length === 0) {
-        return (
-            <Box
-                sx={{
-                    mx: 2,
-                    mb: 2,
-                    py: 2.5,
-                    borderRadius: 2,
-                    bgcolor: theme.palette.custom.neutral[50],
-                    border: `1px dashed ${theme.palette.custom.border.light}`,
-                    textAlign: 'center',
-                }}
-            >
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
-                    No variants for this frame group
-                </Typography>
-            </Box>
-        );
-    }
-
     const handleVariantCreated = (
         variantId: string,
         productId: string,
@@ -268,6 +248,7 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                             ...v,
                             ...data,
                             qtyOnHand: data.stock,
+                            qtyAvailable: data.stock - v.qtyReserved,
                             lowStockThreshold: data.stockThreshold,
                             textureFile: data.newTextureFile?.preview ?? v.textureFile,
                             productResponse: {
@@ -546,7 +527,7 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                                 bgcolor: theme.palette.custom.neutral[50],
                             },
                             minHeight: 120,
-                            minWidth: 50
+                            minWidth: 100
                         }}
                     >
                         <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.primary.main }}>
