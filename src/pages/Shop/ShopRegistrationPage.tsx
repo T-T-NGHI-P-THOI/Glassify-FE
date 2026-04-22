@@ -53,6 +53,7 @@ import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { initialize } from '@/auth/Reducer';
 import userApi from '@/api/service/userApi';
+import { sanitizeTextInput } from '@/utils/text-input';
 
 // Custom Step Connector
 const CustomConnector = styled(StepConnector)(({ theme }) => ({
@@ -246,6 +247,7 @@ const ShopRegistrationPage = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = sanitizeTextInput(e.target.value, { maxLength: 50 });
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 

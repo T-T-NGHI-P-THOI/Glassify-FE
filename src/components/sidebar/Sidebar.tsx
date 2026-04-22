@@ -105,7 +105,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
   };
 
   const bottomMenuItems = [
-    { icon: <Settings />, label: 'Settings', path: '/settings' },
+    { icon: <Settings />, label: 'Settings', path: '/admin/settings' },
     { icon: <HelpCenter />, label: 'Help Center', path: '/help' },
   ];
 
@@ -240,9 +240,11 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
         {bottomMenuItems.map((item) => (
           <ListItemButton
             key={item.label}
+            onClick={() => navigate(item.path)}
             sx={{
               borderRadius: 2,
               mb: 0.5,
+              backgroundColor: isActive(item.path) ? theme.palette.custom.neutral[100] : 'transparent',
               '&:hover': {
                 backgroundColor: theme.palette.custom.neutral[100],
               },
