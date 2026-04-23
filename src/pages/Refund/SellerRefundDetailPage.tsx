@@ -82,24 +82,13 @@ type BuyerInfo = {
 };
 
 type StepItem = { label: string; status: ReturnStatus };
-type LegacyReturnStatus = 'RETURN_READY_TO_PICK' | 'RETURN_DELIVERED';
 type SellerResolutionAction = 'RETURN_AND_REFUND' | RefundProcessType;
 
-const APPEAL_WINDOW_HOURS = 48;
-
-const normalizeReturnStatus = (status: ReturnStatus | string): ReturnStatus => {
-  switch (status as LegacyReturnStatus) {
-    case 'RETURN_READY_TO_PICK':
-      return ReturnStatus.RETURN_SHIPPING;
-    case 'RETURN_DELIVERED':
-      return ReturnStatus.ITEM_RECEIVED;
-    default:
-      return status as ReturnStatus;
-  }
-};
+// APPEAL_WINDOW_HOURS is derived from platform settings (refundSellerResponseDeadlineHours)
+// default to 48 hours when platform setting is not available
 
 const getDisplayStatusLabel = (status: ReturnStatus | string): string => {
-  return RETURN_STATUS_LABELS[normalizeReturnStatus(status)] ?? String(status);
+  return RETURN_STATUS_LABELS[status as ReturnStatus] ?? String(status);
 };
 
 const getAppealStatusColor = (
@@ -499,8 +488,7 @@ const SellerRefundDetailPage = () => {
 
   if (!request) return <Typography>Not Found</Typography>;
 
-  const rawStatus = request.status as unknown as string;
-  const normalizedStatus = normalizeReturnStatus(rawStatus);
+  const rawStatus = request.status as ReturnStatus;
   const buyerShipmentDeadlineDays =
     platformSetting?.refundBuyerShipmentReminderAfterDays ??
     platformSetting?.returnWindowDays ??
@@ -515,20 +503,21 @@ const SellerRefundDetailPage = () => {
     minRequiredAmount ?? 0
   );
 
-  const canConfirmReceived = normalizedStatus === ReturnStatus.RETURN_SHIPPING;
+  const canConfirmReceived = rawStatus === ReturnStatus.RETURN_SHIPPING;
   const appealStatus = request.shopAppealStatus;
   const hasNoAppeal = appealStatus === undefined || appealStatus === ShopAppealStatus.NONE;
   const appealStartAt = request.itemReceivedAt ?? request.completedAt ?? request.approvedAt ?? request.requestedAt;
   const appealStartTime = appealStartAt ? new Date(appealStartAt).getTime() : null;
+  const appealWindowHours = platformSetting?.refundSellerResponseDeadlineHours ?? 48;
   const appealDeadlineTime =
-    appealStartTime !== null ? appealStartTime + APPEAL_WINDOW_HOURS * 60 * 60 * 1000 : null;
+    appealStartTime !== null ? appealStartTime + appealWindowHours * 60 * 60 * 1000 : null;
   const nowTime = Date.now();
   const isAppealWindowOpen =
     appealDeadlineTime === null || nowTime <= appealDeadlineTime;
   const isAppealWindowExpired =
     appealDeadlineTime !== null && nowTime > appealDeadlineTime;
   const canProcessRefund =
-    normalizedStatus === ReturnStatus.ITEM_RECEIVED &&
+    rawStatus === ReturnStatus.ITEM_RECEIVED &&
     !!request.itemReceivedAt;
   const isReturnAndRefundDecision = request.adminDecision === 'RETURN_AND_REFUND';
   const buyerReturnDeadlineTime =
@@ -536,21 +525,21 @@ const SellerRefundDetailPage = () => {
       ? new Date(request.approvedAt).getTime() + buyerShipmentDeadlineDays * 24 * 60 * 60 * 1000
       : null;
   const isBuyerReturnOverdue =
-    (normalizedStatus === ReturnStatus.APPROVED || normalizedStatus === ReturnStatus.RETURN_SHIPPING) &&
+    (rawStatus === ReturnStatus.APPROVED || rawStatus === ReturnStatus.RETURN_SHIPPING) &&
     buyerReturnDeadlineTime !== null &&
     nowTime > buyerReturnDeadlineTime;
   const isAppealEligibleStatus =
-    normalizedStatus === ReturnStatus.APPROVED
-    || normalizedStatus === ReturnStatus.RETURN_SHIPPING
-    || normalizedStatus === ReturnStatus.ITEM_RECEIVED
-    || normalizedStatus === ReturnStatus.COMPLETED;
+    rawStatus === ReturnStatus.APPROVED
+    || rawStatus === ReturnStatus.RETURN_SHIPPING
+    || rawStatus === ReturnStatus.ITEM_RECEIVED
+    || rawStatus === ReturnStatus.COMPLETED;
   const canSubmitAppeal =
     isAppealEligibleStatus &&
     // !isReturnAndRefundDecision &&
     hasNoAppeal &&
     isAppealWindowOpen;
-  const steps = getStatusSteps(normalizedStatus);
-  const activeStep = getActiveStep(normalizedStatus, steps);
+  const steps = getStatusSteps(rawStatus as ReturnStatus);
+  const activeStep = getActiveStep(rawStatus, steps);
   const evidenceFiles = request.evidenceImages || [];
 
   return (
@@ -581,8 +570,8 @@ const SellerRefundDetailPage = () => {
                 <Chip 
                   label={getDisplayStatusLabel(rawStatus)} 
                   sx={{ 
-                    bgcolor: (theme.palette as any)[getStatusColor(normalizedStatus)].light, 
-                    color: (theme.palette as any)[getStatusColor(normalizedStatus)].main,
+                    bgcolor: (theme.palette as any)[getStatusColor(rawStatus)].light, 
+                    color: (theme.palette as any)[getStatusColor(rawStatus)].main,
                     fontWeight: 700,
                     borderRadius: 1.5
                   }} 
@@ -969,7 +958,7 @@ const SellerRefundDetailPage = () => {
         <DialogContent sx={{ py: 2 }}>
           <Stack spacing={2.5}>
             <Alert severity="warning" sx={{ borderRadius: 2 }}>
-              Submit your appeal within {APPEAL_WINDOW_HOURS} hours after the returned item is received.
+              Submit your appeal within {appealWindowHours} hours after the returned item is received.
             </Alert>
 
             <FormControl fullWidth>

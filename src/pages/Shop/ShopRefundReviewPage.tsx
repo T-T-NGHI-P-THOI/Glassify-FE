@@ -36,6 +36,7 @@ import { getApiErrorMessage } from '@/utils/api-error';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import { margin } from '@mui/system';
 
 const ShopRefundReviewPage = () => {
   const theme = useTheme();
@@ -50,6 +51,11 @@ const ShopRefundReviewPage = () => {
     approved: 0,
     itemReceived: 0,
     completed: 0,
+    returnReady: 0,
+    returnShipping: 0,
+    returnDelivered: 0,
+    rejected: 0,
+    cancelled: 0,
   });
   const [requests, setRequests] = useState<RefundRequest[]>([]);
 
@@ -58,14 +64,21 @@ const ShopRefundReviewPage = () => {
     { label: 'Pending', value: ReturnStatus.REQUESTED, count: counts.pending },
     { label: 'Approved', value: ReturnStatus.APPROVED, count: counts.approved },
     { label: 'Item Received', value: ReturnStatus.ITEM_RECEIVED, count: counts.itemReceived },
+    { label: 'Return Ready', value: ReturnStatus.RETURN_READY_TO_PICK, count: counts.returnReady },
+    { label: 'Return Shipping', value: ReturnStatus.RETURN_SHIPPING, count: counts.returnShipping },
+    { label: 'Item Returned', value: ReturnStatus.RETURN_DELIVERED, count: counts.returnDelivered },
     { label: 'Completed', value: ReturnStatus.COMPLETED, count: counts.completed },
+    { label: 'Rejected', value: ReturnStatus.REJECTED, count: counts.rejected },
+    { label: 'Cancelled', value: ReturnStatus.CANCELLED, count: counts.cancelled },
   ];
+
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const fetchRequests = async (status?: ReturnStatus | null) => {
     try {
       setLoading(true);
       const response = await listReturnRequests({
-        status: status || undefined,
+        // status: status || undefined,
         shopId: shop?.id,
         sortBy: 'requestedAt',
         sortDirection: 'DESC',
@@ -80,6 +93,11 @@ const ShopRefundReviewPage = () => {
         approved: allRequests.filter(r => r.status === ReturnStatus.APPROVED).length,
         itemReceived: allRequests.filter(r => r.status === ReturnStatus.ITEM_RECEIVED).length,
         completed: allRequests.filter(r => r.status === ReturnStatus.COMPLETED).length,
+        returnReady: allRequests.filter(r => r.status === ReturnStatus.RETURN_READY_TO_PICK).length,
+        returnShipping: allRequests.filter(r => r.status === ReturnStatus.RETURN_SHIPPING).length,
+        returnDelivered: allRequests.filter(r => r.status === ReturnStatus.RETURN_DELIVERED).length,
+        rejected: allRequests.filter(r => r.status === ReturnStatus.REJECTED).length,
+        cancelled: allRequests.filter(r => r.status === ReturnStatus.CANCELLED).length,
       });
     } catch (error: any) {
       console.error('Failed to fetch return requests:', error);
@@ -89,25 +107,30 @@ const ShopRefundReviewPage = () => {
     }
   };
 
-  useLayoutConfig({ showNavbar: false, showFooter: false });
+  const fetchShopDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await shopApi.getMyShops();
+      if (response.data?.[0]) {
+        setShop(response.data[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch shop detail:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const shopRes = await shopApi.getMyShops();
-        const myShop = shopRes.data?.[0] ?? null;
-        setShop(myShop);
-        if (shop?.id) {
-          const currentStatus = statusTabs[selectedTab].value;
-          await fetchRequests(currentStatus);
-        }
-      } catch (err) {
-        console.error('Failed to load shop:', err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [selectedTab]);
+    fetchShopDetail();
+  }, []);
+
+  useEffect(() => {
+    if (shop?.id) {
+      const currentStatus = statusTabs[selectedTab].value;
+      fetchRequests(currentStatus);
+    }
+  }, [shop, selectedTab]);
 
   const sidebarProps = {
     activeMenu: PAGE_ENDPOINTS.REFUND.SELLER_LIST,
@@ -228,7 +251,7 @@ const ShopRefundReviewPage = () => {
                 label={
                   <Stack direction="row" spacing={1} alignItems="center">
                     <span>{tab.label}</span>
-                    {tab.count > 0 && <Badge badgeContent={tab.count} color="primary" />}
+                    {tab.count > 0 && <Badge badgeContent={tab.count} color="primary" sx={{ pl: 1 }}/>}
                   </Stack>
                 }
               />

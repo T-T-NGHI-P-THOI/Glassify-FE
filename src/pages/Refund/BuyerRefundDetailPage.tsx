@@ -94,6 +94,8 @@ const getStatusSteps = (request: RefundRequest) => {
     { label: 'Approved by Glassify', statuses: [ReturnStatus.APPROVED] },
     { label: 'Returning Item', statuses: [ReturnStatus.RETURN_SHIPPING] },
     { label: 'Seller Received Item', statuses: [ReturnStatus.ITEM_RECEIVED] },
+    { label: 'Return Ready', statuses: [ReturnStatus.RETURN_READY_TO_PICK] },
+    { label: 'Return Delivered', statuses: [ReturnStatus.RETURN_DELIVERED] },
     { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
   ] satisfies RefundStep[];
 };

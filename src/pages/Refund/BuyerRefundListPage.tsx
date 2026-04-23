@@ -52,6 +52,8 @@ const getStatusIcon = (status: ReturnStatus) => {
     case ReturnStatus.RETURN_SHIPPING:
       return <LocalShipping />;
     case ReturnStatus.ITEM_RECEIVED:
+    case ReturnStatus.RETURN_READY_TO_PICK:
+    case ReturnStatus.RETURN_DELIVERED:
       return <Replay />;
     case ReturnStatus.COMPLETED:
       return <CheckCircle />;
@@ -71,6 +73,8 @@ const getStatusColor = (status: ReturnStatus) => {
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
     case ReturnStatus.ITEM_RECEIVED:
+    case ReturnStatus.RETURN_READY_TO_PICK:
+    case ReturnStatus.RETURN_DELIVERED:
       return 'info';
     case ReturnStatus.COMPLETED:
       return 'success';
@@ -93,8 +97,13 @@ const BuyerRefundListPage = () => {
     { label: 'All', value: null },
     { label: 'In Progress', value: ReturnStatus.REQUESTED },
     { label: 'Approved', value: ReturnStatus.APPROVED },
+    { label: 'Return Ready', value: ReturnStatus.RETURN_READY_TO_PICK },
+    { label: 'Return Shipping', value: ReturnStatus.RETURN_SHIPPING },
+    { label: 'Return Delivered', value: ReturnStatus.RETURN_DELIVERED },
+    { label: 'Item Received', value: ReturnStatus.ITEM_RECEIVED },
     { label: 'Completed', value: ReturnStatus.COMPLETED },
     { label: 'Cancelled', value: ReturnStatus.CANCELLED },
+    { label: 'Rejected', value: ReturnStatus.REJECTED },
   ];
 
   const fetchRequests = async (status?: ReturnStatus | null) => {
@@ -280,7 +289,10 @@ const BuyerRefundListPage = () => {
                   </Grid>
 
                   {/* Progress indicator for certain statuses */}
-                  {request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber && (
+                  {(request.status === ReturnStatus.RETURN_SHIPPING || 
+                  request.status === ReturnStatus.ITEM_RECEIVED || 
+                  request.status === ReturnStatus.RETURN_DELIVERED || 
+                  request.status === ReturnStatus.RETURN_READY_TO_PICK) && request.returnTrackingNumber && (
                     <Alert severity="info" sx={{ mt: 2 }}>
                       <Typography variant="body2">
                         Tracking Number: <strong>{request.returnTrackingNumber}</strong>

@@ -233,8 +233,12 @@ const getRefundStatusLabel = (status?: ReturnStatus) => {
       return 'Approved';
     case ReturnStatus.REJECTED:
       return 'Rejected';
+    case ReturnStatus.RETURN_READY_TO_PICK:
+      return 'Ready for Pickup';
     case ReturnStatus.RETURN_SHIPPING:
       return 'Return Shipping';
+    case ReturnStatus.RETURN_DELIVERED:
+      return 'Item Returned';
     case ReturnStatus.ITEM_RECEIVED:
       return 'Item Received';
     case ReturnStatus.COMPLETED:
