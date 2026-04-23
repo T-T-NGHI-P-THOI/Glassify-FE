@@ -84,7 +84,7 @@ const ShopDashboardPage = () => {
   const [analyticsSummary, setAnalyticsSummary] = useState<ShopAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   
-  useLayoutConfig({showNavbar: false, showFooter: false});
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   useEffect(() => {
     fetchShopDetail();

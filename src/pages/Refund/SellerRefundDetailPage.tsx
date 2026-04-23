@@ -276,6 +276,15 @@ const SellerRefundDetailPage = () => {
       setShowFooter(true);
     };
   }, [setShowNavbar, setShowFooter]);
+  
+  const sidebarProps = {
+    activeMenu: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW,
+    shopName: user?.shop?.shopName,
+    shopLogo: user?.shop?.logoUrl,
+    ownerName: user?.fullName,
+    ownerEmail: user?.email,
+    ownerAvatar: user?.avatarUrl,
+  };
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -477,12 +486,16 @@ const SellerRefundDetailPage = () => {
 
   const isVideoFile = (url: string) => /\.(mp4|mov|webm|ogg|m4v|avi)(\?|#|$)/i.test(url.toLowerCase()) || url.includes('/video/');
 
-  if (loading) return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
-      <ShopOwnerSidebar activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW} shopName={user?.shop?.shopName} />
-      <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}><CircularProgress /></Box>
-    </Box>
-  );
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
+        <ShopOwnerSidebar {...sidebarProps} />
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
 
   if (!request) return <Typography>Not Found</Typography>;
 
@@ -542,14 +555,7 @@ const SellerRefundDetailPage = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
-      <ShopOwnerSidebar
-        activeMenu={PAGE_ENDPOINTS.SHOP.REFUND_REVIEW}
-        shopName={user?.shop?.shopName}
-        shopLogo={user?.shop?.logoUrl}
-        ownerName={user?.fullName}
-        ownerEmail={user?.email}
-        ownerAvatar={user?.avatarUrl}
-      />
+      <ShopOwnerSidebar {...sidebarProps} />
 
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         <Box sx={{ 
@@ -563,7 +569,7 @@ const SellerRefundDetailPage = () => {
             <Box>
               <Button 
                 startIcon={<ArrowBack />} 
-                onClick={() => navigate('/shop/refunds/review')} 
+                onClick={() => navigate('/shop/refunds')} 
                 sx={{ mb: 1.5, color: theme.palette.custom.neutral[500], '&:hover': { bgcolor: 'transparent', color: theme.palette.custom.neutral[800] } }}
               >
                 Back to List

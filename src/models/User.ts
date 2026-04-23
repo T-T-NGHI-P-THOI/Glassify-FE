@@ -41,7 +41,7 @@ export interface UserAuthProvider {
  * Interface cho Shop (tham chiếu)
  */
 export interface ShopReference {
-    id: number;
+    id: string;
     shopName: string;
     logoUrl?: string;
 }
@@ -51,7 +51,7 @@ export interface ShopReference {
  * Tương ứng với User entity từ Backend
  */
 export interface UserResponse {
-    id: number;
+    id: string;
     username: string;
     email: string;
     fullName?: string;
