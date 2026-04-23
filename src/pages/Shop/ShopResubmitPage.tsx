@@ -45,6 +45,7 @@ import { useNavigate } from 'react-router-dom';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import type { ShopRegisterRequest, GhnProvince, GhnDistrict, GhnWard, ShopDetailResponse, ShopRequest } from '@/models/Shop';
 import { shopApi } from '@/api/shopApi';
+import { sanitizeTextInput } from '@/utils/text-input';
 import { ghnApi } from '@/api/ghnApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
@@ -244,9 +245,7 @@ const ShopResubmitPage = () => {
   const handleTextChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const filtered = e.target.value
-      .replace(/[^a-zA-Z0-9\s\u00C0-\u1EF9.,\-/]/g, '')
-      .slice(0, 21);
+    const filtered = sanitizeTextInput(e.target.value, { maxLength: 21 });
     setFormData((prev) => ({ ...prev, [field]: filtered }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
@@ -262,7 +261,7 @@ const ShopResubmitPage = () => {
   const handleAddressChange = (field: keyof ShopFormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const value = e.target.value.slice(0, 50);
+    const value = sanitizeTextInput(e.target.value, { maxLength: 50 });
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };

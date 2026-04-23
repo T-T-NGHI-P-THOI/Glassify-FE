@@ -1,10 +1,11 @@
 import type { ProductType } from "@/api/service/Type";
 
 export interface FilterOptions {
-  productTypes: Array<'FRAME' | 'LENS' | 'ACCESSORIES'>;
+  productTypes: Array<'FRAME' | 'LENSES' | 'ACCESSORIES'>;
   brands: Array<{ id: string; name: string }>;
   categories: Array<{ id: string; name: string }>;
   shopCities: string[];
+  ageGroups: string[];
   priceRange: {
     min: number;
     max: number;
@@ -27,6 +28,7 @@ export interface ActiveFilters {
   inStock?: boolean;
   colors?: string[];
   frameShapes?: string[];
+  ageGroups?: string[];
 }
 
 export interface ColorVariant {
@@ -48,7 +50,7 @@ export interface BrowseProduct {
   price: number;
   rating: number;
   reviewCount: number;
-  productType: 'FRAME' | 'LENS' | 'ACCESSORIES';
+  productType: 'FRAME' | 'LENSES' | 'ACCESSORIES';
   image: string;
   colorVariants: ColorVariant[];
   isFeatured?: boolean;
