@@ -22,6 +22,8 @@ export interface PlatformSettingResponse {
   exchangeWindowDays: number;
   minWithdrawalAmount: number;
   maxCartItemQty: number;
+  maxBuyerShippingFee: number;
+  freeShippingThreshold: number;
 
   refundNoLongerNeededMinEvidenceImages: number;
   refundSellerReminderAfterHours: number;
@@ -54,6 +56,8 @@ export interface PlatformSettingUpdateRequest {
   exchangeWindowDays?: number;
   minWithdrawalAmount?: number;
   maxCartItemQty?: number;
+  maxBuyerShippingFee?: number;
+  freeShippingThreshold?: number;
 
   refundNoLongerNeededMinEvidenceImages?: number;
   refundSellerReminderAfterHours?: number;

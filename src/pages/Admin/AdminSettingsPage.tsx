@@ -72,6 +72,8 @@ function flattenSetting(s: PlatformSettingResponse): Record<string, string> {
     'Exchange Window': `${s.exchangeWindowDays ?? ''} days`,
     'Min Withdrawal': String(s.minWithdrawalAmount ?? ''),
     'Max Cart Qty': String(s.maxCartItemQty ?? ''),
+    'Max Buyer Shipping Fee': String(s.maxBuyerShippingFee ?? ''),
+    'Free Shipping Threshold': String(s.freeShippingThreshold ?? ''),
     'Refund Seller Deadline': `${s.refundSellerResponseDeadlineHours ?? ''} hrs`,
     'Refund Partial Min %': `${s.refundPartialMinPercent ?? ''}%`,
     'Refund Min Evidence Images': String(s.refundNoLongerNeededMinEvidenceImages ?? ''),
@@ -118,6 +120,8 @@ function toForm(s: PlatformSettingResponse): PlatformSettingUpdateRequest {
     exchangeWindowDays: s.exchangeWindowDays,
     minWithdrawalAmount: s.minWithdrawalAmount,
     maxCartItemQty: s.maxCartItemQty,
+    maxBuyerShippingFee: s.maxBuyerShippingFee,
+    freeShippingThreshold: s.freeShippingThreshold,
 
     refundSellerResponseDeadlineHours: s.refundSellerResponseDeadlineHours,
     refundPartialMinPercent: s.refundPartialMinPercent,
@@ -384,6 +388,10 @@ const AdminSettingsPage = () => {
         <FieldRow label="Max Cart Item Quantity" value={settings.maxCartItemQty} unit="items" />
         <FieldRow label="Min Withdrawal Amount" value={settings.minWithdrawalAmount} unit="VND" />
       </SectionCard>
+      <SectionCard title="Shipping Fee Subsidy" icon={<AttachMoney />}>
+        <FieldRow label="Max Buyer Shipping Fee" value={settings.maxBuyerShippingFee} unit="VND" />
+        <FieldRow label="Free Shipping Threshold" value={settings.freeShippingThreshold} unit="VND" />
+      </SectionCard>
       <SectionCard title="Order Windows" icon={<AttachMoney />}>
         <FieldRow label="Escrow Hold Days" value={settings.escrowHoldDays} unit="days" />
         <FieldRow label="Return Window" value={settings.returnWindowDays} unit="days" />
@@ -466,6 +474,13 @@ const AdminSettingsPage = () => {
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
         <NumField label="Min Withdrawal Amount" field="minWithdrawalAmount" form={form} onChange={handleFieldChange} unit="VND" step={1000} min={0} />
+      </Grid>
+      <Grid size={{ xs: 12 }}><Divider><Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Shipping Fee Subsidy</Typography></Divider></Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumField label="Max Buyer Shipping Fee" field="maxBuyerShippingFee" form={form} onChange={handleFieldChange} unit="VND" step={1000} min={0} />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <NumField label="Free Shipping Threshold" field="freeShippingThreshold" form={form} onChange={handleFieldChange} unit="VND" step={100000} min={0} />
       </Grid>
       <Grid size={{ xs: 12 }}><Divider><Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Order Windows</Typography></Divider></Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
