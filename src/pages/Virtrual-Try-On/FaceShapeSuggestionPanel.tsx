@@ -56,6 +56,9 @@ const Card = ({ children }: { children: React.ReactNode }) => (
         border: `1px solid ${BORDER}`,
         bgcolor: "#fff",
         boxShadow: "0 4px 18px rgba(0,0,0,0.04)",
+
+        display: "flex",
+        flexDirection: "column",
     }}>
         {children}
     </Box>
@@ -220,7 +223,7 @@ export const FaceShapeSuggestionPanel = ({
         );
         handleClose?.();
         const url = `/products?${params.toString()}`;
-        
+
         if (window.location.pathname === "/products") {
             window.location.href = url;
         } else {
