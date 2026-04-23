@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useCallback} from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -47,6 +47,14 @@ const colorOptions: { val: Color; hex: string }[] = [
   { val: Color.RED, hex: '#dc2626' },
   { val: Color.PINK, hex: '#ec4899' },
   { val: Color.GREEN, hex: '#16a34a' },
+  { val: Color.YELLOW, hex: '#eab308' },
+  { val: Color.PURPLE, hex: '#a855f7' },
+  { val: Color.LIGHT_BLUE, hex: '#38bdf8' },
+  { val: Color.NAVY, hex: '#1e3a8a' },
+  { val: Color.DARK_GRAY, hex: '#374151' },
+  { val: Color.ORANGE, hex: '#f97316' },
+  { val: Color.DEEP_PINK, hex: '#db2777' },
+  { val: Color.BEIGE, hex: '#f5f5dc' },
   { val: Color.TRANSPARENT, hex: '#dbeafe' },
 ];
 
@@ -187,6 +195,13 @@ const ProductBrowsePage: React.FC = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
+
+  const formatColorName = (val: string) =>
+    val
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 
   const normalizeLocationText = (value: string) =>
     value
@@ -374,7 +389,7 @@ const ProductBrowsePage: React.FC = () => {
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
 
-      let filterParams : ProductFilterParams = {
+      let filterParams: ProductFilterParams = {
         search: activeFilters.searchQuery || undefined,
         minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
         maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
@@ -760,7 +775,7 @@ const ProductBrowsePage: React.FC = () => {
                           flexShrink: 0,
                         }}
                       />
-                      {val.charAt(0) + val.slice(1).toLowerCase()}
+                      {formatColorName(val)}
                     </MenuItem>
                   );
                 })}
