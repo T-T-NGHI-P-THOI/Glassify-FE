@@ -534,7 +534,7 @@ const WarrantyPage = () => {
         if (uploadRes.data) imageUrls = uploadRes.data;
       }
 
-      await warrantyApi.submitClaim({
+      const result = await warrantyApi.submitClaim({
         orderItemId: formData.orderItemId,
         issueType: formData.issueType,
         issueDescription: formData.issueDescription,
@@ -545,6 +545,11 @@ const WarrantyPage = () => {
         customerDistrictId: selectedDistrictId as number,
         customerWardCode: selectedWardCode,
       });
+      if (!result.data || result.status >= 400) {
+        const errMsg = Array.isArray(result.errors) ? result.errors[0] : result.message;
+        toast.error(errMsg || 'Failed to submit warranty claim');
+        return;
+      }
       toast.success('Warranty claim submitted successfully');
       handleCloseRegisterDialog();
       await fetchClaims();
