@@ -68,6 +68,7 @@ export interface AdminOrderResponse {
   refundRequestedAt?: string;
   refundStatus?: string;
   items: AdminOrderItem[];
+  shopOrders?: AdminShopOrderSummary[];
   actualShippingFee?: number;
   platformShippingSubsidy?: number;
   grandTotal?: number;
@@ -82,6 +83,16 @@ export interface AdminOrderItem {
   unitPrice: number;
   totalPrice: number;
   itemType: string;
+}
+
+export interface AdminShopOrderSummary {
+  id: string;
+  shopOrderNumber: string;
+  shopId?: string;
+  shopName?: string;
+  shopLogoUrl?: string;
+  status: string;
+  cancelReason?: string;
 }
 
 export interface AdminRefundResponse {

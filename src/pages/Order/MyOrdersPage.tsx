@@ -101,6 +101,8 @@ interface OrderItem {
   timesWarrantyClaimed: number;
   itemType: ItemType;
   shopId: string;
+  shopOrderId?: string;
+  shopOrderStatus?: string;
   shopName: string;
   shopLogoUrl?: string;
 }
@@ -208,14 +210,17 @@ const formatVariantInfo = (variantInfo?: Record<string, any>) => {
 };
 
 const groupItemsByShop = (items: OrderItem[]) => {
-  const shopMap = new Map<string, { shopId: string; shopName: string; shopLogoUrl?: string; items: OrderItem[] }>();
+  const shopMap = new Map<string, { shopId: string; shopOrderId?: string; shopOrderStatus?: string; shopName: string; shopLogoUrl?: string; items: OrderItem[] }>();
   items.forEach((item) => {
-    const existing = shopMap.get(item.shopId);
+    const key = item.shopOrderId ?? item.shopId;
+    const existing = shopMap.get(key);
     if (existing) {
       existing.items.push(item);
     } else {
-      shopMap.set(item.shopId, {
+      shopMap.set(key, {
         shopId: item.shopId,
+        shopOrderId: item.shopOrderId,
+        shopOrderStatus: item.shopOrderStatus,
         shopName: item.shopName,
         shopLogoUrl: item.shopLogoUrl,
         items: [item],
@@ -406,6 +411,10 @@ const MyOrdersPage = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelReasons, setCancelReasons] = useState<string[]>([]);
+  const [cancelShopOrderDialogOpen, setCancelShopOrderDialogOpen] = useState(false);
+  const [cancelTargetShopOrderId, setCancelTargetShopOrderId] = useState<string | null>(null);
+  const [cancelShopOrderReasons, setCancelShopOrderReasons] = useState<string[]>([]);
+  const [cancellingShopOrderId, setCancellingShopOrderId] = useState<string | null>(null);
   const [leadTime, setLeadTime] = useState<string | null>(null);
   const [leadTimeLoading, setLeadTimeLoading] = useState(false);
   const [userAddresses, setUserAddresses] = useState<UserAddressResponse[]>([]);
@@ -487,8 +496,21 @@ const MyOrdersPage = () => {
     setCancelDialogOpen(true);
   };
 
+  const openCancelShopOrderDialog = (orderId: string, shopOrderId: string) => {
+    setCancelTargetId(orderId);
+    setCancelTargetShopOrderId(shopOrderId);
+    setCancelShopOrderReasons([]);
+    setCancelShopOrderDialogOpen(true);
+  };
+
   const toggleCancelReason = (reason: string) => {
     setCancelReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason],
+    );
+  };
+
+  const toggleCancelShopOrderReason = (reason: string) => {
+    setCancelShopOrderReasons(prev =>
       prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason],
     );
   };
@@ -510,6 +532,24 @@ const MyOrdersPage = () => {
     } finally {
       setCancellingOrderId(null);
       setCancelTargetId(null);
+    }
+  };
+
+  const handleConfirmCancelShopOrder = async () => {
+    if (!cancelTargetId || !cancelTargetShopOrderId || cancelShopOrderReasons.length === 0) return;
+    try {
+      setCancellingShopOrderId(cancelTargetShopOrderId);
+      await orderApi.cancelShopOrder(cancelTargetId, cancelTargetShopOrderId, cancelShopOrderReasons.join(', '));
+      toast.success('Shop order cancelled successfully');
+      setCancelShopOrderDialogOpen(false);
+      await fetchOrders();
+    } catch (error: any) {
+      console.error('Failed to cancel shop order:', error);
+      toast.error(error?.message || 'Failed to cancel shop order');
+    } finally {
+      setCancellingShopOrderId(null);
+      setCancelTargetId(null);
+      setCancelTargetShopOrderId(null);
     }
   };
 
@@ -1710,35 +1750,73 @@ const MyOrdersPage = () => {
                       {(() => {
                         const shopGroups = groupItemsByShop(selectedOrder.items);
                         const isMultiShop = shopGroups.length > 1;
-                        return shopGroups.map((shopGroup) => (
-                          <Box key={shopGroup.shopId}>
-                            {/* Shop Header - only show if multi-shop */}
-                            {isMultiShop && (
-                              <Box
+                        return shopGroups.map((shopGroup) => {
+                          const isShopOrderCancelled = shopGroup.shopOrderStatus === 'CANCELLED';
+                          const canCancelShopOrder = !!shopGroup.shopOrderId
+                            && (shopGroup.shopOrderStatus === 'PENDING'
+                              || shopGroup.shopOrderStatus === 'CONFIRMED'
+                              || shopGroup.shopOrderStatus === 'PROCESSING');
+                          return (
+                          <Box
+                            key={shopGroup.shopOrderId ?? shopGroup.shopId}
+                            sx={{
+                              opacity: isShopOrderCancelled ? 0.6 : 1,
+                              borderRadius: '10px',
+                              border: isShopOrderCancelled
+                                ? `1px solid ${theme.palette.custom.status.error.light}`
+                                : `1px solid transparent`,
+                              p: isShopOrderCancelled ? 1.5 : 0,
+                            }}
+                          >
+                            {/* Shop Header */}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                mb: 1.5,
+                                pb: 1,
+                                borderBottom: `1px solid ${isShopOrderCancelled ? theme.palette.custom.status.error.light : theme.palette.custom.border.light}`,
+                              }}
+                            >
+                              <Avatar
+                                src={shopGroup.shopLogoUrl}
                                 sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                  mb: 1.5,
-                                  pb: 1,
-                                  borderBottom: `1px solid ${theme.palette.custom.border.light}`,
+                                  width: 24,
+                                  height: 24,
+                                  bgcolor: theme.palette.custom.neutral[200],
                                 }}
                               >
-                                <Avatar
-                                  src={shopGroup.shopLogoUrl}
+                                <Store sx={{ fontSize: 14 }} />
+                              </Avatar>
+                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: isShopOrderCancelled ? theme.palette.custom.neutral[400] : theme.palette.custom.neutral[700], flex: 1, textDecoration: isShopOrderCancelled ? 'line-through' : 'none' }}>
+                                {shopGroup.shopName}
+                              </Typography>
+                              {isShopOrderCancelled ? (
+                                <Chip
+                                  label="Cancelled"
+                                  size="small"
                                   sx={{
-                                    width: 24,
-                                    height: 24,
-                                    bgcolor: theme.palette.custom.neutral[200],
+                                    bgcolor: theme.palette.custom.status.error.light,
+                                    color: theme.palette.custom.status.error.main,
+                                    fontWeight: 700,
+                                    fontSize: 11,
+                                    height: 22,
                                   }}
+                                />
+                              ) : canCancelShopOrder && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="error"
+                                  disabled={cancellingShopOrderId === shopGroup.shopOrderId}
+                                  onClick={() => openCancelShopOrderDialog(selectedOrder.id, shopGroup.shopOrderId!)}
+                                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12, py: 0.25, px: 1 }}
                                 >
-                                  <Store sx={{ fontSize: 14 }} />
-                                </Avatar>
-                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
-                                  {shopGroup.shopName}
-                                </Typography>
-                              </Box>
-                            )}
+                                  {cancellingShopOrderId === shopGroup.shopOrderId ? 'Cancelling...' : 'Cancel Shop Order'}
+                                </Button>
+                              )}
+                            </Box>
 
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                               {shopGroup.items.map((item) => {
@@ -1947,7 +2025,8 @@ const MyOrdersPage = () => {
                               })}
                             </Box>
                           </Box>
-                        ));
+                        );
+                        });
                       })()}
                     </Box>
 
@@ -2176,6 +2255,61 @@ const MyOrdersPage = () => {
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Cancel Shop Order Confirmation Dialog ───────────────────────────── */}
+      <Dialog open={cancelShopOrderDialogOpen} onClose={() => setCancelShopOrderDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Cancel sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+              Cancel Shop Order
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+            Please tell us why you'd like to cancel this shop's items. This action cannot be undone.
+          </Typography>
+        </DialogTitle>
+
+        <Divider />
+
+        <DialogContent sx={{ py: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            {CUSTOMER_CANCEL_REASONS.map((reason) => (
+              <FormControlLabel
+                key={reason}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={cancelShopOrderReasons.includes(reason)}
+                    onChange={() => toggleCancelShopOrderReason(reason)}
+                    sx={{ py: 0.5 }}
+                  />
+                }
+                label={<Typography sx={{ fontSize: 13 }}>{reason}</Typography>}
+              />
+            ))}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button
+            onClick={() => setCancelShopOrderDialogOpen(false)}
+            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
+          >
+            Go Back
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelShopOrderReasons.length === 0 || !!cancellingShopOrderId}
+            onClick={handleConfirmCancelShopOrder}
+            startIcon={cancellingShopOrderId ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {cancellingShopOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
           </Button>
         </DialogActions>
       </Dialog>

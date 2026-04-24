@@ -403,6 +403,23 @@ const ShipmentDetailPage = () => {
             ))}
           </Stepper>
 
+          {currentStatus === 'CANCELLED' && order.cancelReason && (
+            <Box
+              sx={{
+                mt: 2.5,
+                px: 2,
+                py: 1.25,
+                borderRadius: 1.5,
+                backgroundColor: theme.palette.custom.status.error.light,
+                border: `1px solid ${theme.palette.custom.status.error.main}`,
+              }}
+            >
+              <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.error.main, fontWeight: 500 }}>
+                Cancel reason: {order.cancelReason}
+              </Typography>
+            </Box>
+          )}
+
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
             {['PENDING', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP'].includes(currentStatus) && (

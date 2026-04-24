@@ -118,6 +118,16 @@ export const orderApi = {
         return response.data;
     },
 
+    cancelShopOrder: async (orderId: string, shopOrderId: string, reason?: string): Promise<ApiResponse<unknown>> => {
+        const response = await axiosInstance.put<ApiResponse<unknown>>(
+            API_ENDPOINTS.ORDERS.CANCEL_SHOP_ORDER(orderId, shopOrderId),
+            null,
+            { params: reason ? { reason } : undefined }
+        );
+        return response.data;
+    },
+
+
     reOrder: async (orderId: string): Promise<ApiResponse<OrderResponse>> => {
         const response = await axiosInstance.post<ApiResponse<OrderResponse>>(
             API_ENDPOINTS.ORDERS.RE_ORDER(orderId)

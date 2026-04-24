@@ -75,6 +75,7 @@ export interface ShopOrderResponse {
   actualShippingFee?: number;
   platformShippingSubsidy?: number;
   grandTotal?: number;
+  cancelReason?: string;
 }
 
 export interface MonthlyRevenueItem {
