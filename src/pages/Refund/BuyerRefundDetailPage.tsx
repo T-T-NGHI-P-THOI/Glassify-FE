@@ -111,6 +111,7 @@ const BuyerRefundDetailPage = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<RefundRequest | null>(null);
+  const [productImageOk, setProductImageOk] = useState(true);
   const [trackingDialogOpen, setTrackingDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -137,6 +138,10 @@ const BuyerRefundDetailPage = () => {
   useEffect(() => {
     fetchRequestDetail();
   }, [requestId]);
+
+  useEffect(() => {
+    setProductImageOk(true);
+  }, [request?.productImageUrl]);
 
   const handleUpdateTracking = async () => {
     if (!requestId || !trackingNumber) {
@@ -358,13 +363,29 @@ const BuyerRefundDetailPage = () => {
               <Divider sx={{ my: 2 }} />
               <Grid container spacing={2} alignItems="center">
                 <Grid size={{ xs: 12, sm: 3 }}>
-                  <Avatar
-                    src={request.productImageUrl}
-                    variant="rounded"
-                    sx={{ width: '100%', height: 120 }}
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 120,
+                      borderRadius: 1,
+                      bgcolor: theme.palette.custom.neutral[50],
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
                   >
-                    <AssignmentReturn sx={{ fontSize: 60 }} />
-                  </Avatar>
+                    {request.productImageUrl && productImageOk ? (
+                      <img
+                        src={request.productImageUrl}
+                        alt={request.productName}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onError={() => setProductImageOk(false)}
+                      />
+                    ) : (
+                      <AssignmentReturn sx={{ fontSize: 60, color: theme.palette.custom.neutral[400] }} />
+                    )}
+                  </Box>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 9 }}>
                   <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
