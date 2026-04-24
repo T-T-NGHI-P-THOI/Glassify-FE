@@ -12,6 +12,7 @@ import FilterSidebar from '../../components/ProductBrowse/FilterSidebar';
 import ProductGrid from '../../components/ProductBrowse/ProductGrid';
 import type { FilterOptions, ActiveFilters, BrowseProduct } from '../../types/filter';
 import ProductAPI, { type ProductFilterParams } from '../../api/product-api';
+import type { ProductWithFrameInfoData } from '@/api/product-api.ts';
 import './ProductBrowsePage.css';
 import type { ProductType } from '@/api/service/Type';
 import { Box, Button, Checkbox, Chip, Menu, MenuItem } from '@mui/material';
@@ -75,6 +76,8 @@ const ProductBrowsePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [products, setProducts] = useState<BrowseProduct[]>([]);
+  const [frameInfoByProduct, setFrameInfoByProduct] = useState<Record<string, ProductWithFrameInfoData | null>>({});
+  const [groupedCount, setGroupedCount] = useState<number>(0);
   const [filteredProducts, setFilteredProducts] = useState<BrowseProduct[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     productTypes: ['FRAME', 'LENSES', 'ACCESSORIES'],
@@ -369,6 +372,23 @@ const ProductBrowsePage: React.FC = () => {
         }));
 
         setProducts(transformedProducts);
+        // after products set, fetch frame info for FRAME products to compute grouped count
+        const frameProductIds = Array.from(new Set(transformedProducts.filter(p => p.productType === 'FRAME').map(p => p.id).filter(Boolean)));
+        if (frameProductIds.length > 0) {
+          const results = await Promise.all(frameProductIds.map(async (id) => {
+            try {
+              const info = await ProductAPI.getProductWithFrameInfo(id);
+              return { id, info };
+            } catch (e) {
+              return { id, info: null };
+            }
+          }));
+          const map: Record<string, ProductWithFrameInfoData | null> = {};
+          results.forEach(({ id, info }) => (map[id] = info));
+          setFrameInfoByProduct(map);
+        } else {
+          setFrameInfoByProduct({});
+        }
         setHasNextPage(transformedProducts.length === PAGE_SIZE);
         setCurrentPage(1);
       } catch (error) {
@@ -380,6 +400,18 @@ const ProductBrowsePage: React.FC = () => {
 
     fetchProducts();
   }, [activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.inStock, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups]);
+
+  // compute grouped count whenever filteredProducts or frameInfoByProduct changes
+  useEffect(() => {
+    const keySet = new Set<string>();
+    filteredProducts.forEach(p => {
+      const frameInfo = frameInfoByProduct[p.id];
+      const frameGroupId = p.productType === 'FRAME' ? frameInfo?.frameGroup?.id : undefined;
+      const key = frameGroupId ? `${p.shopId}:framegroup:${frameGroupId}` : `${p.shopId}:product:${p.id}`;
+      keySet.add(key);
+    });
+    setGroupedCount(keySet.size);
+  }, [filteredProducts, frameInfoByProduct]);
 
   // Load more products when reaching bottom
   const loadMore = useCallback(async () => {
@@ -852,7 +884,7 @@ const ProductBrowsePage: React.FC = () => {
                 : 'All Products'}
             </h1>
             <p className="results-count">
-              Showing {filteredProducts.length} products
+              Showing {groupedCount} products
             </p>
           </div>
 
@@ -866,6 +898,7 @@ const ProductBrowsePage: React.FC = () => {
                 products={filteredProducts}
                 onAddToFavorites={(id) => console.log('Add to favorites:', id)}
                 viewMode={viewMode}
+                frameInfoByProduct={frameInfoByProduct}
               />
               <div ref={observerTarget} style={{ height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '40px' }}>
                 {isLoadingMore && (
