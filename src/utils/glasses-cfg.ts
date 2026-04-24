@@ -74,9 +74,52 @@ export function buildCfgFromMeasurements(
 // ── Convenience exports ───────────────────────────────────────────────────────
 
 export function buildVideoCfg(m: GlassesMeasurements) {
-    return buildCfgFromMeasurements(m, "VIDEO");
+
+    // ── 1. Scale ──────────────────────────────────────────────────────────────
+    const glassesScale = m.frameWidthMm / REF_FACE_WIDTH_MM;
+
+    const pixelPerMm = REF_HEAD_WIDTH_PX / REF_FACE_WIDTH_MM;
+    const lensOffsetPx = m.lensHeightMm * pixelPerMm *0.5 ;
+
+    // ── 2. glassesDown (Y-offset, pixel-space) ────────────────────────────────
+    const glassesDown = -lensOffsetPx
+
+    // ── 3. glassesDepth (Z-offset, pixel-space) ───────────────────────────────
+    const bridgeDepthAdj = (18 - m.bridgeWidthMm) * 0.3; // 18mm = chuẩn trung bình
+    const depthMm = 80 + bridgeDepthAdj;
+    const glassesDepth = -(depthMm * pixelPerMm);
+
+    return {
+        refHeadWidth: REF_HEAD_WIDTH_PX,
+        refFaceHeight: REF_FACE_HEIGHT_PX,
+        glassesDepth,
+        glassesDown,
+        glassesCenterX: 0,
+        glassesScale,
+    };
 }
 
 export function buildImageCfg(m: GlassesMeasurements) {
-    return buildCfgFromMeasurements(m, "IMAGE");
+    const glassesScale = m.frameWidthMm / REF_FACE_WIDTH_MM;
+
+    // ── 2. glassesDown (Y-offset, pixel-space) ────────────────────────────────
+    const pixelPerMm = REF_HEAD_WIDTH_PX / REF_FACE_WIDTH_MM;
+    const lensOffsetPx = m.lensHeightMm * 0.1 * pixelPerMm +20;
+
+    // VIDEO: glassesDown âm = đẩy lên (trục Y lật); IMAGE: dương = đẩy xuống
+    const glassesDown = +(lensOffsetPx);
+
+    // ── 3. glassesDepth (Z-offset, pixel-space) ───────────────────────────────
+    const bridgeDepthAdj = (18 - m.bridgeWidthMm) * 0.3; // 18mm = chuẩn trung bình
+    const depthMm = 12 + bridgeDepthAdj;
+    const glassesDepth = -(depthMm * pixelPerMm);
+
+    return {
+        refHeadWidth: REF_HEAD_WIDTH_PX,
+        refFaceHeight: REF_FACE_HEIGHT_PX,
+        glassesDepth,
+        glassesDown,
+        glassesCenterX: 0,
+        glassesScale,
+    };
 }

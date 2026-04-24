@@ -78,6 +78,7 @@ export interface PrescriptionDetails {
 export interface RecommendedProduct {
   id: string;
   slug: string;
+  sku: string;
   productId: string;
   variantId: string;
   name: string;
@@ -94,6 +95,8 @@ export interface Review {
   id: string;
   productId: string;
   userId: string;
+  username?: string;
+  fullName?: string;
   rating: number;
   title: string;
   comment: string;

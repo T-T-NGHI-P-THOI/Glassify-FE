@@ -50,6 +50,9 @@ import {
   TaskAlt,
   Science,
   AssignmentTurnedIn,
+  Star,
+  StarBorder,
+  RateReview,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -57,6 +60,7 @@ import { orderApi } from '@/api/order-api';
 import { paymentApi } from '@/api/payment-api';
 import { ghnApi } from '@/api/ghnApi';
 import { userAddressApi, type UserAddressResponse } from '@/api/user-address-api';
+import { reviewApi } from '@/api/review-api';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import AccessTime from '@mui/icons-material/AccessTime';
@@ -76,6 +80,7 @@ type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
 // ==================== INTERFACES (matching backend models) ====================
 interface OrderItem {
   id: string;
+  productId?: string;
   productName: string;
   productSku?: string;
   productImageUrl?: string;
@@ -436,6 +441,15 @@ const MyOrdersPage = () => {
     return () => { mounted = false; };
   }, []);
 
+  // Review Dialog States
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTargetItem, setReviewTargetItem] = useState<OrderItem | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<{ file: File; preview: string }[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewedItemIds, setReviewedItemIds] = useState<Set<string>>(new Set());
+
   // Return Request Dialog States
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [selectedReturnItemIds, setSelectedReturnItemIds] = useState<string[]>([]);
@@ -461,6 +475,9 @@ const MyOrdersPage = () => {
     fetchOrders();
     userAddressApi.getAll().then((res) => {
       if (res.data) setUserAddresses(res.data);
+    }).catch(() => {});
+    reviewApi.getMyReviewedOrderItemIds().then((ids) => {
+      setReviewedItemIds(new Set(ids));
     }).catch(() => {});
   }, [fetchOrders]);
 
@@ -635,6 +652,61 @@ const MyOrdersPage = () => {
       setItemRefundLookup({});
     }
   }, []);
+
+  // Review Handlers
+  const handleOpenReviewDialog = (item: OrderItem) => {
+    setReviewTargetItem(item);
+    setReviewRating(5);
+    setReviewComment('');
+    setReviewImages([]);
+    setReviewDialogOpen(true);
+  };
+
+  const handleCloseReviewDialog = () => {
+    reviewImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setReviewImages([]);
+    setReviewDialogOpen(false);
+    setReviewTargetItem(null);
+  };
+
+  const handleReviewImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      setReviewImages((prev) => {
+        if (prev.length >= 3) return prev;
+        return [...prev, { file, preview: URL.createObjectURL(file) }];
+      });
+    });
+    e.target.value = '';
+  };
+
+  const handleRemoveReviewImage = (index: number) => {
+    setReviewImages((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTargetItem) return;
+    try {
+      setSubmittingReview(true);
+      await reviewApi.createReview({
+        orderItemId: reviewTargetItem.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+        images: reviewImages.map((img) => img.file),
+      });
+      setReviewedItemIds(prev => new Set(prev).add(reviewTargetItem.id));
+      handleCloseReviewDialog();
+      toast.success('Review submitted successfully!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   // Return Request Handlers
   const createDefaultReturnItemForm = (): ReturnItemForm => ({
@@ -1798,6 +1870,42 @@ const MyOrdersPage = () => {
                                                 }}
                                               />
                                             )}
+                                            {reviewedItemIds.has(item.id) ? (
+                                              <Chip
+                                                label="Reviewed"
+                                                size="small"
+                                                sx={{
+                                                  height: 22,
+                                                  fontSize: 10,
+                                                  fontWeight: 600,
+                                                  bgcolor: theme.palette.custom.status.success.light,
+                                                  color: theme.palette.custom.status.success.main,
+                                                }}
+                                              />
+                                            ) : (
+                                              <Button
+                                                size="small"
+                                                variant="outlined"
+                                                // startIcon={<RateReview sx={{ fontSize: 12 }} />}
+                                                onClick={() => handleOpenReviewDialog(item)}
+                                                sx={{
+                                                  textTransform: 'none',
+                                                  fontWeight: 600,
+                                                  fontSize: 10,
+                                                  lineHeight: 1,
+                                                  minHeight: 22,
+                                                  height: 22,
+                                                  minWidth: 'unset',
+                                                  px: 1.25,
+                                                  py: 0,
+                                                  borderRadius: '8px',
+                                                  borderColor: theme.palette.custom.status.warning.main,
+                                                  color: theme.palette.custom.status.warning.main,
+                                                }}
+                                              >
+                                                Write Review
+                                              </Button>
+                                            )}
                                             <Button
                                               size="small"
                                               variant="outlined"
@@ -2068,6 +2176,133 @@ const MyOrdersPage = () => {
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
             {cancellingOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ==================== REVIEW DIALOG ==================== */}
+      <Dialog open={reviewDialogOpen} onClose={handleCloseReviewDialog} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <RateReview sx={{ fontSize: 22, color: theme.palette.custom.status.warning.main }} />
+              <Typography sx={{ fontSize: 17, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                Write a Review
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={handleCloseReviewDialog}><Close /></IconButton>
+          </Box>
+          {reviewTargetItem && (
+            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5, pl: 0.5 }}>
+              {reviewTargetItem.productName}
+            </Typography>
+          )}
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Box sx={{ pt: 1 }}>
+            {/* Star Rating */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Rating
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, mb: 2.5 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <IconButton
+                  key={star}
+                  size="small"
+                  onClick={() => setReviewRating(star)}
+                  sx={{ p: 0.25 }}
+                >
+                  {star <= reviewRating
+                    ? <Star sx={{ fontSize: 32, color: '#f59e0b' }} />
+                    : <StarBorder sx={{ fontSize: 32, color: theme.palette.custom.neutral[300] }} />
+                  }
+                </IconButton>
+              ))}
+            </Box>
+
+            {/* Comment */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Review <Typography component="span" sx={{ fontSize: 12, fontWeight: 400, color: theme.palette.custom.neutral[400] }}>(optional)</Typography>
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Share your experience..."
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value.slice(0, 50))}
+              inputProps={{ maxLength: 50 }}
+              helperText={`${reviewComment.length}/50`}
+              size="small"
+              sx={{ mb: 2.5 }}
+            />
+
+            {/* Photos */}
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], mb: 1 }}>
+              Photos{' '}
+              <Typography component="span" sx={{ fontSize: 12, fontWeight: 400, color: theme.palette.custom.neutral[400] }}>
+                (optional, max 3)
+              </Typography>
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {reviewImages.map((img, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'relative',
+                    width: 72, height: 72,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    border: `1px solid ${theme.palette.custom.border.light}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <img src={img.preview} alt={`review-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemoveReviewImage(index)}
+                    sx={{
+                      position: 'absolute', top: 2, right: 2,
+                      bgcolor: 'rgba(0,0,0,0.55)', color: '#fff', p: 0.25,
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                    }}
+                  >
+                    <Close sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              ))}
+              {reviewImages.length < 3 && (
+                <Button
+                  component="label"
+                  variant="outlined"
+                  sx={{
+                    width: 72, height: 72, borderRadius: 2, borderStyle: 'dashed',
+                    display: 'flex', flexDirection: 'column', gap: 0.5,
+                    minWidth: 'unset', p: 0,
+                  }}
+                >
+                  <CloudUpload sx={{ fontSize: 22, color: theme.palette.custom.neutral[400] }} />
+                  <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[400] }}>Add</Typography>
+                  <input type="file" hidden accept="image/*" multiple onChange={handleReviewImageUpload} />
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button onClick={handleCloseReviewDialog} disabled={submittingReview} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitReview}
+            disabled={submittingReview || reviewRating === 0}
+            startIcon={submittingReview ? <CircularProgress size={16} color="inherit" /> : <RateReview />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {submittingReview ? 'Submitting...' : 'Submit Review'}
           </Button>
         </DialogActions>
       </Dialog>

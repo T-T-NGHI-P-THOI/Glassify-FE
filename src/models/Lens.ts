@@ -19,7 +19,6 @@ export interface LensType {
     price: number;
     isPrescription: boolean;
     isProgressive?: boolean;
-    
     usage_id: string;
 }
 
@@ -178,8 +177,8 @@ export interface LensCatalogLens {
     lensName: string;
     imageUrl?: string;
     lensImageUrl?: string;
-    basePrice: number;    
-    category?: string;
+    basePrice: number;
+    isProgressive: boolean;
     usages: LensCatalogUsage[];
     features: LensCatalogFeature[];
     tints: LensCatalogTint[];

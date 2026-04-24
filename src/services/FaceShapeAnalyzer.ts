@@ -20,11 +20,11 @@ export interface FaceAnalysisResult {
         foreheadWidth: number;
         cheekWidth: number;
         jawWidth: number;
-        templeWidth: number;   // MỚI
+        templeWidth: number;
         faceHeight: number;
         ratio: number;
-        symmetryScore: number;     // MỚI: 0–1, càng cao càng cân đối
-        goldenRatioScore: number;  // MỚI: độ gần với tỉ lệ vàng 1.618
+        symmetryScore: number;
+        goldenRatioScore: number;
     };
     recommendations: GlassesRecommendation[];
 }
@@ -36,12 +36,11 @@ const LM = {
     cheekLeft: 234, cheekRight: 454,
     jawLeft: 172, jawRight: 397,
     jawAngleLeft: 58, jawAngleRight: 288,
-    templeLeft: 127, templeRight: 356,  // thái dương
+    templeLeft: 127, templeRight: 356,
     chin: 152,
     forehead: 10,
-    // Thêm điểm kiểm tra đối xứng
     eyeLeft: 33, eyeRight: 263,
-    noseLeft: 4, noseRight: 1,  // sống mũi
+    noseLeft: 4, noseRight: 1,
     noseTip: 4,
 } as const;
 
@@ -55,54 +54,119 @@ function clamp(v: number, lo: number, hi: number) {
     return Math.max(lo, Math.min(hi, v));
 }
 
-// ─── Classification weights ───────────────────────────────────────────────────
-//  Mỗi shape: [ratioMin, ratioMax, fNorm_ideal, jNorm_ideal, tNorm_ideal, weight]
-//  fNorm = forehead/cheek, jNorm = jaw/cheek, tNorm = temple/cheek
+// ─── Shape profiles ────────────────────────────────────────────────────────────
+// Each profile uses WEIGHTED scoring per feature to avoid SQUARE bias.
+// Key insight: use Mahalanobis-style per-feature tolerances, not a single tolerance.
 
 interface ShapeProfile {
-    ratioRange: [number, number];  // cheekWidth/faceHeight
-    fIdeal: number;                // forehead / cheek
-    jIdeal: number;                // jaw / cheek
-    tIdeal: number;                // temple / cheek
-    tolerance: number;             // độ mềm dẻo khi tính khoảng cách
+    // Ratio = cheekWidth / faceHeight (larger = wider/rounder face)
+    ratioIdeal: number;
+    ratioTol: number;
+    // Normalized widths relative to cheekWidth
+    fIdeal: number;   // forehead / cheek  (>1 = broad forehead)
+    fTol: number;
+    jIdeal: number;   // jaw / cheek       (>1 = wide jaw)
+    jTol: number;
+    tIdeal: number;   // temple / cheek
+    tTol: number;
+    // Derived: jaw taper = jaw/forehead  (< 1 means narrow jaw vs forehead)
+    taperIdeal: number;
+    taperTol: number;
+    // Feature weights: how much each dimension matters for this shape
+    weights: { ratio: number; f: number; j: number; t: number; taper: number };
 }
 
 const PROFILES: Record<FaceShape, ShapeProfile> = {
-    OVAL: { ratioRange: [0.74, 0.86], fIdeal: 0.82, jIdeal: 0.75, tIdeal: 0.88, tolerance: 0.12 },
-    ROUND: { ratioRange: [0.88, 1.10], fIdeal: 0.85, jIdeal: 0.85, tIdeal: 0.90, tolerance: 0.10 },
-    SQUARE: { ratioRange: [0.75, 0.92], fIdeal: 0.90, jIdeal: 0.92, tIdeal: 0.92, tolerance: 0.10 },
-    HEART: { ratioRange: [0.72, 0.90], fIdeal: 0.95, jIdeal: 0.68, tIdeal: 0.90, tolerance: 0.11 },
-    OBLONG: { ratioRange: [0.55, 0.73], fIdeal: 0.80, jIdeal: 0.78, tIdeal: 0.84, tolerance: 0.13 },
-    DIAMOND: { ratioRange: [0.72, 0.90], fIdeal: 0.72, jIdeal: 0.68, tIdeal: 0.82, tolerance: 0.11 },
+    // Oval: moderate ratio, forehead slightly wider than jaw, gentle taper
+    OVAL: {
+        ratioIdeal: 0.78, ratioTol: 0.08,
+        fIdeal: 0.82, fTol: 0.07,
+        jIdeal: 0.74, jTol: 0.07,
+        tIdeal: 0.88, tTol: 0.08,
+        taperIdeal: 0.90, taperTol: 0.08,
+        weights: { ratio: 2.0, f: 1.5, j: 2.0, t: 1.0, taper: 2.5 },
+    },
+    // Round: high ratio (width ≈ height), uniform widths, minimal taper
+    ROUND: {
+        ratioIdeal: 0.96, ratioTol: 0.08,
+        fIdeal: 0.87, fTol: 0.06,
+        jIdeal: 0.86, jTol: 0.07,
+        tIdeal: 0.92, tTol: 0.07,
+        taperIdeal: 0.99, taperTol: 0.06,
+        weights: { ratio: 3.0, f: 1.0, j: 1.5, t: 0.8, taper: 1.5 },
+    },
+    // Square: moderate ratio, jaw nearly as wide as forehead, low taper
+    SQUARE: {
+        ratioIdeal: 0.84, ratioTol: 0.07,
+        fIdeal: 0.90, fTol: 0.06,
+        jIdeal: 0.92, jTol: 0.06,
+        tIdeal: 0.93, tTol: 0.07,
+        taperIdeal: 1.02, taperTol: 0.06,
+        weights: { ratio: 1.5, f: 1.5, j: 3.0, t: 1.0, taper: 3.0 },
+    },
+    // Heart: wide forehead, narrow jaw, high taper
+    HEART: {
+        ratioIdeal: 0.80, ratioTol: 0.09,
+        fIdeal: 0.96, fTol: 0.07,
+        jIdeal: 0.65, jTol: 0.08,
+        tIdeal: 0.90, tTol: 0.09,
+        taperIdeal: 0.68, taperTol: 0.09,
+        weights: { ratio: 1.0, f: 2.0, j: 2.5, t: 0.8, taper: 3.5 },
+    },
+    // Oblong: very low ratio (tall/narrow), moderate widths
+    OBLONG: {
+        ratioIdeal: 0.63, ratioTol: 0.07,
+        fIdeal: 0.80, fTol: 0.08,
+        jIdeal: 0.77, jTol: 0.08,
+        tIdeal: 0.84, tTol: 0.09,
+        taperIdeal: 0.96, taperTol: 0.08,
+        weights: { ratio: 4.0, f: 1.0, j: 1.0, t: 0.8, taper: 1.0 },
+    },
+    // Diamond: narrow forehead AND narrow jaw, wide temples/cheeks
+    DIAMOND: {
+        ratioIdeal: 0.81, ratioTol: 0.08,
+        fIdeal: 0.71, fTol: 0.07,
+        jIdeal: 0.67, jTol: 0.07,
+        tIdeal: 0.83, tTol: 0.08,
+        taperIdeal: 0.94, taperTol: 0.07,
+        weights: { ratio: 1.0, f: 3.0, j: 2.5, t: 1.5, taper: 1.5 },
+    },
 };
 
+/**
+ * Weighted Gaussian score per feature.
+ * Each feature contributes exp(-0.5*(delta/tol)^2), scaled by weight.
+ * Returns a score in (0, 1].
+ */
 function scoreShape(
     shape: FaceShape,
     ratio: number,
     fNorm: number,
     jNorm: number,
-    tNorm: number
+    tNorm: number,
+    taper: number
 ): number {
     const p = PROFILES[shape];
-    const [rMin, rMax] = p.ratioRange;
+    const w = p.weights;
 
-    // Penalty nếu ratio nằm ngoài khoảng lý tưởng
-    const rPenalty = ratio < rMin ? rMin - ratio :
-        ratio > rMax ? ratio - rMax : 0;
+    const totalWeight = w.ratio + w.f + w.j + w.t + w.taper;
 
-    // Khoảng cách Euclidean từ bộ ba (f, j, t) tới ideal
-    const featureDist = Math.sqrt(
-        (fNorm - p.fIdeal) ** 2 +
-        (jNorm - p.jIdeal) ** 2 +
-        (tNorm - p.tIdeal) ** 2
-    );
+    function gauss(value: number, ideal: number, tol: number, weight: number) {
+        const z = (value - ideal) / tol;
+        return weight * Math.exp(-0.5 * z * z);
+    }
 
-    // Score cao = khớp tốt
-    const score = 1 / (1 + featureDist / p.tolerance + rPenalty * 3);
-    return clamp(score, 0, 1);
+    const score =
+        gauss(ratio, p.ratioIdeal, p.ratioTol, w.ratio) +
+        gauss(fNorm, p.fIdeal, p.fTol, w.f) +
+        gauss(jNorm, p.jIdeal, p.jTol, w.j) +
+        gauss(tNorm, p.tIdeal, p.tTol, w.t) +
+        gauss(taper, p.taperIdeal, p.taperTol, w.taper);
+
+    return score / totalWeight; // normalise to (0, 1]
 }
 
-// ─── GLASSES_DB & meta (giữ nguyên từ file gốc) ───────────────────────────────
+// ─── GLASSES_DB & meta ────────────────────────────────────────────────────────
 
 const GLASSES_DB: Record<FaceShape, GlassesRecommendation[]> = {
     OVAL: [
@@ -136,22 +200,19 @@ const GLASSES_DB: Record<FaceShape, GlassesRecommendation[]> = {
         { style: 'Rectangle', reason: 'Adds width at forehead.', shape: 'RECTANGLE', icon: '▬' },
     ],
 };
+
 const FACE_LABELS: Record<FaceShape, string> = {
-    OVAL: 'Oval',
-    ROUND: 'Round',
-    SQUARE: 'Square',
-    HEART: 'Heart',
-    OBLONG: 'Oblong',
-    DIAMOND: 'Diamond',
+    OVAL: 'Oval', ROUND: 'Round', SQUARE: 'Square',
+    HEART: 'Heart', OBLONG: 'Oblong', DIAMOND: 'Diamond',
 };
 
 const FACE_DESCRIPTIONS: Record<FaceShape, string> = {
-    OVAL:    'Balanced proportions with a gently tapered jaw and slightly wider cheekbones.',
-    ROUND:   'Similar width and height with soft, curved features and full cheeks.',
-    SQUARE:  'Strong jawline with roughly equal forehead, cheek, and jaw widths.',
-    HEART:   'Wide forehead tapering to a narrow, pointed chin.',
-    OBLONG:  'Face length greater than width with a long cheek line.',
-    DIAMOND: 'Narrow forehead and jaw with wide cheekbones.',
+    OVAL: 'Balanced proportions with a gently tapered jaw and slightly wider cheekbones.',
+    ROUND: 'Similar width and height with soft, curved features and full cheeks.',
+    SQUARE: 'Strong jawline with roughly equal forehead, cheek, and jaw widths.',
+    HEART: 'Wide forehead tapering to a narrow, pointed chin.',
+    OBLONG: 'Face length notably greater than width with a long cheek line.',
+    DIAMOND: 'Narrow forehead and jaw with pronounced, wide cheekbones.',
 };
 
 // ─── Main analyser ────────────────────────────────────────────────────────────
@@ -163,7 +224,6 @@ export function analyzeFaceShape(
 ): FaceAnalysisResult {
     const w = imageWidth, h = imageHeight;
 
-    // Key points
     const fL = lm2v(landmarks[LM.foreheadLeft], w, h);
     const fR = lm2v(landmarks[LM.foreheadRight], w, h);
     const cL = lm2v(landmarks[LM.cheekLeft], w, h);
@@ -177,55 +237,61 @@ export function analyzeFaceShape(
     const chin = lm2v(landmarks[LM.chin], w, h);
     const top = lm2v(landmarks[LM.forehead], w, h);
 
-    // Measurements
     const foreheadWidth = dist(fL, fR);
     const cheekWidth = dist(cL, cR);
     const jawWidth = dist(jL, jR);
     const templeWidth = dist(tL, tR);
     const faceHeight = dist(top, chin);
-    const ratio = cheekWidth / faceHeight;
 
-    // Normalise (relative to cheek width)
-    const fNorm = foreheadWidth / cheekWidth;
-    const jNorm = jawWidth / cheekWidth;
-    const tNorm = templeWidth / cheekWidth;
+    // Core ratios
+    const ratio = cheekWidth / Math.max(faceHeight, 1);
+    const fNorm = foreheadWidth / Math.max(cheekWidth, 1);
+    const jNorm = jawWidth / Math.max(cheekWidth, 1);
+    const tNorm = templeWidth / Math.max(cheekWidth, 1);
+    const taper = jawWidth / Math.max(foreheadWidth, 1); // key discriminator
 
-    // Symmetry score: so sánh khoảng cách mắt trái/phải từ midline
+    // Symmetry: compare left/right eye distance from midline
     const midX = (cL.x + cR.x) / 2;
     const eyeLDist = Math.abs(eyeL.x - midX);
     const eyeRDist = Math.abs(eyeR.x - midX);
     const symmetryScore = clamp(
-        1 - Math.abs(eyeLDist - eyeRDist) / (cheekWidth * 0.1),
+        1 - Math.abs(eyeLDist - eyeRDist) / Math.max(cheekWidth * 0.08, 1),
         0, 1
     );
 
-    // Golden ratio score: tỉ lệ vàng = 1.618 → cheek / jaw ≈ 1.618
+    // Golden ratio score: cheek/jaw ≈ 1.618
     const goldenRatio = 1.6180339887;
     const goldenRatioScore = clamp(
-        1 - Math.abs((cheekWidth / jawWidth) - goldenRatio) / goldenRatio,
+        1 - Math.abs((cheekWidth / Math.max(jawWidth, 1)) - goldenRatio) / goldenRatio,
         0, 1
     );
 
-    // ── Weighted classification ───────────────────────────────────────────────
+    // ── Weighted Gaussian classification ─────────────────────────────────────
     const shapes = Object.keys(PROFILES) as FaceShape[];
-    const scores = shapes.map(s => ({
-        shape: s,
-        score: scoreShape(s, ratio, fNorm, jNorm, tNorm),
-    }));
-    scores.sort((a, b) => b.score - a.score);
+    const scored = shapes
+        .map(s => ({ shape: s, score: scoreShape(s, ratio, fNorm, jNorm, tNorm, taper) }))
+        .sort((a, b) => b.score - a.score);
 
-    const best = scores[0];
-    const runnerUp = scores[1];
+    const best = scored[0];
+    const runnerUp = scored[1];
+    const third = scored[2];
 
-    // Confidence = khoảng cách giữa best và runner-up, chuẩn hoá
-    const rawConf = clamp((best.score - runnerUp.score) / best.score, 0, 1);
-    const confidence = clamp(0.60 + rawConf * 0.35, 0.60, 0.95);
+    // Softmax-style confidence: how much best stands out from the field
+    const sumScores = scored.reduce((acc, s) => acc + s.score, 0);
+    const softmaxTop = best.score / Math.max(sumScores, 1e-9);
+
+    // Margin-based bonus: larger gap → higher confidence
+    const margin = (best.score - runnerUp.score) / Math.max(best.score, 1e-9);
+
+    // Combine: softmax gives base, margin sharpens it
+    const rawConf = softmaxTop * 0.55 + margin * 0.45;
+    const confidence = clamp(rawConf * 1.25, 0.55, 0.95); // scale to readable range
 
     return {
         shape: best.shape,
         label: FACE_LABELS[best.shape],
         description: FACE_DESCRIPTIONS[best.shape],
-        confidence,
+        confidence: Math.round(confidence * 100) / 100,
         measurements: {
             foreheadWidth: Math.round(foreheadWidth),
             cheekWidth: Math.round(cheekWidth),

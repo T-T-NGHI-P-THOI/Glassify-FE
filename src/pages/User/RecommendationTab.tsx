@@ -96,7 +96,7 @@ const RecCard = ({
             }}
         >
             {/* Score bar top */}
-            <Box sx={{ height: 4, bgcolor: `${theme.palette.primary.main}20` }}>
+            {/* <Box sx={{ height: 4, bgcolor: `${theme.palette.primary.main}20` }}>
                 <Box
                     sx={{
                         height: '100%',
@@ -105,7 +105,7 @@ const RecCard = ({
                         transition: 'width 0.6s ease',
                     }}
                 />
-            </Box>
+            </Box> */}
 
             <Box sx={{ p: 2.5 }}>
                 {/* Header row */}

@@ -108,6 +108,11 @@ export const API_ENDPOINTS = {
       PD: `${API_ENDPOINT}/platform-settings/prescription-values/pd`,
       PD_MONOCULAR: `${API_ENDPOINT}/platform-settings/prescription-values/pd-monocular`,
     },
+    CURRENT: `${API_ENDPOINT}/platform-settings/current`,
+    HISTORY: `${API_ENDPOINT}/platform-settings/history`,
+    UPDATE_AS_NEW: `${API_ENDPOINT}/platform-settings/admin/update-as-new`,
+    RESET_PRESCRIPTION: `${API_ENDPOINT}/platform-settings/reset-prescription-config`,
+    RESET_REFUND: `${API_ENDPOINT}/platform-settings/reset-refund-policy-config`,
   },
   CART: {
     BASE: `${API_ENDPOINT}/cart`,
@@ -216,25 +221,10 @@ export const API_ENDPOINTS = {
     MY_SHOP_DEACTIVATION_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/deactivation-status`,
     MY_SHOP_CLOSURE_STATUS: (id: string) => `${API_ENDPOINT}/shops/my-shops/${id}/closure-status`,
   },
-  REFUNDS: {
-    BASE: `${API_ENDPOINT}/refunds`,
-    LIST: `${API_ENDPOINT}/refunds`,
-    GET_BY_ID: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
-    CREATE: `${API_ENDPOINT}/refunds`,
-    UPDATE: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
-    CANCEL: (id: string) => `${API_ENDPOINT}/refunds/${id}`,
-    UPDATE_TRACKING: (id: string) => `${API_ENDPOINT}/refunds/${id}/tracking`,
-    CONFIRM_RECEIVED: (id: string) => `${API_ENDPOINT}/refunds/${id}/confirm-received`,
-    PROCESS_REFUND: (id: string) => `${API_ENDPOINT}/refunds/${id}/process-refund`,
-    SHOP_APPEAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/shop-appeal`,
-    EVIDENCE_IMAGES: (id: string) => `${API_ENDPOINT}/refunds/${id}/evidence-images`,
-    PROPOSE_REFUND: (id: string) => `${API_ENDPOINT}/refunds/${id}/propose-refund`,
-    ACCEPT_PROPOSAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/proposal/accept`,
-    REJECT_PROPOSAL: (id: string) => `${API_ENDPOINT}/refunds/${id}/proposal/reject`,
-  },
   ADMIN: {
     STATS: {
       OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
+      SHOPS: `${API_ENDPOINT}/admin/stats/shops`,
     },
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
@@ -291,7 +281,7 @@ export const API_ENDPOINTS = {
     CREATE: `${API_BASE}/users/recommendation`,
     UPDATE_NAME: (id: string) => `${API_BASE}/users/recommendation/${id}`,
     DELETE: (id: string) => `${API_BASE}/users/recommendation/${id}`,
-  }
+  },
 } as const;
 
 
@@ -355,6 +345,7 @@ export const PAGE_ENDPOINTS = {
     WARRANTY_DETAIL: `/admin/warranties/:id`,
     TRANSACTIONS: `/admin/transactions`,
     VERIFY_PRODUCT: `/admin/verify-product`,
+    SETTINGS: `/admin/settings`,
   },
 
   ORDER: {

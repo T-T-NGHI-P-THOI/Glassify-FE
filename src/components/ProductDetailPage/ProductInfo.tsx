@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, StarBorder, Straighten, Favorite, Facebook, Pinterest, Twitter, Close, ShoppingCart } from '@mui/icons-material';
-import type { Product, ProductColor } from '../../types/product';
+import type { Product, ProductColor } from '@/types/product.ts';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { useAuth } from '@/hooks/useAuth';
 import './ProductInfo.css';
@@ -30,9 +30,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   );
 
   const handleSelectLenses = () => {
-    // TODO: Navigate to lens selection page or open lens configurator
-    console.log('Navigate to lens selection');
-    if (onAddToCart) {
+      if (onAddToCart) {
       onAddToCart(false); // with lenses
     }
   };
@@ -45,20 +43,23 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
     }
   };
 
+  const inStock = product.stockQuantity !== undefined ? product.stockQuantity > 0 : false;
+
   return (
     <div className="product-info">
       <h1 className="product-title">{product.name}</h1>
       <p className="product-sku">{product.sku}</p>
       
       <div className="product-reviews">
-        <span className="reviews-label">REVIEWS ({product.reviewCount})</span>
         <div className="rating">
           {[...Array(5)].map((_, i) => (
-            i < Math.floor(product.rating) ? 
-            <Star key={i} className="star filled" /> : 
+            i < Math.floor(product.rating) ?
+            <Star key={i} className="star filled" /> :
             <StarBorder key={i} className="star" />
           ))}
+          <span className="rating-value">{product.rating > 0 ? product.rating.toFixed(1) : '—'}</span>
         </div>
+        <span className="reviews-label">({product.reviewCount} reviews)</span>
       </div>
 
       <div className="size-selector">
@@ -78,6 +79,10 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         <button className="size-chart-link" onClick={() => setShowSizeChart(true)}>
           <Straighten fontSize="small" /> Size Chart
         </button>
+
+        <div>
+          {inStock ? `In stock (${product.stockQuantity} available)` : 'Out of stock'}
+        </div>
       </div>
 
       <div className="price-section">

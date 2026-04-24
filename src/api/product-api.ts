@@ -190,7 +190,7 @@ export interface ProductFilterParams {
   sortDirection?: 'ASC' | 'DESC' | 'asc' | 'desc';
   colors?: string[];
   frameShapes?: string[];
-  ageGroups?: string;
+  ageGroups?: string[];
 }
 
 // Review filter parameters
@@ -211,6 +211,7 @@ export interface ReviewResponse {
       5: number;
     };
     total: number;
+    avgRating: number;
   };
 }
 
@@ -400,8 +401,9 @@ export default class ProductAPI {
         reviews: [],
         summary: {
           counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-          total: 0
-        }
+          total: 0,
+          avgRating: 0
+        },
       };
     }
   }

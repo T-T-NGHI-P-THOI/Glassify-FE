@@ -304,6 +304,8 @@ const WarrantyPage = () => {
   // Order selection state
   const [deliveredOrders, setDeliveredOrders] = useState<OrderResponse[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
 
   // Pickup address state
@@ -415,9 +417,9 @@ const WarrantyPage = () => {
   const fetchDeliveredOrders = useCallback(async () => {
     try {
       setLoadingOrders(true);
-      const response = await orderApi.getMyOrders({ status: 'DELIVERED', size: 100 });
+      const response = await orderApi.getMyOrders({ status: 'COMPLETED', size: 100 });
       if (response.data) {
-        setDeliveredOrders(response.data.orders);
+        setDeliveredOrders(response.data.orders ?? []);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -491,6 +493,7 @@ const WarrantyPage = () => {
   const handleCloseRegisterDialog = () => {
     setRegisterDialogOpen(false);
     setFormData({ orderItemId: '', issueType: '', issueDescription: '' });
+    setSelectedOrderId('');
     setSelectedOrder(null);
     uploadedImages.forEach((img) => URL.revokeObjectURL(img.preview));
     setUploadedImages([]);
@@ -1725,15 +1728,26 @@ const WarrantyPage = () => {
               <FormControl fullWidth size="small">
                 <InputLabel>Select Order</InputLabel>
                 <Select
-                  value={selectedOrder?.id ?? ''}
-                  onChange={(e) => {
-                    const order = deliveredOrders.find((o) => o.id === e.target.value) ?? null;
-                    setSelectedOrder(order);
+                  value={selectedOrderId}
+                  onChange={async (e) => {
+                    const orderId = e.target.value;
+                    setSelectedOrderId(orderId);
+                    setSelectedOrder(null);
                     setFormData({ ...formData, orderItemId: '', issueType: '' });
                     setShopIssueTypes([]);
+                    if (!orderId) return;
+                    try {
+                      setLoadingOrderDetail(true);
+                      const res = await orderApi.getOrderDetail(orderId);
+                      setSelectedOrder(res.data ?? null);
+                    } catch {
+                      toast.error('Failed to load order details');
+                    } finally {
+                      setLoadingOrderDetail(false);
+                    }
                   }}
                   label="Select Order"
-                  disabled={loadingOrders}
+                  disabled={loadingOrders || loadingOrderDetail}
                   startAdornment={<ReceiptLong sx={{ fontSize: 18, color: theme.palette.custom.neutral[400], mr: 1 }} />}
                 >
                   {loadingOrders && <MenuItem disabled>Loading orders...</MenuItem>}
@@ -1743,13 +1757,21 @@ const WarrantyPage = () => {
                       <Box>
                         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{order.orderNumber}</Typography>
                         <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                          {new Date(order.orderedAt).toLocaleDateString('vi-VN')} · {order.items.length} item(s)
+                          {new Date(order.orderedAt).toLocaleDateString('vi-VN')} · {(order.items ?? []).length} item(s)
                         </Typography>
                       </Box>
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
+
+              {/* Loading order detail */}
+              {loadingOrderDetail && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                  <CircularProgress size={14} />
+                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Loading order items...</Typography>
+                </Box>
+              )}
 
               {/* Select Item */}
               {selectedOrder && (
@@ -1768,7 +1790,7 @@ const WarrantyPage = () => {
                     }}
                     label="Select Item"
                   >
-                    {selectedOrder.items.map((item) => {
+                    {(selectedOrder.items ?? []).map((item) => {
                       const expired = Boolean(item.warrantyExpiresAt) && new Date(item.warrantyExpiresAt!) < new Date();
                       return (
                         <MenuItem key={item.id} value={item.id} disabled={expired}>

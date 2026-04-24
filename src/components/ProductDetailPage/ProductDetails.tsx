@@ -17,7 +17,12 @@ interface ProductDetailsProps {
 
 const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, isLoadingReviews = false, onLoadMoreReviews, productWithFrameInfo }) => {
   const reviews = reviewData?.reviews || [];
-  const summary = reviewData?.summary || { counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, total: 0 };
+  const rawSummary = reviewData?.summary;
+  const summary = {
+    counts: rawSummary?.counts ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    total: rawSummary?.total ?? 0,
+    avgRating: rawSummary?.avgRating ?? 0,
+  };
   const [activeTab, setActiveTab] = useState<'details' | 'description' | 'reviews'>('details');
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -60,7 +65,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
 
       try {
         if (normalizedProductType === 'LENSES' || normalizedProductType === 'LENS') {
-          const detail = await lensApi.getById(lookupId);
+          const detail = await lensApi.getById(lookupId) as LensDetailResponse;
           if (!cancelled) setLensDetail(detail);
           return;
         }
@@ -291,11 +296,16 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
           <div className="reviews-summary">
             <div className="rating-overview">
               <div className="average-rating">
-                <span className="rating-number">{product.rating}</span>
+                <span className="rating-number">{summary.total > 0 ? summary.avgRating.toFixed(1) : '—'}</span>
                 <div className="stars">
                   {[...Array(5)].map((_, i) => (i < Math.floor(product.rating) ? <Star key={i} className="star filled" /> : <StarBorder key={i} className="star" />))}
+                  {[...Array(5)].map((_, i) => (
+                    i < Math.floor(summary.avgRating) ?
+                    <Star key={i} className="star filled" /> :
+                    <StarBorder key={i} className="star" />
+                  ))}
                 </div>
-                <span className="total-reviews">{product.reviewCount} reviews</span>
+                <span className="total-reviews">{summary.total} reviews</span>
               </div>
               <div className="rating-bars">
                 {[5, 4, 3, 2, 1].map((stars) => {
@@ -325,7 +335,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
                   <div key={review.id} className="review-item">
                     <div className="review-header">
                       <div className="reviewer-info">
-                        <span className="reviewer-name">User {review.userId.substring(0, 8)}</span>
+                        <span className="reviewer-name">{review.fullName || review.username || 'Anonymous'}</span>
                         {review.isVerifiedPurchase && <span className="verified-badge">✓ Verified Purchase</span>}
                       </div>
                       <span className="review-date">{reviewDate}</span>
