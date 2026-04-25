@@ -71,7 +71,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
         const variantProduct = products.find(x => x.variantId === first.id) || p;
         init[key] = {
           image: variantProduct.image || p.image,
-          name: `${variantProduct.name}${first.colorName ? ` ${first.colorName}` : ''}`,
+          name: variantProduct.name,
           price: variantProduct.price,
           rating: variantProduct.rating,
           reviewCount: variantProduct.reviewCount,

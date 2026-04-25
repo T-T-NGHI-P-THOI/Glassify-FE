@@ -102,6 +102,7 @@ const ProductBrowsePage: React.FC = () => {
     colors: searchParams.getAll('colors').length > 0 ? searchParams.getAll('colors') : undefined,
     frameShapes: searchParams.get('frameShapes') ? [searchParams.get('frameShapes')!] : undefined,
     ageGroups: searchParams.get('ageGroups') ? searchParams.get('ageGroups')!.split(',') : undefined,
+    sortDirection: searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc'
   });
 
   useEffect(() => {
@@ -196,8 +197,67 @@ const ProductBrowsePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const observerTarget = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
+
+  // Helper: build ProductFilterParams from activeFilters and page
+  const buildFilterParams = (page: number): ProductFilterParams => {
+    const params: ProductFilterParams = {
+      search: activeFilters.searchQuery || undefined,
+      minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
+      maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
+      isActive: true,
+      minRating: activeFilters.minRating || undefined,
+      productType: activeFilters.productType || undefined,
+      categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
+      brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
+      isFeatured: activeFilters.isFeatured,
+      isReturnable: activeFilters.isReturnable,
+      page,
+      unitPerPage: PAGE_SIZE,
+      frameShapes: activeFilters.frameShapes || undefined,
+      colors: activeFilters.colors || undefined,
+      ageGroups: activeFilters.ageGroups || undefined,
+    };
+
+    // If productType not specified but category provided, prefer category
+    if (!activeFilters.productType && activeFilters.categoryNames.length > 0) {
+      params.categoryName = activeFilters.categoryNames[0];
+      delete params.productType;
+    }
+
+    return params;
+  };
+
+  // Helper: transform raw API products into BrowseProduct
+  const transformApiProducts = (apiProducts: any[]): BrowseProduct[] =>
+    apiProducts.map((product) => {
+      const productLocation = extractProductLocation(product);
+      const productImage = ProductAPI.getPrimaryImageUrl(product);
+
+      return {
+        id: product.id,
+        slug: product.slug,
+        productId: product.id,
+        variantId: product.variantId || product.id,
+        name: product.name,
+        sku: product.sku,
+        price: product.basePrice,
+        rating: product.avgRating || 0,
+        reviewCount: product.reviewCount || 0,
+        productType: product.productType,
+        image: productImage,
+        colorVariants: [],
+        isFeatured: product.isFeatured,
+        isNew: false,
+        stockQuantity: product.stockQuantity,
+        brandId: product.brandId,
+        categoryId: product.categoryId,
+        categoryName: product.categoryName,
+        shopId: product.shopId,
+        shopCity: productLocation.city,
+        shopAddress: productLocation.address
+      };
+    });
 
   const formatColorName = (val: string) =>
     val
@@ -276,29 +336,8 @@ const ProductBrowsePage: React.FC = () => {
       try {
         setIsLoading(true);
 
-        // Build filter params from activeFilters
-        // Only send one of productType or categoryName
-        let filterParams: ProductFilterParams = {
-          search: activeFilters.searchQuery || undefined,
-          minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
-          maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
-          isActive: true,
-          minRating: activeFilters.minRating || undefined,
-          brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
-          isFeatured: activeFilters.isFeatured,
-          isReturnable: activeFilters.isReturnable,
-          page: currentPage,
-          unitPerPage: PAGE_SIZE,
-          frameShapes: activeFilters.frameShapes || undefined,
-          colors: activeFilters.colors || undefined,
-          ageGroups: activeFilters.ageGroups || undefined,
-        };
-        if (activeFilters.productType) {
-          filterParams.productType = activeFilters.productType;
-        } else if (activeFilters.categoryNames.length > 0) {
-          filterParams.categoryName = activeFilters.categoryNames[0];
-        }
-
+        // Build params and fetch
+        let filterParams = buildFilterParams(currentPage);
         // Map sortBy to API params
         if (activeFilters.sortBy) {
           switch (activeFilters.sortBy) {
@@ -327,36 +366,7 @@ const ProductBrowsePage: React.FC = () => {
         }
 
         const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
-
-        // Transform API products to BrowseProduct format
-        const transformedProducts = apiProducts.map((product) => {
-          const productLocation = extractProductLocation(product);
-          const productImage = ProductAPI.getPrimaryImageUrl(product);
-
-          return {
-            id: product.id,
-            slug: product.slug,
-            productId: product.id,
-            variantId: product.variantId || product.id,
-            name: product.name,
-            sku: product.sku,
-            price: product.basePrice,
-            rating: product.avgRating || 0,
-            reviewCount: product.reviewCount || 0,
-            productType: product.productType,
-            image: productImage,
-            colorVariants: [],
-            isFeatured: product.isFeatured,
-            isNew: false,
-            stockQuantity: product.stockQuantity,
-            brandId: product.brandId,
-            categoryId: product.categoryId,
-            categoryName: product.categoryName,
-            shopId: product.shopId,
-            shopCity: productLocation.city,
-            shopAddress: productLocation.address
-          };
-        });
+        const transformedProducts = transformApiProducts(apiProducts);
 
         const detectedCities = Array.from(
           new Set(
@@ -421,29 +431,7 @@ const ProductBrowsePage: React.FC = () => {
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
 
-      let filterParams: ProductFilterParams = {
-        search: activeFilters.searchQuery || undefined,
-        minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
-        maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
-        isActive: true,
-        minRating: activeFilters.minRating || undefined,
-        productType: activeFilters.productType || undefined,
-        categoryName: activeFilters.categoryNames.length > 0 ? activeFilters.categoryNames[0] : undefined,
-        brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
-        isFeatured: activeFilters.isFeatured,
-        isReturnable: activeFilters.isReturnable,
-        page: nextPage,
-        unitPerPage: PAGE_SIZE,
-        frameShapes: activeFilters.frameShapes || undefined,
-        colors: activeFilters.colors || undefined,
-        ageGroups: activeFilters.ageGroups || undefined,
-      };
-      if (activeFilters.productType) {
-        filterParams.productType = activeFilters.productType;
-      } else if (activeFilters.categoryNames.length > 0) {
-        filterParams.categoryName = activeFilters.categoryNames[0];
-      }
-
+      let filterParams = buildFilterParams(nextPage);
       // Map sortBy to API params
       if (activeFilters.sortBy) {
         switch (activeFilters.sortBy) {
@@ -472,39 +460,27 @@ const ProductBrowsePage: React.FC = () => {
       }
 
       const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
-
-      const transformedProducts = apiProducts.map((product) => {
-        const productLocation = extractProductLocation(product);
-        const productImage = ProductAPI.getPrimaryImageUrl(product);
-
-        return {
-          id: product.id,
-          slug: product.slug,
-          productId: product.id,
-          variantId: product.variantId || product.id,
-          name: product.name,
-          sku: product.sku,
-          price: product.basePrice,
-          rating: product.avgRating || 0,
-          reviewCount: product.reviewCount || 0,
-          productType: product.productType,
-          image: productImage,
-          colorVariants: [],
-          isFeatured: product.isFeatured,
-          isNew: false,
-          stockQuantity: product.stockQuantity,
-          brandId: product.brandId,
-          categoryId: product.categoryId,
-          categoryName: product.categoryName,
-          shopId: product.shopId,
-          shopCity: productLocation.city,
-          shopAddress: productLocation.address
-        };
-      });
+      const transformedProducts = transformApiProducts(apiProducts);
 
       setProducts(prev => [...prev, ...transformedProducts]);
       setCurrentPage(nextPage);
-      setHasNextPage(transformedProducts.length === PAGE_SIZE);
+      // keep URL params in sync with pagination
+      const params = new URLSearchParams();
+      if (activeFilters.productType) params.set('productType', activeFilters.productType);
+      else if (activeFilters.categoryNames && activeFilters.categoryNames.length > 0) params.set('category', activeFilters.categoryNames[0]);
+      if (activeFilters.searchQuery) params.set('q', activeFilters.searchQuery);
+      if (activeFilters.sortBy && activeFilters.sortBy !== 'popular') params.set('sortBy', activeFilters.sortBy);
+      if (activeFilters.priceMin !== undefined) params.set('minPrice', String(activeFilters.priceMin));
+      if (activeFilters.priceMax !== undefined) params.set('maxPrice', String(activeFilters.priceMax));
+      if (activeFilters.minRating !== undefined) params.set('minRating', String(activeFilters.minRating));
+      if (activeFilters.brandIds && activeFilters.brandIds.length > 0) params.set('brandId', activeFilters.brandIds[0]);
+      if (activeFilters.shopCities && activeFilters.shopCities.length > 0) params.set('shopCity', activeFilters.shopCities[0]);
+      if (activeFilters.frameShapes?.length) activeFilters.frameShapes.forEach(s => params.append('frameShapes', s));
+      if (activeFilters.colors?.length) activeFilters.colors.forEach(c => params.append('colors', c));
+      if (activeFilters.ageGroups?.length) params.set('ageGroups', activeFilters.ageGroups.join(','));
+      params.set('page', String(nextPage));
+      setSearchParams(params);
+      setHasNextPage(transformedProducts.length >= PAGE_SIZE);
     } catch (error) {
       console.error('Error loading more products:', error);
     } finally {
@@ -512,28 +488,71 @@ const ProductBrowsePage: React.FC = () => {
     }
   }, [currentPage, isLoadingMore, activeFilters.searchQuery, activeFilters.priceMin, activeFilters.priceMax, activeFilters.sortBy, activeFilters.minRating, activeFilters.productType, activeFilters.isFeatured, activeFilters.isReturnable, activeFilters.brandIds, activeFilters.categoryNames, activeFilters.frameShapes, activeFilters.colors, activeFilters.ageGroups]);
 
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && !isLoading && !isLoadingMore && hasNextPage) {
-          loadMore();
+  // Generic fetch page helper: if append=false replace list, if true append
+  const fetchPage = useCallback(async (page: number, append = false) => {
+    try {
+      setIsLoadingMore(true);
+      let filterParams = buildFilterParams(page);
+      // Map sortBy to API params
+      if (activeFilters.sortBy) {
+        switch (activeFilters.sortBy) {
+          case 'price-asc':
+            filterParams.sortBy = 'basePrice';
+            filterParams.sortDirection = 'ASC';
+            break;
+          case 'price-desc':
+            filterParams.sortBy = 'basePrice';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'rating':
+            filterParams.sortBy = 'avgRating';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'newest':
+            filterParams.sortBy = 'createdAt';
+            filterParams.sortDirection = 'DESC';
+            break;
+          case 'popular':
+          default:
+            filterParams.sortBy = 'soldCount';
+            filterParams.sortDirection = 'DESC';
+            break;
         }
-      },
-      { threshold: 0.1 }
-    );
-
-    const target = observerTarget.current;
-    if (target) {
-      observer.observe(target);
-    }
-
-    return () => {
-      if (target) {
-        observer.unobserve(target);
       }
-    };
-  }, [loadMore, isLoading, isLoadingMore, hasNextPage]);
+
+      const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
+      const transformedProducts = transformApiProducts(apiProducts);
+
+      if (append) {
+        setProducts(prev => [...prev, ...transformedProducts]);
+      } else {
+        setProducts(transformedProducts);
+      }
+      setCurrentPage(page);
+      setHasNextPage(transformedProducts.length === PAGE_SIZE);
+      // update URL params so filters and sort are preserved when navigating pages
+      const params = new URLSearchParams();
+      if (activeFilters.productType) params.set('productType', activeFilters.productType);
+      else if (activeFilters.categoryNames && activeFilters.categoryNames.length > 0) params.set('category', activeFilters.categoryNames[0]);
+      if (activeFilters.searchQuery) params.set('q', activeFilters.searchQuery);
+      if (activeFilters.sortBy && activeFilters.sortBy !== 'popular') params.set('sortBy', activeFilters.sortBy);
+      if (activeFilters.priceMin !== undefined) params.set('minPrice', String(activeFilters.priceMin));
+      if (activeFilters.priceMax !== undefined) params.set('maxPrice', String(activeFilters.priceMax));
+      if (activeFilters.minRating !== undefined) params.set('minRating', String(activeFilters.minRating));
+      if (activeFilters.brandIds && activeFilters.brandIds.length > 0) params.set('brandId', activeFilters.brandIds[0]);
+      if (activeFilters.shopCities && activeFilters.shopCities.length > 0) params.set('shopCity', activeFilters.shopCities[0]);
+      if (activeFilters.frameShapes?.length) activeFilters.frameShapes.forEach(s => params.append('frameShapes', s));
+      if (activeFilters.colors?.length) activeFilters.colors.forEach(c => params.append('colors', c));
+      if (activeFilters.ageGroups?.length) params.set('ageGroups', activeFilters.ageGroups.join(','));
+      params.set('page', String(page));
+      setSearchParams(params);
+    } catch (e) {
+      console.error('Error fetching page', e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [activeFilters, PAGE_SIZE]);
+
   // Apply location filtering client-side because product listing API does not currently expose city param.
   useEffect(() => {
     let nextProducts = products;
@@ -900,10 +919,128 @@ const ProductBrowsePage: React.FC = () => {
                 viewMode={viewMode}
                 frameInfoByProduct={frameInfoByProduct}
               />
-              <div ref={observerTarget} style={{ height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '40px' }}>
-                {isLoadingMore && (
-                  <p style={{ fontSize: '14px', color: '#666' }}>Loading more products...</p>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', marginTop: 24 }}>
+                <Button
+                  variant="outlined"
+                  disabled={currentPage <= 1 || isLoading}
+                  onClick={async () => {
+                    if (currentPage <= 1) return;
+                    try {
+                      setIsLoadingMore(true);
+                      const prevPage = currentPage - 1;
+                      let filterParams: ProductFilterParams = {
+                        search: activeFilters.searchQuery || undefined,
+                        minPrice: activeFilters.priceMin !== undefined ? activeFilters.priceMin : undefined,
+                        maxPrice: activeFilters.priceMax !== undefined ? activeFilters.priceMax : undefined,
+                        isActive: true,
+                        minRating: activeFilters.minRating || undefined,
+                        brandId: activeFilters.brandIds.length > 0 ? activeFilters.brandIds[0] : undefined,
+                        isFeatured: activeFilters.isFeatured,
+                        isReturnable: activeFilters.isReturnable,
+                        page: prevPage,
+                        unitPerPage: PAGE_SIZE,
+                        frameShapes: activeFilters.frameShapes || undefined,
+                        colors: activeFilters.colors || undefined,
+                        ageGroups: activeFilters.ageGroups || undefined,
+                      };
+                      if (activeFilters.productType) {
+                        filterParams.productType = activeFilters.productType;
+                      } else if (activeFilters.categoryNames.length > 0) {
+                        filterParams.categoryName = activeFilters.categoryNames[0];
+                      }
+
+                      // Map sortBy to API params
+                      if (activeFilters.sortBy) {
+                        switch (activeFilters.sortBy) {
+                          case 'price-asc':
+                            filterParams.sortBy = 'basePrice';
+                            filterParams.sortDirection = 'ASC';
+                            break;
+                          case 'price-desc':
+                            filterParams.sortBy = 'basePrice';
+                            filterParams.sortDirection = 'DESC';
+                            break;
+                          case 'rating':
+                            filterParams.sortBy = 'avgRating';
+                            filterParams.sortDirection = 'DESC';
+                            break;
+                          case 'newest':
+                            filterParams.sortBy = 'createdAt';
+                            filterParams.sortDirection = 'DESC';
+                            break;
+                          case 'popular':
+                          default:
+                            filterParams.sortBy = 'soldCount';
+                            filterParams.sortDirection = 'DESC';
+                            break;
+                        }
+                      }
+                      const apiProducts = await ProductAPI.getAllProducts(filterParams) ?? [];
+                      const transformed = apiProducts.map((product) => {
+                        const productLocation = extractProductLocation(product);
+                        const productImage = ProductAPI.getPrimaryImageUrl(product);
+                        return {
+                          id: product.id,
+                          slug: product.slug,
+                          productId: product.id,
+                          variantId: product.variantId || product.id,
+                          name: product.name,
+                          sku: product.sku,
+                          price: product.basePrice,
+                          rating: product.avgRating || 0,
+                          reviewCount: product.reviewCount || 0,
+                          productType: product.productType,
+                          image: productImage,
+                          colorVariants: [],
+                          isFeatured: product.isFeatured,
+                          isNew: false,
+                          stockQuantity: product.stockQuantity,
+                          brandId: product.brandId,
+                          categoryId: product.categoryId,
+                          categoryName: product.categoryName,
+                          shopId: product.shopId,
+                          shopCity: productLocation.city,
+                          shopAddress: productLocation.address
+                        };
+                      });
+                      setProducts(transformed);
+                      setCurrentPage(prevPage);
+                      setHasNextPage(transformed.length === PAGE_SIZE);
+                      // update URL params so filters and sort are preserved when navigating pages
+                      const params = new URLSearchParams();
+                      if (activeFilters.productType) params.set('productType', activeFilters.productType);
+                      else if (activeFilters.categoryNames && activeFilters.categoryNames.length > 0) params.set('category', activeFilters.categoryNames[0]);
+                      if (activeFilters.searchQuery) params.set('q', activeFilters.searchQuery);
+                      if (activeFilters.sortBy && activeFilters.sortBy !== 'popular') params.set('sortBy', activeFilters.sortBy);
+                      if (activeFilters.priceMin !== undefined) params.set('minPrice', String(activeFilters.priceMin));
+                      if (activeFilters.priceMax !== undefined) params.set('maxPrice', String(activeFilters.priceMax));
+                      if (activeFilters.minRating !== undefined) params.set('minRating', String(activeFilters.minRating));
+                      if (activeFilters.brandIds && activeFilters.brandIds.length > 0) params.set('brandId', activeFilters.brandIds[0]);
+                      if (activeFilters.shopCities && activeFilters.shopCities.length > 0) params.set('shopCity', activeFilters.shopCities[0]);
+                      if (activeFilters.frameShapes?.length) activeFilters.frameShapes.forEach(s => params.append('frameShapes', s));
+                      if (activeFilters.colors?.length) activeFilters.colors.forEach(c => params.append('colors', c));
+                      if (activeFilters.ageGroups?.length) params.set('ageGroups', activeFilters.ageGroups.join(','));
+                      params.set('page', String(prevPage));
+                      setSearchParams(params);
+                    } catch (e) {
+                      console.error('Error fetching page', e);
+                    } finally {
+                      setIsLoadingMore(false);
+                    }
+                  }}
+                >
+                  Prev
+                </Button>
+
+                <div style={{ fontSize: 14, color: '#333' }}>Page {currentPage}</div>
+
+                <Button
+                  variant="outlined"
+                  disabled={!hasNextPage || isLoading}
+                  onClick={() => fetchPage(currentPage + 1, false)}
+                >
+                  Next
+                </Button>
               </div>
             </>
           ) : (
