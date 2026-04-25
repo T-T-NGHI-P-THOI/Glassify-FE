@@ -33,6 +33,8 @@ export interface ShopOrderItemResponse {
   shopId: string;
   shopName: string;
   shopLogoUrl?: string;
+  itemStatus?: string;
+  cancelReason?: string;
 }
 
 export interface ShopOrderResponse {
