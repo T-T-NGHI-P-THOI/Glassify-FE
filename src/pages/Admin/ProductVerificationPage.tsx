@@ -142,16 +142,6 @@ function ShopInfoDialog({
                             {shop.shopCode}
                         </Typography>
 
-                        <Chip
-                            label={shop.tier}
-                            size="small"
-                            sx={{
-                                mt: 0.5,
-                                height: 18,
-                                fontSize: 10,
-                                fontWeight: 600
-                            }}
-                        />
                     </Box>
 
                     {shop.avgRating != null && (

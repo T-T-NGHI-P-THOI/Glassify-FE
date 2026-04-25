@@ -48,12 +48,6 @@ const ShopInfo: React.FC<ShopInfoProps> = ({ shop }) => {
             <div className="shop-stat">
               <span>{shop.totalProducts} products</span>
             </div>
-            <div className="shop-stat-divider">|</div>
-            <div className="shop-stat">
-              <span className={`shop-tier tier-${shop.tier.toLowerCase()}`}>
-                {shop.tier}
-              </span>
-            </div>
           </div>
         </div>
         

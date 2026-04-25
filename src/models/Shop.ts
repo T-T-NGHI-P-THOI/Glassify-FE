@@ -18,7 +18,6 @@ export interface GhnWard {
 
 // ==================== Shop Enums ====================
 export type ShopStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'PENDING_DEACTIVATION' | 'CLOSING' | 'CLOSED';
-export type ShopTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
 
 // ==================== Business License ====================
 export interface BusinessLicense {
@@ -70,7 +69,8 @@ export interface ShopDetailResponse {
   status: ShopStatus;
   isVerified: boolean;
 
-  tier: ShopTier;
+  commissionTierId?: string;
+  commissionTierName?: string;
   commissionRate: number;
 
   totalOrders: number | null;
@@ -207,7 +207,8 @@ export interface AdminShopItem {
   businessLicense: BusinessLicense;
   status: ShopStatus;
   isVerified: boolean;
-  tier: ShopTier;
+  commissionTierId?: string;
+  commissionTierName?: string;
   commissionRate: number;
   totalOrders: number | null;
   totalProducts: number | null;
