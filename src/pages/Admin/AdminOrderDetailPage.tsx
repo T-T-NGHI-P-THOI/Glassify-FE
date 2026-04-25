@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Box,
   Button,
   Chip,
@@ -21,12 +22,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack, Cancel } from '@mui/icons-material';
+import { ArrowBack, Cancel, Store } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-import { adminApi, type AdminOrderResponse } from '@/api/adminApi';
+import { adminApi, type AdminOrderResponse, type AdminShopOrderSummary } from '@/api/adminApi';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
@@ -46,6 +47,12 @@ const REFUND_STATUS_LABEL: Record<string, string> = {
 
 const orderStatusColor = (s: string): 'warning' | 'info' | 'success' | 'error' | 'default' =>
   s === 'PENDING' ? 'warning' : s === 'DELIVERED' ? 'success' : s === 'CANCELLED' || s === 'RETURNED' ? 'error' : 'info';
+
+const shopOrderStatusColor = (s: string): 'warning' | 'info' | 'success' | 'error' | 'default' =>
+  s === 'PENDING' || s === 'CONFIRMED' ? 'warning'
+  : s === 'CANCELLED' ? 'error'
+  : s === 'COMPLETED' || s === 'DELIVERED' ? 'success'
+  : 'info';
 
 const paymentStatusColor = (s: string): 'warning' | 'success' | 'error' | 'default' =>
   s === 'PAID' ? 'success' : s === 'PENDING' ? 'warning' : s === 'FAILED' ? 'error' : 'default';
@@ -250,6 +257,55 @@ const AdminOrderDetailPage = () => {
                 {order.customerNote && <FieldRow label="Customer note" value={order.customerNote} />}
               </Box>
             </Paper>
+
+            {/* Shop Orders */}
+            {order.shopOrders && order.shopOrders.length > 0 && (
+              <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <Typography sx={{ fontWeight: 600, fontSize: 14 }}>Shop Orders ({order.shopOrders.length})</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  {order.shopOrders.map((so: AdminShopOrderSummary, idx: number) => (
+                    <Box
+                      key={so.id}
+                      sx={{
+                        px: 3,
+                        py: 2,
+                        borderBottom: idx < order.shopOrders!.length - 1 ? `1px solid ${theme.palette.custom.border.light}` : 'none',
+                        bgcolor: so.status === 'CANCELLED' ? `${theme.palette.error.main}08` : 'transparent',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar src={so.shopLogoUrl} sx={{ width: 32, height: 32, bgcolor: theme.palette.custom.neutral[200] }}>
+                          <Store sx={{ fontSize: 16 }} />
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                              {so.shopName ?? '—'}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
+                              #{so.shopOrderNumber}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={so.status}
+                              color={shopOrderStatusColor(so.status)}
+                              sx={{ fontWeight: 600, fontSize: 11, height: 20 }}
+                            />
+                          </Box>
+                          {so.status === 'CANCELLED' && so.cancelReason && (
+                            <Typography sx={{ fontSize: 12, color: theme.palette.error.main, mt: 0.5 }}>
+                              Cancel reason: {so.cancelReason}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </Paper>
+            )}
 
             {/* Order items — kept as separate table block */}
             {order.items && order.items.length > 0 && (
