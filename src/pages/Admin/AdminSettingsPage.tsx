@@ -38,13 +38,18 @@ import {
   CheckCircle,
   ContentCopy,
   RestartAlt,
+  Save,
+  Cancel,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import { Sidebar } from '@/components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import platformSettingApi from '@/api/platformSettingApi';
 import type { PlatformSettingResponse, PlatformSettingUpdateRequest } from '@/models/PlatformSetting';
+import { adminApi, type CommissionTierResponse, type UpdateCommissionTierRequest } from '@/api/adminApi';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -275,6 +280,15 @@ const AdminSettingsPage = () => {
   const [resetConfirm, setResetConfirm] = useState<'prescription' | 'refund' | null>(null);
   const [resetting, setResetting] = useState(false);
 
+  // Commission tiers
+  const TIER_ORDER = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
+  const TIER_COLOR: Record<string, string> = { BRONZE: '#cd7f32', SILVER: '#9e9e9e', GOLD: '#ffc107', PLATINUM: '#00bcd4' };
+  const [tiers, setTiers] = useState<CommissionTierResponse[]>([]);
+  const [tiersLoading, setTiersLoading] = useState(false);
+  const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [tierDraft, setTierDraft] = useState<UpdateCommissionTierRequest>({ commissionRate: 0 });
+  const [tierSaving, setTierSaving] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -288,6 +302,144 @@ const AdminSettingsPage = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (activeTab === 3 && tiers.length === 0) {
+      setTiersLoading(true);
+      adminApi.getCommissionTiers()
+        .then(r => {
+          if (r.data) {
+            const sorted = [...r.data].sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier));
+            setTiers(sorted);
+          }
+        })
+        .finally(() => setTiersLoading(false));
+    }
+  }, [activeTab]);
+
+  const startEditTier = (tier: CommissionTierResponse) => {
+    setEditingTier(tier.tier);
+    setTierDraft({ commissionRate: tier.commissionRate, minMonthlyOrders: tier.minMonthlyOrders, minMonthlyRevenue: tier.minMonthlyRevenue });
+  };
+
+  const saveTier = async () => {
+    if (!editingTier) return;
+    setTierSaving(true);
+    try {
+      const res = await adminApi.updateCommissionTier(editingTier, tierDraft);
+      if (res.data) {
+        setTiers(prev => prev.map(t => t.tier === editingTier ? res.data! : t));
+        toast.success(`${editingTier} tier updated`);
+      }
+      setEditingTier(null);
+    } catch {
+      toast.error('Failed to update tier');
+    } finally {
+      setTierSaving(false);
+    }
+  };
+
+  const renderCommissionTiersTab = () => (
+    tiersLoading ? (
+      <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress /></Box>
+    ) : (
+      <Box>
+        <Typography sx={{ fontSize: 13, color: '#666', mb: 2 }}>
+          Set commission rate and upgrade thresholds for each shop tier. Changes apply to new orders only.
+        </Typography>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#fafafa' }}>
+                {['Tier', 'Commission Rate', 'Min Monthly Orders', 'Min Monthly Revenue', 'Actions'].map(h => (
+                  <TableCell key={h} sx={{ fontWeight: 600, fontSize: 12, color: '#888' }}>{h}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {tiers.map(tier => {
+                const isEditing = editingTier === tier.tier;
+                return (
+                  <TableRow key={tier.id} hover>
+                    <TableCell>
+                      <Chip
+                        label={tier.tier}
+                        size="small"
+                        sx={{ fontWeight: 700, fontSize: 12, bgcolor: TIER_COLOR[tier.tier] + '22', color: TIER_COLOR[tier.tier] }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={tierDraft.commissionRate}
+                          onChange={e => setTierDraft(d => ({ ...d, commissionRate: parseFloat(e.target.value) || 0 }))}
+                          inputProps={{ min: 0, max: 100, step: 0.5 }}
+                          sx={{ width: 100 }}
+                          InputProps={{ endAdornment: <Typography sx={{ fontSize: 12 }}>%</Typography> }}
+                        />
+                      ) : (
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1976d2' }}>{tier.commissionRate}%</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={tierDraft.minMonthlyOrders ?? 0}
+                          onChange={e => setTierDraft(d => ({ ...d, minMonthlyOrders: parseInt(e.target.value) || 0 }))}
+                          inputProps={{ min: 0 }}
+                          sx={{ width: 110 }}
+                          InputProps={{ endAdornment: <Typography sx={{ fontSize: 12 }}>orders</Typography> }}
+                        />
+                      ) : (
+                        <Typography sx={{ fontSize: 13 }}>{tier.minMonthlyOrders}</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={tierDraft.minMonthlyRevenue ?? 0}
+                          onChange={e => setTierDraft(d => ({ ...d, minMonthlyRevenue: parseFloat(e.target.value) || 0 }))}
+                          inputProps={{ min: 0 }}
+                          sx={{ width: 140 }}
+                          InputProps={{ endAdornment: <Typography sx={{ fontSize: 12 }}>₫</Typography> }}
+                        />
+                      ) : (
+                        <Typography sx={{ fontSize: 13 }}>{formatCurrency(tier.minMonthlyRevenue)}</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Button size="small" variant="contained" color="primary" startIcon={tierSaving ? <CircularProgress size={12} color="inherit" /> : <Save sx={{ fontSize: 14 }} />}
+                            disabled={tierSaving} onClick={saveTier} sx={{ fontSize: 11, textTransform: 'none' }}>
+                            Save
+                          </Button>
+                          <Button size="small" variant="outlined" startIcon={<Cancel sx={{ fontSize: 14 }} />}
+                            disabled={tierSaving} onClick={() => setEditingTier(null)} sx={{ fontSize: 11, textTransform: 'none' }}>
+                            Cancel
+                          </Button>
+                        </Box>
+                      ) : (
+                        <IconButton size="small" onClick={() => startEditTier(tier)} disabled={!!editingTier}>
+                          <Edit sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    )
+  );
 
   const openHistory = async () => {
     setHistoryOpen(true);
@@ -607,11 +759,13 @@ const AdminSettingsPage = () => {
           <Tab label="General & Financial" />
           <Tab label="Refund Policy" />
           <Tab label="Prescription Config" />
+          <Tab label="Commission Tiers" />
         </Tabs>
         <Box sx={{ p: 3 }}>
           {activeTab === 0 && renderGeneralTab()}
           {activeTab === 1 && renderRefundTab()}
           {activeTab === 2 && renderPrescriptionTab()}
+          {activeTab === 3 && renderCommissionTiersTab()}
         </Box>
       </Paper>
 

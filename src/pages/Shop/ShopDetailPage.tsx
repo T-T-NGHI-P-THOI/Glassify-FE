@@ -207,11 +207,6 @@ const ShopDetailPage: React.FC = () => {
               {shop.isVerified && (
                 <Verified sx={{ fontSize: 18, color: '#3b82f6' }} titleAccess="Verified" />
               )}
-              <Chip
-                label={shop.tier}
-                size="small"
-                sx={{ fontWeight: 700, fontSize: 10, bgcolor: '#f3f4f6', color: '#6b7280' }}
-              />
             </Box>
 
             <Typography sx={{ fontSize: 11, color: '#9ca3af', mb: 1.25 }}>

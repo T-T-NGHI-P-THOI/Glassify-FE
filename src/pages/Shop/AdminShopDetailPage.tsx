@@ -97,6 +97,10 @@ const AdminShopDetailPage = () => {
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
 
+  const [tierDialogOpen, setTierDialogOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<string>('');
+  const [tierSaving, setTierSaving] = useState(false);
+
   useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const fetchShop = useCallback(async () => {
@@ -279,12 +283,27 @@ const AdminShopDetailPage = () => {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-  const getTierConfig = (tier: string) => {
+  const getTierConfig = (tier?: string) => {
     switch (tier) {
       case 'PLATINUM': return { color: '#7C3AED', bg: '#EDE9FE' };
-      case 'GOLD': return { color: '#D97706', bg: '#FEF3C7' };
-      case 'SILVER': return { color: '#64748B', bg: '#F1F5F9' };
-      default: return { color: '#92400E', bg: '#FEF9C3' };
+      case 'GOLD':     return { color: '#D97706', bg: '#FEF3C7' };
+      case 'SILVER':   return { color: '#64748B', bg: '#F1F5F9' };
+      default:         return { color: '#92400E', bg: '#FEF9C3' };
+    }
+  };
+
+  const handleAssignTier = async () => {
+    if (!id || !selectedTier) return;
+    setTierSaving(true);
+    try {
+      const res = await adminApi.assignShopCommissionTier(id, selectedTier);
+      if (res.data) setShop(res.data);
+      toast.success('Commission tier updated');
+      setTierDialogOpen(false);
+    } catch {
+      toast.error('Failed to update commission tier');
+    } finally {
+      setTierSaving(false);
     }
   };
 
@@ -319,7 +338,7 @@ const AdminShopDetailPage = () => {
   if (!shop) return null;
 
   const statusCfg = getStatusConfig(shop.status);
-  const tierCfg = getTierConfig(shop.tier);
+  const tierCfg = getTierConfig(shop.commissionTierName);
   const mockRevenue = (shop.totalOrders ?? 0) * 285000;
   const mockCommissionEarned = mockRevenue * (shop.commissionRate / 100);
 
@@ -380,19 +399,21 @@ const AdminShopDetailPage = () => {
                 >
                   <Store sx={{ fontSize: 40, color: 'rgba(255,255,255,0.6)' }} />
                 </Avatar>
-                <Box
-                  sx={{
-                    position: 'absolute', bottom: -7, right: -7,
-                    bgcolor: tierCfg.bg, color: tierCfg.color,
-                    borderRadius: 1, px: 0.75, py: 0.25,
-                    fontSize: 10, fontWeight: 800,
-                    display: 'flex', alignItems: 'center', gap: 0.4,
-                    border: `1px solid ${tierCfg.color}50`,
-                  }}
-                >
-                  <WorkspacePremium sx={{ fontSize: 11 }} />
-                  {shop.tier}
-                </Box>
+                {shop.commissionTierName && (
+                  <Box
+                    sx={{
+                      position: 'absolute', bottom: -7, right: -7,
+                      bgcolor: tierCfg.bg, color: tierCfg.color,
+                      borderRadius: 1, px: 0.75, py: 0.25,
+                      fontSize: 10, fontWeight: 800,
+                      display: 'flex', alignItems: 'center', gap: 0.4,
+                      border: `1px solid ${tierCfg.color}50`,
+                    }}
+                  >
+                    <WorkspacePremium sx={{ fontSize: 11 }} />
+                    {shop.commissionTierName}
+                  </Box>
+                )}
               </Box>
 
               <Box>
@@ -645,8 +666,28 @@ const AdminShopDetailPage = () => {
 
                   {/* Commission & Dates card */}
                   <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                    <SectionHeader icon={<AttachMoney />} title="Commission & Dates" />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <SectionHeader icon={<AttachMoney />} title="Commission & Dates" />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<WorkspacePremium sx={{ fontSize: 14 }} />}
+                        onClick={() => { setSelectedTier(shop.commissionTierName ?? 'BRONZE'); setTierDialogOpen(true); }}
+                        sx={{ fontSize: 11, height: 28, px: 1.5, borderColor: tierCfg.color, color: tierCfg.color, '&:hover': { bgcolor: tierCfg.bg } }}
+                      >
+                        Change Tier
+                      </Button>
+                    </Box>
                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1.5 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.4 }}>Commission Tier</Typography>
+                        <Chip
+                          label={shop.commissionTierName ?? 'Unassigned'}
+                          size="small"
+                          icon={<WorkspacePremium sx={{ fontSize: 12 }} />}
+                          sx={{ bgcolor: tierCfg.bg, color: tierCfg.color, fontWeight: 700, fontSize: 11, height: 22 }}
+                        />
+                      </Box>
                       <CompactInfoCell label="Commission Rate" value={`${shop.commissionRate}%`} highlight />
                       <CompactInfoCell label="Joined At" value={formatDate(shop.joinedAt)} />
                       <CompactInfoCell label="Created At" value={formatDate(shop.createdAt)} />
@@ -883,6 +924,48 @@ const AdminShopDetailPage = () => {
             startIcon={togglingStatus ? <CircularProgress size={16} /> : <CheckCircle />}
           >
             {togglingStatus ? 'Reactivating...' : 'Reactivate Now'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Commission Tier Assignment Dialog ── */}
+      <Dialog open={tierDialogOpen} onClose={() => !tierSaving && setTierDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600 }}>Assign Commission Tier</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
+            Select a commission tier for <strong>{shop.shopName}</strong>. The commission rate will be updated automatically.
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel>Tier</InputLabel>
+            <Select
+              value={selectedTier}
+              label="Tier"
+              onChange={(e) => setSelectedTier(e.target.value)}
+            >
+              {(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'] as const).map((t) => {
+                const cfg = getTierConfig(t);
+                return (
+                  <MenuItem key={t} value={t}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <WorkspacePremium sx={{ fontSize: 16, color: cfg.color }} />
+                      <Typography sx={{ fontWeight: 600, color: cfg.color }}>{t}</Typography>
+                    </Box>
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setTierDialogOpen(false)} disabled={tierSaving}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAssignTier}
+            disabled={tierSaving || !selectedTier}
+            startIcon={tierSaving ? <CircularProgress size={16} /> : <WorkspacePremium />}
+            sx={{ bgcolor: getTierConfig(selectedTier).color }}
+          >
+            {tierSaving ? 'Saving...' : 'Assign Tier'}
           </Button>
         </DialogActions>
       </Dialog>
