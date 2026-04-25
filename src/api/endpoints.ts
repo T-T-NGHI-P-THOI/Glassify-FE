@@ -131,6 +131,7 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}`,
     CANCEL: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/cancel`,
     CANCEL_SHOP_ORDER: (orderId: string, shopOrderId: string) => `${API_ENDPOINT}/orders/${orderId}/shop-orders/${shopOrderId}/cancel`,
+    CANCEL_ORDER_ITEM: (orderId: string, itemId: string) => `${API_ENDPOINT}/orders/${orderId}/items/${itemId}/cancel`,
     RE_ORDER: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/re-order`,
     CONFIRM_RECEIVED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/confirm-received`,
     DELIVERY_FAILED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/delivery-failed`,

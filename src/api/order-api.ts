@@ -128,6 +128,15 @@ export const orderApi = {
     },
 
 
+    cancelOrderItem: async (orderId: string, itemId: string, reason?: string): Promise<ApiResponse<unknown>> => {
+        const response = await axiosInstance.put<ApiResponse<unknown>>(
+            API_ENDPOINTS.ORDERS.CANCEL_ORDER_ITEM(orderId, itemId),
+            null,
+            { params: reason ? { reason } : undefined }
+        );
+        return response.data;
+    },
+
     reOrder: async (orderId: string): Promise<ApiResponse<OrderResponse>> => {
         const response = await axiosInstance.post<ApiResponse<OrderResponse>>(
             API_ENDPOINTS.ORDERS.RE_ORDER(orderId)
