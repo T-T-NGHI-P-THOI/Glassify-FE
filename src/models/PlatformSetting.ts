@@ -13,6 +13,38 @@ export interface AxisConfig {
   max: number;
 }
 
+export interface PackageDimensionConfig {
+  frameLengthCm: number;
+  frameWidthCm: number;
+  frameHeightCm: number;
+  frameWeightG: number;
+  lensLengthCm: number;
+  lensWidthCm: number;
+  lensHeightCm: number;
+  lensWeightG: number;
+  accessoryLengthCm: number;
+  accessoryWidthCm: number;
+  accessoryHeightCm: number;
+  accessoryWeightG: number;
+  giftLengthCm: number;
+  giftWidthCm: number;
+  giftHeightCm: number;
+  giftWeightG: number;
+  cartonSLengthCm: number;
+  cartonSWidthCm: number;
+  cartonSHeightCm: number;
+  cartonSTareG: number;
+  cartonMLengthCm: number;
+  cartonMWidthCm: number;
+  cartonMHeightCm: number;
+  cartonMTareG: number;
+  cartonLLengthCm: number;
+  cartonLWidthCm: number;
+  cartonLHeightCm: number;
+  cartonLTareG: number;
+  packingBuffer: number;
+}
+
 export interface PlatformSettingResponse {
   id: string;
   platformName: string;
@@ -41,6 +73,7 @@ export interface PlatformSettingResponse {
   pd: PrescriptionRangeConfig;
   pdSplit: PrescriptionRangeConfig;
   prescriptionNote: string;
+  packageDimensions?: PackageDimensionConfig;
 
   createdAt: string;
   updatedAt: string;
@@ -100,4 +133,35 @@ export interface PlatformSettingUpdateRequest {
   pdSplitNormalMax?: number;
 
   prescriptionNote?: string;
+
+  // Package dimension config
+  pkgFrameLengthCm?: number;
+  pkgFrameWidthCm?: number;
+  pkgFrameHeightCm?: number;
+  pkgFrameWeightG?: number;
+  pkgLensLengthCm?: number;
+  pkgLensWidthCm?: number;
+  pkgLensHeightCm?: number;
+  pkgLensWeightG?: number;
+  pkgAccessoryLengthCm?: number;
+  pkgAccessoryWidthCm?: number;
+  pkgAccessoryHeightCm?: number;
+  pkgAccessoryWeightG?: number;
+  pkgGiftLengthCm?: number;
+  pkgGiftWidthCm?: number;
+  pkgGiftHeightCm?: number;
+  pkgGiftWeightG?: number;
+  pkgCartonSLengthCm?: number;
+  pkgCartonSWidthCm?: number;
+  pkgCartonSHeightCm?: number;
+  pkgCartonSTareG?: number;
+  pkgCartonMLengthCm?: number;
+  pkgCartonMWidthCm?: number;
+  pkgCartonMHeightCm?: number;
+  pkgCartonMTareG?: number;
+  pkgCartonLLengthCm?: number;
+  pkgCartonLWidthCm?: number;
+  pkgCartonLHeightCm?: number;
+  pkgCartonLTareG?: number;
+  pkgPackingBuffer?: number;
 }
