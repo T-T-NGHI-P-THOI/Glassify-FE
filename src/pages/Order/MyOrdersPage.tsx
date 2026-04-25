@@ -105,6 +105,9 @@ interface OrderItem {
   shopOrderStatus?: string;
   shopName: string;
   shopLogoUrl?: string;
+  itemStatus?: string;
+  cancelReason?: string;
+  cancelledAt?: string;
 }
 
 interface Order {
@@ -415,6 +418,10 @@ const MyOrdersPage = () => {
   const [cancelTargetShopOrderId, setCancelTargetShopOrderId] = useState<string | null>(null);
   const [cancelShopOrderReasons, setCancelShopOrderReasons] = useState<string[]>([]);
   const [cancellingShopOrderId, setCancellingShopOrderId] = useState<string | null>(null);
+  const [cancelItemDialogOpen, setCancelItemDialogOpen] = useState(false);
+  const [cancelTargetItemId, setCancelTargetItemId] = useState<string | null>(null);
+  const [cancelItemReasons, setCancelItemReasons] = useState<string[]>([]);
+  const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const [leadTime, setLeadTime] = useState<string | null>(null);
   const [leadTimeLoading, setLeadTimeLoading] = useState(false);
   const [userAddresses, setUserAddresses] = useState<UserAddressResponse[]>([]);
@@ -550,6 +557,41 @@ const MyOrdersPage = () => {
       setCancellingShopOrderId(null);
       setCancelTargetId(null);
       setCancelTargetShopOrderId(null);
+    }
+  };
+
+  const openCancelItemDialog = (orderId: string, itemId: string) => {
+    setCancelTargetId(orderId);
+    setCancelTargetItemId(itemId);
+    setCancelItemReasons([]);
+    setCancelItemDialogOpen(true);
+  };
+
+  const toggleCancelItemReason = (reason: string) => {
+    setCancelItemReasons(prev =>
+      prev.includes(reason) ? prev.filter(r => r !== reason) : [...prev, reason]
+    );
+  };
+
+  const handleConfirmCancelItem = async () => {
+    if (!cancelTargetId || !cancelTargetItemId || cancelItemReasons.length === 0) return;
+    try {
+      setCancellingItemId(cancelTargetItemId);
+      await orderApi.cancelOrderItem(cancelTargetId, cancelTargetItemId, cancelItemReasons.join(', '));
+      toast.success('Item cancelled successfully');
+      setCancelItemDialogOpen(false);
+      await fetchOrders();
+      // Refresh selectedOrder if it's open
+      if (selectedOrder?.id === cancelTargetId) {
+        const updated = orders.find(o => o.id === cancelTargetId);
+        if (updated) setSelectedOrder(updated);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to cancel item');
+    } finally {
+      setCancellingItemId(null);
+      setCancelTargetId(null);
+      setCancelTargetItemId(null);
     }
   };
 
@@ -1289,7 +1331,7 @@ const MyOrdersPage = () => {
                             {shopGroup.items.map((item) => {
                               const typeStyle = getItemTypeColor(item.itemType);
                               return (
-                                <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, opacity: item.itemStatus === 'CANCELLED' ? 0.45 : 1 }}>
                                   <Avatar
                                     variant="rounded"
                                     src={item.productImageUrl}
@@ -1297,7 +1339,7 @@ const MyOrdersPage = () => {
                                       width: 64,
                                       height: 64,
                                       bgcolor: theme.palette.custom.neutral[100],
-                                      border: `1px solid ${theme.palette.custom.border.light}`,
+                                      border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : theme.palette.custom.border.light}`,
                                       borderRadius: '10px',
                                     }}
                                   >
@@ -1305,7 +1347,7 @@ const MyOrdersPage = () => {
                                   </Avatar>
                                   <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }} noWrap>
+                                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[item.itemStatus === 'CANCELLED' ? 400 : 800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }} noWrap>
                                         {item.productName}
                                       </Typography>
                                       <Chip
@@ -1320,6 +1362,13 @@ const MyOrdersPage = () => {
                                           flexShrink: 0,
                                         }}
                                       />
+                                      {item.itemStatus === 'CANCELLED' && (
+                                        <Chip
+                                          label="Cancelled"
+                                          size="small"
+                                          sx={{ bgcolor: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main, fontWeight: 700, fontSize: 10, height: 20, flexShrink: 0 }}
+                                        />
+                                      )}
                                       {item.isFree && (
                                         <Chip
                                           label="FREE"
@@ -1792,7 +1841,7 @@ const MyOrdersPage = () => {
                               <Typography sx={{ fontSize: 13, fontWeight: 600, color: isShopOrderCancelled ? theme.palette.custom.neutral[400] : theme.palette.custom.neutral[700], flex: 1, textDecoration: isShopOrderCancelled ? 'line-through' : 'none' }}>
                                 {shopGroup.shopName}
                               </Typography>
-                              {isShopOrderCancelled ? (
+                              {isShopOrderCancelled && (
                                 <Chip
                                   label="Cancelled"
                                   size="small"
@@ -1804,17 +1853,6 @@ const MyOrdersPage = () => {
                                     height: 22,
                                   }}
                                 />
-                              ) : canCancelShopOrder && (
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color="error"
-                                  disabled={cancellingShopOrderId === shopGroup.shopOrderId}
-                                  onClick={() => openCancelShopOrderDialog(selectedOrder.id, shopGroup.shopOrderId!)}
-                                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12, py: 0.25, px: 1 }}
-                                >
-                                  {cancellingShopOrderId === shopGroup.shopOrderId ? 'Cancelling...' : 'Cancel Shop Order'}
-                                </Button>
                               )}
                             </Box>
 
@@ -1827,9 +1865,25 @@ const MyOrdersPage = () => {
                                     sx={{
                                       p: 2,
                                       borderRadius: '10px',
-                                      border: `1px solid ${theme.palette.custom.border.light}`,
+                                      border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.main : theme.palette.custom.border.light}`,
+                                      opacity: item.itemStatus === 'CANCELLED' ? 0.6 : 1,
+                                      bgcolor: item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : 'transparent',
                                     }}
                                   >
+                                    {item.itemStatus === 'CANCELLED' && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                        <Chip
+                                          label="Cancelled"
+                                          size="small"
+                                          sx={{ bgcolor: theme.palette.custom.status.error.main, color: '#fff', fontWeight: 700, fontSize: 11, height: 20 }}
+                                        />
+                                        {item.cancelReason && (
+                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                            {item.cancelReason}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    )}
                                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                                       <Avatar
                                         variant="rounded"
@@ -1845,7 +1899,7 @@ const MyOrdersPage = () => {
                                       </Avatar>
                                       <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
                                             {item.productName}
                                           </Typography>
                                           <Chip
@@ -1925,7 +1979,7 @@ const MyOrdersPage = () => {
                                         )}
                                       </Box>
                                       <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
                                           {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
                                         </Typography>
                                         {item.discountAmount > 0 && (
@@ -1933,7 +1987,19 @@ const MyOrdersPage = () => {
                                             -{formatCurrency(item.discountAmount)}
                                           </Typography>
                                         )}
-                                        {selectedOrder.status === 'COMPLETED' && (
+                                        {item.itemStatus !== 'CANCELLED' && canCancelShopOrder && (
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            color="error"
+                                            disabled={cancellingItemId === item.id}
+                                            onClick={() => openCancelItemDialog(selectedOrder.id, item.id)}
+                                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 11, py: 0.25, px: 1, mt: 0.75, height: 22 }}
+                                          >
+                                            {cancellingItemId === item.id ? 'Cancelling...' : 'Cancel Item'}
+                                          </Button>
+                                        )}
+                                        {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && (
                                           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                                             {itemRefundLookup[item.id]?.status && (
                                               <Chip
@@ -2259,22 +2325,20 @@ const MyOrdersPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ── Cancel Shop Order Confirmation Dialog ───────────────────────────── */}
-      <Dialog open={cancelShopOrderDialogOpen} onClose={() => setCancelShopOrderDialogOpen(false)} maxWidth="xs" fullWidth>
+      {/* ── Cancel Item Confirmation Dialog ───────────────────────────── */}
+      <Dialog open={cancelItemDialogOpen} onClose={() => setCancelItemDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Cancel sx={{ color: theme.palette.custom.status.error.main, fontSize: 22 }} />
             <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-              Cancel Shop Order
+              Cancel Item
             </Typography>
           </Box>
           <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
-            Please tell us why you'd like to cancel this shop's items. This action cannot be undone.
+            Please select the reason(s) for cancelling this item. This cannot be undone.
           </Typography>
         </DialogTitle>
-
         <Divider />
-
         <DialogContent sx={{ py: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {CUSTOMER_CANCEL_REASONS.map((reason) => (
@@ -2283,33 +2347,35 @@ const MyOrdersPage = () => {
                 control={
                   <Checkbox
                     size="small"
-                    checked={cancelShopOrderReasons.includes(reason)}
-                    onChange={() => toggleCancelShopOrderReason(reason)}
-                    sx={{ py: 0.5 }}
+                    checked={cancelItemReasons.includes(reason)}
+                    onChange={() => toggleCancelItemReason(reason)}
+                    sx={{ color: theme.palette.custom.neutral[400] }}
                   />
                 }
-                label={<Typography sx={{ fontSize: 13 }}>{reason}</Typography>}
+                label={<Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[700] }}>{reason}</Typography>}
               />
             ))}
           </Box>
+          {cancelItemReasons.length === 0 && (
+            <Typography sx={{ fontSize: 12, color: theme.palette.error.main, mt: 1 }}>
+              Please select at least one reason to proceed.
+            </Typography>
+          )}
         </DialogContent>
-
+        <Divider />
         <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-          <Button
-            onClick={() => setCancelShopOrderDialogOpen(false)}
-            sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}
-          >
+          <Button onClick={() => setCancelItemDialogOpen(false)} sx={{ textTransform: 'none', color: theme.palette.custom.neutral[600] }}>
             Go Back
           </Button>
           <Button
             variant="contained"
             color="error"
-            disabled={cancelShopOrderReasons.length === 0 || !!cancellingShopOrderId}
-            onClick={handleConfirmCancelShopOrder}
-            startIcon={cancellingShopOrderId ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
+            disabled={cancelItemReasons.length === 0 || !!cancellingItemId}
+            onClick={handleConfirmCancelItem}
+            startIcon={cancellingItemId ? <CircularProgress size={16} color="inherit" /> : <Cancel />}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            {cancellingShopOrderId ? 'Cancelling...' : 'Confirm Cancellation'}
+            {cancellingItemId ? 'Cancelling...' : 'Confirm Cancellation'}
           </Button>
         </DialogActions>
       </Dialog>
