@@ -6,7 +6,10 @@
       "Bash(find /Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java -name *Return* -o -name *Refund*)",
       "Bash(grep -i \"\\\\.java$\")",
       "Bash(xargs cat:*)",
-      "Bash(npx --yes tsc --noEmit)"
+      "Bash(npx --yes tsc --noEmit)",
+      "Bash(grep -E \"\\\\.\\(java\\)$\")",
+      "Bash(sed -n '883,908p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)",
+      "Bash(sed -n '1010,1030p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces",
