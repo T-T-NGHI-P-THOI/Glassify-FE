@@ -114,6 +114,37 @@ async function enrichShopNamesInCache(items: BeCartItemResponse[]): Promise<void
     saveDisplayCache(cache);
 }
 
+// ==================== Product Details Enrichment ====================
+// For items missing from the display cache (added from another device/platform),
+// fetch product details from the API and populate the cache.
+
+async function enrichProductDetailsInCache(items: BeCartItemResponse[]): Promise<void> {
+    const cache = getDisplayCache();
+    // Only enrich FRAME/ACCESSORY items with a productId that are not yet cached
+    const toEnrich = items.filter(item => item.productId && !cache[item.id]);
+    if (toEnrich.length === 0) return;
+
+    await Promise.all(toEnrich.map(async (item) => {
+        if (!item.productId) return;
+        try {
+            const product = await ProductAPI.getProductById(item.productId);
+            const imageUrl = product.fileResponses?.[0]?.publicUrl ?? product.productImages?.[0];
+            cache[item.id] = {
+                productName: product.name,
+                productSlug: product.slug,
+                productType: product.productType || 'FRAME',
+                shopName: product.shop?.shopName,
+                sku: product.sku,
+                imageUrl,
+            };
+        } catch {
+            // best-effort: leave item with default display values
+        }
+    }));
+
+    saveDisplayCache(cache);
+}
+
 // ==================== Transform BE -> FE ====================
 
 function collectItemIds(items: BeCartItemResponse[]): Set<string> {
@@ -351,6 +382,7 @@ export const CartService = {
             }
 
             currentCartId = beCart.id;
+            await enrichProductDetailsInCache(beCart.items || []);
             await enrichShopNamesInCache(beCart.items || []);
             return transformBeCart(beCart);
         } catch {
