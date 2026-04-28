@@ -120,8 +120,8 @@ async function enrichShopNamesInCache(items: BeCartItemResponse[]): Promise<void
 
 async function enrichProductDetailsInCache(items: BeCartItemResponse[]): Promise<void> {
     const cache = getDisplayCache();
-    // Only enrich FRAME/ACCESSORY items with a productId that are not yet cached
-    const toEnrich = items.filter(item => item.productId && !cache[item.id]);
+    // Enrich items missing from cache OR cached but without a slug (cross-platform items)
+    const toEnrich = items.filter(item => item.productId && (!cache[item.id] || !cache[item.id].productSlug));
     if (toEnrich.length === 0) return;
 
     await Promise.all(toEnrich.map(async (item) => {
