@@ -392,10 +392,7 @@ const LensProductPage = () => {
                 }
               : {}),
           }
-        : {
-          shopId: shop.id,
-          lensIds: [],
-        };
+        : undefined;
 
       const payload = {
         shopId: shop.id,
