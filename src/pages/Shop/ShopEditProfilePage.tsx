@@ -367,10 +367,11 @@ const ShopEditProfilePage = () => {
   // ── UI helpers ───────────────────────────────────────────────────────────
   const getTierConfig = (tier?: string) => {
     switch (tier) {
-      case 'PLATINUM': return { color: '#7C3AED', bg: '#EDE9FE' };
-      case 'GOLD': return { color: '#D97706', bg: '#FEF3C7' };
-      case 'SILVER': return { color: '#64748B', bg: '#F1F5F9' };
-      default: return { color: '#92400E', bg: '#FEF9C3' };
+      case 'PLATINUM': return { color: '#5c6bc0', bg: '#e8eaf6' };
+      case 'GOLD':     return { color: '#f9a825', bg: '#fff8e1' };
+      case 'SILVER':   return { color: '#757575', bg: '#f5f5f5' };
+      case 'BRONZE':
+      default:         return { color: '#cd7f32', bg: '#fdf3e3' };
     }
   };
 
