@@ -29,6 +29,7 @@ export interface ActiveFilters {
   colors?: string[];
   frameShapes?: string[];
   ageGroups?: string[];
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface ColorVariant {

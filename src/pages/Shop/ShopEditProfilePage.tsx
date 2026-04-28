@@ -365,12 +365,13 @@ const ShopEditProfilePage = () => {
   };
 
   // ── UI helpers ───────────────────────────────────────────────────────────
-  const getTierConfig = (tier: string) => {
+  const getTierConfig = (tier?: string) => {
     switch (tier) {
-      case 'PLATINUM': return { color: '#7C3AED', bg: '#EDE9FE' };
-      case 'GOLD': return { color: '#D97706', bg: '#FEF3C7' };
-      case 'SILVER': return { color: '#64748B', bg: '#F1F5F9' };
-      default: return { color: '#92400E', bg: '#FEF9C3' };
+      case 'PLATINUM': return { color: '#5c6bc0', bg: '#e8eaf6' };
+      case 'GOLD':     return { color: '#f9a825', bg: '#fff8e1' };
+      case 'SILVER':   return { color: '#757575', bg: '#f5f5f5' };
+      case 'BRONZE':
+      default:         return { color: '#cd7f32', bg: '#fdf3e3' };
     }
   };
 
@@ -433,7 +434,7 @@ const ShopEditProfilePage = () => {
   }
 
   const statusCfg = getStatusConfig(shop.status);
-  const tierCfg = getTierConfig(shop.tier);
+  const tierCfg = getTierConfig(shop.commissionTierName);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -477,17 +478,19 @@ const ShopEditProfilePage = () => {
                 </Avatar>
 
                 {/* Tier badge */}
-                <Box sx={{
-                  position: 'absolute', bottom: -7, right: -7,
-                  bgcolor: tierCfg.bg, color: tierCfg.color,
-                  borderRadius: 1, px: 0.75, py: 0.25,
-                  fontSize: 10, fontWeight: 800,
-                  display: 'flex', alignItems: 'center', gap: 0.4,
-                  border: `1px solid ${tierCfg.color}50`,
-                }}>
-                  <WorkspacePremium sx={{ fontSize: 11 }} />
-                  {shop.tier}
-                </Box>
+                {shop.commissionTierName && (
+                  <Box sx={{
+                    position: 'absolute', bottom: -7, right: -7,
+                    bgcolor: tierCfg.bg, color: tierCfg.color,
+                    borderRadius: 1, px: 0.75, py: 0.25,
+                    fontSize: 10, fontWeight: 800,
+                    display: 'flex', alignItems: 'center', gap: 0.4,
+                    border: `1px solid ${tierCfg.color}50`,
+                  }}>
+                    <WorkspacePremium sx={{ fontSize: 11 }} />
+                    {shop.commissionTierName}
+                  </Box>
+                )}
 
                 {/* Camera upload — top-right */}
                 {!isShopDisabled && (
@@ -848,7 +851,12 @@ const ShopEditProfilePage = () => {
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Tier</Typography>
-                <Chip label={shop.tier} size="small" variant="outlined" sx={{ fontWeight: 500, fontSize: 12, mt: 0.5 }} />
+                <Chip
+                  label={shop.commissionTierName ?? 'N/A'}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontWeight: 500, fontSize: 12, mt: 0.5, borderColor: tierCfg.color, color: tierCfg.color }}
+                />
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.25 }}>Verified</Typography>

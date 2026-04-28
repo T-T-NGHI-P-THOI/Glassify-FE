@@ -403,6 +403,23 @@ const ShipmentDetailPage = () => {
             ))}
           </Stepper>
 
+          {currentStatus === 'CANCELLED' && order.cancelReason && (
+            <Box
+              sx={{
+                mt: 2.5,
+                px: 2,
+                py: 1.25,
+                borderRadius: 1.5,
+                backgroundColor: theme.palette.custom.status.error.light,
+                border: `1px solid ${theme.palette.custom.status.error.main}`,
+              }}
+            >
+              <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.error.main, fontWeight: 500 }}>
+                Cancel reason: {order.cancelReason}
+              </Typography>
+            </Box>
+          )}
+
           {/* Action buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 2.5 }}>
             {['PENDING', 'CONFIRMED', 'PROCESSING', 'READY_TO_SHIP'].includes(currentStatus) && (
@@ -583,8 +600,14 @@ const ShipmentDetailPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {order.items.map((item, index) => (
-                  <TableRow key={item.id} hover>
+                {order.items.map((item, index) => {
+                  const isCancelled = item.itemStatus === 'CANCELLED';
+                  return (
+                  <TableRow
+                    key={item.id}
+                    hover={!isCancelled}
+                    sx={{ opacity: isCancelled ? 0.5 : 1, bgcolor: isCancelled ? theme.palette.custom.status.error.light : 'inherit' }}
+                  >
                     <TableCell sx={{ color: theme.palette.custom.neutral[500] }}>{index + 1}.</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -596,12 +619,22 @@ const ShipmentDetailPage = () => {
                           {item.productName[0]}
                         </Avatar>
                         <Box>
-                          <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                            {item.productName}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[isCancelled ? 400 : 800], textDecoration: isCancelled ? 'line-through' : 'none' }}>
+                              {item.productName}
+                            </Typography>
+                            {isCancelled && (
+                              <Chip label="Cancelled" size="small" sx={{ fontSize: 10, fontWeight: 700, height: 18, bgcolor: theme.palette.custom.status.error.main, color: '#fff' }} />
+                            )}
+                          </Box>
                           {item.productSku && (
                             <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
                               SKU: {item.productSku}
+                            </Typography>
+                          )}
+                          {isCancelled && item.cancelReason && (
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                              {item.cancelReason}
                             </Typography>
                           )}
                         </Box>
@@ -620,10 +653,10 @@ const ShipmentDetailPage = () => {
                     <TableCell sx={{ color: theme.palette.custom.neutral[800], textAlign: 'center' }}>
                       {item.quantity}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.custom.neutral[800] }}>
+                    <TableCell sx={{ color: theme.palette.custom.neutral[800], textDecoration: isCancelled ? 'line-through' : 'none' }}>
                       {formatCurrency(item.unitPrice)}
                     </TableCell>
-                    <TableCell sx={{ color: theme.palette.custom.status.success.main, fontWeight: 600 }}>
+                    <TableCell sx={{ color: isCancelled ? theme.palette.custom.neutral[400] : theme.palette.custom.status.success.main, fontWeight: 600, textDecoration: isCancelled ? 'line-through' : 'none' }}>
                       {formatCurrency(item.lineTotal)}
                     </TableCell>
                     <TableCell align="right">
@@ -632,7 +665,8 @@ const ShipmentDetailPage = () => {
                       </IconButton>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

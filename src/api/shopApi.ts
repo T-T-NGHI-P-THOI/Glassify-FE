@@ -33,6 +33,8 @@ export interface ShopOrderItemResponse {
   shopId: string;
   shopName: string;
   shopLogoUrl?: string;
+  itemStatus?: string;
+  cancelReason?: string;
 }
 
 export interface ShopOrderResponse {
@@ -75,6 +77,7 @@ export interface ShopOrderResponse {
   actualShippingFee?: number;
   platformShippingSubsidy?: number;
   grandTotal?: number;
+  cancelReason?: string;
 }
 
 export interface MonthlyRevenueItem {

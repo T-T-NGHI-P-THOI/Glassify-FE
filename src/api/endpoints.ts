@@ -130,6 +130,8 @@ export const API_ENDPOINTS = {
     GET_MY_ORDERS: `${API_ENDPOINT}/orders`,
     GET_BY_ID: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}`,
     CANCEL: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/cancel`,
+    CANCEL_SHOP_ORDER: (orderId: string, shopOrderId: string) => `${API_ENDPOINT}/orders/${orderId}/shop-orders/${shopOrderId}/cancel`,
+    CANCEL_ORDER_ITEM: (orderId: string, itemId: string) => `${API_ENDPOINT}/orders/${orderId}/items/${itemId}/cancel`,
     RE_ORDER: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/re-order`,
     CONFIRM_RECEIVED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/confirm-received`,
     DELIVERY_FAILED: (orderId: string) => `${API_ENDPOINT}/orders/${orderId}/delivery-failed`,
@@ -226,6 +228,10 @@ export const API_ENDPOINTS = {
       OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
       SHOPS: `${API_ENDPOINT}/admin/stats/shops`,
     },
+    COMMISSION_TIERS: {
+      LIST: `${API_ENDPOINT}/admin/commission-tiers`,
+      UPDATE: (tier: string) => `${API_ENDPOINT}/admin/commission-tiers/${tier}`,
+    },
     SHOPS: {
       REQUESTS: `${API_ENDPOINT}/admin/shops/requests`,
       REVIEW: `${API_ENDPOINT}/admin/shops/review`,
@@ -236,6 +242,7 @@ export const API_ENDPOINTS = {
       CANCEL_DEACTIVATE: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/deactivate/cancel`,
       DEACTIVATION_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/deactivation-status`,
       CLOSURE_STATUS: (shopId: string) => `${API_ENDPOINT}/shops/my-shops/${shopId}/closure-status`,
+      ASSIGN_COMMISSION_TIER: (shopId: string) => `${API_ENDPOINT}/admin/shops/${shopId}/commission-tier`,
     },
     USERS: {
       LIST: `${API_ENDPOINT}/admin/users`,
@@ -274,6 +281,7 @@ export const API_ENDPOINTS = {
       REJECT_USER_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/user-withdrawals/${id}/reject`,
       APPROVE_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/approve`,
       REJECT_SHOP_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/admin/wallet/shop-withdrawals/${id}/reject`,
+      PLATFORM_REVENUE: `${API_ENDPOINT}/admin/wallet/platform-revenue`,
     },
   },
   USER_RECOMMENDATION: {

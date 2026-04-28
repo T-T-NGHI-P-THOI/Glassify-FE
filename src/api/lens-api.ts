@@ -271,6 +271,10 @@ export interface LensResponse {
   tintOptions?: LensTintOption[];
   progressiveOptions?: LensProgressiveOption[];
   featureMappings?: LensFeatureMapping[];
+  qtyOnHand: number;
+  qtyAvailable: number;
+  qtyReserved: number;
+  lowStockThreshold: number;
 }
 
 export interface LensDetailResponse {
