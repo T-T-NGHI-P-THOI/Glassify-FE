@@ -345,13 +345,16 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
                     </div>
                     <h4 className="review-title">{review.title}</h4>
                     <p className="review-comment">{review.comment}</p>
-                    {review.imageUrls && review.imageUrls.length > 0 && review.imageUrls[0] !== 'string' && (
-                      <div className="review-images">
-                        {review.imageUrls.map((imageUrl, index) => (
-                          <img key={index} src={imageUrl} alt={`Review ${index + 1}`} className="review-image-thumbnail" onClick={() => openGallery(review.imageUrls, index)} />
-                        ))}
-                      </div>
-                    )}
+                    {(() => {
+                      const validUrls = (review.imageUrls ?? []).filter(url => url && url !== 'string');
+                      return validUrls.length > 0 ? (
+                        <div className="review-images">
+                          {validUrls.map((imageUrl, index) => (
+                            <img key={index} src={imageUrl} alt={`Review ${index + 1}`} className="review-image-thumbnail" onClick={() => openGallery(validUrls, index)} />
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                     {review.shopResponse && <div className="shop-response"><strong>Shop Response:</strong> {review.shopResponse}</div>}
                   </div>
                 );
@@ -366,6 +369,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
           )}
         </div>
       )}
+
 
       {galleryOpen && (
         <div className="gallery-modal" onClick={closeGallery}>
