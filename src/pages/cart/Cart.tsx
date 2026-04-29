@@ -305,9 +305,9 @@ const ChildItem: React.FC<ChildItemProps> = ({
                     </Stack>
                     {isLens && item.lens_selection && (
                         <Typography sx={{ fontSize: '0.7rem', color: '#00838f', opacity: 0.7, mt: 0.25 }}>
-                            {item.lens_selection.usage.name}
+                            {item.lens_selection.usage?.name}
                             {item.lens_selection.tint ? ` • ${item.lens_selection.tint.name}` : ''}
-                            {item.lens_selection.features.length > 0
+                            {(item.lens_selection.features?.length ?? 0) > 0
                                 ? ` • ${item.lens_selection.features.length} tính năng`
                                 : ''}
                         </Typography>
@@ -889,9 +889,11 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                 {lensItem.lens_selection ? (
                                     <>
                                         {/* Usage */}
+                                        {lensItem.lens_selection.usage && (
                                         <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>
                                             Mục đích: <strong>{lensItem.lens_selection.usage.name}</strong>
                                         </Typography>
+                                        )}
 
                                         {/* Prescription */}
                                         {lensItem.lens_selection.prescription && (
@@ -946,7 +948,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                         )}
 
                                         {/* Features */}
-                                        {lensItem.lens_selection.features.length > 0 && (
+                                        {(lensItem.lens_selection.features?.length ?? 0) > 0 && (
                                             <Box sx={{ mb: 0.5 }}>
                                                 <Typography sx={{ fontSize: '0.8rem', color: '#666', fontWeight: 600, mb: 0.25 }}>
                                                     Tính năng:
@@ -1113,6 +1115,10 @@ const ShoppingCart: React.FC = () => {
 
     const handleEditItem = useCallback((item: CartItemWithDetails) => {
         const slug = item.product.slug;
+        if (!slug) {
+            setSnackbar({ open: true, message: 'Không thể mở sản phẩm này. Vui lòng tải lại trang.', severity: 'error' });
+            return;
+        }
         const sku = item.variant_details?.sku || 'default';
         const hasLens = item.children.some(c => c.item_type === 'LENS');
         const params = new URLSearchParams();
@@ -1121,7 +1127,7 @@ const ShoppingCart: React.FC = () => {
             params.set('lens', 'open');
         }
         navigate(`/product/${slug}/${sku}?${params.toString()}`);
-    }, [navigate]);
+    }, [navigate, setSnackbar]);
 
     const handleApplyCoupon = async () => {
         if (!promoCode.trim()) return;

@@ -302,18 +302,18 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             name: p.name,
             date: new Date(p.prescriptionDate).toLocaleDateString('en-US'),
             left_eye: {
-                sphere: p.sphL.toFixed(2),
-                cylinder: p.cylL !== 0 ? p.cylL.toFixed(2) : undefined,
-                axis: p.axisL !== 0 ? p.axisL.toString() : undefined,
-                add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
-                pd: p.pdSingle !== 0 ? p.pdSingle.toString() : (p.pdLeft !== 0 ? p.pdLeft.toString() : undefined),
+                sphere: (p.sphL ?? 0).toFixed(2),
+                cylinder: p.cylL != null && p.cylL !== 0 ? p.cylL.toFixed(2) : undefined,
+                axis: p.axisL != null && p.axisL !== 0 ? p.axisL.toString() : undefined,
+                add: p.addPower != null && p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                pd: p.pdSingle != null && p.pdSingle !== 0 ? p.pdSingle.toString() : (p.pdLeft != null && p.pdLeft !== 0 ? p.pdLeft.toString() : undefined),
             },
             right_eye: {
-                sphere: p.sphR.toFixed(2),
-                cylinder: p.cylR !== 0 ? p.cylR.toFixed(2) : undefined,
-                axis: p.axisR !== 0 ? p.axisR.toString() : undefined,
-                add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
-                pd: p.pdSingle !== 0 ? p.pdSingle.toString() : (p.pdRight !== 0 ? p.pdRight.toString() : undefined),
+                sphere: (p.sphR ?? 0).toFixed(2),
+                cylinder: p.cylR != null && p.cylR !== 0 ? p.cylR.toFixed(2) : undefined,
+                axis: p.axisR != null && p.axisR !== 0 ? p.axisR.toString() : undefined,
+                add: p.addPower != null && p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
+                pd: p.pdSingle != null && p.pdSingle !== 0 ? p.pdSingle.toString() : (p.pdRight != null && p.pdRight !== 0 ? p.pdRight.toString() : undefined),
             },
         }));
 
