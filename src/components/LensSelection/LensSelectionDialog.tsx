@@ -55,7 +55,7 @@ import type {
     LensType,
     LensFeature,
     LensTint,
-    Prescription,
+    CurrentPrescription,
     LensSelection,
     LensCatalogData,
     ValidationIssue,
@@ -176,7 +176,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const [activeStep, setActiveStep] = useState(0);
     const [selectedUsage, setSelectedUsage] = useState<LensUsage | null>(null);
     const [selectedLensType, setSelectedLensType] = useState<LensType | null>(null);
-    const [prescription, setPrescription] = useState<Prescription>({
+    const [prescription, setPrescription] = useState<CurrentPrescription>({
         left_eye: { sphere: '0.00' },
         right_eye: { sphere: '0.00' },
         imageUrl: null,
@@ -238,7 +238,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 throw new Error('No prescription data returned from scan.');
             }
 
-            const mapped: Prescription = {
+            const mapped: CurrentPrescription = {
                 left_eye: {
                     sphere: (data.sphL ?? 0).toFixed(2),
                     cylinder: data.cylL ? data.cylL.toFixed(2) : undefined,
@@ -1719,11 +1719,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
                         {prescription.imageUrl && (
                             <Button variant="text" color="inherit" onClick={() => {
-                            setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
-                            setSnackbarMessage('Scan cleared.');
-                            setSnackbarSeverity('info');
-                            setSnackbarOpen(true);
-                        }}>Reset scan</Button>)}
+                                setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
+                                setSnackbarMessage('Scan cleared.');
+                                setSnackbarSeverity('info');
+                                setSnackbarOpen(true);
+                            }}>Reset scan</Button>)}
 
                         {isScanningPrescription && <CircularProgress size={24} />}
                     </Stack>
