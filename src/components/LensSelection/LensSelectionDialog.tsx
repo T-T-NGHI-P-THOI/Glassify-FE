@@ -261,6 +261,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             setSnackbarMessage('Prescription scanned. Please review values and correct if needed before continuing.');
             setSnackbarSeverity('success');
             setSnackbarOpen(true);
+            setPrescriptionMode('manual');
         } catch (error: any) {
             setSnackbarMessage(error?.message || 'Failed to scan prescription image.');
             setSnackbarSeverity('error');
@@ -1523,6 +1524,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         });
     }, [syncBothEyes]);
 
+    // Image preview modal state
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const handleOpenPreview = () => setPreviewOpen(true);
+    const handleClosePreview = () => setPreviewOpen(false);
+
     const getIssueDescription = (issue: ValidationIssue): { description: string; suggestion?: string } => {
         const message = issue.message.toLowerCase();
         const code = issue.code.toUpperCase();
@@ -1678,65 +1684,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     </Alert>
                 )}
 
-                {/* Validation Issues Display */}
-                {validationIssues.length > 0 && (
-                    <Box sx={{ mb: 3 }}>
-                        <Stack spacing={1.5}>
-                            {validationIssues.map((issue, index) => {
-                                const issueInfo = getIssueDescription(issue);
-                                return (
-                                    <Alert
-                                        key={index}
-                                        severity={issue.severity === 'ERROR' ? 'error' : issue.severity === 'WARNING' ? 'warning' : 'info'}
-                                        sx={{
-                                            '& .MuiAlert-message': { width: '100%' }
-                                        }}
-                                    >
-                                        <Box>
-                                            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                                                {issueInfo.description}
-                                            </Typography>
-
-                                            {issueInfo.suggestion && (
-                                                <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, borderLeft: 3, borderColor: issue.severity === 'ERROR' ? 'error.main' : 'warning.main' }}>
-                                                    <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
-                                                        <strong>Suggestion:</strong> {issueInfo.suggestion}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-
-                                            {issue.meta && Object.keys(issue.meta).length > 0 && (
-                                                <Box sx={{ mt: 1, p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
-                                                        Additional details:
-                                                    </Typography>
-                                                    {Object.entries(issue.meta).map(([key, value]) => (
-                                                        <Typography key={key} variant="caption" sx={{ display: 'block' }}>
-                                                            • {key}: {JSON.stringify(value)}
-                                                        </Typography>
-                                                    ))}
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    </Alert>
-                                );
-                            })}
-                        </Stack>
-                        {validationIssues.some(i => i.severity === 'ERROR') && (
-                            <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'error.main', fontStyle: 'italic' }}>
-                                * You need to fix the errors above before continuing
-                            </Typography>
-                        )}
-                        {pendingWarnings.length > 0 && !warningsAcknowledged && validationIssues.every(i => i.severity !== 'ERROR') && (
-                            <Alert severity="info" sx={{ mt: 2 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    Please review the warnings above. If you have checked and confirmed the values are correct, press <strong>"Continue"</strong> again.
-                                </Typography>
-                            </Alert>
-                        )}
-                    </Box>
-                )}
-
                 {/* Mode Selection */}
                 <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
                     <Button
@@ -1783,12 +1730,70 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     {prescription.imageUrl && (
                         <Box sx={{ mb: 2 }}>
                             <Typography variant="caption">Scanned image (please verify):</Typography>
-                            <Box component="img" src={prescription.imageUrl} alt="scanned prescription" sx={{ maxWidth: 240, display: 'block', mt: 1 }} />
+
+                            {/* Clickable thumbnail to open preview */}
+                            <Box
+                                onClick={handleOpenPreview}
+                                sx={{
+                                    maxWidth: 240,
+                                    display: 'block',
+                                    mt: 1,
+                                    cursor: 'zoom-in',
+                                }}
+                                role="button"
+                                aria-label="Open scanned prescription preview"
+                            >
+                                <Box
+                                    component="img"
+                                    src={prescription.imageUrl}
+                                    alt="scanned prescription"
+                                    sx={{ width: '100%', height: 'auto', display: 'block' }}
+                                />
+                            </Box>
+
+                            {/* Preview dialog with fixed frame overlay */}
+                            <Dialog open={previewOpen} onClose={handleClosePreview} maxWidth="xl">
+                                <DialogContent sx={{ p: 2, bgcolor: 'background.paper' }}>
+                                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                                        <Box
+                                            component="img"
+                                            src={prescription.imageUrl}
+                                            alt="scanned prescription large"
+                                            sx={{
+                                                maxWidth: '90vw',
+                                                maxHeight: '80vh',
+                                                display: 'block',
+                                            }}
+                                        />
+
+                                        {/* Fixed frame overlay: adjust styling as needed */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: '60%',
+                                                height: '60%',
+                                                border: '4px solid rgba(0,0,0,0.45)',
+                                                boxShadow: '0 0 0 8px rgba(255,255,255,0.25) inset',
+                                                pointerEvents: 'none',
+                                                borderRadius: 2,
+                                            }}
+                                        />
+
+                                        <IconButton
+                                            onClick={handleClosePreview}
+                                            sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.4)', color: 'common.white' }}
+                                        >
+                                            ×
+                                        </IconButton>
+                                    </Box>
+                                </DialogContent>
+                            </Dialog>
                         </Box>
                     )}
 
-                    {/* Existing prescription form UI follows - omitted content reused here */}
-                    {/* Lines 1565-2172 omitted content preserved below */}
                 </Box>
 
                 {prescriptionMode === 'saved' ? (
@@ -2264,6 +2269,65 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                     </Typography>
                                 </Box>
                             </Box>
+
+                            {/* Validation Issues Display */}
+                            {validationIssues.length > 0 && (
+                                <Box sx={{ mb: 3 }}>
+                                    <Stack spacing={1.5}>
+                                        {validationIssues.map((issue, index) => {
+                                            const issueInfo = getIssueDescription(issue);
+                                            return (
+                                                <Alert
+                                                    key={index}
+                                                    severity={issue.severity === 'ERROR' ? 'error' : issue.severity === 'WARNING' ? 'warning' : 'info'}
+                                                    sx={{
+                                                        '& .MuiAlert-message': { width: '100%' }
+                                                    }}
+                                                >
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                                                            {issueInfo.description}
+                                                        </Typography>
+
+                                                        {issueInfo.suggestion && (
+                                                            <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1, borderLeft: 3, borderColor: issue.severity === 'ERROR' ? 'error.main' : 'warning.main' }}>
+                                                                <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
+                                                                    <strong>Suggestion:</strong> {issueInfo.suggestion}
+                                                                </Typography>
+                                                            </Box>
+                                                        )}
+
+                                                        {issue.meta && Object.keys(issue.meta).length > 0 && (
+                                                            <Box sx={{ mt: 1, p: 1, bgcolor: 'background.default', borderRadius: 1 }}>
+                                                                <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                                                    Additional details:
+                                                                </Typography>
+                                                                {Object.entries(issue.meta).map(([key, value]) => (
+                                                                    <Typography key={key} variant="caption" sx={{ display: 'block' }}>
+                                                                        • {key}: {JSON.stringify(value)}
+                                                                    </Typography>
+                                                                ))}
+                                                            </Box>
+                                                        )}
+                                                    </Box>
+                                                </Alert>
+                                            );
+                                        })}
+                                    </Stack>
+                                    {validationIssues.some(i => i.severity === 'ERROR') && (
+                                        <Typography variant="caption" sx={{ display: 'block', mt: 1.5, color: 'error.main', fontStyle: 'italic' }}>
+                                            * You need to fix the errors above before continuing
+                                        </Typography>
+                                    )}
+                                    {pendingWarnings.length > 0 && !warningsAcknowledged && validationIssues.every(i => i.severity !== 'ERROR') && (
+                                        <Alert severity="info" sx={{ mt: 2 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                Please review the warnings above. If you have checked and confirmed the values are correct, press <strong>"Continue"</strong> again.
+                                            </Typography>
+                                        </Alert>
+                                    )}
+                                </Box>
+                            )}
 
                             <Divider sx={{ my: 2 }} />
                         </Paper>
