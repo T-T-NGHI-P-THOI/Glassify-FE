@@ -233,8 +233,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             setSnackbarSeverity('info');
             setSnackbarOpen(true);
 
-            const json = await PrescriptionAPI.scanPrescription(file);
-            const data = json.data || json;
+            const data = await PrescriptionAPI.scanPrescription(file);
             if (!data) {
                 throw new Error('No prescription data returned from scan.');
             }
