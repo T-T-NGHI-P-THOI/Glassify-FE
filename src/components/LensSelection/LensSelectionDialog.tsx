@@ -1701,9 +1701,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         Enter manually
                     </Button>
                 </Stack>
-                <Box sx={{ py: 3 }}>
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                        <Button variant="outlined" component="label" startIcon={<PhotoCamera />}>
+                <Box sx={{ py: 1 }}>
+                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                        <Button variant="outlined" component="label" startIcon={<PhotoCamera />} sx={{ flex: 1 }}>
                             Upload prescription image
                             <input
                                 hidden
@@ -1717,12 +1717,13 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             />
                         </Button>
 
-                        <Button variant="text" color="inherit" onClick={() => {
+                        {prescription.imageUrl && (
+                            <Button variant="text" color="inherit" onClick={() => {
                             setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
                             setSnackbarMessage('Scan cleared.');
                             setSnackbarSeverity('info');
                             setSnackbarOpen(true);
-                        }}>Reset scan</Button>
+                        }}>Reset scan</Button>)}
 
                         {isScanningPrescription && <CircularProgress size={24} />}
                     </Stack>
@@ -1755,6 +1756,21 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             <Dialog open={previewOpen} onClose={handleClosePreview} maxWidth="xl">
                                 <DialogContent sx={{ p: 2, bgcolor: 'background.paper' }}>
                                     <Box sx={{ position: 'relative', display: 'inline-block' }}>
+
+                                        {/* Fixed frame overlay: adjust styling as needed */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: '60%',
+                                                height: '60%',
+                                                pointerEvents: 'none',
+                                                borderRadius: 2,
+                                            }}
+                                        />
+
                                         <Box
                                             component="img"
                                             src={prescription.imageUrl}
@@ -1766,25 +1782,9 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             }}
                                         />
 
-                                        {/* Fixed frame overlay: adjust styling as needed */}
-                                        <Box
-                                            sx={{
-                                                position: 'absolute',
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                width: '60%',
-                                                height: '60%',
-                                                border: '4px solid rgba(0,0,0,0.45)',
-                                                boxShadow: '0 0 0 8px rgba(255,255,255,0.25) inset',
-                                                pointerEvents: 'none',
-                                                borderRadius: 2,
-                                            }}
-                                        />
-
                                         <IconButton
                                             onClick={handleClosePreview}
-                                            sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.4)', color: 'common.white' }}
+                                            sx={{ position: 'absolute', top: 8, right: 8, height: '40px', width: '40px', bgcolor: 'rgba(0,0,0,0.4)', color: 'common.white' }}
                                         >
                                             ×
                                         </IconButton>
@@ -2264,6 +2264,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                             cursor: 'pointer',
                                             textDecoration: 'underline'
                                         }}
+                                        onClick={() => window.open('https://www.youtube.com/watch?v=b5dOglpKq4I', '_blank')}
                                     >
                                         Help me find my PD
                                     </Typography>
