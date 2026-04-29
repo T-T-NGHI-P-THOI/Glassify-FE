@@ -80,6 +80,7 @@ type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
 // ==================== INTERFACES (matching backend models) ====================
 interface OrderItem {
   id: string;
+  parentItemId?: string;
   productId?: string;
   productName: string;
   productSku?: string;
@@ -1080,7 +1081,8 @@ const MyOrdersPage = () => {
     });
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount == null) return '0 VND';
     return amount.toLocaleString('vi-VN') + ' VND';
   };
 
@@ -1328,94 +1330,134 @@ const MyOrdersPage = () => {
 
                           {/* Items in this shop */}
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {shopGroup.items.map((item) => {
-                              const typeStyle = getItemTypeColor(item.itemType);
-                              return (
-                                <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, opacity: item.itemStatus === 'CANCELLED' ? 0.45 : 1 }}>
-                                  <Avatar
-                                    variant="rounded"
-                                    src={item.productImageUrl}
-                                    sx={{
-                                      width: 64,
-                                      height: 64,
-                                      bgcolor: theme.palette.custom.neutral[100],
-                                      border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : theme.palette.custom.border.light}`,
-                                      borderRadius: '10px',
-                                    }}
-                                  >
-                                    <ShoppingBag sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
-                                  </Avatar>
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[item.itemStatus === 'CANCELLED' ? 400 : 800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }} noWrap>
-                                        {item.productName}
-                                      </Typography>
-                                      <Chip
-                                        label={getItemTypeLabel(item.itemType)}
-                                        size="small"
+                            {(() => {
+                              const lensChildrenMap = new Map<string, OrderItem[]>();
+                              const topLevelItems: OrderItem[] = [];
+                              for (const it of shopGroup.items) {
+                                if (it.parentItemId) {
+                                  const arr = lensChildrenMap.get(it.parentItemId) ?? [];
+                                  arr.push(it);
+                                  lensChildrenMap.set(it.parentItemId, arr);
+                                } else {
+                                  topLevelItems.push(it);
+                                }
+                              }
+                              return topLevelItems.map((item) => {
+                                const typeStyle = getItemTypeColor(item.itemType);
+                                const lensChildren = lensChildrenMap.get(item.id) ?? [];
+                                return (
+                                  <Box key={item.id}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, opacity: item.itemStatus === 'CANCELLED' ? 0.45 : 1 }}>
+                                      <Avatar
+                                        variant="rounded"
+                                        src={item.productImageUrl}
                                         sx={{
-                                          bgcolor: typeStyle.bg,
-                                          color: typeStyle.color,
-                                          fontWeight: 500,
-                                          fontSize: 11,
-                                          height: 20,
-                                          flexShrink: 0,
+                                          width: 64,
+                                          height: 64,
+                                          bgcolor: theme.palette.custom.neutral[100],
+                                          border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : theme.palette.custom.border.light}`,
+                                          borderRadius: '10px',
                                         }}
-                                      />
-                                      {item.itemStatus === 'CANCELLED' && (
-                                        <Chip
-                                          label="Cancelled"
-                                          size="small"
-                                          sx={{ bgcolor: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main, fontWeight: 700, fontSize: 10, height: 20, flexShrink: 0 }}
-                                        />
-                                      )}
-                                      {item.isFree && (
-                                        <Chip
-                                          label="FREE"
-                                          size="small"
-                                          sx={{
-                                            bgcolor: theme.palette.custom.status.success.light,
-                                            color: theme.palette.custom.status.success.main,
-                                            fontWeight: 700,
-                                            fontSize: 10,
-                                            height: 20,
-                                            flexShrink: 0,
-                                          }}
-                                        />
-                                      )}
-                                    </Box>
-                                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
-                                      {formatVariantInfo(item.variantInfo)}
-                                      {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
-                                    </Typography>
-                                    {item.prescriptionSnapshot && (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
-                                        <Visibility sx={{ fontSize: 13, color: theme.palette.custom.status.info.main }} />
-                                        <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.info.main, fontWeight: 500 }}>
-                                          R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
-                                          {' / '}
-                                          L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
-                                          {item.prescriptionSnapshot.addPower != null && ` | ADD +${item.prescriptionSnapshot.addPower}`}
+                                      >
+                                        <ShoppingBag sx={{ fontSize: 28, color: theme.palette.custom.neutral[300] }} />
+                                      </Avatar>
+                                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[item.itemStatus === 'CANCELLED' ? 400 : 800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }} noWrap>
+                                            {item.productName}
+                                          </Typography>
+                                          <Chip
+                                            label={getItemTypeLabel(item.itemType)}
+                                            size="small"
+                                            sx={{
+                                              bgcolor: typeStyle.bg,
+                                              color: typeStyle.color,
+                                              fontWeight: 500,
+                                              fontSize: 11,
+                                              height: 20,
+                                              flexShrink: 0,
+                                            }}
+                                          />
+                                          {item.itemStatus === 'CANCELLED' && (
+                                            <Chip
+                                              label="Cancelled"
+                                              size="small"
+                                              sx={{ bgcolor: theme.palette.custom.status.error.light, color: theme.palette.custom.status.error.main, fontWeight: 700, fontSize: 10, height: 20, flexShrink: 0 }}
+                                            />
+                                          )}
+                                          {item.isFree && (
+                                            <Chip
+                                              label="FREE"
+                                              size="small"
+                                              sx={{
+                                                bgcolor: theme.palette.custom.status.success.light,
+                                                color: theme.palette.custom.status.success.main,
+                                                fontWeight: 700,
+                                                fontSize: 10,
+                                                height: 20,
+                                                flexShrink: 0,
+                                              }}
+                                            />
+                                          )}
+                                        </Box>
+                                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
+                                          {formatVariantInfo(item.variantInfo)}
+                                        </Typography>
+                                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                                          x{item.quantity}
                                         </Typography>
                                       </Box>
-                                    )}
-                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                                      x{item.quantity}
-                                    </Typography>
+                                      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                        <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                          {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
+                                        </Typography>
+                                        {item.discountAmount > 0 && (
+                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                            -{formatCurrency(item.discountAmount)}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
+                                    {/* Lens children */}
+                                    {lensChildren.map((lens) => (
+                                      <Box
+                                        key={lens.id}
+                                        sx={{
+                                          ml: 9,
+                                          mt: 0.75,
+                                          pl: 1.5,
+                                          py: 0.75,
+                                          borderLeft: `2px solid ${theme.palette.primary.light}`,
+                                          bgcolor: theme.palette.custom.neutral[50],
+                                          borderRadius: '0 6px 6px 0',
+                                        }}
+                                      >
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                          <Box>
+                                            <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.primary.main }}>
+                                              Lens: {lens.lensName ?? lens.productName}
+                                            </Typography>
+                                            {lens.lensTintName && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                                                Tint: {lens.lensTintName}
+                                              </Typography>
+                                            )}
+                                            {lens.prescriptionSnapshot && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.info.main }}>
+                                                R: {lens.prescriptionSnapshot.sphereRight ?? '—'} / L: {lens.prescriptionSnapshot.sphereLeft ?? '—'}
+                                              </Typography>
+                                            )}
+                                          </Box>
+                                          <Typography sx={{ fontSize: 12, fontWeight: 500, color: theme.palette.custom.neutral[600], flexShrink: 0, ml: 1 }}>
+                                            {lens.isFree ? 'Free' : formatCurrency(lens.lineTotal)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    ))}
                                   </Box>
-                                  <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                                      {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
-                                    </Typography>
-                                    {item.discountAmount > 0 && (
-                                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
-                                        -{formatCurrency(item.discountAmount)}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                </Box>
-                              );
-                            })}
+                                );
+                              });
+                            })()}
                           </Box>
                         </Box>
                       ));
@@ -1857,238 +1899,316 @@ const MyOrdersPage = () => {
                             </Box>
 
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                              {shopGroup.items.map((item) => {
-                                const typeStyle = getItemTypeColor(item.itemType);
-                                return (
-                                  <Box
-                                    key={item.id}
-                                    sx={{
-                                      p: 2,
-                                      borderRadius: '10px',
-                                      border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.main : theme.palette.custom.border.light}`,
-                                      opacity: item.itemStatus === 'CANCELLED' ? 0.6 : 1,
-                                      bgcolor: item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : 'transparent',
-                                    }}
-                                  >
-                                    {item.itemStatus === 'CANCELLED' && (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                        <Chip
-                                          label="Cancelled"
-                                          size="small"
-                                          sx={{ bgcolor: theme.palette.custom.status.error.main, color: '#fff', fontWeight: 700, fontSize: 11, height: 20 }}
-                                        />
-                                        {item.cancelReason && (
-                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
-                                            {item.cancelReason}
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    )}
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                                      <Avatar
-                                        variant="rounded"
-                                        src={item.productImageUrl}
+                              {(() => {
+                                const detailChildrenMap = new Map<string, OrderItem[]>();
+                                const detailTopLevel: OrderItem[] = [];
+                                for (const it of shopGroup.items) {
+                                  if (it.parentItemId) {
+                                    const arr = detailChildrenMap.get(it.parentItemId) ?? [];
+                                    arr.push(it);
+                                    detailChildrenMap.set(it.parentItemId, arr);
+                                  } else {
+                                    detailTopLevel.push(it);
+                                  }
+                                }
+                                return detailTopLevel.map((item) => {
+                                  const typeStyle = getItemTypeColor(item.itemType);
+                                  const lensChildren = detailChildrenMap.get(item.id) ?? [];
+                                  return (
+                                    <Box
+                                      key={item.id}
+                                      sx={{
+                                        borderRadius: '10px',
+                                        border: `1px solid ${item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.main : theme.palette.custom.border.light}`,
+                                        overflow: 'hidden',
+                                      }}
+                                    >
+                                      {/* Frame item card */}
+                                      <Box
                                         sx={{
-                                          width: 56,
-                                          height: 56,
-                                          bgcolor: theme.palette.custom.neutral[100],
-                                          borderRadius: '8px',
+                                          p: 2,
+                                          opacity: item.itemStatus === 'CANCELLED' ? 0.6 : 1,
+                                          bgcolor: item.itemStatus === 'CANCELLED' ? theme.palette.custom.status.error.light : 'transparent',
                                         }}
                                       >
-                                        <ShoppingBag sx={{ fontSize: 24 }} />
-                                      </Avatar>
-                                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                          <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
-                                            {item.productName}
-                                          </Typography>
-                                          <Chip
-                                            label={getItemTypeLabel(item.itemType)}
-                                            size="small"
-                                            sx={{ bgcolor: typeStyle.bg, color: typeStyle.color, fontWeight: 500, fontSize: 11, height: 20 }}
-                                          />
-                                          {item.isFree && (
+                                        {item.itemStatus === 'CANCELLED' && (
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                             <Chip
-                                              label="FREE"
+                                              label="Cancelled"
                                               size="small"
-                                              sx={{ bgcolor: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main, fontWeight: 700, fontSize: 10, height: 20 }}
+                                              sx={{ bgcolor: theme.palette.custom.status.error.main, color: '#fff', fontWeight: 700, fontSize: 11, height: 20 }}
                                             />
-                                          )}
-                                        </Box>
-
-                                        {/* Variant & Lens info */}
-                                        {(formatVariantInfo(item.variantInfo) || item.lensName) && (
-                                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
-                                            {formatVariantInfo(item.variantInfo)}
-                                            {item.lensName && (formatVariantInfo(item.variantInfo) ? ' | ' : '') + item.lensName}
-                                            {item.lensTintName && ` (${item.lensTintName})`}
-                                          </Typography>
+                                            {item.cancelReason && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                                {item.cancelReason}
+                                              </Typography>
+                                            )}
+                                          </Box>
                                         )}
-
-                                        <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
-                                          x{item.quantity} | {formatCurrency(item.unitPrice)}/item
-                                        </Typography>
-
-                                        {item.prescriptionSnapshot && (
-                                          <Box
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                          <Avatar
+                                            variant="rounded"
+                                            src={item.productImageUrl}
                                             sx={{
-                                              mt: 0.75,
-                                              p: 1,
-                                              borderRadius: '6px',
-                                              bgcolor: theme.palette.custom.status.info.light,
-                                              display: 'flex',
-                                              alignItems: 'flex-start',
-                                              gap: 0.75,
+                                              width: 56,
+                                              height: 56,
+                                              bgcolor: theme.palette.custom.neutral[100],
+                                              borderRadius: '8px',
                                             }}
                                           >
-                                            <Visibility sx={{ fontSize: 14, color: theme.palette.custom.status.info.main, mt: 0.125 }} />
-                                            <Box>
-                                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.25 }}>
-                                                Prescription
+                                            <ShoppingBag sx={{ fontSize: 24 }} />
+                                          </Avatar>
+                                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
+                                                {item.productName}
                                               </Typography>
-                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
-                                                R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} | CYL {item.prescriptionSnapshot.cylinderRight ?? '—'}
-                                              </Typography>
-                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
-                                                L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'}
-                                              </Typography>
-                                              {item.prescriptionSnapshot.addPower != null && (
-                                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
-                                                  ADD: +{item.prescriptionSnapshot.addPower}
-                                                </Typography>
+                                              <Chip
+                                                label={getItemTypeLabel(item.itemType)}
+                                                size="small"
+                                                sx={{ bgcolor: typeStyle.bg, color: typeStyle.color, fontWeight: 500, fontSize: 11, height: 20 }}
+                                              />
+                                              {item.isFree && (
+                                                <Chip
+                                                  label="FREE"
+                                                  size="small"
+                                                  sx={{ bgcolor: theme.palette.custom.status.success.light, color: theme.palette.custom.status.success.main, fontWeight: 700, fontSize: 10, height: 20 }}
+                                                />
                                               )}
                                             </Box>
-                                          </Box>
-                                        )}
 
-                                        {item.giftNote && (
-                                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontStyle: 'italic', mt: 0.25 }}>
-                                            {item.giftNote}
-                                          </Typography>
-                                        )}
-
-                                        {/* Warranty info */}
-                                        {item.warrantyMonths > 0 && (
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                            <VerifiedUser sx={{ fontSize: 13, color: theme.palette.custom.status.success.main }} />
-                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
-                                              {item.warrantyMonths}-month warranty
-                                              {item.warrantyExpiresAt && ` (until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')})`}
-                                            </Typography>
-                                          </Box>
-                                        )}
-                                      </Box>
-                                      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
-                                          {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
-                                        </Typography>
-                                        {item.discountAmount > 0 && (
-                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
-                                            -{formatCurrency(item.discountAmount)}
-                                          </Typography>
-                                        )}
-                                        {item.itemStatus !== 'CANCELLED' && canCancelShopOrder && (
-                                          <Button
-                                            size="small"
-                                            variant="outlined"
-                                            color="error"
-                                            disabled={cancellingItemId === item.id}
-                                            onClick={() => openCancelItemDialog(selectedOrder.id, item.id)}
-                                            sx={{ textTransform: 'none', fontWeight: 600, fontSize: 11, py: 0.25, px: 1, mt: 0.75, height: 22 }}
-                                          >
-                                            {cancellingItemId === item.id ? 'Cancelling...' : 'Cancel Item'}
-                                          </Button>
-                                        )}
-                                        {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && (
-                                          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
-                                            {itemRefundLookup[item.id]?.status && (
-                                              <Chip
-                                                label={getRefundStatusLabel(itemRefundLookup[item.id].status)}
-                                                size="small"
-                                                sx={{
-                                                  height: 20,
-                                                  fontSize: 10,
-                                                  fontWeight: 600,
-                                                  bgcolor: theme.palette.custom.status.info.light,
-                                                  color: theme.palette.custom.status.info.main,
-                                                }}
-                                              />
+                                            {formatVariantInfo(item.variantInfo) && (
+                                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 0.25 }}>
+                                                {formatVariantInfo(item.variantInfo)}
+                                              </Typography>
                                             )}
-                                            {reviewedItemIds.has(item.id) ? (
-                                              <Chip
-                                                label="Reviewed"
-                                                size="small"
-                                                sx={{
-                                                  height: 22,
-                                                  fontSize: 10,
-                                                  fontWeight: 600,
-                                                  bgcolor: theme.palette.custom.status.success.light,
-                                                  color: theme.palette.custom.status.success.main,
-                                                }}
-                                              />
-                                            ) : (
+
+                                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
+                                              x{item.quantity} | {formatCurrency(item.unitPrice)}/item
+                                            </Typography>
+
+                                            {item.giftNote && (
+                                              <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.success.main, fontStyle: 'italic', mt: 0.25 }}>
+                                                {item.giftNote}
+                                              </Typography>
+                                            )}
+
+                                            {item.warrantyMonths > 0 && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                                <VerifiedUser sx={{ fontSize: 13, color: theme.palette.custom.status.success.main }} />
+                                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.success.main, fontWeight: 500 }}>
+                                                  {item.warrantyMonths}-month warranty
+                                                  {item.warrantyExpiresAt && ` (until ${new Date(item.warrantyExpiresAt).toLocaleDateString('vi-VN')})`}
+                                                </Typography>
+                                              </Box>
+                                            )}
+                                          </Box>
+                                          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800], textDecoration: item.itemStatus === 'CANCELLED' ? 'line-through' : 'none' }}>
+                                              {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
+                                            </Typography>
+                                            {item.discountAmount > 0 && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main }}>
+                                                -{formatCurrency(item.discountAmount)}
+                                              </Typography>
+                                            )}
+                                            {item.itemStatus !== 'CANCELLED' && canCancelShopOrder && (
                                               <Button
                                                 size="small"
                                                 variant="outlined"
-                                                // startIcon={<RateReview sx={{ fontSize: 12 }} />}
-                                                onClick={() => handleOpenReviewDialog(item)}
-                                                sx={{
-                                                  textTransform: 'none',
-                                                  fontWeight: 600,
-                                                  fontSize: 10,
-                                                  lineHeight: 1,
-                                                  minHeight: 22,
-                                                  height: 22,
-                                                  minWidth: 'unset',
-                                                  px: 1.25,
-                                                  py: 0,
-                                                  borderRadius: '8px',
-                                                  borderColor: theme.palette.custom.status.warning.main,
-                                                  color: theme.palette.custom.status.warning.main,
-                                                }}
+                                                color="error"
+                                                disabled={cancellingItemId === item.id}
+                                                onClick={() => openCancelItemDialog(selectedOrder.id, item.id)}
+                                                sx={{ textTransform: 'none', fontWeight: 600, fontSize: 11, py: 0.25, px: 1, mt: 0.75, height: 22 }}
                                               >
-                                                Write Review
+                                                {cancellingItemId === item.id ? 'Cancelling...' : 'Cancel Item'}
                                               </Button>
                                             )}
-                                            <Button
-                                              size="small"
-                                              variant="outlined"
-                                              onClick={() => {
-                                                const existingRequest = itemRefundLookup[item.id];
-                                                if (existingRequest?.id) {
-                                                  navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', existingRequest.id));
-                                                  return;
-                                                }
-                                                handleOpenReturnDialog(item);
-                                              }}
-                                              sx={{
-                                                textTransform: 'none',
-                                                fontWeight: 600,
-                                                fontSize: 10,
-                                                lineHeight: 1,
-                                                minHeight: 22,
-                                                height: 22,
-                                                minWidth: 'unset',
-                                                px: 1.25,
-                                                py: 0,
-                                                borderRadius: '8px',
-                                                borderColor: itemRefundLookup[item.id]?.id
-                                                  ? theme.palette.custom.status.info.main
-                                                  : theme.palette.custom.status.warning.main,
-                                                color: itemRefundLookup[item.id]?.id
-                                                  ? theme.palette.custom.status.info.main
-                                                  : theme.palette.custom.status.warning.main,
-                                              }}
-                                            >
-                                              {itemRefundLookup[item.id]?.id ? 'View Request' : 'Request Return'}
-                                            </Button>
+                                            {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && (
+                                              <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
+                                                {itemRefundLookup[item.id]?.status && (
+                                                  <Chip
+                                                    label={getRefundStatusLabel(itemRefundLookup[item.id].status)}
+                                                    size="small"
+                                                    sx={{
+                                                      height: 20,
+                                                      fontSize: 10,
+                                                      fontWeight: 600,
+                                                      bgcolor: theme.palette.custom.status.info.light,
+                                                      color: theme.palette.custom.status.info.main,
+                                                    }}
+                                                  />
+                                                )}
+                                                {reviewedItemIds.has(item.id) ? (
+                                                  <Chip
+                                                    label="Reviewed"
+                                                    size="small"
+                                                    sx={{
+                                                      height: 22,
+                                                      fontSize: 10,
+                                                      fontWeight: 600,
+                                                      bgcolor: theme.palette.custom.status.success.light,
+                                                      color: theme.palette.custom.status.success.main,
+                                                    }}
+                                                  />
+                                                ) : (
+                                                  <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    onClick={() => handleOpenReviewDialog(item)}
+                                                    sx={{
+                                                      textTransform: 'none',
+                                                      fontWeight: 600,
+                                                      fontSize: 10,
+                                                      lineHeight: 1,
+                                                      minHeight: 22,
+                                                      height: 22,
+                                                      minWidth: 'unset',
+                                                      px: 1.25,
+                                                      py: 0,
+                                                      borderRadius: '8px',
+                                                      borderColor: theme.palette.custom.status.warning.main,
+                                                      color: theme.palette.custom.status.warning.main,
+                                                    }}
+                                                  >
+                                                    Write Review
+                                                  </Button>
+                                                )}
+                                                <Button
+                                                  size="small"
+                                                  variant="outlined"
+                                                  onClick={() => {
+                                                    const existingRequest = itemRefundLookup[item.id];
+                                                    if (existingRequest?.id) {
+                                                      navigate(PAGE_ENDPOINTS.REFUND.BUYER_DETAIL.replace(':requestId', existingRequest.id));
+                                                      return;
+                                                    }
+                                                    handleOpenReturnDialog(item);
+                                                  }}
+                                                  sx={{
+                                                    textTransform: 'none',
+                                                    fontWeight: 600,
+                                                    fontSize: 10,
+                                                    lineHeight: 1,
+                                                    minHeight: 22,
+                                                    height: 22,
+                                                    minWidth: 'unset',
+                                                    px: 1.25,
+                                                    py: 0,
+                                                    borderRadius: '8px',
+                                                    borderColor: itemRefundLookup[item.id]?.id
+                                                      ? theme.palette.custom.status.info.main
+                                                      : theme.palette.custom.status.warning.main,
+                                                    color: itemRefundLookup[item.id]?.id
+                                                      ? theme.palette.custom.status.info.main
+                                                      : theme.palette.custom.status.warning.main,
+                                                  }}
+                                                >
+                                                  {itemRefundLookup[item.id]?.id ? 'View Request' : 'Request Return'}
+                                                </Button>
+                                              </Box>
+                                            )}
                                           </Box>
-                                        )}
+                                        </Box>
                                       </Box>
+
+                                      {/* Lens children */}
+                                      {lensChildren.map((lens) => (
+                                        <Box
+                                          key={lens.id}
+                                          sx={{
+                                            px: 2,
+                                            py: 1.25,
+                                            borderTop: `1px dashed ${theme.palette.primary.light}`,
+                                            bgcolor: theme.palette.primary.main + '08',
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 1.5,
+                                          }}
+                                        >
+                                          <Box
+                                            sx={{
+                                              width: 4,
+                                              alignSelf: 'stretch',
+                                              borderRadius: '2px',
+                                              bgcolor: theme.palette.primary.light,
+                                              flexShrink: 0,
+                                            }}
+                                          />
+                                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
+                                              <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.primary.main }}>
+                                                {lens.lensName ?? lens.productName}
+                                              </Typography>
+                                              <Chip
+                                                label="Lens"
+                                                size="small"
+                                                sx={{ bgcolor: theme.palette.primary.light, color: theme.palette.primary.dark, fontWeight: 500, fontSize: 10, height: 18 }}
+                                              />
+                                            </Box>
+                                            {lens.lensTintName && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                                                Tint: {lens.lensTintName}
+                                              </Typography>
+                                            )}
+                                            {lens.lensFeaturesSnapshot?.names && Array.isArray(lens.lensFeaturesSnapshot.names) && lens.lensFeaturesSnapshot.names.length > 0 && (
+                                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
+                                                {(lens.lensFeaturesSnapshot.names as string[]).join(' · ')}
+                                              </Typography>
+                                            )}
+                                            {lens.prescriptionSnapshot && (
+                                              <Box
+                                                sx={{
+                                                  mt: 0.5,
+                                                  p: 0.75,
+                                                  borderRadius: '6px',
+                                                  bgcolor: theme.palette.custom.status.info.light,
+                                                  display: 'flex',
+                                                  alignItems: 'flex-start',
+                                                  gap: 0.75,
+                                                }}
+                                              >
+                                                <Visibility sx={{ fontSize: 12, color: theme.palette.custom.status.info.main, mt: 0.125 }} />
+                                                <Box>
+                                                  <Typography sx={{ fontSize: 10, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.125 }}>
+                                                    Prescription
+                                                  </Typography>
+                                                  <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[700] }}>
+                                                    R: SPH {lens.prescriptionSnapshot.sphereRight ?? '—'} | CYL {lens.prescriptionSnapshot.cylinderRight ?? '—'}
+                                                    {lens.prescriptionSnapshot.axisRight != null ? ` | AXIS ${lens.prescriptionSnapshot.axisRight}` : ''}
+                                                  </Typography>
+                                                  <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[700] }}>
+                                                    L: SPH {lens.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {lens.prescriptionSnapshot.cylinderLeft ?? '—'}
+                                                    {lens.prescriptionSnapshot.axisLeft != null ? ` | AXIS ${lens.prescriptionSnapshot.axisLeft}` : ''}
+                                                  </Typography>
+                                                  {lens.prescriptionSnapshot.pdSingle != null && (
+                                                    <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[700] }}>
+                                                      PD: {lens.prescriptionSnapshot.pdSingle}
+                                                    </Typography>
+                                                  )}
+                                                  {lens.prescriptionSnapshot.pdLeft != null && lens.prescriptionSnapshot.pdRight != null && (
+                                                    <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[700] }}>
+                                                      PD: R {lens.prescriptionSnapshot.pdRight} / L {lens.prescriptionSnapshot.pdLeft}
+                                                    </Typography>
+                                                  )}
+                                                  {lens.prescriptionSnapshot.addPower != null && (
+                                                    <Typography sx={{ fontSize: 10, color: theme.palette.custom.neutral[700] }}>
+                                                      ADD: +{lens.prescriptionSnapshot.addPower}
+                                                    </Typography>
+                                                  )}
+                                                </Box>
+                                              </Box>
+                                            )}
+                                          </Box>
+                                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700], flexShrink: 0 }}>
+                                            {lens.isFree ? 'Free' : formatCurrency(lens.lineTotal)}
+                                          </Typography>
+                                        </Box>
+                                      ))}
                                     </Box>
-                                  </Box>
-                                );
-                              })}
+                                  );
+                                });
+                              })()}
                             </Box>
                           </Box>
                         );
