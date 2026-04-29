@@ -33,6 +33,7 @@ export interface PrescriptionValue {
 export interface Prescription {
     left_eye: PrescriptionValue;
     right_eye: PrescriptionValue;
+    imageUrl: string | null; // URL to an image of the prescription (optional)
 }
 
 export interface LensFeature {

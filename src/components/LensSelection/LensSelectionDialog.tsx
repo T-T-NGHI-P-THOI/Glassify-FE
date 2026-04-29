@@ -179,6 +179,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const [prescription, setPrescription] = useState<Prescription>({
         left_eye: { sphere: '0.00' },
         right_eye: { sphere: '0.00' },
+        imageUrl: null,
     });
     const [selectedFeatures, setSelectedFeatures] = useState<LensFeature[]>([]);
     const [selectedTint, setSelectedTint] = useState<LensTint | null>(null);
@@ -215,7 +216,6 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
     // Prescription image scan state
     const [isScanningPrescription, setIsScanningPrescription] = useState(false);
-    const [scannedPrescriptionImageUrl, setScannedPrescriptionImageUrl] = useState<string | null>(null);
     const prescriptionInputRef = useRef<HTMLInputElement | null>(null);
 
     const handlePrescriptionFileChange = async (file?: File | null) => {
@@ -253,10 +253,10 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     add: data.addPower ? (data.addPower > 0 ? `+${data.addPower.toFixed(2)}` : data.addPower.toFixed(2)) : undefined,
                     pd: data.pdRight && data.pdRight !== 0 ? String(data.pdRight) : (data.pdSingle && data.pdSingle !== 0 ? String(data.pdSingle) : undefined),
                 },
+                imageUrl: data.imageUrl,
             };
 
             setPrescription(mapped);
-            if (data.imageUrl) setScannedPrescriptionImageUrl(data.imageUrl);
 
             setSnackbarMessage('Prescription scanned. Please review values and correct if needed before continuing.');
             setSnackbarSeverity('success');
@@ -314,6 +314,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 add: p.addPower != null && p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
                 pd: p.pdSingle != null && p.pdSingle !== 0 ? p.pdSingle.toString() : (p.pdRight != null && p.pdRight !== 0 ? p.pdRight.toString() : undefined),
             },
+            imageUrl: p.imageUrl,
         }));
 
     useEffect(() => {
@@ -518,7 +519,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                             setActiveStep(state.activeStep || 0);
                             setSelectedUsage(state.selectedUsage || null);
                             setSelectedLensType(state.selectedLensType || null);
-                            setPrescription(state.prescription || { left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' } });
+                            setPrescription(state.prescription || { left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
                             setSelectedTint(state.selectedTint || null);
                             setSelectedFeatures(state.selectedFeatures || []);
                             setPrescriptionMode(state.prescriptionMode || 'saved');
@@ -907,6 +908,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         setPrescription({
             left_eye: { sphere: '0.00' },
             right_eye: { sphere: '0.00' },
+            imageUrl: null,
         });
         setSelectedTint(null);
         setSelectedFeatures([]);
@@ -1257,6 +1259,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                         setPrescription(prev => ({
                                             left_eye: { ...prev.left_eye, axis: '' },
                                             right_eye: { ...prev.right_eye, axis: '' },
+                                            imageUrl: prev.imageUrl,
                                         }));
                                     }
                                 }}
@@ -1768,8 +1771,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         </Button>
 
                         <Button variant="text" color="inherit" onClick={() => {
-                            setScannedPrescriptionImageUrl(null);
-                            setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' } });
+                            setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
                             setSnackbarMessage('Scan cleared.');
                             setSnackbarSeverity('info');
                             setSnackbarOpen(true);
@@ -1778,10 +1780,10 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                         {isScanningPrescription && <CircularProgress size={24} />}
                     </Stack>
 
-                    {scannedPrescriptionImageUrl && (
+                    {prescription.imageUrl && (
                         <Box sx={{ mb: 2 }}>
                             <Typography variant="caption">Scanned image (please verify):</Typography>
-                            <Box component="img" src={scannedPrescriptionImageUrl} alt="scanned prescription" sx={{ maxWidth: 240, display: 'block', mt: 1 }} />
+                            <Box component="img" src={prescription.imageUrl} alt="scanned prescription" sx={{ maxWidth: 240, display: 'block', mt: 1 }} />
                         </Box>
                     )}
 
@@ -1870,6 +1872,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                         setPrescription({
                                                             left_eye: saved.left_eye,
                                                             right_eye: saved.right_eye,
+                                                            imageUrl: saved.imageUrl || null,
                                                         });
                                                         // Switch to manual mode to show the filled form
                                                         setPrescriptionMode('manual');
