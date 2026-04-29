@@ -6,7 +6,7 @@ export interface LensUsage {
     id: string;
     name: string;
     description: string;
-    type?: string;
+    allowProgressive?: boolean;
     isNonPrescription?: boolean;
     icon?: string;
 }
