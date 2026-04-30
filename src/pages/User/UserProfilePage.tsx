@@ -24,6 +24,7 @@ import {
     Stack,
     Autocomplete,
     Checkbox,
+    FormControlLabel,
     InputLabel,
     Select,
     MenuItem,
@@ -47,10 +48,11 @@ import { shopApi } from '@/api/shopApi';
 import type { ShopDetailResponse } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { AutoAwesome } from '@mui/icons-material';
-import { ArrowBack, Edit, Close, Save, CameraAlt, Person, Verified, Email, Google, Lock, CheckCircle, CalendarMonth, Store, ShoppingBag, Star, MenuBook, Security, Settings, HomeOutlined, Phone, LocationOn, Add as AddIcon, Delete, LinkOff, Link as LinkIcon, Visibility, VisibilityOff } from '@mui/icons-material';
+import { ArrowBack, Edit, Close, Save, CameraAlt, Person, Verified, Email, Google, Lock, CheckCircle, CalendarMonth, Store, ShoppingBag, Star, MenuBook, Security, Settings, HomeOutlined, Phone, LocationOn, Add as AddIcon, Delete, LinkOff, Link as LinkIcon, Visibility, VisibilityOff, AccountBalance } from '@mui/icons-material';
 import { RecommendationsTabContent } from './RecommendationTab';
 import type { UserRecommendationResponse } from '@/models/Recommendation';
 import { userAddressApi, type UserAddressResponse, type UserAddressRequest } from '@/api/user-address-api';
+import { userBankAccountApi, type UserBankAccountResponse, type UserBankAccountRequest } from '@/api/user-bank-account-api';
 import lensService from '@/api/service/LensService';
 import type { PrescriptionValidationRequest, ValidationIssue } from '@/models/Lens';
 import { usePrescriptions } from '@/hooks/usePrescriptions';
@@ -109,6 +111,15 @@ const UserProfilePage = () => {
     const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
     const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
+    // ========== BANK ACCOUNT STATES ==========
+    const [bankAccounts, setBankAccounts] = useState<UserBankAccountResponse[]>([]);
+    const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
+    const [bankAccountDialog, setBankAccountDialog] = useState(false);
+    const [bankDeleteDialogId, setBankDeleteDialogId] = useState<string | null>(null);
+    const [bankSubmitting, setBankSubmitting] = useState(false);
+    const [bankForm, setBankForm] = useState<UserBankAccountRequest>({ bankName: '', accountNumber: '', accountHolder: '', isDefault: false });
+    const [bankFormErrors, setBankFormErrors] = useState<Record<string, string>>({});
+
     // ========== RECOMMENDATIONS ==========
     const [recommendations, setRecommendations] = useState<UserRecommendationResponse[]>([]);
     const [loadingRecs, setLoadingRecs] = useState(false);
@@ -130,6 +141,16 @@ const UserProfilePage = () => {
             setAddresses(res.data ?? []);
         } catch { setAddresses([]); }
         finally { setLoadingAddresses(false); }
+    };
+
+    // ========== FETCH BANK ACCOUNTS ==========
+    const fetchBankAccounts = async () => {
+        setLoadingBankAccounts(true);
+        try {
+            const res = await userBankAccountApi.getMyBankAccounts();
+            setBankAccounts(res.data ?? []);
+        } catch { setBankAccounts([]); }
+        finally { setLoadingBankAccounts(false); }
     };
 
     // ========== FETCH USER PROFILE ==========
@@ -318,6 +339,7 @@ const UserProfilePage = () => {
         fetchUserStats();
         fetchRecommendations();
         fetchAddresses();
+        fetchBankAccounts();
         shopApi.getMyShops().then((res) => {
             const shops = res.data;
             setShopDetail(Array.isArray(shops) && shops.length > 0 ? shops[0] : null);
@@ -530,6 +552,53 @@ const UserProfilePage = () => {
         } catch {
             setSnackbar({ open: true, message: 'Failed to update default address.', severity: 'error' });
         } finally { setSettingDefaultId(null); }
+    };
+
+    // ========== BANK ACCOUNT HANDLERS ==========
+    const validateBankForm = () => {
+        const errors: Record<string, string> = {};
+        if (!bankForm.bankName.trim()) errors.bankName = 'Bank name is required';
+        if (!bankForm.accountNumber.trim()) errors.accountNumber = 'Account number is required';
+        if (!bankForm.accountHolder.trim()) errors.accountHolder = 'Account holder name is required';
+        setBankFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleAddBankAccount = async () => {
+        if (!validateBankForm()) return;
+        setBankSubmitting(true);
+        try {
+            await userBankAccountApi.addBankAccount(bankForm);
+            setSnackbar({ open: true, message: 'Bank account added successfully.', severity: 'success' });
+            setBankAccountDialog(false);
+            setBankForm({ bankName: '', accountNumber: '', accountHolder: '', isDefault: false });
+            fetchBankAccounts();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to add bank account.', severity: 'error' });
+        } finally { setBankSubmitting(false); }
+    };
+
+    const handleSetDefaultBankAccount = async (id: string) => {
+        try {
+            await userBankAccountApi.setDefaultBankAccount(id);
+            setSnackbar({ open: true, message: 'Default bank account updated.', severity: 'success' });
+            fetchBankAccounts();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to update default bank account.', severity: 'error' });
+        }
+    };
+
+    const handleDeleteBankAccount = async () => {
+        if (!bankDeleteDialogId) return;
+        setBankSubmitting(true);
+        try {
+            await userBankAccountApi.deleteBankAccount(bankDeleteDialogId);
+            setSnackbar({ open: true, message: 'Bank account removed.', severity: 'success' });
+            setBankDeleteDialogId(null);
+            fetchBankAccounts();
+        } catch {
+            setSnackbar({ open: true, message: 'Failed to remove bank account.', severity: 'error' });
+        } finally { setBankSubmitting(false); }
     };
 
     // ========== PRESCRIPTIONS STATES & HANDLERS ==========
@@ -1192,6 +1261,7 @@ const UserProfilePage = () => {
                         >
                             <Tab icon={<Person sx={{ fontSize: 18 }} />} iconPosition="start" label="Personal Info" />
                             <Tab icon={<HomeOutlined sx={{ fontSize: 18 }} />} iconPosition="start" label="Addresses" />
+                            <Tab icon={<AccountBalance sx={{ fontSize: 18 }} />} iconPosition="start" label="Bank Accounts" />
                             <Tab icon={<AutoAwesome sx={{ fontSize: 18 }} />} iconPosition="start" label="Recommendation" />
                             <Tab icon={<MenuBook sx={{ fontSize: 18 }} />} iconPosition="start" label="Prescriptions" />
                             <Tab icon={<Security sx={{ fontSize: 18 }} />} iconPosition="start" label="Security" />
@@ -1483,7 +1553,76 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
+                    {/* ========== TAB 2: Bank Accounts ========== */}
                     {activeTab === 2 && (
+                        <Box sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                                <Box>
+                                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                        Bank Accounts
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mt: 0.5 }}>
+                                        Manage your bank accounts for wallet withdrawals
+                                    </Typography>
+                                </Box>
+                                <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setBankForm({ bankName: '', accountNumber: '', accountHolder: '', isDefault: false }); setBankFormErrors({}); setBankAccountDialog(true); }} size="small" disableElevation sx={{ bgcolor: '#111', '&:hover': { bgcolor: '#333' }, textTransform: 'none' }}>
+                                    Add Account
+                                </Button>
+                            </Box>
+
+                            {loadingBankAccounts ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress /></Box>
+                            ) : bankAccounts.length === 0 ? (
+                                <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: 2, border: `1px dashed ${theme.palette.custom.border.main}` }}>
+                                    <AccountBalance sx={{ fontSize: 52, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                                    <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[600], mb: 1 }}>No bank accounts yet</Typography>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 3 }}>Add a bank account to withdraw your wallet balance</Typography>
+                                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setBankForm({ bankName: '', accountNumber: '', accountHolder: '', isDefault: false }); setBankFormErrors({}); setBankAccountDialog(true); }} disableElevation sx={{ bgcolor: '#111', '&:hover': { bgcolor: '#333' }, textTransform: 'none' }}>
+                                        Add Your First Account
+                                    </Button>
+                                </Paper>
+                            ) : (
+                                <Grid container spacing={2}>
+                                    {bankAccounts.map(account => (
+                                        <Grid size={{ xs: 12, md: 6 }} key={account.id}>
+                                            <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1.5px solid ${account.isDefault ? '#111' : theme.palette.custom.border.light}`, transition: 'all 0.2s', '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.06)' } }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                        <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: account.isDefault ? '#111' : theme.palette.custom.neutral[100], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <AccountBalance sx={{ fontSize: 20, color: account.isDefault ? '#fff' : theme.palette.custom.neutral[400] }} />
+                                                        </Box>
+                                                        <Box>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{account.bankName}</Typography>
+                                                                {account.isDefault && (
+                                                                    <Chip label="Default" size="small" icon={<Star sx={{ fontSize: '12px !important' }} />} sx={{ bgcolor: '#111', color: '#fff', fontWeight: 600, fontSize: 10, height: 20 }} />
+                                                                )}
+                                                            </Box>
+                                                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600], mt: 0.25 }}>{account.accountNumber}</Typography>
+                                                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{account.accountHolder}</Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                                <Divider sx={{ my: 1.5 }} />
+                                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                                    {!account.isDefault && (
+                                                        <Button size="small" variant="outlined" onClick={() => handleSetDefaultBankAccount(account.id)} startIcon={<CheckCircle sx={{ fontSize: 14 }} />}>
+                                                            Set Default
+                                                        </Button>
+                                                    )}
+                                                    <Button size="small" variant="outlined" color="error" onClick={() => setBankDeleteDialogId(account.id)} startIcon={<Delete sx={{ fontSize: 14 }} />}>
+                                                        Remove
+                                                    </Button>
+                                                </Box>
+                                            </Paper>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            )}
+                        </Box>
+                    )}
+
+                    {activeTab === 3 && (
                         <RecommendationsTabContent
                             recommendations={recommendations}
                             loading={loadingRecs}
@@ -1492,8 +1631,8 @@ const UserProfilePage = () => {
                         />
                     )}
 
-                    {/* ========== TAB 3: Prescriptions ========== */}
-                    {activeTab === 3 && (
+                    {/* ========== TAB 4: Prescriptions ========== */}
+                    {activeTab === 4 && (
                         <Box sx={{ p: 3 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                                 <Box>
@@ -1540,8 +1679,8 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 4: Security ========== */}
-                    {activeTab === 4 && (
+                    {/* ========== TAB 5: Security ========== */}
+                    {activeTab === 5 && (
                         <Box sx={{ p: 3 }}>
                             <Grid container spacing={3}>
                                 <Grid size={{ xs: 12, md: 6 }}>
@@ -1745,8 +1884,8 @@ const UserProfilePage = () => {
                         </Box>
                     )}
 
-                    {/* ========== TAB 5: Settings ========== */}
-                    {activeTab === 5 && (
+                    {/* ========== TAB 6: Settings ========== */}
+                    {activeTab === 6 && (
                         <Box sx={{ p: 4, textAlign: 'center' }}>
                             <Settings
                                 sx={{ fontSize: 64, color: theme.palette.custom.neutral[300], mb: 2 }}
@@ -2262,6 +2401,72 @@ const UserProfilePage = () => {
                     <Button variant="contained" onClick={handleSaveAddress} disabled={savingAddress}
                         startIcon={savingAddress ? <CircularProgress size={16} color="inherit" /> : <Save />}>
                         {addressDialog.mode === 'create' ? 'Add Address' : 'Save Changes'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ========== BANK ACCOUNT ADD DIALOG ========== */}
+            <Dialog open={bankAccountDialog} onClose={() => setBankAccountDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ fontWeight: 700 }}>Add Bank Account</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+                        <TextField
+                            label="Bank Name"
+                            fullWidth
+                            size="small"
+                            value={bankForm.bankName}
+                            onChange={(e) => setBankForm(f => ({ ...f, bankName: e.target.value }))}
+                            error={!!bankFormErrors.bankName}
+                            helperText={bankFormErrors.bankName}
+                            placeholder="e.g. Vietcombank"
+                        />
+                        <TextField
+                            label="Account Number"
+                            fullWidth
+                            size="small"
+                            value={bankForm.accountNumber}
+                            onChange={(e) => setBankForm(f => ({ ...f, accountNumber: e.target.value }))}
+                            error={!!bankFormErrors.accountNumber}
+                            helperText={bankFormErrors.accountNumber}
+                        />
+                        <TextField
+                            label="Account Holder Name"
+                            fullWidth
+                            size="small"
+                            value={bankForm.accountHolder}
+                            onChange={(e) => setBankForm(f => ({ ...f, accountHolder: e.target.value }))}
+                            error={!!bankFormErrors.accountHolder}
+                            helperText={bankFormErrors.accountHolder}
+                        />
+                        <FormControlLabel
+                            control={<Checkbox checked={!!bankForm.isDefault} onChange={(e) => setBankForm(f => ({ ...f, isDefault: e.target.checked }))} />}
+                            label="Set as default"
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button onClick={() => setBankAccountDialog(false)} disabled={bankSubmitting} color="inherit">Cancel</Button>
+                    <Button variant="contained" onClick={handleAddBankAccount} disabled={bankSubmitting}
+                        startIcon={bankSubmitting ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+                        disableElevation sx={{ bgcolor: '#111', '&:hover': { bgcolor: '#333' }, textTransform: 'none', fontWeight: 600 }}>
+                        Add Account
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ========== BANK ACCOUNT DELETE DIALOG ========== */}
+            <Dialog open={!!bankDeleteDialogId} onClose={() => setBankDeleteDialogId(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+                <DialogTitle sx={{ fontWeight: 700 }}>Remove Bank Account</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
+                        Are you sure you want to remove this bank account? This cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button onClick={() => setBankDeleteDialogId(null)} disabled={bankSubmitting} color="inherit">Cancel</Button>
+                    <Button variant="contained" color="error" onClick={handleDeleteBankAccount} disabled={bankSubmitting}
+                        startIcon={bankSubmitting ? <CircularProgress size={16} color="inherit" /> : <Delete />}>
+                        Remove
                     </Button>
                 </DialogActions>
             </Dialog>

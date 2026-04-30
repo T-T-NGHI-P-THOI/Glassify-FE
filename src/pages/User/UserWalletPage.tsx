@@ -26,6 +26,8 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Tooltip,
+  Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -37,8 +39,11 @@ import {
   ShoppingBag,
   AddCircleOutline,
   AccountBalance,
+  Replay,
+  LocalShipping,
+  InfoOutlined,
 } from '@mui/icons-material';
-import { userWalletApi, type UserWalletResponse, type UserTransactionResponse, type UserWithdrawalResponse, type UserWithdrawalRequest } from '@/api/user-wallet-api';
+import { userWalletApi, type UserWalletResponse, type UserTransactionResponse, type UserWithdrawalResponse } from '@/api/user-wallet-api';
 import { userBankAccountApi, type UserBankAccountResponse } from '@/api/user-bank-account-api';
 import { paymentApi } from '@/api/payment-api';
 import { toast } from 'react-toastify';
@@ -275,27 +280,42 @@ const UserWalletPage = () => {
       label: 'Available Balance',
       value: wallet.availableBalance,
       icon: <AccountBalanceWallet sx={{ fontSize: 28 }} />,
-      color: theme.palette.custom?.status?.success?.main || '#4caf50',
-      bg: theme.palette.custom?.status?.success?.light || '#e8f5e9',
+      color: theme.palette.custom?.status?.success?.main || '#16a34a',
+      bg: theme.palette.custom?.status?.success?.light || '#dcfce7',
+      prefix: '',
+      tooltip: 'Current spendable balance in your wallet',
     },
     {
-      label: 'Total Top-Up',
+      label: 'Total Topped Up',
       value: wallet.totalTopUp,
       icon: <TrendingUp sx={{ fontSize: 28 }} />,
-      color: theme.palette.primary.main,
-      bg: theme.palette.primary.light,
+      color: '#2563eb',
+      bg: '#dbeafe',
+      prefix: '+',
+      tooltip: 'Total amount you have added to your wallet via VNPay',
     },
     {
-      label: 'Total Spent',
+      label: 'Total Spent on Orders',
       value: wallet.totalSpent,
       icon: <ShoppingBag sx={{ fontSize: 28 }} />,
-      color: theme.palette.custom?.status?.error?.main || '#d32f2f',
-      bg: theme.palette.custom?.status?.error?.light || '#ffebee',
+      color: theme.palette.custom?.status?.error?.main || '#dc2626',
+      bg: theme.palette.custom?.status?.error?.light || '#fee2e2',
+      prefix: '-',
+      tooltip: 'Total amount deducted for order payments',
+    },
+    {
+      label: 'Total Refunded',
+      value: wallet.totalRefunded ?? 0,
+      icon: <Replay sx={{ fontSize: 28 }} />,
+      color: '#d97706',
+      bg: '#fef3c7',
+      prefix: '+',
+      tooltip: 'Total amount refunded back to your wallet from returns or cancellations',
     },
   ] : [];
 
   return (
-    <Box sx={{ maxWidth: 960, mx: 'auto', px: 3, py: 4 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', px: 3, py: 4 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -341,18 +361,19 @@ const UserWalletPage = () => {
         </Box>
       ) : wallet ? (
         <>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2.5, mb: 4 }}>
+          {/* Stats Grid */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
             {balanceCards.map((card) => (
               <Paper
                 key={card.label}
                 elevation={0}
-                sx={{ p: 3, borderRadius: 3, border: '1px solid #e5e5e5' }}
+                sx={{ p: 2.5, borderRadius: 3, border: '1px solid #e5e5e5', position: 'relative' }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                   <Box
                     sx={{
-                      width: 44,
-                      height: 44,
+                      width: 40,
+                      height: 40,
                       borderRadius: 2,
                       bgcolor: card.bg,
                       display: 'flex',
@@ -363,16 +384,36 @@ const UserWalletPage = () => {
                   >
                     {card.icon}
                   </Box>
-                  <Typography sx={{ fontSize: 13, color: '#888', fontWeight: 500 }}>
-                    {card.label}
-                  </Typography>
+                  <Tooltip title={card.tooltip} placement="top" arrow>
+                    <InfoOutlined sx={{ fontSize: 16, color: '#bbb', cursor: 'help' }} />
+                  </Tooltip>
                 </Box>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: '#111' }}>
-                  {formatCurrency(card.value)}
+                <Typography sx={{ fontSize: 12, color: '#888', fontWeight: 500, mb: 0.5 }}>
+                  {card.label}
+                </Typography>
+                <Typography sx={{ fontSize: 22, fontWeight: 700, color: card.prefix ? card.color : '#111' }}>
+                  {card.prefix}{formatCurrency(card.value)}
                 </Typography>
               </Paper>
             ))}
           </Box>
+
+          {/* Balance equation */}
+          {wallet && (
+            <Paper elevation={0} sx={{ px: 3, py: 1.5, mb: 4, borderRadius: 2, border: '1px solid #e5e5e5', bgcolor: '#fafafa' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography sx={{ fontSize: 12, color: '#888' }}>Balance formula:</Typography>
+                <Typography sx={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>+{formatCurrency(wallet.totalTopUp)} topped up</Typography>
+                <Typography sx={{ fontSize: 12, color: '#888' }}>−</Typography>
+                <Typography sx={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>{formatCurrency(wallet.totalSpent)} spent</Typography>
+                <Typography sx={{ fontSize: 12, color: '#888' }}>+</Typography>
+                <Typography sx={{ fontSize: 12, color: '#d97706', fontWeight: 600 }}>{formatCurrency(wallet.totalRefunded ?? 0)} refunded</Typography>
+                <Typography sx={{ fontSize: 12, color: '#888' }}>=</Typography>
+                <Typography sx={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>{formatCurrency(wallet.availableBalance)} available</Typography>
+                <Typography sx={{ fontSize: 11, color: '#aaa', ml: 0.5 }}>(excl. withdrawals)</Typography>
+              </Box>
+            </Paper>
+          )}
 
           {/* Tabs */}
           <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
@@ -413,7 +454,7 @@ const UserWalletPage = () => {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#fafafa' }}>
-                        {['DATE', 'TYPE', 'DESCRIPTION', 'AMOUNT', 'BALANCE', 'STATUS'].map((h) => (
+                        {['DATE', 'TYPE', 'DESCRIPTION', 'ORDER DETAIL', 'AMOUNT', 'BALANCE', 'STATUS'].map((h) => (
                           <TableCell key={h} sx={{ fontWeight: 600, color: '#888', fontSize: 12, letterSpacing: 0.5 }}>
                             {h}
                           </TableCell>
@@ -423,8 +464,63 @@ const UserWalletPage = () => {
                     <TableBody>
                       {transactions.map((tx) => {
                         const color = getTransactionColor(tx.type);
+                        const summary = tx.orderSummary;
+                        // Build top-level items (frames, accessories) — exclude lens children for the summary header
+                        const topLevelItems = summary?.items.filter(it => !it.parentItemId) ?? [];
+                        const lensItems = summary?.items.filter(it => it.parentItemId) ?? [];
+
+                        const orderTooltip = summary ? (
+                          <Box sx={{ p: 0.5, minWidth: 260, maxWidth: 340 }}>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#fff', mb: 1 }}>
+                              Order #{summary.orderNumber}
+                            </Typography>
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mb: 1 }} />
+                            {topLevelItems.map((item, idx) => {
+                              const childLenses = lensItems.filter(l => l.parentItemId === summary.items.find(p => p === item)?.productName
+                                // fallback: match by position in original list
+                              );
+                              // Since we don't have the frame item ID here, just show all items in order
+                              return null; // handled below
+                            })}
+                            {summary.items.map((item, idx) => (
+                              <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5, pl: item.parentItemId ? 2 : 0 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                  {item.parentItemId && (
+                                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#00838f', flexShrink: 0 }} />
+                                  )}
+                                  <Typography sx={{ fontSize: 11, color: item.parentItemId ? '#80cbc4' : '#fff', fontWeight: item.parentItemId ? 400 : 500 }} noWrap>
+                                    {item.parentItemId ? `↳ Lens: ${item.productName}` : `${item.productName} ×${item.quantity}`}
+                                  </Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: 11, color: item.isFree ? '#81c784' : '#fff', fontWeight: 500, ml: 1, flexShrink: 0 }}>
+                                  {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
+                                </Typography>
+                              </Box>
+                            ))}
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', my: 0.75 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                              <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Subtotal</Typography>
+                              <Typography sx={{ fontSize: 11, color: '#fff' }}>{formatCurrency(summary.subtotal)}</Typography>
+                            </Box>
+                            {summary.shippingFee > 0 && (
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <LocalShipping sx={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }} />
+                                  <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Shipping</Typography>
+                                </Box>
+                                <Typography sx={{ fontSize: 11, color: '#fff' }}>{formatCurrency(summary.shippingFee)}</Typography>
+                              </Box>
+                            )}
+                            <Divider sx={{ borderColor: 'rgba(255,255,255,0.3)', my: 0.5 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>Total</Typography>
+                              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#ffeb3b' }}>{formatCurrency(summary.totalAmount)}</Typography>
+                            </Box>
+                          </Box>
+                        ) : null;
+
                         return (
-                          <TableRow key={tx.id} hover>
+                          <TableRow key={tx.id} hover sx={{ cursor: summary ? 'pointer' : 'default' }}>
                             <TableCell>
                               <Typography sx={{ fontSize: 13, color: '#666' }}>
                                 {formatDate(tx.createdAt)}
@@ -440,20 +536,54 @@ const UserWalletPage = () => {
                                 sx={{ fontWeight: 600, fontSize: 11 }}
                               />
                             </TableCell>
-                            <TableCell>
-                              <Typography sx={{ fontSize: 13, color: '#555', maxWidth: 220 }} noWrap>
+                            <TableCell sx={{ minWidth: 180 }}>
+                              <Typography sx={{ fontSize: 13, color: '#555' }}>
                                 {tx.description || '—'}
                               </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {summary ? (
+                                <Tooltip
+                                  title={orderTooltip}
+                                  placement="left"
+                                  arrow
+                                  componentsProps={{
+                                    tooltip: {
+                                      sx: {
+                                        bgcolor: '#1a1a2e',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: 2,
+                                        p: 1.5,
+                                        maxWidth: 360,
+                                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                      },
+                                    },
+                                    arrow: { sx: { color: '#1a1a2e' } },
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'help' }}>
+                                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#1976d2' }}>
+                                      #{summary.orderNumber}
+                                    </Typography>
+                                    <InfoOutlined sx={{ fontSize: 14, color: '#1976d2' }} />
+                                    <Typography sx={{ fontSize: 11, color: '#888' }}>
+                                      {summary.items.filter(i => !i.parentItemId).length} item{summary.items.filter(i => !i.parentItemId).length !== 1 ? 's' : ''}
+                                    </Typography>
+                                  </Box>
+                                </Tooltip>
+                              ) : (
+                                <Typography sx={{ fontSize: 13, color: '#bbb' }}>—</Typography>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Typography
                                 sx={{
                                   fontSize: 14,
                                   fontWeight: 700,
-                                  color: color === 'success' ? '#4caf50' : '#d32f2f',
+                                  color: color === 'success' ? '#16a34a' : '#dc2626',
                                 }}
                               >
-                                {color === 'success' ? '+' : '-'}{formatCurrency(Math.abs(tx.amount))}
+                                {color === 'success' ? '+' : '−'}{formatCurrency(Math.abs(tx.amount))}
                               </Typography>
                             </TableCell>
                             <TableCell>
