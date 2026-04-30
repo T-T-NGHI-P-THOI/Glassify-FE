@@ -1397,7 +1397,7 @@ const MyOrdersPage = () => {
                                         <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
                                           {item.isFree ? 'Free' : formatCurrency(item.lineTotal)}
                                         </Typography>
-                                        {item.prescriptionSnapshot.imageUrl != null && (
+                                        {item.prescriptionSnapshot?.imageUrl != null && (
                                           <img src={item.prescriptionSnapshot.imageUrl} alt="Prescription" style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover', border: `1px solid ${theme.palette.custom.border.light}` }} />
                                         )}
                                       </Box>
