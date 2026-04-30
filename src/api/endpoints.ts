@@ -92,6 +92,7 @@ export const API_ENDPOINTS = {
     CREATE: `${API_ENDPOINT}/prescriptions`,
     UPDATE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
     DELETE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
+    SCAN: `${API_ENDPOINT}/prescriptions/scan`,
   },
   VALIDATION: {
     BASE: `${API_ENDPOINT}/validation`,
