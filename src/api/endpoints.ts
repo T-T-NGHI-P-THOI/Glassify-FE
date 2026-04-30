@@ -206,6 +206,7 @@ export const API_ENDPOINTS = {
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
+    ESCROWS: `${API_ENDPOINT}/shop/wallet/escrows`,
   },
   SHOP_BANK_ACCOUNTS: {
     BASE: `${API_ENDPOINT}/shops/bank-accounts`,

@@ -30,6 +30,20 @@ export interface WalletResponse {
     frozenBalance: number;
     totalEarned: number;
     totalWithdrawn: number;
+    totalRefunded: number;
+}
+
+export interface EscrowSummaryResponse {
+    id: string;
+    shopOrderId: string;
+    shopOrderNumber: string;
+    totalAmount: number;
+    refundedAmount: number;
+    netAmount: number;
+    holdUntil: string;
+    createdAt: string;
+    status: string;
+    daysRemaining: number;
 }
 
 export interface WithdrawalResponse {
@@ -56,16 +70,9 @@ export interface TransactionResponse {
     status: string;
     referenceType: string;
     referenceId: string;
+    orderNumber?: string;
     description: string;
     createdAt: string;
-}
-
-// ==================== Paginated Response ====================
-export interface PaginatedResponse<T> {
-    content: T[];
-    currentPage: number;
-    totalPages: number;
-    totalElements: number;
 }
 
 // ==================== API ====================
@@ -94,8 +101,8 @@ export const shopWalletApi = {
     getWithdrawalHistory: async (params?: {
         page?: number;
         size?: number;
-    }): Promise<ApiResponse<PaginatedResponse<WithdrawalResponse>>> => {
-        const response = await axiosInstance.get<ApiResponse<PaginatedResponse<WithdrawalResponse>>>(
+    }): Promise<ApiResponse<WithdrawalResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<WithdrawalResponse[]>>(
             API_ENDPOINTS.SHOP_WALLET.WITHDRAWALS, { params }
         );
         return response.data;
@@ -104,8 +111,8 @@ export const shopWalletApi = {
     getTransactionHistory: async (params?: {
         page?: number;
         size?: number;
-    }): Promise<ApiResponse<PaginatedResponse<TransactionResponse>>> => {
-        const response = await axiosInstance.get<ApiResponse<PaginatedResponse<TransactionResponse>>>(
+    }): Promise<ApiResponse<TransactionResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<TransactionResponse[]>>(
             API_ENDPOINTS.SHOP_WALLET.TRANSACTIONS, { params }
         );
         return response.data;
@@ -114,6 +121,13 @@ export const shopWalletApi = {
     getBankAccounts: async (): Promise<ApiResponse<ShopBankAccountResponse[]>> => {
         const response = await axiosInstance.get<ApiResponse<ShopBankAccountResponse[]>>(
             API_ENDPOINTS.SHOP_BANK_ACCOUNTS.BASE
+        );
+        return response.data;
+    },
+
+    getEscrowBreakdown: async (): Promise<ApiResponse<EscrowSummaryResponse[]>> => {
+        const response = await axiosInstance.get<ApiResponse<EscrowSummaryResponse[]>>(
+            API_ENDPOINTS.SHOP_WALLET.ESCROWS
         );
         return response.data;
     },
