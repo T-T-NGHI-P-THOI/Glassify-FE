@@ -315,7 +315,7 @@ const UserWalletPage = () => {
   ] : [];
 
   return (
-    <Box sx={{ maxWidth: 960, mx: 'auto', px: 3, py: 4 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', px: 3, py: 4 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -536,8 +536,8 @@ const UserWalletPage = () => {
                                 sx={{ fontWeight: 600, fontSize: 11 }}
                               />
                             </TableCell>
-                            <TableCell>
-                              <Typography sx={{ fontSize: 13, color: '#555', maxWidth: 200 }} noWrap>
+                            <TableCell sx={{ minWidth: 180 }}>
+                              <Typography sx={{ fontSize: 13, color: '#555' }}>
                                 {tx.description || '—'}
                               </Typography>
                             </TableCell>
