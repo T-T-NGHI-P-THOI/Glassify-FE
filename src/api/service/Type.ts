@@ -171,7 +171,10 @@ export interface BeCartItemResponse {
     productId: string | null;
     variantId: string | null;
     lensId: string | null;
+    lensName: string | null;
     lensTintId: string | null;
+    lensTintName: string | null;
+    lensTintColor: string | null;
     lensFeatureIds: string[];
     prescriptionId: string | null;
     quantity: number;
@@ -214,6 +217,7 @@ export interface BeCartItemRequest {
     discountAmount?: number;
     lineTotal: number;
     isFree?: boolean;
+    createNew?: boolean;
     promoRuleId?: string;
     giftNote?: string;
     itemType: ItemType;

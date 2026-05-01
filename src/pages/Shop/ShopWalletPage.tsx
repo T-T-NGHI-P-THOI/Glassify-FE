@@ -19,8 +19,8 @@ import {
   Tabs,
   Tab,
   MenuItem,
-  Pagination,
   Tooltip,
+  LinearProgress,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -33,30 +33,45 @@ import {
   Cancel,
   Receipt,
   MonetizationOn,
+  Info,
+  Inventory2,
+  Undo,
+  Schedule,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { shopWalletApi } from '@/api/shop-wallet-api';
-import type { WalletResponse, WithdrawalResponse, TransactionResponse, ShopBankAccountResponse } from '@/api/shop-wallet-api';
+import type {
+  WalletResponse,
+  WithdrawalResponse,
+  TransactionResponse,
+  ShopBankAccountResponse,
+  EscrowSummaryResponse,
+} from '@/api/shop-wallet-api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import { formatNumber, parseNumber } from '@/utils/formatCurrency';
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-};
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
-};
+
+const formatDateShort = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
 const getWithdrawalStatusColor = (status: string) => {
   switch (status) {
@@ -69,67 +84,37 @@ const getWithdrawalStatusColor = (status: string) => {
   }
 };
 
-const getTransactionTypeIcon = (type: string) => {
-  switch (type) {
-    case 'CREDIT':
-    case 'ORDER_PAYMENT':
-    case 'REFUND_REVERSAL':
-      return <ArrowDownward sx={{ fontSize: 16 }} />;
-    case 'DEBIT':
-    case 'WITHDRAWAL':
-    case 'REFUND':
-    case 'FEE':
-      return <ArrowUpward sx={{ fontSize: 16 }} />;
-    default:
-      return <Receipt sx={{ fontSize: 16 }} />;
-  }
-};
+const isCredit = (type: string) =>
+  ['CREDIT', 'ORDER_PAYMENT', 'REFUND_REVERSAL'].includes(type);
 
-const getTransactionColor = (type: string) => {
-  switch (type) {
-    case 'CREDIT':
-    case 'ORDER_PAYMENT':
-    case 'REFUND_REVERSAL':
-      return 'success';
-    case 'DEBIT':
-    case 'WITHDRAWAL':
-    case 'REFUND':
-    case 'FEE':
-      return 'error';
-    default:
-      return 'default';
-  }
+const getTransactionTypeIcon = (type: string) => {
+  if (isCredit(type)) return <ArrowDownward sx={{ fontSize: 14 }} />;
+  return <ArrowUpward sx={{ fontSize: 14 }} />;
 };
 
 const ShopWalletPage = () => {
   const theme = useTheme();
   const { user } = useAuth();
 
-  // State
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
-  // Withdrawals
   const [withdrawals, setWithdrawals] = useState<WithdrawalResponse[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
-  const [withdrawalPage, setWithdrawalPage] = useState(1);
-  const [withdrawalTotalPages, setWithdrawalTotalPages] = useState(1);
 
-  // Transactions
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [transactionPage, setTransactionPage] = useState(1);
-  const [transactionTotalPages, setTransactionTotalPages] = useState(1);
 
-  // Withdrawal Dialog
+  const [escrows, setEscrows] = useState<EscrowSummaryResponse[]>([]);
+  const [escrowsLoading, setEscrowsLoading] = useState(false);
+
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [bankAccounts, setBankAccounts] = useState<ShopBankAccountResponse[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Cancel Dialog
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingWithdrawal, setCancellingWithdrawal] = useState<WithdrawalResponse | null>(null);
 
@@ -139,9 +124,7 @@ const ShopWalletPage = () => {
     try {
       setWalletLoading(true);
       const response = await shopWalletApi.getMyWallet();
-      if (response.data) {
-        setWallet(response.data);
-      }
+      if (response.data) setWallet(response.data);
     } catch (error) {
       console.error('Failed to fetch wallet:', error);
     } finally {
@@ -153,9 +136,8 @@ const ShopWalletPage = () => {
     try {
       setWithdrawalsLoading(true);
       const response = await shopWalletApi.getWithdrawalHistory({ page: page - 1, size: 10 });
-      if (response.data) {
-        setWithdrawals(response.data.content);
-        setWithdrawalTotalPages(response.data.totalPages);
+      if (Array.isArray(response.data)) {
+        setWithdrawals(response.data);
       }
     } catch (error) {
       console.error('Failed to fetch withdrawals:', error);
@@ -168,14 +150,25 @@ const ShopWalletPage = () => {
     try {
       setTransactionsLoading(true);
       const response = await shopWalletApi.getTransactionHistory({ page: page - 1, size: 10 });
-      if (response.data) {
-        setTransactions(response.data.content);
-        setTransactionTotalPages(response.data.totalPages);
+      if (Array.isArray(response.data)) {
+        setTransactions(response.data);
       }
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
     } finally {
       setTransactionsLoading(false);
+    }
+  }, []);
+
+  const fetchEscrows = useCallback(async () => {
+    try {
+      setEscrowsLoading(true);
+      const response = await shopWalletApi.getEscrowBreakdown();
+      if (response.data) setEscrows(response.data);
+    } catch (error) {
+      console.error('Failed to fetch escrows:', error);
+    } finally {
+      setEscrowsLoading(false);
     }
   }, []);
 
@@ -185,9 +178,7 @@ const ShopWalletPage = () => {
       if (response.data) {
         setBankAccounts(response.data);
         const defaultAccount = response.data.find((a) => a.isDefault);
-        if (defaultAccount) {
-          setSelectedBankAccountId(defaultAccount.id);
-        }
+        if (defaultAccount) setSelectedBankAccountId(defaultAccount.id);
       }
     } catch (error) {
       console.error('Failed to fetch bank accounts:', error);
@@ -199,12 +190,10 @@ const ShopWalletPage = () => {
   }, [fetchWallet]);
 
   useEffect(() => {
-    if (activeTab === 0) {
-      fetchWithdrawals(withdrawalPage);
-    } else {
-      fetchTransactions(transactionPage);
-    }
-  }, [activeTab, withdrawalPage, transactionPage, fetchWithdrawals, fetchTransactions]);
+    if (activeTab === 0) fetchWithdrawals(1);
+    else if (activeTab === 1) fetchTransactions(1);
+    else if (activeTab === 2) fetchEscrows();
+  }, [activeTab, fetchWithdrawals, fetchTransactions, fetchEscrows]);
 
   const handleWithdraw = async () => {
     const amount = parseNumber(withdrawAmount);
@@ -220,7 +209,6 @@ const ShopWalletPage = () => {
       toast.error('Insufficient available balance');
       return;
     }
-
     try {
       setSubmitting(true);
       await shopWalletApi.requestWithdrawal({ amount, bankAccountId: selectedBankAccountId });
@@ -228,7 +216,7 @@ const ShopWalletPage = () => {
       setWithdrawDialogOpen(false);
       setWithdrawAmount('');
       fetchWallet();
-      if (activeTab === 0) fetchWithdrawals(withdrawalPage);
+      if (activeTab === 0) fetchWithdrawals(1);
     } catch (error) {
       console.error('Failed to request withdrawal:', error);
       toast.error('Failed to submit withdrawal request');
@@ -246,7 +234,7 @@ const ShopWalletPage = () => {
       setCancelDialogOpen(false);
       setCancellingWithdrawal(null);
       fetchWallet();
-      fetchWithdrawals(withdrawalPage);
+      fetchWithdrawals(1);
     } catch (error) {
       console.error('Failed to cancel withdrawal:', error);
       toast.error('Failed to cancel withdrawal');
@@ -255,36 +243,64 @@ const ShopWalletPage = () => {
     }
   };
 
-  const balanceCards = wallet ? [
-    {
-      label: 'Available Balance',
-      value: wallet.availableBalance,
-      icon: <AccountBalanceWallet />,
-      color: theme.palette.custom.status.success.main,
-      bgColor: theme.palette.custom.status.success.light,
-    },
-    {
-      label: 'Pending Balance',
-      value: wallet.pendingBalance,
-      icon: <AccessTime />,
-      color: theme.palette.custom.status.warning.main,
-      bgColor: theme.palette.custom.status.warning.light,
-    },
-    {
-      label: 'Frozen Balance',
-      value: wallet.frozenBalance,
-      icon: <AcUnit />,
-      color: theme.palette.custom.status.info.main,
-      bgColor: theme.palette.custom.status.info.light,
-    },
-    {
-      label: 'Total Earned',
-      value: wallet.totalEarned,
-      icon: <TrendingUp />,
-      color: theme.palette.primary.main,
-      bgColor: theme.palette.primary.light,
-    },
-  ] : [];
+  const statCards = wallet
+    ? [
+        {
+          label: 'Available Balance',
+          value: wallet.availableBalance,
+          icon: <AccountBalanceWallet sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.status.success.main,
+          bgColor: theme.palette.custom.status.success.light,
+          tooltip: 'Ready to withdraw. This is your spendable balance after all holds.',
+          primary: true,
+        },
+        {
+          label: 'Pending (Escrow)',
+          value: wallet.pendingBalance,
+          icon: <AccessTime sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.status.warning.main,
+          bgColor: theme.palette.custom.status.warning.light,
+          tooltip: 'Held in escrow for completed orders awaiting the release window.',
+          primary: false,
+        },
+        {
+          label: 'Frozen',
+          value: wallet.frozenBalance,
+          icon: <AcUnit sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.status.info.main,
+          bgColor: theme.palette.custom.status.info.light,
+          tooltip: 'Locked due to active disputes or admin holds.',
+          primary: false,
+        },
+        {
+          label: 'Total Earned',
+          value: wallet.totalEarned,
+          icon: <TrendingUp sx={{ fontSize: 22 }} />,
+          color: theme.palette.primary.main,
+          bgColor: theme.palette.primary.light,
+          tooltip: 'Cumulative amount credited to your wallet from all completed orders.',
+          primary: false,
+        },
+        {
+          label: 'Total Withdrawn',
+          value: wallet.totalWithdrawn,
+          icon: <ArrowUpward sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.neutral[600],
+          bgColor: theme.palette.custom.neutral[100],
+          tooltip: 'Total amount successfully transferred to your bank accounts.',
+          primary: false,
+        },
+        {
+          label: 'Total Refunded',
+          value: wallet.totalRefunded ?? 0,
+          icon: <Undo sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.status.error.main,
+          bgColor: theme.palette.custom.status.error.light,
+          tooltip: 'Total amount refunded to buyers from orders linked to your escrow.',
+          primary: false,
+        },
+      ]
+    : [];
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -319,29 +335,83 @@ const ShopWalletPage = () => {
           </Button>
         </Box>
 
-        {/* Balance Cards */}
+        {/* Stats Section */}
         {walletLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />
           </Box>
         ) : wallet ? (
           <>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2.5, mb: 4 }}>
-              {balanceCards.map((card) => (
+            {/* Primary balance — full width spotlight */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                mb: 2.5,
+                borderRadius: 2,
+                border: `1.5px solid ${theme.palette.custom.status.success.main}`,
+                background: `linear-gradient(135deg, ${theme.palette.custom.status.success.light} 0%, #fff 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 2,
+                    bgcolor: theme.palette.custom.status.success.main,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                  }}
+                >
+                  <AccountBalanceWallet sx={{ fontSize: 26 }} />
+                </Box>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
+                      Available Balance
+                    </Typography>
+                    <Tooltip title="Ready to withdraw. This is your spendable balance after all holds." arrow>
+                      <Info sx={{ fontSize: 14, color: theme.palette.custom.neutral[400], cursor: 'pointer' }} />
+                    </Tooltip>
+                  </Box>
+                  <Typography sx={{ fontSize: 32, fontWeight: 800, color: theme.palette.custom.status.success.main, lineHeight: 1.2 }}>
+                    {formatCurrency(wallet.availableBalance)}
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mb: 0.5 }}>
+                  Total Earned
+                </Typography>
+                <Typography sx={{ fontSize: 18, fontWeight: 700, color: theme.palette.primary.main }}>
+                  {formatCurrency(wallet.totalEarned)}
+                </Typography>
+              </Box>
+            </Paper>
+
+            {/* Secondary stat cards grid */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, mb: 3 }}>
+              {statCards.slice(1).map((card) => (
                 <Paper
                   key={card.label}
                   elevation={0}
                   sx={{
-                    p: 3,
+                    p: 2.5,
                     borderRadius: 2,
                     border: `1px solid ${theme.palette.custom.border.light}`,
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                     <Box
                       sx={{
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         borderRadius: 1,
                         bgcolor: card.bgColor,
                         display: 'flex',
@@ -352,40 +422,19 @@ const ShopWalletPage = () => {
                     >
                       {card.icon}
                     </Box>
-                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
-                      {card.label}
-                    </Typography>
+                    <Tooltip title={card.tooltip} arrow placement="top">
+                      <Info sx={{ fontSize: 15, color: theme.palette.custom.neutral[350], cursor: 'pointer' }} />
+                    </Tooltip>
                   </Box>
-                  <Typography sx={{ fontSize: 22, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], fontWeight: 500, mb: 0.5 }}>
+                    {card.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: card.color }}>
                     {formatCurrency(card.value)}
                   </Typography>
                 </Paper>
               ))}
             </Box>
-
-            {/* Total Withdrawn Summary */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.custom.border.light}`,
-                mb: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <ArrowUpward sx={{ color: theme.palette.custom.status.info.main }} />
-                <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[600] }}>
-                  Total Withdrawn
-                </Typography>
-              </Box>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                {formatCurrency(wallet.totalWithdrawn)}
-              </Typography>
-            </Paper>
 
             {/* Tabs */}
             <Paper
@@ -407,6 +456,21 @@ const ShopWalletPage = () => {
               >
                 <Tab label="Withdrawals" />
                 <Tab label="Transactions" />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      Pending Orders
+                      {wallet.pendingBalance > 0 && (
+                        <Chip
+                          label={formatCurrency(wallet.pendingBalance)}
+                          size="small"
+                          color="warning"
+                          sx={{ fontSize: 11, height: 20 }}
+                        />
+                      )}
+                    </Box>
+                  }
+                />
               </Tabs>
 
               {/* Withdrawals Tab */}
@@ -429,27 +493,15 @@ const ShopWalletPage = () => {
                         <Table>
                           <TableHead>
                             <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                DATE
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                AMOUNT
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                FEE
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                NET
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                BANK ACCOUNT
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                STATUS
-                              </TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                ACTIONS
-                              </TableCell>
+                              {['DATE', 'AMOUNT', 'FEE', 'NET', 'BANK ACCOUNT', 'STATUS', 'ACTIONS'].map((h) => (
+                                <TableCell
+                                  key={h}
+                                  align={h === 'ACTIONS' ? 'center' : 'left'}
+                                  sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}
+                                >
+                                  {h}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -498,11 +550,8 @@ const ShopWalletPage = () => {
                                     <Button
                                       size="small"
                                       color="error"
-                                      startIcon={<Cancel sx={{ fontSize: 16 }} />}
-                                      onClick={() => {
-                                        setCancellingWithdrawal(w);
-                                        setCancelDialogOpen(true);
-                                      }}
+                                      startIcon={<Cancel sx={{ fontSize: 14 }} />}
+                                      onClick={() => { setCancellingWithdrawal(w); setCancelDialogOpen(true); }}
                                       sx={{ fontSize: 12, textTransform: 'none' }}
                                     >
                                       Cancel
@@ -514,17 +563,6 @@ const ShopWalletPage = () => {
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      {withdrawalTotalPages > 1 && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                          <Pagination
-                            count={withdrawalTotalPages}
-                            page={withdrawalPage}
-                            onChange={(_, p) => setWithdrawalPage(p)}
-                            color="primary"
-                            size="small"
-                          />
-                        </Box>
-                      )}
                     </>
                   )}
                 </Box>
@@ -550,97 +588,217 @@ const ShopWalletPage = () => {
                         <Table>
                           <TableHead>
                             <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                DATE
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                TYPE
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                DESCRIPTION
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                AMOUNT
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                BALANCE
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>
-                                STATUS
-                              </TableCell>
+                              {['DATE', 'TYPE', 'SOURCE / ORDER', 'AMOUNT', 'BALANCE AFTER', 'STATUS'].map((h) => (
+                                <TableCell key={h} sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12 }}>
+                                  {h}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {transactions.map((t) => (
-                              <TableRow key={t.id} hover>
-                                <TableCell>
-                                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
-                                    {formatDate(t.createdAt)}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    icon={getTransactionTypeIcon(t.type)}
-                                    label={t.type.replace(/_/g, ' ')}
-                                    size="small"
-                                    color={getTransactionColor(t.type) as 'success' | 'error' | 'default'}
-                                    variant="outlined"
-                                    sx={{ fontWeight: 600, fontSize: 11 }}
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700], maxWidth: 250 }} noWrap>
-                                    {t.description}
-                                  </Typography>
-                                  {t.referenceId && (
-                                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], fontFamily: 'monospace' }}>
-                                      Ref: {t.referenceId.slice(0, 8)}...
+                            {transactions.map((t) => {
+                              const credit = isCredit(t.type);
+                              const amountColor = credit
+                                ? theme.palette.custom.status.success.main
+                                : theme.palette.custom.status.error.main;
+                              const amountPrefix = credit ? '+' : '-';
+                              const hasRefundInfo = t.type === 'REFUND' && t.referenceId;
+
+                              return (
+                                <TableRow key={t.id} hover>
+                                  <TableCell sx={{ minWidth: 130 }}>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>
+                                      {formatDate(t.createdAt)}
                                     </Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Typography
-                                    sx={{
-                                      fontSize: 14,
-                                      fontWeight: 600,
-                                      color: getTransactionColor(t.type) === 'success'
-                                        ? theme.palette.custom.status.success.main
-                                        : theme.palette.custom.status.error.main,
-                                    }}
-                                  >
-                                    {getTransactionColor(t.type) === 'success' ? '+' : '-'}{formatCurrency(Math.abs(t.amount))}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell>
-                                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
-                                    {formatCurrency(t.balanceAfter)}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={t.status}
-                                    size="small"
-                                    color={getWithdrawalStatusColor(t.status) as 'success' | 'warning' | 'info' | 'error' | 'default'}
-                                    sx={{ fontWeight: 600, fontSize: 12 }}
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip
+                                      icon={getTransactionTypeIcon(t.type)}
+                                      label={t.type.replace(/_/g, ' ')}
+                                      size="small"
+                                      color={credit ? 'success' : 'error'}
+                                      variant="outlined"
+                                      sx={{ fontWeight: 600, fontSize: 11 }}
+                                    />
+                                  </TableCell>
+                                  <TableCell sx={{ maxWidth: 260 }}>
+                                    {t.orderNumber ? (
+                                      <Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.3 }}>
+                                          <Receipt sx={{ fontSize: 13, color: theme.palette.primary.main }} />
+                                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.primary.main }}>
+                                            #{t.orderNumber}
+                                          </Typography>
+                                        </Box>
+                                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }} noWrap>
+                                          {t.description}
+                                        </Typography>
+                                      </Box>
+                                    ) : (
+                                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }} noWrap>
+                                        {t.description}
+                                      </Typography>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Tooltip
+                                      title={hasRefundInfo ? `Refund from order${t.orderNumber ? ` #${t.orderNumber}` : ''}` : ''}
+                                      arrow
+                                      disableHoverListener={!hasRefundInfo}
+                                    >
+                                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: amountColor, cursor: hasRefundInfo ? 'help' : 'default' }}>
+                                        {amountPrefix}{formatCurrency(Math.abs(t.amount))}
+                                      </Typography>
+                                    </Tooltip>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
+                                      {formatCurrency(t.balanceAfter)}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip
+                                      label={t.status}
+                                      size="small"
+                                      color={getWithdrawalStatusColor(t.status) as 'success' | 'warning' | 'info' | 'error' | 'default'}
+                                      sx={{ fontWeight: 600, fontSize: 12 }}
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      {transactionTotalPages > 1 && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                          <Pagination
-                            count={transactionTotalPages}
-                            page={transactionPage}
-                            onChange={(_, p) => setTransactionPage(p)}
-                            color="primary"
-                            size="small"
-                          />
-                        </Box>
-                      )}
                     </>
+                  )}
+                </Box>
+              )}
+
+              {/* Pending Orders (Escrow) Tab */}
+              {activeTab === 2 && (
+                <Box>
+                  {escrowsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                      <CircularProgress size={28} />
+                    </Box>
+                  ) : escrows.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 6 }}>
+                      <Inventory2 sx={{ fontSize: 48, color: theme.palette.custom.neutral[300], mb: 1 }} />
+                      <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
+                        No pending orders — all funds have been released
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {escrows.map((e) => {
+                        const hasRefund = e.refundedAmount > 0;
+                        const releaseProgress = e.daysRemaining === 0
+                          ? 100
+                          : Math.max(0, Math.min(100, 100 - (e.daysRemaining / 7) * 100));
+
+                        return (
+                          <Paper
+                            key={e.id}
+                            elevation={0}
+                            sx={{
+                              p: 2.5,
+                              borderRadius: 2,
+                              border: `1px solid ${theme.palette.custom.border.light}`,
+                              '&:hover': { borderColor: theme.palette.custom.status.warning.main },
+                              transition: 'border-color 0.15s',
+                            }}
+                          >
+                            {/* Row 1: Order number + Days remaining badge */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Receipt sx={{ fontSize: 18, color: theme.palette.primary.main }} />
+                                <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.primary.main }}>
+                                  #{e.shopOrderNumber}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {e.daysRemaining === 0 ? (
+                                  <Chip label="Releasing soon" size="small" color="success" sx={{ fontWeight: 600, fontSize: 12 }} />
+                                ) : (
+                                  <Chip
+                                    icon={<Schedule sx={{ fontSize: 13 }} />}
+                                    label={`${e.daysRemaining}d remaining`}
+                                    size="small"
+                                    color="warning"
+                                    sx={{ fontWeight: 600, fontSize: 12 }}
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+
+                            {/* Row 2: Amount breakdown */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 1.5 }}>
+                              <Box>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.3 }}>
+                                  Order Total
+                                </Typography>
+                                <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                                  {formatCurrency(e.totalAmount)}
+                                </Typography>
+                              </Box>
+                              {hasRefund && (
+                                <>
+                                  <Box sx={{ color: theme.palette.custom.neutral[300] }}>−</Box>
+                                  <Tooltip title="Amount refunded to buyer from this order" arrow>
+                                    <Box sx={{ cursor: 'help' }}>
+                                      <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main, mb: 0.3 }}>
+                                        Refunded
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.status.error.main }}>
+                                        −{formatCurrency(e.refundedAmount)}
+                                      </Typography>
+                                    </Box>
+                                  </Tooltip>
+                                  <Box sx={{ color: theme.palette.custom.neutral[300] }}>=</Box>
+                                  <Box>
+                                    <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.3 }}>
+                                      Net to Release
+                                    </Typography>
+                                    <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
+                                      {formatCurrency(e.netAmount)}
+                                    </Typography>
+                                  </Box>
+                                </>
+                              )}
+                              {!hasRefund && (
+                                <Box>
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400], mb: 0.3 }}>
+                                    Will Release
+                                  </Typography>
+                                  <Typography sx={{ fontSize: 15, fontWeight: 700, color: theme.palette.custom.status.success.main }}>
+                                    {formatCurrency(e.netAmount)}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+
+                            {/* Row 3: Release date + progress bar */}
+                            <Box sx={{ mb: 0.5 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+                                  Release by {formatDateShort(e.holdUntil)}
+                                </Typography>
+                                <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400] }}>
+                                  Held since {formatDateShort(e.createdAt)}
+                                </Typography>
+                              </Box>
+                              <LinearProgress
+                                variant="determinate"
+                                value={releaseProgress}
+                                color={e.daysRemaining === 0 ? 'success' : 'warning'}
+                                sx={{ height: 4, borderRadius: 2 }}
+                              />
+                            </Box>
+                          </Paper>
+                        );
+                      })}
+                    </Box>
                   )}
                 </Box>
               )}
@@ -685,9 +843,7 @@ const ShopWalletPage = () => {
               <MonetizationOn sx={{ fontSize: 22, color: theme.palette.custom.status.success.main }} />
             </Box>
             <Box>
-              <Typography sx={{ fontSize: 18, fontWeight: 600 }}>
-                Request Withdrawal
-              </Typography>
+              <Typography sx={{ fontSize: 18, fontWeight: 600 }}>Request Withdrawal</Typography>
               <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
                 Available: {wallet ? formatCurrency(wallet.availableBalance) : '---'}
               </Typography>
@@ -703,7 +859,7 @@ const ShopWalletPage = () => {
               type="text"
               value={withdrawAmount ? formatNumber(parseNumber(withdrawAmount)) : ''}
               onChange={(e) => setWithdrawAmount(e.target.value.replace(/\D/g, ''))}
-              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', min: 10000 }}
+              slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', min: 10000 } }}
             />
             <TextField
               label="Bank Account"
@@ -729,9 +885,7 @@ const ShopWalletPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setWithdrawDialogOpen(false)} disabled={submitting}>
-            Cancel
-          </Button>
+          <Button onClick={() => setWithdrawDialogOpen(false)} disabled={submitting}>Cancel</Button>
           <Button
             variant="contained"
             onClick={handleWithdraw}
@@ -754,9 +908,7 @@ const ShopWalletPage = () => {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setCancelDialogOpen(false)} disabled={submitting}>
-            Keep
-          </Button>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={submitting}>Keep</Button>
           <Button
             variant="contained"
             color="error"
