@@ -23,6 +23,7 @@ import {
   PendingActions,
   MoreVert,
   HourglassEmpty,
+  Visibility,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -435,6 +436,20 @@ const ShopOrdersPage = () => {
                                   sx={{
                                     backgroundColor: theme.palette.warning.light,
                                     color: theme.palette.warning.dark,
+                                    fontWeight: 600,
+                                    fontSize: 11,
+                                    borderRadius: 1,
+                                  }}
+                                />
+                              )}
+                              {row.items.some(i => i.prescriptionSnapshot && (i.prescriptionSnapshot.sphereRight != null || i.prescriptionSnapshot.sphereLeft != null)) && (
+                                <Chip
+                                  icon={<Visibility sx={{ fontSize: '12px !important' }} />}
+                                  label="Rx"
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: theme.palette.custom.status.info.light,
+                                    color: theme.palette.custom.status.info.main,
                                     fontWeight: 600,
                                     fontSize: 11,
                                     borderRadius: 1,
