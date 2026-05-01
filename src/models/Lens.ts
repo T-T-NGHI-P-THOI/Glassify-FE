@@ -58,6 +58,7 @@ export interface LensSelection {
     usage: LensUsage;
     lens_type: LensType;
     prescription?: CurrentPrescription;
+    savedPrescriptionId?: string;
     tint?: LensTint;
     features: LensFeature[];
     total_price: number;

@@ -2191,10 +2191,10 @@ const MyOrdersPage = () => {
                                                             Prescription
                                                           </Typography>
                                                           <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>
-                                                            R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} · CYL {item.prescriptionSnapshot.cylinderRight ?? '—'} · PD {item.prescriptionSnapshot.pdRight ?? '—'}
+                                                            R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} · CYL {item.prescriptionSnapshot.cylinderRight ?? '—'} · AXIS {item.prescriptionSnapshot.axisRight ?? '—'} · PD {item.prescriptionSnapshot.pdRight ?? '—'}
                                                           </Typography>
                                                           <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>
-                                                            L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} · CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'} · PD {item.prescriptionSnapshot.pdLeft ?? '—'}
+                                                            L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} · CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'} · AXIS {item.prescriptionSnapshot.axisLeft ?? '—'} · PD {item.prescriptionSnapshot.pdLeft ?? '—'}
                                                           </Typography>
                                                           {item.prescriptionSnapshot.pdSingle != null && (
                                                             <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>PD (single): {item.prescriptionSnapshot.pdSingle}</Typography>
