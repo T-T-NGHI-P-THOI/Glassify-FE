@@ -620,6 +620,32 @@
   text-decoration: underline;
 }
 
+/* STOCK STATUS */
+.stock-status {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #2e7d32;
+}
+
+.stock-status.out-of-stock {
+  color: #e53935;
+  font-weight: bold;
+}
+
+/* DISABLED BUTTON */
+.action-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* OUT OF STOCK NOTE */
+.out-of-stock-note {
+  color: #e53935;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
 .restrictions-link {
   background: none;
   border: none;

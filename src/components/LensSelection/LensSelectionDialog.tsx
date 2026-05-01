@@ -185,6 +185,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const [selectedTint, setSelectedTint] = useState<LensTint | null>(null);
     const [failedLensImageIds, setFailedLensImageIds] = useState<Record<string, true>>({});
     const [prescriptionMode, setPrescriptionMode] = useState<'saved' | 'manual'>('saved');
+    const [selectedSavedPrescriptionId, setSelectedSavedPrescriptionId] = useState<string | undefined>(undefined);
     const [syncBothEyes, setSyncBothEyes] = useState({
         sphere: false,
         cylinder: false,
@@ -914,6 +915,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
         setSelectedTint(null);
         setSelectedFeatures([]);
         setPrescriptionMode('saved');
+        setSelectedSavedPrescriptionId(undefined);
         setValidationIssues([]);
         setApiError(null);
     };
@@ -944,6 +946,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
             usage: selectedUsage,
             lens_type: selectedLensType,
             prescription: selectedLensType.isPrescription ? prescription : undefined,
+            savedPrescriptionId: selectedLensType.isPrescription ? selectedSavedPrescriptionId : undefined,
             tint: selectedTint ?? undefined,
             features: selectedFeatures,
             total_price: calculateTotalPrice(),
@@ -1695,7 +1698,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                     </Button>
                     <Button
                         variant={prescriptionMode === 'manual' ? 'contained' : 'outlined'}
-                        onClick={() => setPrescriptionMode('manual')}
+                        onClick={() => { setPrescriptionMode('manual'); setSelectedSavedPrescriptionId(undefined); }}
                         sx={{ flex: 1 }}
                     >
                         Enter manually
@@ -1879,7 +1882,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                                             right_eye: saved.right_eye,
                                                             imageUrl: saved.imageUrl || null,
                                                         });
-                                                        // Switch to manual mode to show the filled form
+                                                        setSelectedSavedPrescriptionId(saved.id);
                                                         setPrescriptionMode('manual');
                                                     }}
                                                 >

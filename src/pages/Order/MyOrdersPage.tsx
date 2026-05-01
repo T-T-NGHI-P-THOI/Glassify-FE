@@ -1470,10 +1470,13 @@ const MyOrdersPage = () => {
                                                         : ''}
                                                     </Typography>
                                                   )}
-                                                  {lens.prescriptionSnapshot && (
-                                                    <Typography sx={{ fontSize: 10, color: theme.palette.custom.status.info.main, mt: 0.125 }}>
-                                                      R: {lens.prescriptionSnapshot.sphereRight ?? '—'} / L: {lens.prescriptionSnapshot.sphereLeft ?? '—'}
-                                                    </Typography>
+                                                  {item.prescriptionSnapshot && (
+                                                    <Chip
+                                                      icon={<Visibility sx={{ fontSize: '10px !important' }} />}
+                                                      label="Rx"
+                                                      size="small"
+                                                      sx={{ height: 16, fontSize: '0.55rem', fontWeight: 700, bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main, '& .MuiChip-label': { px: 0.75 }, mt: 0.25 }}
+                                                    />
                                                   )}
                                                 </Box>
                                                 <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#00838f', flexShrink: 0 }}>
@@ -2170,7 +2173,7 @@ const MyOrdersPage = () => {
                                                     <Typography sx={{ fontSize: '0.75rem', color: '#888', mt: 0.25 }}>
                                                       x{lens.quantity} | {formatCurrency(lens.unitPrice)}/item
                                                     </Typography>
-                                                    {lens.prescriptionSnapshot && (
+                                                    {item.prescriptionSnapshot && (
                                                       <Box
                                                         sx={{
                                                           mt: 0.75,
@@ -2187,22 +2190,17 @@ const MyOrdersPage = () => {
                                                           <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.status.info.main, mb: 0.25 }}>
                                                             Prescription
                                                           </Typography>
-                                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
-                                                            R: SPH {lens.prescriptionSnapshot.sphereRight ?? '—'} | CYL {lens.prescriptionSnapshot.cylinderRight ?? '—'}
-                                                            {lens.prescriptionSnapshot.axisRight != null ? ` | AXIS ${lens.prescriptionSnapshot.axisRight}` : ''}
+                                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>
+                                                            R: SPH {item.prescriptionSnapshot.sphereRight ?? '—'} · CYL {item.prescriptionSnapshot.cylinderRight ?? '—'} · AXIS {item.prescriptionSnapshot.axisRight ?? '—'} · PD {item.prescriptionSnapshot.pdRight ?? '—'}
                                                           </Typography>
-                                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>
-                                                            L: SPH {lens.prescriptionSnapshot.sphereLeft ?? '—'} | CYL {lens.prescriptionSnapshot.cylinderLeft ?? '—'}
-                                                            {lens.prescriptionSnapshot.axisLeft != null ? ` | AXIS ${lens.prescriptionSnapshot.axisLeft}` : ''}
+                                                          <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>
+                                                            L: SPH {item.prescriptionSnapshot.sphereLeft ?? '—'} · CYL {item.prescriptionSnapshot.cylinderLeft ?? '—'} · AXIS {item.prescriptionSnapshot.axisLeft ?? '—'} · PD {item.prescriptionSnapshot.pdLeft ?? '—'}
                                                           </Typography>
-                                                          {lens.prescriptionSnapshot.pdSingle != null && (
-                                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>PD: {lens.prescriptionSnapshot.pdSingle}</Typography>
+                                                          {item.prescriptionSnapshot.pdSingle != null && (
+                                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>PD (single): {item.prescriptionSnapshot.pdSingle}</Typography>
                                                           )}
-                                                          {lens.prescriptionSnapshot.pdLeft != null && lens.prescriptionSnapshot.pdRight != null && (
-                                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>PD: R {lens.prescriptionSnapshot.pdRight} / L {lens.prescriptionSnapshot.pdLeft}</Typography>
-                                                          )}
-                                                          {lens.prescriptionSnapshot.addPower != null && (
-                                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>ADD: +{lens.prescriptionSnapshot.addPower}</Typography>
+                                                          {item.prescriptionSnapshot.addPower != null && (
+                                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700], fontFamily: 'monospace' }}>Add: {item.prescriptionSnapshot.addPower}</Typography>
                                                           )}
                                                         </Box>
                                                       </Box>

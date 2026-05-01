@@ -41,6 +41,7 @@ import {
   ReportProblem,
   CheckCircleOutline,
   Cancel,
+  Visibility,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -592,11 +593,10 @@ const ShipmentDetailPage = () => {
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>NO</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>PRODUCT</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>TYPE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>LENS</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>LENS / Rx</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>QTY</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>UNIT PRICE</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 13 }}>LINE TOTAL</TableCell>
-                  <TableCell align="right" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -648,7 +648,50 @@ const ShipmentDetailPage = () => {
                       />
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.custom.neutral[800] }}>
-                      {item.lensName ?? '—'}{item.lensTintName ? ` / ${item.lensTintName}` : ''}
+                      <Box>
+                        <Typography sx={{ fontSize: 13 }}>
+                          {item.lensName ?? '—'}{item.lensTintName ? ` / ${item.lensTintName}` : ''}
+                        </Typography>
+                        {item.prescriptionSnapshot && (item.prescriptionSnapshot.sphereRight != null || item.prescriptionSnapshot.sphereLeft != null) && (
+                          <Box sx={{ mt: 0.75, p: 1, borderRadius: 1, bgcolor: theme.palette.custom.status.info.light, display: 'inline-block' }}>
+                            {!!(item.prescriptionSnapshot.prescriptionName || item.prescriptionSnapshot.prescriptionDate) && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Visibility sx={{ fontSize: 11, color: theme.palette.custom.status.info.main }} />
+                                <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.status.info.main }}>
+                                  {item.prescriptionSnapshot.prescriptionName as string}
+                                  {item.prescriptionSnapshot.prescriptionDate ? ` · ${item.prescriptionSnapshot.prescriptionDate as string}` : ''}
+                                </Typography>
+                              </Box>
+                            )}
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', columnGap: 1.5, rowGap: 0.25, alignItems: 'center' }}>
+                              {['', 'SPH', 'CYL', 'AXIS'].map((h) => (
+                                <Typography key={h} sx={{ fontSize: 10, fontWeight: 700, color: theme.palette.custom.neutral[500], textAlign: 'center' }}>{h}</Typography>
+                              ))}
+                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>R (OD)</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.sphereRight ?? '—')}</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.cylinderRight ?? '—')}</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.axisRight ?? '—')}</Typography>
+                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>L (OS)</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.sphereLeft ?? '—')}</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.cylinderLeft ?? '—')}</Typography>
+                              <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[800], textAlign: 'center' }}>{String(item.prescriptionSnapshot.axisLeft ?? '—')}</Typography>
+                            </Box>
+                            {(item.prescriptionSnapshot.pdSingle != null || (item.prescriptionSnapshot.pdLeft != null && item.prescriptionSnapshot.pdRight != null) || item.prescriptionSnapshot.addPower != null) && (
+                              <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                                {item.prescriptionSnapshot.pdSingle != null && (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>PD <strong>{String(item.prescriptionSnapshot.pdSingle)}</strong></Typography>
+                                )}
+                                {item.prescriptionSnapshot.pdLeft != null && item.prescriptionSnapshot.pdRight != null && (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>PD R/L <strong>{String(item.prescriptionSnapshot.pdRight)}/{String(item.prescriptionSnapshot.pdLeft)}</strong></Typography>
+                                )}
+                                {item.prescriptionSnapshot.addPower != null && (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[700] }}>ADD <strong>+{String(item.prescriptionSnapshot.addPower)}</strong></Typography>
+                                )}
+                              </Box>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.custom.neutral[800], textAlign: 'center' }}>
                       {item.quantity}
@@ -658,11 +701,6 @@ const ShipmentDetailPage = () => {
                     </TableCell>
                     <TableCell sx={{ color: isCancelled ? theme.palette.custom.neutral[400] : theme.palette.custom.status.success.main, fontWeight: 600, textDecoration: isCancelled ? 'line-through' : 'none' }}>
                       {formatCurrency(item.lineTotal)}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton size="small">
-                        <MoreHoriz sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
-                      </IconButton>
                     </TableCell>
                   </TableRow>
                   );
