@@ -55,7 +55,7 @@ import type {
     LensType,
     LensFeature,
     LensTint,
-    Prescription,
+    CurrentPrescription,
     LensSelection,
     LensCatalogData,
     ValidationIssue,
@@ -176,7 +176,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
     const [activeStep, setActiveStep] = useState(0);
     const [selectedUsage, setSelectedUsage] = useState<LensUsage | null>(null);
     const [selectedLensType, setSelectedLensType] = useState<LensType | null>(null);
-    const [prescription, setPrescription] = useState<Prescription>({
+    const [prescription, setPrescription] = useState<CurrentPrescription>({
         left_eye: { sphere: '0.00' },
         right_eye: { sphere: '0.00' },
         imageUrl: null,
@@ -238,7 +238,7 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                 throw new Error('No prescription data returned from scan.');
             }
 
-            const mapped: Prescription = {
+            const mapped: CurrentPrescription = {
                 left_eye: {
                     sphere: (data.sphL ?? 0).toFixed(2),
                     cylinder: data.cylL ? data.cylL.toFixed(2) : undefined,
@@ -1719,11 +1719,11 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
 
                         {prescription.imageUrl && (
                             <Button variant="text" color="inherit" onClick={() => {
-                            setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
-                            setSnackbarMessage('Scan cleared.');
-                            setSnackbarSeverity('info');
-                            setSnackbarOpen(true);
-                        }}>Reset scan</Button>)}
+                                setPrescription({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
+                                setSnackbarMessage('Scan cleared.');
+                                setSnackbarSeverity('info');
+                                setSnackbarOpen(true);
+                            }}>Reset scan</Button>)}
 
                         {isScanningPrescription && <CircularProgress size={24} />}
                     </Stack>
@@ -2034,70 +2034,69 @@ export const LensSelectionDialog: React.FC<LensSelectionDialogProps> = ({
                                 />
                             </Box>
 
-                            {/* Axis Row - Always visible for non-progressive lenses */}
-                            {!isProgressive(selectedUsage) && (
-                                <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 3 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>Axis</Typography>
-                                    </Box>
-                                    <FormControl
-                                        size="small"
-                                        fullWidth
-                                        disabled={
-                                            !prescription.right_eye.cylinder ||
-                                            !Number.isFinite(Number(prescription.right_eye.cylinder)) ||
-                                            Number(prescription.right_eye.cylinder) === 0
-                                        }
-                                        error={rightAxisMissing}
-                                    >
-                                        <Select
-                                            displayEmpty
-                                            value={!isNonZeroNumericValue(prescription.right_eye.axis) ? '' : prescription.right_eye.axis || ''}
-                                            onChange={(e) => handlePrescriptionFieldChange('right_eye', 'axis', String(e.target.value))}
-                                        >
-                                            <MenuItem value="">
-                                                <em>Select axis</em>
-                                            </MenuItem>
-                                            {axisOptions.map((axis) => (
-                                                <MenuItem key={`axis-right-${axis}`} value={axis}>
-                                                    {axis}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                        {rightAxisMissing && (
-                                            <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
-                                        )}
-                                    </FormControl>
-                                    <FormControl
-                                        size="small"
-                                        fullWidth
-                                        disabled={
-                                            !prescription.left_eye.cylinder ||
-                                            !Number.isFinite(Number(prescription.left_eye.cylinder)) ||
-                                            Number(prescription.left_eye.cylinder) === 0
-                                        }
-                                        error={leftAxisMissing}
-                                    >
-                                        <Select
-                                            displayEmpty
-                                            value={!isNonZeroNumericValue(prescription.left_eye.axis) ? '' : prescription.left_eye.axis || ''}
-                                            onChange={(e) => handlePrescriptionFieldChange('left_eye', 'axis', String(e.target.value))}
-                                        >
-                                            <MenuItem value="">
-                                                <em>Select axis</em>
-                                            </MenuItem>
-                                            {axisOptions.map((axis) => (
-                                                <MenuItem key={`axis-left-${axis}`} value={axis}>
-                                                    {axis}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                        {leftAxisMissing && (
-                                            <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
-                                        )}
-                                    </FormControl>
+
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 2, mb: 3 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Axis</Typography>
                                 </Box>
-                            )}
+                                <FormControl
+                                    size="small"
+                                    fullWidth
+                                    disabled={
+                                        !prescription.right_eye.cylinder ||
+                                        !Number.isFinite(Number(prescription.right_eye.cylinder)) ||
+                                        Number(prescription.right_eye.cylinder) === 0
+                                    }
+                                    error={rightAxisMissing}
+                                >
+                                    <Select
+                                        displayEmpty
+                                        value={!isNonZeroNumericValue(prescription.right_eye.axis) ? '' : prescription.right_eye.axis || ''}
+                                        onChange={(e) => handlePrescriptionFieldChange('right_eye', 'axis', String(e.target.value))}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Select axis</em>
+                                        </MenuItem>
+                                        {axisOptions.map((axis) => (
+                                            <MenuItem key={`axis-right-${axis}`} value={axis}>
+                                                {axis}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                    {rightAxisMissing && (
+                                        <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
+                                    )}
+                                </FormControl>
+                                <FormControl
+                                    size="small"
+                                    fullWidth
+                                    disabled={
+                                        !prescription.left_eye.cylinder ||
+                                        !Number.isFinite(Number(prescription.left_eye.cylinder)) ||
+                                        Number(prescription.left_eye.cylinder) === 0
+                                    }
+                                    error={leftAxisMissing}
+                                >
+                                    <Select
+                                        displayEmpty
+                                        value={!isNonZeroNumericValue(prescription.left_eye.axis) ? '' : prescription.left_eye.axis || ''}
+                                        onChange={(e) => handlePrescriptionFieldChange('left_eye', 'axis', String(e.target.value))}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Select axis</em>
+                                        </MenuItem>
+                                        {axisOptions.map((axis) => (
+                                            <MenuItem key={`axis-left-${axis}`} value={axis}>
+                                                {axis}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                    {leftAxisMissing && (
+                                        <FormHelperText>AXIS is required when CYL is not 0.</FormHelperText>
+                                    )}
+                                </FormControl>
+                            </Box>
+
 
                             <Divider sx={{ my: 2 }} />
 
