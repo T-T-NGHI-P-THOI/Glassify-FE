@@ -30,7 +30,7 @@ export interface PrescriptionValue {
     pd?: string;         // PD (khoảng cách đồng tử): 54-74mm
 }
 
-export interface Prescription {
+export interface CurrentPrescription {
     left_eye: PrescriptionValue;
     right_eye: PrescriptionValue;
     imageUrl: string | null; // URL to an image of the prescription (optional)
@@ -57,7 +57,7 @@ export interface LensTint {
 export interface LensSelection {
     usage: LensUsage;
     lens_type: LensType;
-    prescription?: Prescription;
+    prescription?: CurrentPrescription;
     tint?: LensTint;
     features: LensFeature[];
     total_price: number;

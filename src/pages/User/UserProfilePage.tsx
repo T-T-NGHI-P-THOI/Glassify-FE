@@ -615,9 +615,10 @@ const UserProfilePage = () => {
         prescriptionDate: new Date().toISOString(),
         prescriptionUsage: 'DISTANCE',
     });
-    const [prescriptionDraft, setPrescriptionDraft] = useState<import('@/models/Lens').Prescription>({
+    const [prescriptionDraft, setPrescriptionDraft] = useState<import('@/models/Lens').CurrentPrescription>({
         left_eye: { sphere: '0.00' },
         right_eye: { sphere: '0.00' },
+        imageUrl: null
     });
     const [prescriptionMode, setPrescriptionMode] = useState<'saved' | 'manual'>('manual');
     const [has2PD, setHas2PD] = useState(false);
@@ -636,7 +637,7 @@ const UserProfilePage = () => {
     const openCreatePrescription = () => {
         setPrescriptionForm({ name: '', sphR: 0, cylR: 0, axisR: 0, sphL: 0, cylL: 0, axisL: 0, prescriptionDate: new Date().toISOString(), prescriptionUsage: 'DISTANCE' });
         setPrescriptionDialog({ open: true, mode: 'create', data: null });
-        setPrescriptionDraft({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' } });
+        setPrescriptionDraft({ left_eye: { sphere: '0.00' }, right_eye: { sphere: '0.00' }, imageUrl: null });
         setPrescriptionMode('manual');
         setHas2PD(false);
         setValidationIssues([]);
@@ -694,7 +695,8 @@ const UserProfilePage = () => {
                 axis: p.axisR !== 0 ? String(p.axisR) : undefined,
                 add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
                 pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdRight !== 0 ? String(p.pdRight) : undefined),
-            }
+            },
+            imageUrl: p.imageUrl || null
         });
         setPrescriptionMode('manual');
         setHas2PD(p.pdSingle === 0 && (!!p.pdLeft || !!p.pdRight));
@@ -705,7 +707,7 @@ const UserProfilePage = () => {
 
     const handlePrescriptionFieldChange = (eye: 'left_eye' | 'right_eye', field: string, value: string) => {
         setPrescriptionDraft(prev => {
-            const next = { left_eye: { ...prev.left_eye }, right_eye: { ...prev.right_eye } };
+            const next = { left_eye: { ...prev.left_eye }, right_eye: { ...prev.right_eye }, imageUrl: prev.imageUrl };
             (next as any)[eye] = { ...(next as any)[eye], [field]: value };
 
             // Sync ADD across both eyes when edited
@@ -737,7 +739,7 @@ const UserProfilePage = () => {
                 cylLeft: parseFloat(prescriptionDraft.left_eye.cylinder || '0'),
                 axisRight: parseFloat(prescriptionDraft.right_eye.axis || '0'),
                 axisLeft: parseFloat(prescriptionDraft.left_eye.axis || '0'),
-                add: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+','')) : undefined,
+                add: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+', '')) : undefined,
                 pd: !has2PD ? (prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd || prescriptionDraft.left_eye.pd || '0') : undefined) : undefined,
                 pdLeft: has2PD ? (prescriptionDraft.left_eye.pd ? parseFloat(prescriptionDraft.left_eye.pd) : undefined) : undefined,
                 pdRight: has2PD ? (prescriptionDraft.right_eye.pd ? parseFloat(prescriptionDraft.right_eye.pd) : undefined) : undefined,
@@ -783,7 +785,7 @@ const UserProfilePage = () => {
                 sphL: parseFloat(prescriptionDraft.left_eye.sphere || '0'),
                 cylL: parseFloat(prescriptionDraft.left_eye.cylinder || '0'),
                 axisL: prescriptionDraft.left_eye.axis ? parseFloat(prescriptionDraft.left_eye.axis) : 0,
-                addPower: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+','')) : undefined,
+                addPower: prescriptionDraft.right_eye.add ? parseFloat(String(prescriptionDraft.right_eye.add).replace('+', '')) : undefined,
                 prescriptionDate: prescriptionForm.prescriptionDate || new Date().toISOString(),
                 prescriptionUsage: prescriptionForm.prescriptionUsage || 'DISTANCE',
             };
@@ -2129,6 +2131,7 @@ const UserProfilePage = () => {
                                                         add: p.addPower !== 0 ? (p.addPower > 0 ? `+${p.addPower.toFixed(2)}` : p.addPower.toFixed(2)) : undefined,
                                                         pd: p.pdSingle !== 0 ? String(p.pdSingle) : (p.pdRight !== 0 ? String(p.pdRight) : undefined),
                                                     },
+                                                    imageUrl: p.imageUrl || null
                                                 });
                                                 setPrescriptionForm(f => ({ ...f, name: p.name, prescriptionDate: p.prescriptionDate, prescriptionUsage: p.prescriptionUsage }));
                                                 setHas2PD(p.pdSingle === 0 && (!!p.pdLeft || !!p.pdRight));
