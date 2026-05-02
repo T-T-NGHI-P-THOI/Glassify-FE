@@ -55,6 +55,7 @@ import {
   getReturnRequestDetail,
   confirmItemReceived,
   processRefund,
+  proposeRefund,
   submitShopAppeal,
 } from '@/api/refund-api';
 import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
@@ -89,6 +90,28 @@ type SellerResolutionAction = 'RETURN_AND_REFUND' | RefundProcessType;
 
 const getDisplayStatusLabel = (status: ReturnStatus | string): string => {
   return RETURN_STATUS_LABELS[status as ReturnStatus] ?? String(status);
+};
+
+const humanizeProposalText = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((item) => humanizeProposalText(item)).join(', ')
+      : '—';
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  return String(value);
 };
 
 const getAppealStatusColor = (
@@ -189,6 +212,7 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
     { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
     { label: 'Approved', status: ReturnStatus.APPROVED },
     { label: 'Returning Item', status: ReturnStatus.RETURN_SHIPPING },
+    { label: 'Item Returned', status: ReturnStatus.RETURN_DELIVERED },
     { label: 'Item Received', status: ReturnStatus.ITEM_RECEIVED },
     { label: 'Completed', status: ReturnStatus.COMPLETED },
   ];
@@ -207,7 +231,12 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
 };
 
 const getActiveStep = (status: ReturnStatus, steps: StepItem[]) => {
-  const index = steps.findIndex((step) => step.status === status);
+  const normalizedStatus =
+    status === ReturnStatus.RETURN_READY_TO_PICK
+      ? ReturnStatus.RETURN_SHIPPING
+      : status;
+
+  const index = steps.findIndex((step) => step.status === normalizedStatus);
   return index >= 0 ? index : 0;
 };
 
@@ -249,6 +278,7 @@ const SellerRefundDetailPage = () => {
   const [refundType, setRefundType] = useState<RefundProcessType>(RefundProcessType.FULL);
   const [resolutionAction, setResolutionAction] = useState<SellerResolutionAction>(RefundProcessType.FULL);
   const [partialAmount, setPartialAmount] = useState('');
+  const [proposalReason, setProposalReason] = useState('');
   const [minRequiredAmount, setMinRequiredAmount] = useState<number | null>(null);
   const [platformSetting, setPlatformSetting] = useState<PlatformSetting | null>(null);
   const [appealDialogOpen, setAppealDialogOpen] = useState(false);
@@ -377,7 +407,7 @@ const SellerRefundDetailPage = () => {
 
     const selectedRefundType = resolutionAction;
 
-    if (selectedRefundType === RefundProcessType.FULL && !canProcessRefund) {
+    if (selectedRefundType === RefundProcessType.FULL && !canProcessRefund && !isReturnAndRefundDecision) {
       toast.info('You can issue full refund after confirming the returned item is received.');
       return;
     }
@@ -409,15 +439,30 @@ const SellerRefundDetailPage = () => {
     
     try {
       setSubmitting(true);
-      await processRefund(requestId, {
-        refundType: selectedRefundType,
-        partialAmount: selectedRefundType === RefundProcessType.PARTIAL ? parseNumber(partialAmount) : undefined,
-      });
-      toast.success('Refund completed');
+      if (isReturnAndRefundDecision) {
+        const proposedAmount =
+          selectedRefundType === RefundProcessType.FULL
+            ? (request?.refundAmount || 0)
+            : parseNumber(partialAmount);
+
+        await proposeRefund(requestId, {
+          proposedAmount,
+          reason: proposalReason.trim() || undefined,
+        });
+        toast.success('Refund proposal submitted');
+      } else {
+        await processRefund(requestId, {
+          refundType: selectedRefundType,
+          partialAmount: selectedRefundType === RefundProcessType.PARTIAL ? parseNumber(partialAmount) : undefined,
+        });
+        toast.success('Refund completed');
+      }
+
       setRefundDialogOpen(false);
       setRefundType(RefundProcessType.FULL);
       setResolutionAction(RefundProcessType.FULL);
       setPartialAmount('');
+      setProposalReason('');
       setMinRequiredAmount(null);
       await fetchRequestDetail();
     } catch (error: any) {
@@ -503,7 +548,9 @@ const SellerRefundDetailPage = () => {
     minRequiredAmount ?? 0
   );
 
-  const canConfirmReceived = rawStatus === ReturnStatus.RETURN_SHIPPING;
+  // Allow seller to confirm receipt when return is in shipping OR when courier marked it delivered
+  const canConfirmReceived =
+    rawStatus === ReturnStatus.RETURN_SHIPPING || rawStatus === ReturnStatus.RETURN_DELIVERED;
   const appealStatus = request.shopAppealStatus;
   const hasNoAppeal = appealStatus === undefined || appealStatus === ShopAppealStatus.NONE;
   const appealStartAt = request.itemReceivedAt ?? request.completedAt ?? request.approvedAt ?? request.requestedAt;
@@ -538,6 +585,47 @@ const SellerRefundDetailPage = () => {
     // !isReturnAndRefundDecision &&
     hasNoAppeal &&
     isAppealWindowOpen;
+  const canProposeOtherOption =
+    isReturnAndRefundDecision &&
+    (
+      rawStatus === ReturnStatus.REQUESTED
+      || rawStatus === ReturnStatus.APPROVED
+      || rawStatus === ReturnStatus.RETURN_READY_TO_PICK
+    );
+  const hasExistingProposal = !!request.proposalStatus && request.proposalStatus !== 'NONE';
+  const isViewProposalMode = isReturnAndRefundDecision && hasExistingProposal;
+  const proposedAmount = request.proposedPartialAmount;
+  const proposedActionLabel =
+    typeof proposedAmount === 'number'
+      ? proposedAmount < (request.refundAmount || 0)
+        ? 'Partial Refund'
+        : 'Full Refund'
+      : 'N/A';
+
+  const openProposeDialog = () => {
+    if (hasExistingProposal) {
+      const proposedAmount = request.proposedPartialAmount;
+      const fullAmount = request.refundAmount || 0;
+      const isPartialProposal = typeof proposedAmount === 'number' && proposedAmount < fullAmount;
+
+      if (isPartialProposal && typeof proposedAmount === 'number') {
+        setResolutionAction(RefundProcessType.PARTIAL);
+        setRefundType(RefundProcessType.PARTIAL);
+        setPartialAmount(String(Math.round(proposedAmount)));
+      } else {
+        setResolutionAction(RefundProcessType.FULL);
+        setRefundType(RefundProcessType.FULL);
+        setPartialAmount('');
+      }
+    } else {
+      setResolutionAction('RETURN_AND_REFUND');
+      setRefundType(RefundProcessType.FULL);
+      setPartialAmount('');
+    }
+
+    setMinRequiredAmount(null);
+    setRefundDialogOpen(true);
+  };
   const steps = getStatusSteps(rawStatus as ReturnStatus);
   const activeStep = getActiveStep(rawStatus, steps);
   const evidenceFiles = request.evidenceImages || [];
@@ -606,17 +694,13 @@ const SellerRefundDetailPage = () => {
                   Confirm Refund
                 </Button>
               )}
-              {isReturnAndRefundDecision && (
+              {canProposeOtherOption && (
                 <Button
                   variant="outlined"
-                  onClick={() => {
-                    setResolutionAction('RETURN_AND_REFUND');
-                    setRefundType(RefundProcessType.FULL);
-                    setRefundDialogOpen(true);
-                  }}
+                  onClick={openProposeDialog}
                   sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}
                 >
-                  Propose Other Option
+                  {hasExistingProposal ? 'View Propose' : 'Propose Other Option'}
                 </Button>
               )}
               {canSubmitAppeal && (
@@ -1075,12 +1159,17 @@ const SellerRefundDetailPage = () => {
           setResolutionAction(RefundProcessType.FULL);
           setRefundType(RefundProcessType.FULL);
           setPartialAmount('');
+          setProposalReason('');
           setMinRequiredAmount(null);
         }}
         PaperProps={{ sx: { borderRadius: 4 } }}
       >
         <DialogTitle sx={{ fontWeight: 800 }}>
-          {isReturnAndRefundDecision ? 'Propose Resolution Option' : 'Finalize Refund'}
+          {isViewProposalMode
+            ? 'View Proposed Option'
+            : isReturnAndRefundDecision
+              ? 'Propose Resolution Option'
+              : 'Finalize Refund'}
         </DialogTitle>
         <DialogContent sx={{ py: 2 }}>
           <Typography sx={{ color: 'text.secondary', mb: 3 }}>
@@ -1089,7 +1178,52 @@ const SellerRefundDetailPage = () => {
               : 'Select the refund type and complete the refund process.'}
           </Typography>
 
-          {isReturnAndRefundDecision && (
+          {isViewProposalMode && (
+            <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                Submitted proposal details
+              </Typography>
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Proposal Status</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{humanizeProposalText(request.proposalStatus)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Chosen Option</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{proposedActionLabel}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Proposed Amount</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {typeof request.proposedPartialAmount === 'number'
+                      ? formatCurrency(request.proposedPartialAmount)
+                      : '—'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Admin Note</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{humanizeProposalText(request.proposalReason)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Submitted At</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {request.proposalCreatedAt ? formatDate(request.proposalCreatedAt) : '—'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">Last Updated</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {request.proposalUpdatedAt ? formatDate(request.proposalUpdatedAt) : '—'}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                This proposal is read-only. You cannot re-submit or edit it.
+              </Alert>
+            </Paper>
+          )}
+
+          {isReturnAndRefundDecision && !isViewProposalMode && (
             <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#fffbeb', borderRadius: 2, border: '1px solid #fde68a' }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
                 Return & Refund flow (default)
@@ -1102,7 +1236,7 @@ const SellerRefundDetailPage = () => {
             </Paper>
           )}
 
-          {isReturnAndRefundDecision && (
+          {isReturnAndRefundDecision && !isViewProposalMode && (
             <FormControl fullWidth sx={{ mb: 3 }}>
               <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>Seller option</FormLabel>
               <RadioGroup
@@ -1166,7 +1300,7 @@ const SellerRefundDetailPage = () => {
           )}
           
           {/* Refund Type Selection */}
-          {(resolutionAction !== 'RETURN_AND_REFUND' || !isReturnAndRefundDecision) && (
+          {!isViewProposalMode && (resolutionAction !== 'RETURN_AND_REFUND' || !isReturnAndRefundDecision) && (
             <FormControl fullWidth sx={{ mb: 3 }}>
             <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>Refund Type</FormLabel>
             <RadioGroup 
@@ -1235,7 +1369,7 @@ const SellerRefundDetailPage = () => {
           )}
 
           {/* Conditional Partial Amount Input */}
-          {(resolutionAction === RefundProcessType.PARTIAL || refundType === RefundProcessType.PARTIAL) && (
+          {!isViewProposalMode && (resolutionAction === RefundProcessType.PARTIAL || refundType === RefundProcessType.PARTIAL) && (
             <TextField 
               label="Refund Amount" 
               type="text"
@@ -1248,6 +1382,7 @@ const SellerRefundDetailPage = () => {
               fullWidth 
               value={partialAmount ? formatNumber(parseNumber(partialAmount)) : ''} 
               onChange={(e) => {
+                if (isViewProposalMode) return;
                 setPartialAmount(e.target.value.replace(/\D/g, ''));
                 setMinRequiredAmount(null);
               }}
@@ -1262,8 +1397,26 @@ const SellerRefundDetailPage = () => {
             />
           )}
 
+          {!isViewProposalMode && isReturnAndRefundDecision && resolutionAction !== 'RETURN_AND_REFUND' && (
+            <TextField
+              label="Proposal Reason"
+              multiline
+              rows={3}
+              fullWidth
+              value={proposalReason}
+              onChange={(e) => {
+                if (isViewProposalMode) return;
+                setProposalReason(e.target.value.slice(0, 500));
+              }}
+              disabled={isViewProposalMode}
+              placeholder="Describe why you propose this amount"
+              helperText={`${proposalReason.length}/500`}
+              sx={{ mb: 2 }}
+            />
+          )}
+
           {/* Refund Amount Display */}
-          {resolutionAction !== 'RETURN_AND_REFUND' && (
+          {!isViewProposalMode && resolutionAction !== 'RETURN_AND_REFUND' && (
             <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
               <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase' }}>
                 {resolutionAction === RefundProcessType.FULL ? 'Full Refund Amount' : 'Partial Refund Amount'}
@@ -1279,7 +1432,7 @@ const SellerRefundDetailPage = () => {
             </Paper>
           )}
 
-          {resolutionAction === RefundProcessType.FULL && !canProcessRefund && (
+          {!isViewProposalMode && resolutionAction === RefundProcessType.FULL && !canProcessRefund && (
             <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
               Full refund can be executed after you confirm item receipt.
             </Alert>
@@ -1292,24 +1445,27 @@ const SellerRefundDetailPage = () => {
               setResolutionAction(RefundProcessType.FULL);
               setRefundType(RefundProcessType.FULL);
               setPartialAmount('');
+              setProposalReason('');
               setMinRequiredAmount(null);
             }} 
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            Cancel
+            {isViewProposalMode ? 'Close' : 'Cancel'}
           </Button>
-          <Button 
-            variant="contained" 
-            color="success" 
-            onClick={handleProcessRefund} 
-            disabled={
-              submitting
-              || (resolutionAction === RefundProcessType.PARTIAL && !partialAmount)
-            }
-            sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
-          >
-            {resolutionAction === 'RETURN_AND_REFUND' ? 'Keep Return & Refund' : 'Confirm & Issue Refund'}
-          </Button>
+          {!isViewProposalMode && (
+            <Button 
+              variant="contained" 
+              color="success" 
+              onClick={handleProcessRefund} 
+              disabled={
+                submitting
+                || (resolutionAction === RefundProcessType.PARTIAL && !partialAmount)
+              }
+              sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
+            >
+              {resolutionAction === 'RETURN_AND_REFUND' ? 'Keep Return & Refund' : 'Confirm & Issue Refund'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

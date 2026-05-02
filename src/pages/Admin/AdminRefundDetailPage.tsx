@@ -246,7 +246,7 @@ const AdminRefundDetailPage = () => {
                 <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
                   <SectionLabel>Product</SectionLabel>
                   {refund.productImageUrl && (
-                    <Box component="img" src={refund.productImageUrl} sx={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 1, mb: 1.5 }} />
+                    <Box component="img" src={refund.productImageUrl} sx={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 1, mb: 1.5 }} />
                   )}
                   <FieldRow label="Product name" value={refund.productName} />
                   <FieldRow label="SKU" value={refund.productSku} />
