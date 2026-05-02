@@ -143,7 +143,7 @@ interface Order {
 interface ReturnItemForm {
   reason: ReturnReason;
   description: string;
-  images: { file: File; preview: string }[];
+  images: { file: File; preview: string; type?: 'image' | 'video' }[];
 }
 
 interface ItemRefundLookup {
@@ -243,8 +243,12 @@ const getRefundStatusLabel = (status?: ReturnStatus) => {
       return 'Approved';
     case ReturnStatus.REJECTED:
       return 'Rejected';
+    case ReturnStatus.RETURN_READY_TO_PICK:
+      return 'Ready for Pickup';
     case ReturnStatus.RETURN_SHIPPING:
       return 'Return Shipping';
+    case ReturnStatus.RETURN_DELIVERED:
+      return 'Item Returned';
     case ReturnStatus.ITEM_RECEIVED:
       return 'Item Received';
     case ReturnStatus.COMPLETED:
@@ -474,6 +478,9 @@ const MyOrdersPage = () => {
   const [returnItemForms, setReturnItemForms] = useState<Record<string, ReturnItemForm>>({});
   const [itemRefundLookup, setItemRefundLookup] = useState<Record<string, ItemRefundLookup>>({});
   const [submittingReturn, setSubmittingReturn] = useState(false);
+  const [mediaPreviewOpen, setMediaPreviewOpen] = useState(false);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+  const [mediaPreviewType, setMediaPreviewType] = useState<'image' | 'video' | null>(null);
   
   const fetchOrders = useCallback(async () => {
     try {
@@ -854,8 +861,16 @@ const MyOrdersPage = () => {
     const files = event.target.files;
     if (!files) return;
 
-    // Keep File objects for server upload and use object URL only for preview.
     Array.from(files).forEach((file) => {
+      // validate video size if video
+      if (file.type.startsWith('video/')) {
+        const maxBytes = 25 * 1024 * 1024;
+        if (file.size > maxBytes) {
+          toast.error(`${file.name} exceeds the 25 MB size limit`);
+          return;
+        }
+      }
+
       const preview = URL.createObjectURL(file);
       setReturnItemForms((prev) => {
         const current = prev[itemId] || createDefaultReturnItemForm();
@@ -863,7 +878,7 @@ const MyOrdersPage = () => {
           ...prev,
           [itemId]: {
             ...current,
-            images: [...current.images, { file, preview }],
+            images: [...current.images, { file, preview, type: file.type.startsWith('video/') ? 'video' : 'image' }],
           },
         };
       });
@@ -2390,6 +2405,21 @@ const MyOrdersPage = () => {
         })()}
       </Dialog>
 
+      {/* Media preview dialog */}
+      <Dialog open={mediaPreviewOpen} onClose={() => setMediaPreviewOpen(false)} maxWidth="lg" fullWidth>
+        <DialogContent sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+          {mediaPreviewUrl && mediaPreviewType === 'image' && (
+            <img src={mediaPreviewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
+          )}
+          {mediaPreviewUrl && mediaPreviewType === 'video' && (
+            <video src={mediaPreviewUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }} />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMediaPreviewOpen(false)} sx={{ textTransform: 'none' }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── Cancel Confirmation Dialog ───────────────────────────── */}
       <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ pb: 1 }}>
@@ -2722,31 +2752,44 @@ const MyOrdersPage = () => {
                               key={`${item.id}-${index}`}
                               sx={{
                                 position: 'relative',
-                                width: 80,
+                                width: 120,
                                 height: 80,
                                 borderRadius: 2,
                                 overflow: 'hidden',
                                 border: `1px solid ${theme.palette.custom.border.light}`,
                               }}
                             >
-                              <img
-                                src={image.preview}
-                                alt={`Evidence ${index + 1}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
+                              <Box
+                                onClick={() => {
+                                  setMediaPreviewUrl(image.preview);
+                                  setMediaPreviewType(image.type === 'video' ? 'video' : 'image');
+                                  setMediaPreviewOpen(true);
+                                }}
+                                sx={{ cursor: 'pointer' }}
+                              >
+                                {image.type === 'video' ? (
+                                  <video src={image.preview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <img
+                                    src={image.preview}
+                                    alt={`Evidence ${index + 1}`}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                )}
+                              </Box>
                               <IconButton
                                 size="small"
                                 onClick={() => handleRemoveImage(item.id, index)}
                                 sx={{
                                   position: 'absolute',
-                                  top: 2,
-                                  right: 2,
-                                  bgcolor: 'rgba(0,0,0,0.6)',
-                                  color: 'white',
-                                  '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                                  top: 6,
+                                  right: 6,
+                                  bgcolor: 'white',
+                                  color: 'black',
+                                  '&:hover': { bgcolor: '#f5f5f5' },
                                 }}
                               >
-                                <Delete sx={{ fontSize: 16 }} />
+                                <Close sx={{ fontSize: 16 }} />
                               </IconButton>
                             </Box>
                           ))}
@@ -2770,7 +2813,7 @@ const MyOrdersPage = () => {
                               <input
                                 type="file"
                                 hidden
-                                accept="image/*"
+                                accept="image/*,video/*"
                                 multiple
                                 onChange={(e) => handleImageUpload(item.id, e)}
                               />
@@ -2778,7 +2821,7 @@ const MyOrdersPage = () => {
                           )}
                         </Box>
                         <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                          Up to 5 images per item. Supported: JPG, PNG
+                          Up to 5 files per item (images or videos). Videos max 25 MB each.
                         </Typography>
                       </Box>
                     </Box>

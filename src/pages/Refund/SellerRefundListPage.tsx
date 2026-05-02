@@ -44,6 +44,8 @@ import {
 } from '@/models/Refund';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { getApiErrorMessage } from '@/utils/api-error';
+import { shopApi } from '@/api/shopApi';
+import type { ShopDetailResponse } from '@/models/Shop';
 
 // Status icon mapping
 const getStatusIcon = (status: ReturnStatus) => {
@@ -90,6 +92,7 @@ const SellerRefundListPage = () => {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<RefundRequest[]>([]);
   const [selectedTab, setSelectedTab] = useState<number>(0);
+  const [shop, setShop] = useState<ShopDetailResponse | null>(null);
   const [counts, setCounts] = useState({
     all: 0,
     pending: 0,
@@ -111,6 +114,7 @@ const SellerRefundListPage = () => {
       setLoading(true);
       const response = await listReturnRequests({
         status: status || undefined,
+        shopId: shop?.id,
         sortBy: 'requestedAt',
         sortDirection: 'DESC',
       });
@@ -134,9 +138,23 @@ const SellerRefundListPage = () => {
   };
 
   useEffect(() => {
-    const currentStatus = statusTabs[selectedTab].value;
-    fetchRequests(currentStatus);
-  }, [selectedTab]);
+    (async () => {
+      try {
+        const shopRes = await shopApi.getMyShops();
+        console.log(shopRes.data);
+        const myShop = shopRes.data?.[0] ?? null;
+        setShop(myShop);
+          if (myShop?.id) {
+            const currentStatus = statusTabs[selectedTab].value;
+            await fetchRequests(currentStatus);
+          }
+        } catch (err) {
+          console.error('Failed to load shop:', err);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }, [selectedTab]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setSelectedTab(newValue);
