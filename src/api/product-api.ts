@@ -621,4 +621,11 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  static async updateProductActivation(id: string, isActive: boolean) {
+    const response = await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.UPDATE_PRODUCT_ACTIVITAION(id, isActive),
+    );
+    return response.data.data;
+  }
 }
