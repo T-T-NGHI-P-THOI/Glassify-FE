@@ -114,6 +114,37 @@ async function enrichShopNamesInCache(items: BeCartItemResponse[]): Promise<void
     saveDisplayCache(cache);
 }
 
+// ==================== Product Details Enrichment ====================
+// For items missing from the display cache (added from another device/platform),
+// fetch product details from the API and populate the cache.
+
+async function enrichProductDetailsInCache(items: BeCartItemResponse[]): Promise<void> {
+    const cache = getDisplayCache();
+    // Enrich items missing from cache OR cached but without a slug (cross-platform items)
+    const toEnrich = items.filter(item => item.productId && (!cache[item.id] || !cache[item.id].productSlug));
+    if (toEnrich.length === 0) return;
+
+    await Promise.all(toEnrich.map(async (item) => {
+        if (!item.productId) return;
+        try {
+            const product = await ProductAPI.getProductById(item.productId);
+            const imageUrl = product.fileResponses?.[0]?.publicUrl ?? product.productImages?.[0];
+            cache[item.id] = {
+                productName: product.name,
+                productSlug: product.slug,
+                productType: product.productType || 'FRAME',
+                shopName: product.shop?.shopName,
+                sku: product.sku,
+                imageUrl,
+            };
+        } catch {
+            // best-effort: leave item with default display values
+        }
+    }));
+
+    saveDisplayCache(cache);
+}
+
 // ==================== Transform BE -> FE ====================
 
 function collectItemIds(items: BeCartItemResponse[]): Set<string> {
@@ -173,7 +204,7 @@ function transformSingleItem(
         product: {
             id: beItem.productId || '',
             product_type: productType as ProductType,
-            name: meta?.productName || 'Product',
+            name: meta?.productName || beItem.lensName || 'Product',
             slug: meta?.productSlug || '',
             description: meta?.description,
             is_active: true,
@@ -196,7 +227,14 @@ function transformSingleItem(
         },
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
-        lens_selection: meta?.lensSelection,
+        lens_selection: meta?.lensSelection ?? (beItem.lensId ? {
+            lensId: beItem.lensId,
+            lensName: beItem.lensName ?? undefined,
+            lensTintId: beItem.lensTintId ?? undefined,
+            lensTintName: beItem.lensTintName ?? undefined,
+            lensTintColor: beItem.lensTintColor ?? undefined,
+            lensFeatureIds: beItem.lensFeatureIds?.length ? beItem.lensFeatureIds : undefined,
+        } : undefined),
         // Prefer live qtyAvailable from BE (real-time inventory); fall back to cached value
         stock_quantity: beItem.qtyAvailable ?? meta?.stockQuantity,
     };
@@ -335,6 +373,7 @@ export interface AddToCartMockParams {
     prescriptionId?: string;
     lensSelection?: LensSelection;
     stockQuantity?: number;
+    createNew?: boolean;
 }
 
 export const CartService = {
@@ -351,6 +390,7 @@ export const CartService = {
             }
 
             currentCartId = beCart.id;
+            await enrichProductDetailsInCache(beCart.items || []);
             await enrichShopNamesInCache(beCart.items || []);
             return transformBeCart(beCart);
         } catch {
@@ -374,6 +414,7 @@ export const CartService = {
             unitPrice: params.unitPrice,
             lineTotal: params.unitPrice,
             isFree: params.isFree,
+            createNew: params.createNew,
             giftNote: params.giftNote,
             itemType: params.itemType,
         };

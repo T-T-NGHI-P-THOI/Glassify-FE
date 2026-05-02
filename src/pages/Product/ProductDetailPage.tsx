@@ -13,6 +13,7 @@ import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup
 import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
+import PrescriptionAPI from '@/api/prescription-api';
 import ProductAPI, {
   type ApiProduct,
   type ApiFrameVariant,
@@ -571,9 +572,43 @@ const ProductDetailPage: React.FC = () => {
 
   const handleLensSelection = async (selection: LensSelection) => {
     if (!product) return;
+  const toNumberOrUndefined = (val: any) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+};
 
     try {
       setSelectedLens(selection);
+
+      let autoPrescriptionId: string | undefined;
+      if (selection.savedPrescriptionId) {
+        // isSaved=true: user picked an existing saved prescription — use its ID directly
+        autoPrescriptionId = selection.savedPrescriptionId;
+        console.log('selection.prescription:', selection.prescription);
+      } else if (selection.prescription) {
+        // isSaved=false: manual entry — auto-create a hidden prescription record
+        try {
+          const rx = selection.prescription;
+          const created = await PrescriptionAPI.createPrescription({
+            isSaved: false,
+            sphR: Number(rx.right_eye.sphere) || 0,
+            cylR: Number(rx.right_eye.cylinder) || 0,
+            axisR: toNumberOrUndefined(rx.right_eye.axis),
+            sphL: Number(rx.left_eye.sphere) || 0,
+            cylL: Number(rx.left_eye.cylinder) || 0,
+            axisL: toNumberOrUndefined(rx.left_eye.axis),
+            pdRight: rx.right_eye.pd ? Number(rx.right_eye.pd) : undefined,
+            pdLeft: rx.left_eye.pd ? Number(rx.left_eye.pd) : undefined,
+            addPower: rx.right_eye.add ? Number(rx.right_eye.add) : undefined,
+            prescriptionDate: new Date().toISOString().split('T')[0],
+          });
+          autoPrescriptionId = created.id;
+        } catch (err) {
+          console.error('[Cart] Failed to auto-create prescription record:', err);
+          throw new Error('Không thể tạo prescription. Vui lòng kiểm tra lại thông tin.');
+        }
+      }
 
       const frameParams = {
         productName: product.name,
@@ -588,6 +623,7 @@ const ProductDetailPage: React.FC = () => {
         shopName: product.shop?.shopName,
         variantId: product.variantId,
         stockQuantity: product.stockQuantity,
+        prescriptionId: autoPrescriptionId,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)

@@ -32,6 +32,7 @@ import {
   type AdminPaymentTransactionResponse,
   type AdminUserWithdrawalResponse,
   type AdminShopWithdrawalResponse,
+  type PlatformRevenueAuditEntry,
 } from '@/api/adminApi';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { Sidebar } from '@/components/sidebar/Sidebar';
@@ -92,6 +93,12 @@ const AdminTransactionsPage = () => {
   const [shopWdTotal, setShopWdTotal] = useState(0);
   const [shopWdLoading, setShopWdLoading] = useState(false);
 
+  // Platform revenue audit
+  const [platformRevenue, setPlatformRevenue] = useState<PlatformRevenueAuditEntry[]>([]);
+  const [platformRevenuePage, setPlatformRevenuePage] = useState(0);
+  const [platformRevenueTotal, setPlatformRevenueTotal] = useState(0);
+  const [platformRevenueLoading, setPlatformRevenueLoading] = useState(false);
+
   // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<{ id: string; type: 'user' | 'shop' } | null>(null);
@@ -149,6 +156,15 @@ const AdminTransactionsPage = () => {
     }
   }, [tab, shopWdPage]);
 
+  useEffect(() => {
+    if (tab === 5) {
+      setPlatformRevenueLoading(true);
+      adminApi.getPlatformRevenueAudit(platformRevenuePage, PAGE_SIZE).then(r => {
+        if (r.data) { setPlatformRevenue(r.data.content); setPlatformRevenueTotal(r.data.totalElements); }
+      }).finally(() => setPlatformRevenueLoading(false));
+    }
+  }, [tab, platformRevenuePage]);
+
   const handleApprove = async (id: string, type: 'user' | 'shop') => {
     try {
       setActionLoading(true);
@@ -203,6 +219,7 @@ const AdminTransactionsPage = () => {
     { label: 'Total Refunds', value: formatCurrency(summary.totalRefunds), color: '#ff9800' },
     { label: 'Shop Withdrawals', value: formatCurrency(summary.totalShopWithdrawals), color: '#9c27b0' },
     { label: 'User Withdrawals', value: formatCurrency(summary.totalUserWithdrawals), color: '#f44336' },
+    { label: 'Platform Revenue', value: formatCurrency(summary.totalPlatformRevenue), color: '#00897b' },
     { label: 'Pending Shop', value: `${summary.pendingShopWithdrawals} requests`, color: '#ff5722' },
     { label: 'Pending User', value: `${summary.pendingUserWithdrawals} requests`, color: '#e91e63' },
   ] : [];
@@ -241,6 +258,7 @@ const AdminTransactionsPage = () => {
             <Tab label="VNPay Payments" />
             <Tab label="User Withdrawals" />
             <Tab label="Shop Withdrawals" />
+            <Tab label="Platform Revenue" sx={{ color: '#00897b', '&.Mui-selected': { color: '#00897b' } }} />
           </Tabs>
 
           {/* Tab 0: User Transactions */}
@@ -493,6 +511,72 @@ const AdminTransactionsPage = () => {
                   rowsPerPage={PAGE_SIZE}
                   rowsPerPageOptions={[PAGE_SIZE]}
                   onPageChange={(_, p) => setShopWdPage(p)}
+                />
+              </>
+            )
+          )}
+          {/* Tab 5: Platform Revenue Audit */}
+          {tab === 5 && (
+            platformRevenueLoading ? <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box> : (
+              <>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#fafafa' }}>
+                        {['Entry Type', 'Commission Earned', 'Reference', 'Description', 'Date'].map(h => (
+                          <TableCell key={h} sx={{ fontWeight: 600, fontSize: 12, color: '#888' }}>{h}</TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {platformRevenue.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4, color: '#aaa', fontSize: 13 }}>
+                            No revenue entries yet
+                          </TableCell>
+                        </TableRow>
+                      ) : platformRevenue.map(entry => (
+                        <TableRow key={entry.id} hover>
+                          <TableCell>
+                            <Chip
+                              label={entry.entryType.replace(/_/g, ' ')}
+                              size="small"
+                              sx={{ fontSize: 10, bgcolor: '#e0f2f1', color: '#00695c', fontWeight: 600 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: entry.amount >= 0 ? '#00897b' : '#d32f2f' }}>
+                              {entry.amount >= 0 ? '+' : ''}{formatCurrency(entry.amount)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {entry.referenceType ? (
+                              <Box>
+                                <Typography sx={{ fontSize: 11, color: '#888' }}>{entry.referenceType}</Typography>
+                                <Typography sx={{ fontSize: 11, fontFamily: 'monospace', color: '#555' }}>
+                                  {entry.referenceId?.slice(0, 8)}…
+                                </Typography>
+                              </Box>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 12, color: '#555', maxWidth: 320 }}>
+                            {entry.description || '—'}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' }}>
+                            {formatDate(entry.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  component="div"
+                  count={platformRevenueTotal}
+                  page={platformRevenuePage}
+                  rowsPerPage={PAGE_SIZE}
+                  rowsPerPageOptions={[PAGE_SIZE]}
+                  onPageChange={(_, p) => setPlatformRevenuePage(p)}
                 />
               </>
             )

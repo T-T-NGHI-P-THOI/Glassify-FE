@@ -114,7 +114,7 @@ const FrameProductPage = () => {
   const paginated = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const totalGroups = frameGroups.length;
-  const activeCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.isActive ?? true)).length;
+  const activeCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.productResponse.isActive ?? true)).length;
   const inStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.some((v) => v.stock > LOW_STOCK_THRESHOLD)).length;
   const outOfStockCount = frameGroups.filter((fg) => fg.frameVariantResponses.length > 0 && fg.frameVariantResponses.every((v) => v.stock === 0)).length;
   const noVariantCount = frameGroups.filter((fg) => fg.frameVariantResponses.length === 0).length;

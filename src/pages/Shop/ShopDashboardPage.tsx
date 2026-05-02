@@ -67,7 +67,7 @@ import { shopApi } from '@/api/shopApi';
 import type { MonthlyRevenueItem, SalesByCategoryItem, ShopAnalyticsSummary } from '@/api/shopApi';
 import { ghnApi } from '@/api/ghnApi';
 import { useAuth } from '@/hooks/useAuth';
-import type { ShopDetailResponse, ShopStatus, ShopTier } from '@/models/Shop';
+import type { ShopDetailResponse, ShopStatus } from '@/models/Shop';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 
 const ShopDashboardPage = () => {
@@ -199,32 +199,6 @@ const ShopDashboardPage = () => {
     }
   };
 
-  const getTierColor = (tier: ShopTier) => {
-    switch (tier) {
-      case 'PLATINUM':
-        return {
-          bg: theme.palette.custom.status.purple.light,
-          color: theme.palette.custom.status.purple.main,
-        };
-      case 'GOLD':
-        return {
-          bg: theme.palette.custom.status.warning.light,
-          color: theme.palette.custom.status.warning.main,
-        };
-      case 'SILVER':
-        return {
-          bg: theme.palette.custom.status.info.light,
-          color: theme.palette.custom.status.info.main,
-        };
-      case 'BRONZE':
-      default:
-        return {
-          bg: theme.palette.custom.neutral[100],
-          color: theme.palette.custom.neutral[600],
-        };
-    }
-  };
-
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -328,7 +302,6 @@ const ShopDashboardPage = () => {
   const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899'];
 
   const statusStyle = getStatusColor(shop.status);
-  const tierStyle = getTierColor(shop.tier);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -748,16 +721,6 @@ const ShopDashboardPage = () => {
                         fontSize: 12,
                       }}
                     />
-                    <Chip
-                      label={shop.tier}
-                      size="small"
-                      sx={{
-                        bgcolor: tierStyle.bg,
-                        color: tierStyle.color,
-                        fontWeight: 600,
-                        fontSize: 12,
-                      }}
-                    />
                     {shop.isVerified && (
                       <Chip
                         label="Verified"
@@ -950,7 +913,6 @@ const ShopDashboardPage = () => {
         onClose={() => setDetailDialogOpen(false)}
         shop={shop}
         getStatusColor={getStatusColor}
-        getTierColor={getTierColor}
         formatDate={formatDate}
         ghnNames={ghnNames}
       />
@@ -964,7 +926,6 @@ interface ShopDetailDialogProps {
   onClose: () => void;
   shop: ShopDetailResponse;
   getStatusColor: (status: ShopStatus) => { bg: string; color: string };
-  getTierColor: (tier: ShopTier) => { bg: string; color: string };
   formatDate: (dateString: string | null | undefined) => string;
   ghnNames: { province: string; district: string; ward: string };
 }
@@ -974,13 +935,11 @@ const ShopDetailDialog = ({
   onClose,
   shop,
   getStatusColor,
-  getTierColor,
   formatDate,
   ghnNames,
 }: ShopDetailDialogProps) => {
   const theme = useTheme();
   const statusStyle = getStatusColor(shop.status);
-  const tierStyle = getTierColor(shop.tier);
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
     <Box sx={{ mb: 2 }}>
@@ -1019,11 +978,6 @@ const ShopDetailDialog = ({
                 label={shop.status}
                 size="small"
                 sx={{ bgcolor: statusStyle.bg, color: statusStyle.color, fontWeight: 600, fontSize: 11 }}
-              />
-              <Chip
-                label={shop.tier}
-                size="small"
-                sx={{ bgcolor: tierStyle.bg, color: tierStyle.color, fontWeight: 600, fontSize: 11 }}
               />
               <Chip
                 label={shop.shopCode}
@@ -1226,18 +1180,6 @@ const ShopDetailDialog = ({
                     label={shop.status}
                     size="small"
                     sx={{ bgcolor: statusStyle.bg, color: statusStyle.color, fontWeight: 600, fontSize: 12 }}
-                  />
-                </Box>
-              </Grid>
-              <Grid size={{ xs: 6, sm: 3 }}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>
-                    Tier
-                  </Typography>
-                  <Chip
-                    label={shop.tier}
-                    size="small"
-                    sx={{ bgcolor: tierStyle.bg, color: tierStyle.color, fontWeight: 600, fontSize: 12 }}
                   />
                 </Box>
               </Grid>

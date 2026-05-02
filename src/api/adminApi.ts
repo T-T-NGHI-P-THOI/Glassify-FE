@@ -68,6 +68,7 @@ export interface AdminOrderResponse {
   refundRequestedAt?: string;
   refundStatus?: string;
   items: AdminOrderItem[];
+  shopOrders?: AdminShopOrderSummary[];
   actualShippingFee?: number;
   platformShippingSubsidy?: number;
   grandTotal?: number;
@@ -82,6 +83,16 @@ export interface AdminOrderItem {
   unitPrice: number;
   totalPrice: number;
   itemType: string;
+}
+
+export interface AdminShopOrderSummary {
+  id: string;
+  shopOrderNumber: string;
+  shopId?: string;
+  shopName?: string;
+  shopLogoUrl?: string;
+  status: string;
+  cancelReason?: string;
 }
 
 export interface AdminRefundResponse {
@@ -188,6 +199,34 @@ export interface AdminWalletSummary {
   totalUserWithdrawals: number;
   pendingShopWithdrawals: number;
   pendingUserWithdrawals: number;
+  totalPlatformRevenue: number;
+}
+
+export interface CommissionTierResponse {
+  id: string;
+  tier: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+  commissionRate: number;
+  minMonthlyOrders: number;
+  minMonthlyRevenue: number;
+}
+
+export interface UpdateCommissionTierRequest {
+  commissionRate: number;
+  minMonthlyOrders?: number;
+  minMonthlyRevenue?: number;
+}
+
+export interface PlatformRevenueAuditEntry {
+  id: string;
+  entryType: string;
+  actorType: string;
+  actorId: string;
+  amount: number;
+  referenceType?: string;
+  referenceId?: string;
+  relatedEntryId?: string;
+  description?: string;
+  createdAt: string;
 }
 
 export interface AdminUserTransactionResponse {
@@ -370,6 +409,14 @@ export const adminApi = {
   getShopById: async (shopId: string): Promise<ApiResponse<ShopDetailResponse>> => {
     const response = await axiosInstance.get<ApiResponse<ShopDetailResponse>>(
       API_ENDPOINTS.SHOPS.GET_BY_ID(shopId),
+    );
+    return response.data;
+  },
+
+  assignShopCommissionTier: async (shopId: string, tier: string): Promise<ApiResponse<ShopDetailResponse>> => {
+    const response = await axiosInstance.put<ApiResponse<ShopDetailResponse>>(
+      API_ENDPOINTS.ADMIN.SHOPS.ASSIGN_COMMISSION_TIER(shopId),
+      { tier },
     );
     return response.data;
   },
@@ -585,6 +632,29 @@ export const adminApi = {
     const response = await axiosInstance.put<ApiResponse<AdminShopWithdrawalResponse>>(
       API_ENDPOINTS.ADMIN.WALLET.REJECT_SHOP_WITHDRAWAL(id),
       { reason },
+    );
+    return response.data;
+  },
+
+  getPlatformRevenueAudit: async (page = 0, size = 20): Promise<ApiResponse<PageResponse<PlatformRevenueAuditEntry>>> => {
+    const response = await axiosInstance.get<ApiResponse<PageResponse<PlatformRevenueAuditEntry>>>(
+      API_ENDPOINTS.ADMIN.WALLET.PLATFORM_REVENUE,
+      { params: { page, size } },
+    );
+    return response.data;
+  },
+
+  getCommissionTiers: async (): Promise<ApiResponse<CommissionTierResponse[]>> => {
+    const response = await axiosInstance.get<ApiResponse<CommissionTierResponse[]>>(
+      API_ENDPOINTS.ADMIN.COMMISSION_TIERS.LIST,
+    );
+    return response.data;
+  },
+
+  updateCommissionTier: async (tier: string, data: UpdateCommissionTierRequest): Promise<ApiResponse<CommissionTierResponse>> => {
+    const response = await axiosInstance.put<ApiResponse<CommissionTierResponse>>(
+      API_ENDPOINTS.ADMIN.COMMISSION_TIERS.UPDATE(tier),
+      data,
     );
     return response.data;
   },

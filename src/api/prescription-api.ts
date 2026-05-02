@@ -91,4 +91,23 @@ export default class PrescriptionAPI {
       throw error;
     }
   }
+
+  /**
+   * Upload and scan a prescription image using Gemini-backed endpoint
+   */
+  static async scanPrescription(file: File): Promise<Prescription> {
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const response = await api.post<SinglePrescriptionApiResponse>(API_ENDPOINTS.PRESCRIPTIONS.SCAN, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      return response.data.data;
+    } catch (error) {
+      console.error('Error scanning prescription image:', error);
+      throw error;
+    }
+  }
 }
