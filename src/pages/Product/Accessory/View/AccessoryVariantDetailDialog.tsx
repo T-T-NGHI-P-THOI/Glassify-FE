@@ -250,7 +250,7 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                                         }}
                                     >
                                         <Box component="img" src={variant.productResponse!.productImages[0]}
-                                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                         <Box className="overlay" sx={{
                                             position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)',
                                             opacity: 0, transition: 'opacity 0.2s',
@@ -269,7 +269,7 @@ export default function AccessoryVariantDetailDialog({ open, onClose, variant }:
                                                         position: 'relative', '&:hover .overlay': { opacity: 1 },
                                                     }}
                                                 >
-                                                    <Box component="img" src={img} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <Box component="img" src={img} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                                     <Box className="overlay" sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.3)', opacity: 0, transition: 'opacity 0.2s' }} />
                                                 </Box>
                                             ))}

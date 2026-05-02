@@ -608,7 +608,7 @@ const AccessoryCard = ({
                         src={images[imgIndex]}
                         alt={accessory.name}
                         sx={{
-                            width: '100%', height: '100%', objectFit: 'cover',
+                            width: '100%', height: '100%', objectFit: 'contain',
                             transition: 'transform 0.25s',
                             '&:hover': { transform: 'scale(1.05)' },
                         }}

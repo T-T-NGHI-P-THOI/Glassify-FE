@@ -11,6 +11,8 @@ import {
     VerifiedUser, Schedule,
     Inventory2, ViewInAr, Collections,
     Star,
+    InfoOutlined,
+    WarningAmberOutlined,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
@@ -30,6 +32,8 @@ import type {
 } from '@/types/verifications';
 import { REJECT_REASONS } from '@/types/verifications';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
+import RejectionPopover from '@/components/ProductVerification/RejectionPopover';
+import RejectionDialog from '@/components/ProductVerification/RejectionPopover';
 
 // ─── Styled chips ─────────────────────────────────────────────────────────────
 
@@ -273,7 +277,7 @@ function ProductDetailDialog({
                             {item.productImages?.length > 0 ? (
                                 <Box component="img"
                                     src={item.productImages[imgIdx]}
-                                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                 />
                             ) : (
                                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -305,7 +309,7 @@ function ProductDetailDialog({
                                         sx={{
                                             width: 56,
                                             height: 44,
-                                            objectFit: 'cover',
+                                            objectFit: 'contain',
                                             borderRadius: 1.5,
                                             cursor: 'pointer',
                                             border: i === imgIdx
@@ -603,6 +607,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
     const [shopOpen, setShopOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
     const [verifyOpen, setVerifyOpen] = useState(false);
+    const [reasonOpen, setReasonOpen] = useState(false);
 
     const frame = isFrame(item);
     const thumb = item.productImages[0] ?? null;
@@ -617,7 +622,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                 elevation={0}
                 sx={{
                     border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2.5,
+                    borderRadius: 1.5,
                     overflow: 'hidden',
                     transition: 'box-shadow 0.15s, border-color 0.15s',
                     '&:hover': { boxShadow: '0 4px 20px rgba(0,0,0,0.07)', borderColor: '#CBD5E1' },
@@ -634,7 +639,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                 {/* Thumbnail */}
                 <Box sx={{ width: 96, flexShrink: 0, bgcolor: '#F1F5F9', position: 'relative', overflow: 'hidden' }}>
                     {thumb ? (
-                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 88 }} />
+                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'contain', minHeight: 88 }} />
                     ) : (
                         <Box sx={{ height: '100%', minHeight: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Inventory2 sx={{ fontSize: 28, color: '#CBD5E1' }} />
@@ -742,6 +747,25 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                                 </Button>
                             </Tooltip>
                         )}
+
+                        {item.status === 'REJECTED' && (
+                            <Tooltip title="View rejection reason">
+                                <IconButton
+                                    size="small"
+                                    onClick={() => setReasonOpen(true)}
+                                    sx={{
+                                        bgcolor: '#FEF2F2',
+                                        color: '#DC2626',
+                                        '&:hover': { bgcolor: '#FEE2E2' },
+                                        borderRadius: 1.5,
+                                        width: 32,
+                                        height: 32
+                                    }}
+                                >
+                                    <WarningAmberOutlined sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Box>
                 </Box>
             </Paper>
@@ -755,6 +779,12 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                 item={item}
                 onVerify={onVerify}
                 isVerifying={isVerifying}
+            />
+            <RejectionDialog
+                open={reasonOpen}
+                onClose={() => setReasonOpen(false)}
+                reason={item.rejectionReason}
+                note={item.rejectionNote}
             />
         </>
     );
