@@ -644,28 +644,32 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                     setImages(selectedFeaturedVariant?.productResponse.productImages ?? []);
                 }}
             />
-            <SetActiveDialog
-                open={activeOpen}
-                variant={selectedActiveVariant}
-                onClose={() => {
-                    setActiveOpen(false);
-                    setSelectedActiveVariant(null);
-                }}
-                onSuccess={(newActiveState) => {
-                    setFrameGroups(prev =>
-                        prev.map(group => ({
-                            ...group,
-                            frameVariantResponses: group.frameVariantResponses.map(v => ({
-                                ...v,
-                                productResponse: {
-                                    ...v.productResponse,
-                                    isActive: newActiveState
-                                }
+            {selectedActiveVariant && (
+                <SetActiveDialog
+                    open={activeOpen}
+                    name={`${selectedActiveVariant?.colorName} - ${selectedActiveVariant?.size}`}
+                    productId={selectedActiveVariant?.productResponse.id}
+                    isCurrentlyActive={selectedActiveVariant.productResponse.isActive}
+                    onClose={() => {
+                        setActiveOpen(false);
+                        setSelectedActiveVariant(null);
+                    }}
+                    onSuccess={(newActiveState) => {
+                        setFrameGroups(prev =>
+                            prev.map(group => ({
+                                ...group,
+                                frameVariantResponses: group.frameVariantResponses.map(v => ({
+                                    ...v,
+                                    productResponse: {
+                                        ...v.productResponse,
+                                        isActive: newActiveState
+                                    }
+                                }))
                             }))
-                        }))
-                    );
-                }}
-            />
+                        );
+                    }}
+                />
+            )}
         </>
     );
 };

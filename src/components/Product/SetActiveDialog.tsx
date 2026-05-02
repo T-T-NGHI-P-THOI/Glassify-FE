@@ -8,21 +8,21 @@ import { toast } from 'react-toastify';
 
 interface SetActiveDialogProps {
     open: boolean;
-    variant: FrameVariantResponse | null;
+    name: string;
+    productId: string;
+    isCurrentlyActive: boolean;
     onClose: () => void;
     onSuccess: (newActiveState: boolean) => void;
 }
 
-const SetActiveDialog = ({ open, variant, onClose, onSuccess }: SetActiveDialogProps) => {
+const SetActiveDialog = ({ open, name, productId, isCurrentlyActive, onClose, onSuccess }: SetActiveDialogProps) => {
     const [loading, setLoading] = useState(false);
-    const isCurrentlyActive = variant?.productResponse.isActive === true;
 
     const handleConfirm = async () => {
-        if (!variant) return;
         setLoading(true);
         try {
             // Call your API here, e.g.:
-            await ProductAPI.updateProductActivation(variant.productId!, !isCurrentlyActive);
+            await ProductAPI.updateProductActivation(productId, !isCurrentlyActive);
             onSuccess(!isCurrentlyActive);
             onClose();
         } catch (err: any) {
@@ -46,8 +46,8 @@ const SetActiveDialog = ({ open, variant, onClose, onSuccess }: SetActiveDialogP
                     }
                     <Typography fontSize={13} color="text.secondary">
                         {isCurrentlyActive
-                            ? <>Are you sure you want to <strong>deactivate</strong> <strong>{variant?.colorName}</strong> ({variant?.size})? It will be hidden from customers.</>
-                            : <>Are you sure you want to <strong>activate</strong> <strong>{variant?.colorName}</strong> ({variant?.size})? It will become visible to customers.</>
+                            ? <>Are you sure you want to <strong>deactivate</strong> <strong>{name}</strong>? It will be hidden from customers.</>
+                            : <>Are you sure you want to <strong>activate</strong> <strong>{name}</strong>? It will become visible to customers.</>
                         }
                     </Typography>
                 </Box>
