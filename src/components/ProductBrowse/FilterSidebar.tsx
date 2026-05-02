@@ -355,9 +355,13 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({
     if (activeFilters.brandIds?.length) count += activeFilters.brandIds.length;
     if (activeFilters.categoryNames?.length) count += activeFilters.categoryNames.length;
     if (activeFilters.shopCities?.length) count += activeFilters.shopCities.length;
+    if (activeFilters.productType !== undefined) count++;
+    if (activeFilters.frameShapes?.length) count += activeFilters.frameShapes.length;
+    if (activeFilters.colors?.length) count += activeFilters.colors.length;
     if (activeFilters.ageGroups?.length) count += activeFilters.ageGroups.length;
     if (activeFilters.priceMin !== undefined || activeFilters.priceMax !== undefined) count++;
-    if (activeFilters.minRating) count++;
+    // count minRating even when it's 0
+    if (activeFilters.minRating !== undefined) count++;
     if (activeFilters.isFeatured) count++;
     if (activeFilters.isReturnable) count++;
     if (activeFilters.inStock) count++;
