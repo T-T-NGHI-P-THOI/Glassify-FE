@@ -128,6 +128,27 @@ export const proposeRefund = async (
   return response.data;
 };
 
+// Customer response to shop proposal
+export const acceptProposal = async (
+  requestId: string
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/proposal/accept`
+  );
+  return response.data;
+};
+
+export const rejectProposal = async (
+  requestId: string,
+  data?: { reason?: string }
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/proposal/reject`,
+    data ?? {}
+  );
+  return response.data;
+};
+
 export const submitShopAppeal = async (
   requestId: string,
   data: SubmitShopAppealDto

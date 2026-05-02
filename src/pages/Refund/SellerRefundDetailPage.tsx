@@ -92,6 +92,28 @@ const getDisplayStatusLabel = (status: ReturnStatus | string): string => {
   return RETURN_STATUS_LABELS[status as ReturnStatus] ?? String(status);
 };
 
+const humanizeProposalText = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((item) => humanizeProposalText(item)).join(', ')
+      : '—';
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  return String(value);
+};
+
 const getAppealStatusColor = (
   status: ShopAppealStatus | undefined
 ): 'default' | 'warning' | 'success' | 'error' => {
@@ -1164,7 +1186,7 @@ const SellerRefundDetailPage = () => {
               <Stack spacing={1}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">Proposal Status</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{request.proposalStatus ?? '—'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{humanizeProposalText(request.proposalStatus)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">Chosen Option</Typography>
@@ -1180,7 +1202,7 @@ const SellerRefundDetailPage = () => {
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">Admin Note</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{request.proposalAdminNote ?? '—'}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{humanizeProposalText(request.proposalReason)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                   <Typography variant="body2" color="text.secondary">Submitted At</Typography>
@@ -1192,12 +1214,6 @@ const SellerRefundDetailPage = () => {
                   <Typography variant="body2" color="text.secondary">Last Updated</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     {request.proposalUpdatedAt ? formatDate(request.proposalUpdatedAt) : '—'}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                  <Typography variant="body2" color="text.secondary">Proposed Actions</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {request.proposedActions ? JSON.stringify(request.proposedActions) : '—'}
                   </Typography>
                 </Box>
               </Stack>

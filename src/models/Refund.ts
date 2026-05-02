@@ -122,10 +122,9 @@ export interface RefundRequest {
   shopCompensatedAt?: string;
   proposalStatus?: string;
   proposedPartialAmount?: number;
-  proposalAdminNote?: string;
+  proposalReason?: string;
   proposalCreatedAt?: string;
   proposalUpdatedAt?: string;
-  proposedActions?: string[];
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;

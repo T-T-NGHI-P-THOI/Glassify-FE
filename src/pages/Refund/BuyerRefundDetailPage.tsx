@@ -43,6 +43,8 @@ import {
   getReturnRequestDetail,
   updateReturnTracking,
   cancelReturnRequest,
+  acceptProposal,
+  rejectProposal,
 } from '@/api/refund-api';
 import type {
   RefundRequest,
@@ -93,16 +95,56 @@ const getStatusSteps = (request: RefundRequest) => {
     { label: 'Request Submitted', statuses: [ReturnStatus.REQUESTED] },
     { label: 'Approved by Glassify', statuses: [ReturnStatus.APPROVED] },
     { label: 'Returning Item', statuses: [ReturnStatus.RETURN_SHIPPING] },
+    { label: 'Item Returned', statuses: [ReturnStatus.RETURN_DELIVERED] },
     { label: 'Seller Received Item', statuses: [ReturnStatus.ITEM_RECEIVED] },
-    { label: 'Return Ready', statuses: [ReturnStatus.RETURN_READY_TO_PICK] },
-    { label: 'Return Delivered', statuses: [ReturnStatus.RETURN_DELIVERED] },
     { label: 'Refund Completed', statuses: [ReturnStatus.COMPLETED] },
   ] satisfies RefundStep[];
 };
 
 const getActiveStep = (currentStatus: ReturnStatus, steps: RefundStep[]) => {
-  const index = steps.findIndex((step) => step.statuses.includes(currentStatus));
+  const normalizedStatus =
+    currentStatus === ReturnStatus.RETURN_READY_TO_PICK
+      ? ReturnStatus.RETURN_SHIPPING
+      : currentStatus;
+
+  const index = steps.findIndex((step) => step.statuses.includes(normalizedStatus));
   return index >= 0 ? index : 0;
+};
+
+const toTitleCase = (value: string): string =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+const humanizeSingleText = (value: string): string => {
+  const normalized = value
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim();
+
+  return normalized ? toTitleCase(normalized) : '—';
+};
+
+const humanizeApiText = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value
+          .map((item) => (typeof item === 'string' ? humanizeSingleText(item) : String(item)))
+          .join(', ')
+      : '—';
+  }
+
+  if (typeof value === 'string') {
+    return humanizeSingleText(value);
+  }
+
+  return String(value);
 };
 
 const BuyerRefundDetailPage = () => {
@@ -117,6 +159,9 @@ const BuyerRefundDetailPage = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [proposalResponding, setProposalResponding] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const fetchRequestDetail = async () => {
     if (!requestId) return;
@@ -216,12 +261,17 @@ const BuyerRefundDetailPage = () => {
   const resolvedAdminDecision = request.adminDecision;
   const isDirectRefundDecision =
     resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
+  const hasExistingProposal = !!request.proposalStatus && request.proposalStatus !== 'NONE';
+  const isReturnAndRefundDecision = request.adminDecision === RefundReviewDecision.RETURN_AND_REFUND;
   const canCancel = request.status === ReturnStatus.REQUESTED;
   const isApproved = request.status === ReturnStatus.APPROVED;
   const waitingForAdminReview =
     request.status === ReturnStatus.REQUESTED;
   const canUpdateTracking = isApproved && !request.returnTrackingNumber && !isDirectRefundDecision;
   const evidenceFiles = request.evidenceImages || [];
+
+  const hasExistingProposalLocal = !!request.proposalStatus && request.proposalStatus !== 'NONE';
+  const canRespondProposal = hasExistingProposalLocal && request.proposalStatus === 'PROPOSED';
 
   const isVideoFile = (url: string) => {
     const lowerUrl = url.toLowerCase();
@@ -232,7 +282,7 @@ const BuyerRefundDetailPage = () => {
 
   const isImageFile = (url: string) => {
     const lowerUrl = url.toLowerCase();
-    return /\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(lowerUrl)
+    return /\.(jpg|jpeg|png|webp|bmp|)(\?|#|$)/i.test(lowerUrl)
       || lowerUrl.includes('/image/')
       || lowerUrl.includes('resource_type/image');
   };
@@ -351,6 +401,162 @@ const BuyerRefundDetailPage = () => {
           )}
         </Alert>
       )}
+
+      {isReturnAndRefundDecision && hasExistingProposal && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Shop proposal received
+          </Typography>
+          <Typography variant="body2">
+            The shop proposed a refund option for this return-and-refund request. Please review the details below and choose whether to accept or reject the proposal.
+          </Typography>
+        </Alert>
+      )}
+
+      {hasExistingProposal && (
+        <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }} variant="outlined">
+          <Typography variant="h6" gutterBottom>
+            Proposal Details
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Proposal Status
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {humanizeApiText(request.proposalStatus)}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Proposed Amount
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {typeof request.proposedPartialAmount === 'number'
+                  ? formatCurrency(request.proposedPartialAmount)
+                  : '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Proposal Reason
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {humanizeApiText(request.proposalReason)}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Created At
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {request.proposalCreatedAt ? formatDate(request.proposalCreatedAt) : '—'}
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Typography variant="body2" color="text.secondary">
+                Last Updated
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {request.proposalUpdatedAt ? formatDate(request.proposalUpdatedAt) : '—'}
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 2.5 }} />
+          <Stack spacing={1.5}>
+            {canRespondProposal ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <Typography variant="body2" color="text.secondary">
+              Review this proposal carefully. If you accept it, the refund will proceed with the proposed amount. If you reject it, the request will need a different resolution.
+            </Typography>
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={proposalResponding}
+                  onClick={async () => {
+                    if (!requestId) return;
+                    try {
+                      setProposalResponding(true);
+                      await acceptProposal(requestId);
+                      toast.success('Proposal accepted. Refund will be processed to your wallet.');
+                      fetchRequestDetail();
+                    } catch (err: any) {
+                      console.error('Accept proposal failed', err);
+                      toast.error(getApiErrorMessage(err, 'Failed to accept proposal'));
+                    } finally {
+                      setProposalResponding(false);
+                    }
+                  }}
+                >
+                  {proposalResponding ? <CircularProgress size={18} color="inherit" /> : 'Accept Proposal'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  disabled={proposalResponding}
+                  onClick={() => setRejectDialogOpen(true)}
+                >
+                  Reject Proposal
+                </Button>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {request.proposalStatus === 'ACCEPTED'
+                  ? 'Proposal has been accepted.'
+                  : request.proposalStatus === 'REJECTED'
+                  ? 'Proposal has been rejected.'
+                  : 'No action available for this proposal.'}
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Reject proposal dialog */}
+      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Proposal</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Optionally provide a reason for rejecting the proposal. The return request will proceed with the original return-and-refund flow.
+          </Typography>
+          <TextField
+            label="Reason (optional)"
+            fullWidth
+            multiline
+            rows={3}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectDialogOpen(false)} disabled={proposalResponding}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={proposalResponding}
+            onClick={async () => {
+              if (!requestId) return;
+              try {
+                setProposalResponding(true);
+                await rejectProposal(requestId, { reason: rejectReason.trim() || undefined });
+                toast.success('Proposal rejected. Please follow return instructions to ship the item back.');
+                setRejectDialogOpen(false);
+                setRejectReason('');
+                fetchRequestDetail();
+              } catch (err: any) {
+                console.error('Reject proposal failed', err);
+                toast.error(getApiErrorMessage(err, 'Failed to reject proposal'));
+              } finally {
+                setProposalResponding(false);
+              }
+            }}
+          >
+            {proposalResponding ? <CircularProgress size={18} color="inherit" /> : 'Confirm Reject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Grid container spacing={3}>
         {/* Product information */}
