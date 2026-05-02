@@ -862,6 +862,16 @@ const MyOrdersPage = () => {
     if (!files) return;
 
     Array.from(files).forEach((file) => {
+      if (file.type?.toLowerCase() === 'image/gif' || file.name.toLowerCase().endsWith('.gif')) {
+        toast.error(`${file.name} is not supported. Please use JPG, PNG, WEBP, or video files.`);
+        return;
+      }
+
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        toast.error(`${file.name} is not a valid image/video file`);
+        return;
+      }
+
       // validate video size if video
       if (file.type.startsWith('video/')) {
         const maxBytes = 25 * 1024 * 1024;
@@ -2813,7 +2823,7 @@ const MyOrdersPage = () => {
                               <input
                                 type="file"
                                 hidden
-                                accept="image/*,video/*"
+                                accept="image/png,image/jpeg,image/jpg,image/webp,video/*"
                                 multiple
                                 onChange={(e) => handleImageUpload(item.id, e)}
                               />
@@ -2821,7 +2831,7 @@ const MyOrdersPage = () => {
                           )}
                         </Box>
                         <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                          Up to 5 files per item (images or videos). Videos max 25 MB each.
+                          Up to 5 files per item (JPG/PNG/WEBP images or videos). GIF is not supported. Videos max 25 MB each.
                         </Typography>
                       </Box>
                     </Box>

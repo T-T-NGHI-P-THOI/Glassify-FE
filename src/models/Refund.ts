@@ -120,6 +120,12 @@ export interface RefundRequest {
   adminAppealReviewNote?: string;
   shopCompensationAmount?: number;
   shopCompensatedAt?: string;
+  proposalStatus?: string;
+  proposedPartialAmount?: number;
+  proposalAdminNote?: string;
+  proposalCreatedAt?: string;
+  proposalUpdatedAt?: string;
+  proposedActions?: string[];
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
@@ -183,6 +189,11 @@ export interface ConfirmItemReceivedDto {
 export interface ProcessRefundDto {
   refundType: RefundProcessType;
   partialAmount?: number;
+}
+
+export interface ProposeRefundDto {
+  proposedAmount: number;
+  reason?: string;
 }
 
 export interface SubmitShopAppealDto {
