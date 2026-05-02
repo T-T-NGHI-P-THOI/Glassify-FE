@@ -585,10 +585,10 @@ const LensDetailPage = () => {
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Cost Price</Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.costPrice === 'number' ? formatCurrency(lensDetail.costPrice) : '-'}</Typography>
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                {/* <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Compare At Price</Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.compareAtPrice === 'number' ? formatCurrency(lensDetail.compareAtPrice) : '-'}</Typography>
-                </Grid>
+                </Grid> */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>Stock Quantity</Typography>
                   <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{typeof lensDetail?.stockQuantity === 'number' ? lensDetail.stockQuantity : '-'}</Typography>
