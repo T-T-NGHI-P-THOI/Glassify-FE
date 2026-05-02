@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
     CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
 
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    UPDATE_PRODUCT_ACTIVITAION: (id: string, isActive: boolean) => `${API_ENDPOINT}/product/${id}/activate/${isActive}`,
     SET_FEATURE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/feature/${id}`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     DELETE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
