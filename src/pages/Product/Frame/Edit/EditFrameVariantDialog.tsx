@@ -904,7 +904,7 @@ const EditFrameVariantDialog = ({
                         <Box
                             component="img"
                             src={displayTexture.src}
-                            sx={{ width: 48, height: 48, borderRadius: 1, objectFit: 'cover', flexShrink: 0, border: `1px solid ${theme.palette.custom.border.light}` }}
+                            sx={{ width: 48, height: 48, borderRadius: 1, objectFit: 'contain', flexShrink: 0, border: `1px solid ${theme.palette.custom.border.light}` }}
                         />
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -958,7 +958,7 @@ const EditFrameVariantDialog = ({
                                 display: 'flex', alignItems: 'center', gap: 1,
                                 bgcolor: 'rgba(0,0,0,0.5)', borderRadius: 1, px: 1.5, py: 0.5, pointerEvents: 'none',
                             }}>
-                                <Box component="img" src={displayTexture.src} sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }} />
+                                <Box component="img" src={displayTexture.src} sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'contain' }} />
                                 <Typography sx={{ fontSize: 11, color: '#fff' }}>{displayTexture.label}</Typography>
                             </Box>
                         )}

@@ -11,6 +11,7 @@ import {
     VerifiedUser, Schedule,
     Inventory2, ViewInAr, Collections,
     Star,
+    WarningAmberOutlined,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
@@ -33,6 +34,7 @@ import ProductAPI from '@/api/product-api';
 import { shopApi } from '@/api/shopApi';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useAuth } from '@/hooks/useAuth';
+import RejectionDialog from '@/components/ProductVerification/RejectionPopover';
 
 // ─── Styled chips ─────────────────────────────────────────────────────────────
 
@@ -154,7 +156,7 @@ function ProductDetailDialog({
                             {item.productImages?.length > 0 ? (
                                 <Box component="img"
                                     src={item.productImages[imgIdx]}
-                                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                 />
                             ) : (
                                 <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -186,7 +188,7 @@ function ProductDetailDialog({
                                         sx={{
                                             width: 56,
                                             height: 44,
-                                            objectFit: 'cover',
+                                            objectFit: 'contain',
                                             borderRadius: 1.5,
                                             cursor: 'pointer',
                                             border: i === imgIdx
@@ -342,6 +344,7 @@ interface ProductRowCardProps {
 function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
     const theme = useTheme();
     const [detailOpen, setDetailOpen] = useState(false);
+    const [reasonOpen, setReasonOpen] = useState(false);
 
     const frame = isFrame(item);
     const thumb = item.productImages[0] ?? null;
@@ -373,7 +376,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                 {/* Thumbnail */}
                 <Box sx={{ width: 96, flexShrink: 0, bgcolor: '#F1F5F9', position: 'relative', overflow: 'hidden' }}>
                     {thumb ? (
-                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 88 }} />
+                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'contain', minHeight: 88 }} />
                     ) : (
                         <Box sx={{ height: '100%', minHeight: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Inventory2 sx={{ fontSize: 28, color: '#CBD5E1' }} />
@@ -461,12 +464,36 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                                 <Visibility sx={{ fontSize: 16 }} />
                             </IconButton>
                         </Tooltip>
+                        {item.status === 'REJECTED' && (
+                            <Tooltip title="View rejection reason">
+                                <IconButton
+                                    size="small"
+                                    onClick={() => setReasonOpen(true)}
+                                    sx={{
+                                        bgcolor: '#FEF2F2',
+                                        color: '#DC2626',
+                                        '&:hover': { bgcolor: '#FEE2E2' },
+                                        borderRadius: 1.5,
+                                        width: 32,
+                                        height: 32
+                                    }}
+                                >
+                                    <WarningAmberOutlined sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Box>
                 </Box>
             </Paper>
 
             {/* Dialogs */}
             <ProductDetailDialog open={detailOpen} onClose={() => setDetailOpen(false)} item={item} />
+            <RejectionDialog
+                open={reasonOpen}
+                onClose={() => setReasonOpen(false)}
+                reason={item.rejectionReason}
+                note={item.rejectionNote}
+            />
         </>
     );
 }

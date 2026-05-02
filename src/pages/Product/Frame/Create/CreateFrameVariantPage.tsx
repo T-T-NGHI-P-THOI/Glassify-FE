@@ -833,7 +833,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                         width: 56,
                                         height: 56,
                                         borderRadius: 1,
-                                        objectFit: 'cover',
+                                        objectFit: 'contain',
                                         flexShrink: 0,
                                         border: `1px solid ${theme.palette.custom.border.light}`,
                                     }}
@@ -914,7 +914,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                     <Box
                                         component="img"
                                         src={formData.textureFile.preview}
-                                        sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }}
+                                        sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'contain' }}
                                     />
                                     <Typography sx={{ fontSize: 11, color: '#fff' }}>
                                         {formData.textureFile.name}
