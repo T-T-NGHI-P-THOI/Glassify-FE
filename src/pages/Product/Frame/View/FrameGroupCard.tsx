@@ -21,6 +21,7 @@ import {
     Star,
     StarBorder,
     CheckCircleOutline,
+    CameraAlt,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
@@ -683,6 +684,7 @@ export interface FrameGroupCardProps {
     onToggle: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    onTryOn: () => void;
     onViewAnalytics?: () => void;
     onPreview?: () => void;
     setFrameGroups: React.Dispatch<React.SetStateAction<FrameGroup[]>>;
@@ -695,6 +697,7 @@ const FrameGroupCard = ({
     onToggle,
     onEdit,
     onDelete,
+    onTryOn,
     onViewAnalytics,
     onPreview,
     setFrameGroups
@@ -1076,7 +1079,7 @@ const FrameGroupCard = ({
                         onClick={onToggle}
                         active={isExpanded}
                     />
-                    <ActionBtn icon={<ViewInAr sx={{ fontSize: 12 }} />} label="3D Model" onClick={() => { }} />
+                    <ActionBtn icon={<CameraAlt sx={{ fontSize: 12 }} />} label="Try On" onClick={onTryOn} />
                     <ActionBtn
                         icon={<DeleteOutline sx={{ fontSize: 12 }} />}
                         label="Delete"

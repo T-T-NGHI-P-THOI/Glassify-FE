@@ -37,6 +37,7 @@ export interface ProductImage {
     type: string;
     preview?: string;
     file?: File;
+    isPrimary?: boolean;
 }
 
 export interface TextureFile {
@@ -325,6 +326,9 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 payload.append('isReturnable', String(formData.isReturnable));
                 payload.append('isFeatured', String(formData.isFeatured));
 
+                const primaryIndex = formData.images.findIndex(img => img.isPrimary);
+                payload.append('primaryIndex', String(primaryIndex));
+
                 formData.images.forEach(img => {
                     if (img.file) payload.append('productImages', img.file);
                 });
@@ -363,20 +367,45 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 type: file.type,
                 preview: URL.createObjectURL(file),
                 file,
+                isPrimary: false,
             }));
 
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, ...newImages].slice(0, 4),
-            }));
+            setFormData(prev => {
+                const merged = [...prev.images, ...newImages].slice(0, 4);
+                // If none is primary yet, set the first one
+                const hasPrimary = merged.some(img => img.isPrimary);
+                return {
+                    ...prev,
+                    images: merged.map((img, i) => ({
+                        ...img,
+                        isPrimary: hasPrimary ? img.isPrimary : i === 0,
+                    })),
+                };
+            });
+
             if (errors.images) setErrors(prev => ({ ...prev, images: undefined }));
             e.target.value = '';
         };
 
         const handleRemoveImage = (index: number) => {
+            setFormData(prev => {
+                const filtered = prev.images.filter((_, i) => i !== index);
+                // If the removed image was primary, promote the new first image
+                const wasRemovingPrimary = prev.images[index]?.isPrimary;
+                return {
+                    ...prev,
+                    images: filtered.map((img, i) => ({
+                        ...img,
+                        isPrimary: wasRemovingPrimary ? i === 0 : img.isPrimary,
+                    })),
+                };
+            });
+        };
+
+        const handleSetPrimary = (index: number) => {
             setFormData(prev => ({
                 ...prev,
-                images: prev.images.filter((_, i) => i !== index),
+                images: prev.images.map((img, i) => ({ ...img, isPrimary: i === index })),
             }));
         };
 
@@ -719,14 +748,25 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                             <Paper
                                 key={index}
                                 elevation={0}
+                                onClick={() => handleSetPrimary(index)}
                                 sx={{
                                     p: 2,
                                     mb: 1.5,
                                     borderRadius: 2,
-                                    border: `1px solid ${theme.palette.custom.border.light}`,
+                                    border: `1.5px solid ${file.isPrimary
+                                        ? theme.palette.success.main
+                                        : theme.palette.custom.border.light
+                                        }`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 2,
+                                    cursor: 'pointer',
+                                    transition: 'border-color 0.2s',
+                                    '&:hover': {
+                                        borderColor: file.isPrimary
+                                            ? theme.palette.success.main
+                                            : theme.palette.primary.main,
+                                    },
                                 }}
                             >
                                 <Avatar
@@ -735,16 +775,37 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                     sx={{ width: 56, height: 56, borderRadius: 1, bgcolor: theme.palette.grey[100] }}
                                 />
                                 <Box sx={{ flex: 1 }}>
-                                    <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                                        {file.name}
-                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
+                                            {file.name}
+                                        </Typography>
+                                        {file.isPrimary && (
+                                            <Box
+                                                sx={{
+                                                    px: 1,
+                                                    py: 0.25,
+                                                    borderRadius: 1,
+                                                    bgcolor: theme.palette.success.main,
+                                                    color: '#fff',
+                                                    fontSize: 11,
+                                                    fontWeight: 600,
+                                                    lineHeight: 1.5,
+                                                }}
+                                            >
+                                                Primary
+                                            </Box>
+                                        )}
+                                    </Box>
                                     <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
-                                        {formatFileSize(file.size)}
+                                        {formatFileSize(file.size)} · {file.isPrimary ? 'Cover image' : 'Click to set as primary'}
                                     </Typography>
                                 </Box>
                                 <IconButton
                                     size="small"
-                                    onClick={() => handleRemoveImage(index)}
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // prevent triggering setPrimary
+                                        handleRemoveImage(index);
+                                    }}
                                     sx={{ color: theme.palette.custom.status.error.main }}
                                 >
                                     <Delete />
