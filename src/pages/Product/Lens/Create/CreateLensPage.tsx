@@ -2086,7 +2086,7 @@ const CreateLensPage = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
+                  {/* <Grid size={{ xs: 12, md: 4 }}>
                     <TextField
                       fullWidth
                       label="Compare At Price"
@@ -2094,7 +2094,7 @@ const CreateLensPage = () => {
                       onChange={(e) => handleFieldChange('compareAtPrice', String(parseNumber(e.target.value)))}
                       inputProps={{ inputMode: 'decimal' }}
                     />
-                  </Grid>
+                  </Grid> */}
 
                   {/* Inventory */}
                   <Grid size={{ xs: 12 }}>
