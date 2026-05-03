@@ -2086,16 +2086,6 @@ const CreateLensPage = () => {
                     />
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Compare At Price"
-                      value={formatNumber(parseNumber(form.compareAtPrice || ''))}
-                      onChange={(e) => handleFieldChange('compareAtPrice', String(parseNumber(e.target.value)))}
-                      inputProps={{ inputMode: 'decimal' }}
-                    />
-                  </Grid>
-
                   {/* Inventory */}
                   <Grid size={{ xs: 12 }}>
                     <Typography sx={{ fontWeight: 600, mb: 1 }}>Inventory</Typography>
