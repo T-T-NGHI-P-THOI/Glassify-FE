@@ -31,6 +31,11 @@ export interface WalletResponse {
     totalEarned: number;
     totalWithdrawn: number;
     totalRefunded: number;
+    // COD stats
+    codReceivedAmount: number;       // Cumulative COD earnings shop collected directly (after commission)
+    codPendingCommission: number;    // Unpaid commission owed to platform from COD orders
+    hasCodPendingCommission: boolean;
+    isLowBalance: boolean;           // true when availableBalance < 10,000,000 VND
 }
 
 export interface EscrowSummaryResponse {
@@ -128,6 +133,13 @@ export const shopWalletApi = {
     getEscrowBreakdown: async (): Promise<ApiResponse<EscrowSummaryResponse[]>> => {
         const response = await axiosInstance.get<ApiResponse<EscrowSummaryResponse[]>>(
             API_ENDPOINTS.SHOP_WALLET.ESCROWS
+        );
+        return response.data;
+    },
+
+    createShopTopUpUrl: async (request: { amount: number; bankCode?: string }): Promise<ApiResponse<string>> => {
+        const response = await axiosInstance.post<ApiResponse<string>>(
+            API_ENDPOINTS.SHOP_WALLET.TOP_UP_VNPAY, request
         );
         return response.data;
     },
