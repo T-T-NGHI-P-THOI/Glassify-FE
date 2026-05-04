@@ -72,7 +72,7 @@ import { getApiErrorMessage } from '@/utils/api-error';
 import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER' | 'PARTIALLY_RETURNED' | 'RETURNED';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -1042,6 +1042,8 @@ const MyOrdersPage = () => {
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'RETURN_IN_TRANSIT':
       case 'REJECTED_BY_CUSTOMER':
+      case 'PARTIALLY_RETURNED':
+      case 'RETURNED':
         return { bg: theme.palette.custom.status.rose.light, color: theme.palette.custom.status.rose.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
@@ -1093,6 +1095,8 @@ const MyOrdersPage = () => {
       case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
       case 'DELIVERY_FAILED':      return 'Delivery Failed';
       case 'COMPLETED':            return 'Completed';
+      case 'PARTIALLY_RETURNED':   return 'Partially Returned';
+      case 'RETURNED':             return 'Returned';
       default: return status;
     }
   };
@@ -1150,11 +1154,11 @@ const MyOrdersPage = () => {
     if (activeTab === 2) return order.status === 'CONFIRMED';
     if (activeTab === 3) return order.status === 'PROCESSING';
     if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
-    if (activeTab === 5) return order.status === 'DELIVERED';
+    if (activeTab === 5) return ['DELIVERED', 'PARTIALLY_RETURNED'].includes(order.status);
     if (activeTab === 6) return order.status === 'CANCELLED';
     if (activeTab === 7) return order.status === 'DELIVERY_FAILED';
     if (activeTab === 8) return order.status === 'COMPLETED';
-    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(order.status);
+    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT', 'RETURNED'].includes(order.status);
     return true;
   });
 
@@ -1162,11 +1166,11 @@ const MyOrdersPage = () => {
   const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
   const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
-  const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
+  const deliveredCount = orders.filter((o) => ['DELIVERED', 'PARTIALLY_RETURNED'].includes(o.status)).length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
   const deliveryFailedCount = orders.filter((o) => o.status === 'DELIVERY_FAILED').length;
   const completedCount = orders.filter((o) => o.status === 'COMPLETED').length;
-  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(o.status)).length;
+  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT', 'RETURNED'].includes(o.status)).length;
 
   const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
@@ -1653,7 +1657,7 @@ const MyOrdersPage = () => {
                         </DemoActionButton>
                       </>
                     )}
-                    {order.status === 'DELIVERED' && (
+                    {['DELIVERED', 'PARTIALLY_RETURNED'].includes(order.status) && (
                       <Button
                         variant="contained"
                         color="success"
@@ -2176,7 +2180,7 @@ const MyOrdersPage = () => {
                                                 {cancellingItemId === item.id ? 'Cancelling...' : 'Cancel Item'}
                                               </Button>
                                             )}
-                                            {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && (
+                                            {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && shopGroup.shopOrderStatus !== 'REJECTED_BY_CUSTOMER' && (
                                               <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                                                 {itemRefundLookup[item.id]?.status && (
                                                   <Chip
@@ -2413,7 +2417,7 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (
+                {['DELIVERED', 'PARTIALLY_RETURNED'].includes(selectedOrder.status) && (
                   <>
                     <Button
                       variant="contained"
