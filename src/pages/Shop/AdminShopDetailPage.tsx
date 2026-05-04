@@ -534,14 +534,14 @@ const AdminShopDetailPage = () => {
         </Box>
 
         {/* Stats Row */}
-        <Box sx={{ px: 4, py: 2.5, display: 'flex', gap: 2, bgcolor: '#fff', borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
+        {/* <Box sx={{ px: 4, py: 2.5, display: 'flex', gap: 2, bgcolor: '#fff', borderBottom: `1px solid ${theme.palette.custom.border.light}` }}>
           {[
-            { icon: <ShoppingCart sx={{ fontSize: 19 }} />, label: 'Total Orders', value: (shop.totalOrders ?? 0).toLocaleString(), color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
-            { icon: <Inventory sx={{ fontSize: 19 }} />, label: 'Total Products', value: (shop.totalProducts ?? 0).toLocaleString(), color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light },
-            { icon: <Star sx={{ fontSize: 19 }} />, label: 'Avg Rating', value: shop.avgRating != null && shop.avgRating > 0 ? shop.avgRating.toFixed(1) : '—', color: '#F59E0B', bg: '#FEF3C7' },
-            { icon: <AttachMoney sx={{ fontSize: 19 }} />, label: 'Est. Revenue', value: formatCurrency(mockRevenue), color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
-            { icon: <Receipt sx={{ fontSize: 19 }} />, label: 'Commission Earned', value: formatCurrency(mockCommissionEarned), color: '#7C3AED', bg: '#EDE9FE' },
-            { icon: <TrendingUp sx={{ fontSize: 19 }} />, label: 'Member Since', value: formatDate(shop.joinedAt), color: theme.palette.custom.neutral[600], bg: theme.palette.custom.neutral[100] },
+            // { icon: <ShoppingCart sx={{ fontSize: 19 }} />, label: 'Total Orders', value: (shop.totalOrders ?? 0).toLocaleString(), color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
+            // { icon: <Inventory sx={{ fontSize: 19 }} />, label: 'Total Products', value: (shop.totalProducts ?? 0).toLocaleString(), color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light },
+            // { icon: <Star sx={{ fontSize: 19 }} />, label: 'Avg Rating', value: shop.avgRating != null && shop.avgRating > 0 ? shop.avgRating.toFixed(1) : '—', color: '#F59E0B', bg: '#FEF3C7' },
+            // { icon: <AttachMoney sx={{ fontSize: 19 }} />, label: 'Est. Revenue', value: formatCurrency(mockRevenue), color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
+            // { icon: <Receipt sx={{ fontSize: 19 }} />, label: 'Commission Earned', value: formatCurrency(mockCommissionEarned), color: '#7C3AED', bg: '#EDE9FE' },
+            // { icon: <TrendingUp sx={{ fontSize: 19 }} />, label: 'Member Since', value: formatDate(shop.joinedAt), color: theme.palette.custom.neutral[600], bg: theme.palette.custom.neutral[100] },
           ].map((s) => (
             <Box key={s.label} sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
               <Box sx={{ width: 36, height: 36, borderRadius: 1.5, bgcolor: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -555,7 +555,7 @@ const AdminShopDetailPage = () => {
               </Box>
             </Box>
           ))}
-        </Box>
+        </Box> */}
 
         {/* Tab Content */}
         <Box sx={{ p: 4 }}>

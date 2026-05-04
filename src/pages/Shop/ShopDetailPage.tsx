@@ -21,6 +21,7 @@ import {
   Verified,
   Star,
   Inventory,
+  ShoppingCart,
   Search,
   ArrowBack,
   TuneRounded,
@@ -222,9 +223,15 @@ const ShopDetailPage: React.FC = () => {
 
               <Inventory sx={{ fontSize: 14, color: '#9ca3af' }} />
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
-                {shop.totalProducts}
+                {shop.totalProducts ?? '—'}
               </Typography>
-              <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>Products</Typography>
+              <Typography sx={{ fontSize: 12, color: '#9ca3af', mr: 2 }}>Products</Typography>
+
+              <ShoppingCart sx={{ fontSize: 14, color: '#9ca3af' }} />
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                {shop.totalOrders ?? '—'}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>Orders</Typography>
             </Box>
           </Box>
         </Box>

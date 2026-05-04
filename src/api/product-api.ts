@@ -37,6 +37,7 @@ export interface ApiShopInfo {
   tier: string;
   avgRating: number;
   totalProducts: number;
+  totalOrders: number | null;
   isVerified: boolean;
 }
 

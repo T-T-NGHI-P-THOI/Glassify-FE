@@ -31,6 +31,7 @@ import {
   Store,
   TrendingUp,
   AssignmentReturn,
+  AccountBalance,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -51,7 +52,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse, type AdminShopStats, type AdminMonthlyRevenue } from '@/api/adminApi';
+import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse, type AdminShopStats, type AdminMonthlyRevenue, type AdminCommissionStats, type AdminMonthlyCommission, type AdminOrderCommission } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';
@@ -81,6 +82,11 @@ const DashboardPage = () => {
   const [shopStats, setShopStats] = useState<AdminShopStats[]>([]);
   const [monthlyRevenue, setMonthlyRevenue] = useState<AdminMonthlyRevenue[]>([]);
   const [revenueYear, setRevenueYear] = useState(new Date().getFullYear());
+  const [commissionStats, setCommissionStats] = useState<AdminCommissionStats | null>(null);
+  const [monthlyCommission, setMonthlyCommission] = useState<AdminMonthlyCommission[]>([]);
+  const [commissionYear, setCommissionYear] = useState(new Date().getFullYear());
+  const [orderCommissions, setOrderCommissions] = useState<AdminOrderCommission[]>([]);
+  const [commissionPage, setCommissionPage] = useState(0);
 
   useEffect(() => {
     adminApi.getShops().then((res) => { if (res.data) setShops(res.data); }).catch(() => {});
@@ -90,11 +96,25 @@ const DashboardPage = () => {
     adminApi.getOrders(undefined, 0, 5).then((res) => { if (res.data) setRecentOrders(res.data.content); }).catch(() => {});
     adminApi.getShopStats().then((res) => { if (res.data) setShopStats(res.data); }).catch(() => {});
     adminApi.getMonthlyRevenue(new Date().getFullYear()).then((res) => { if (res.data) setMonthlyRevenue(res.data); }).catch(() => {});
+    adminApi.getCommissionStats().then((res) => { if (res.data) setCommissionStats(res.data); }).catch(() => {});
+    adminApi.getMonthlyCommission(new Date().getFullYear()).then((res) => { if (res.data) setMonthlyCommission(res.data); }).catch(() => {});
+    adminApi.getOrderCommissions(0, 20).then((res) => { if (res.data) setOrderCommissions(res.data); }).catch(() => {});
   }, []);
 
   const totalShops = shops.length;
   const activeShops = shops.filter((s) => s.status === 'ACTIVE').length;
-  const topShops = [...shops].sort((a, b) => (b.totalOrders ?? 0) - (a.totalOrders ?? 0)).slice(0, 5);
+  const topShops = shopStats.slice(0, 5).map((stat) => {
+    const shopDetail = shops.find((s) => s.id === stat.shopId.toString());
+    return {
+      id: stat.shopId.toString(),
+      shopName: stat.shopName,
+      shopCode: stat.shopCode,
+      logoUrl: shopDetail?.logoUrl ?? null,
+      totalOrders: stat.totalOrders,
+      totalProducts: stat.totalProducts,
+      avgRating: stat.avgRating,
+    };
+  });
   const pendingRefundCount = refundRequests.length;
 
   const formatDate = (dateString: string) =>
@@ -170,6 +190,7 @@ const DashboardPage = () => {
             <Tab label="Overview" />
             <Tab label="Revenue & Shipping" icon={<TrendingUp sx={{ fontSize: 16 }} />} iconPosition="start" />
             <Tab label="Shop Performance" icon={<Storefront sx={{ fontSize: 16 }} />} iconPosition="start" />
+            <Tab label="Commission" icon={<AccountBalance sx={{ fontSize: 16 }} />} iconPosition="start" />
           </Tabs>
         </Box>
 
@@ -489,7 +510,7 @@ const DashboardPage = () => {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                        {['#', 'Shop', 'Total Revenue', 'Total Orders', 'Delivered', 'Cancelled', 'Delivery Rate', 'Cancel Rate', 'Avg Rating'].map((h) => (
+                        {['#', 'Shop', 'Total Revenue', 'Total Orders', 'Products', 'Delivered', 'Cancelled', 'Delivery Rate', 'Cancel Rate', 'Avg Rating'].map((h) => (
                           <TableCell key={h} sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12, whiteSpace: 'nowrap' }}>{h}</TableCell>
                         ))}
                       </TableRow>
@@ -497,7 +518,7 @@ const DashboardPage = () => {
                     <TableBody>
                       {shopStats.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} align="center" sx={{ py: 6, color: theme.palette.custom.neutral[400] }}>
+                          <TableCell colSpan={10} align="center" sx={{ py: 6, color: theme.palette.custom.neutral[400] }}>
                             No shop data available
                           </TableCell>
                         </TableRow>
@@ -516,6 +537,7 @@ const DashboardPage = () => {
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.totalOrders.toLocaleString('vi-VN')}</TableCell>
+                          <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.totalProducts != null ? s.totalProducts.toLocaleString('vi-VN') : '—'}</TableCell>
                           <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.deliveredOrders.toLocaleString('vi-VN')}</TableCell>
                           <TableCell sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{s.cancelledOrders.toLocaleString('vi-VN')}</TableCell>
                           <TableCell>
@@ -712,6 +734,144 @@ const DashboardPage = () => {
                   )}
                 </Paper>
               </Box>
+            </>
+          )}
+          {/* ═══════════════ TAB 3 — COMMISSION ═══════════════ */}
+          {activeTab === 3 && (
+            <>
+              {/* Stat cards */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+                {[
+                  { label: 'Total Commission Earned', value: formatVND(commissionStats?.totalCommission ?? 0), color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
+                  { label: 'Total GMV (Subtotal)', value: formatVND(commissionStats?.totalSubtotal ?? 0), color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
+                  { label: 'Total Shop Earning', value: formatVND(commissionStats?.totalShopEarning ?? 0), color: theme.palette.custom.status.warning.main, bg: theme.palette.custom.status.warning.light },
+                  { label: 'Avg Commission Rate', value: `${commissionStats?.avgCommissionRate?.toFixed(2) ?? '0.00'}%`, color: theme.palette.custom.status.purple.main, bg: theme.palette.custom.status.purple.light },
+                ].map((item) => (
+                  <Paper key={item.label} elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                    <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, borderRadius: 1, bgcolor: item.bg, mb: 1.5 }}>
+                      <Typography sx={{ fontSize: 11, fontWeight: 600, color: item.color }}>{item.label}</Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: 20, fontWeight: 700, color: theme.palette.custom.neutral[800], wordBreak: 'break-all' }}>
+                      {item.value}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              {/* Monthly commission chart */}
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>Monthly Commission</Typography>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>Commission earned by month from completed orders</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button size="small" variant="outlined" sx={{ minWidth: 32, px: 1, fontSize: 13 }}
+                      onClick={() => {
+                        const y = commissionYear - 1;
+                        setCommissionYear(y);
+                        adminApi.getMonthlyCommission(y).then((res) => { if (res.data) setMonthlyCommission(res.data); }).catch(() => {});
+                      }}
+                    >‹</Button>
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, minWidth: 40, textAlign: 'center' }}>{commissionYear}</Typography>
+                    <Button size="small" variant="outlined" sx={{ minWidth: 32, px: 1, fontSize: 13 }}
+                      disabled={commissionYear >= new Date().getFullYear()}
+                      onClick={() => {
+                        const y = commissionYear + 1;
+                        setCommissionYear(y);
+                        adminApi.getMonthlyCommission(y).then((res) => { if (res.data) setMonthlyCommission(res.data); }).catch(() => {});
+                      }}
+                    >›</Button>
+                  </Box>
+                </Box>
+                <ResponsiveContainer width="100%" height={280}>
+                  <ComposedChart
+                    data={monthlyCommission.map((d) => ({ name: `T${d.month}`, commission: d.commission, subtotal: d.subtotal, shopEarning: d.shopEarning, orders: d.orderCount }))}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gradCommission" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.palette.custom.status.success.main} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={theme.palette.custom.status.success.main} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }} axisLine={false} tickLine={false}
+                      tickFormatter={(v: number) => v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : String(v)} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [formatVND(value), name === 'commission' ? 'Commission' : name === 'subtotal' ? 'GMV' : 'Shop Earning']}
+                      contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 12 }}
+                    />
+                    <Legend formatter={(v) => v === 'commission' ? 'Commission' : v === 'subtotal' ? 'GMV' : 'Shop Earning'} wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="subtotal" fill={theme.palette.custom.status.info.light} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="shopEarning" fill={theme.palette.custom.status.warning.light} radius={[3, 3, 0, 0]} />
+                    <Area type="monotone" dataKey="commission" stroke={theme.palette.custom.status.success.main} strokeWidth={2.5} fill="url(#gradCommission)" dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Paper>
+
+              {/* Per-order commission table */}
+              <Paper elevation={0} sx={{ borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, overflow: 'hidden' }}>
+                <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalance sx={{ fontSize: 18, color: theme.palette.custom.neutral[500] }} />
+                    <Typography sx={{ fontWeight: 600, fontSize: 15, color: theme.palette.custom.neutral[800] }}>Commission per Order</Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], ml: 1 }}>Completed orders only</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button size="small" variant="outlined" disabled={commissionPage === 0} sx={{ minWidth: 32, px: 1 }}
+                      onClick={() => {
+                        const p = commissionPage - 1;
+                        setCommissionPage(p);
+                        adminApi.getOrderCommissions(p, 20).then((res) => { if (res.data) setOrderCommissions(res.data); }).catch(() => {});
+                      }}
+                    >‹</Button>
+                    <Typography sx={{ fontSize: 13, alignSelf: 'center', minWidth: 60, textAlign: 'center' }}>Page {commissionPage + 1}</Typography>
+                    <Button size="small" variant="outlined" disabled={orderCommissions.length < 20} sx={{ minWidth: 32, px: 1 }}
+                      onClick={() => {
+                        const p = commissionPage + 1;
+                        setCommissionPage(p);
+                        adminApi.getOrderCommissions(p, 20).then((res) => { if (res.data) setOrderCommissions(res.data); }).catch(() => {});
+                      }}
+                    >›</Button>
+                  </Box>
+                </Box>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
+                        {['Order #', 'Shop Order #', 'Shop', 'GMV (Subtotal)', 'Rate', 'Commission', 'Shop Earning', 'Completed At'].map((h) => (
+                          <TableCell key={h} sx={{ fontWeight: 600, color: theme.palette.custom.neutral[500], fontSize: 12, whiteSpace: 'nowrap' }}>{h}</TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {orderCommissions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ py: 6, color: theme.palette.custom.neutral[400] }}>No completed orders yet</TableCell>
+                        </TableRow>
+                      ) : orderCommissions.map((row) => (
+                        <TableRow key={row.shopOrderId} hover>
+                          <TableCell><Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.status.pink.main }}>#{row.orderNumber}</Typography></TableCell>
+                          <TableCell><Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>{row.shopOrderNumber}</Typography></TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>{row.shopName}</Typography>
+                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>{row.shopCode}</Typography>
+                          </TableCell>
+                          <TableCell><Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{formatVND(row.subtotal)}</Typography></TableCell>
+                          <TableCell>
+                            <Chip label={`${row.commissionRate}%`} size="small" sx={{ fontSize: 11, fontWeight: 700, bgcolor: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main }} />
+                          </TableCell>
+                          <TableCell><Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.success.main }}>{formatVND(row.commissionAmount)}</Typography></TableCell>
+                          <TableCell><Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{formatVND(row.shopEarning)}</Typography></TableCell>
+                          <TableCell><Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{row.completedAt ? formatDate(row.completedAt) : '—'}</Typography></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
             </>
           )}
         </Box>

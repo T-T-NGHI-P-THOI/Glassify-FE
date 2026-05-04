@@ -1765,12 +1765,12 @@ const MyOrdersPage = () => {
 
               <DialogContent dividers>
                 {/* Progress Stepper */}
-                <Box sx={{ mb: 3, px: 2 }}>
+                {/* <Box sx={{ mb: 3, px: 2 }}>
                   <OrderStepper status={selectedOrder.status} />
-                </Box>
+                </Box> */}
 
                 {/* Payment Deadline Alert */}
-                {isUnpaidPrePayment(selectedOrder) && (() => {
+                {/* {isUnpaidPrePayment(selectedOrder) && (() => {
                   const deadline = getPaymentDeadline(selectedOrder.orderedAt);
                   const now = new Date();
                   const msLeft = deadline.getTime() - now.getTime();
@@ -1787,9 +1787,9 @@ const MyOrdersPage = () => {
                       Hạn chót: {deadline.toLocaleString('vi-VN')}.
                     </Alert>
                   );
-                })()}
+                })()} */}
 
-                <Divider sx={{ mb: 3 }} />
+                {/* <Divider sx={{ mb: 3 }} /> */}
 
                 <Grid container spacing={3}>
                   {/* Shipping Info */}
