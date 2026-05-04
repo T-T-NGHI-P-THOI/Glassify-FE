@@ -151,10 +151,10 @@ export const ShopOwnerSidebar = ({
     return item.path ? isActive(item.path) : false;
   };
 
-  const bottomMenuItems = [
-    { icon: <Settings />, label: 'Settings', path: '/shop/settings' },
-    { icon: <HelpCenter />, label: 'Help Center', path: '/shop/help' },
-  ];
+  // const bottomMenuItems = [
+  //   { icon: <Settings />, label: 'Settings', path: '/shop/settings' },
+  //   { icon: <HelpCenter />, label: 'Help Center', path: '/shop/help' },
+  // ];
 
   return (
     <Box
@@ -355,7 +355,7 @@ export const ShopOwnerSidebar = ({
       </List>
 
       {/* Bottom Menu */}
-      <List sx={{ px: 1 }}>
+      {/* <List sx={{ px: 1 }}>
         {bottomMenuItems.map((item) => (
           <ListItemButton
             key={item.label}
@@ -379,7 +379,7 @@ export const ShopOwnerSidebar = ({
             />
           </ListItemButton>
         ))}
-      </List>
+      </List> */}
 
       {/* User Profile */}
       <Box

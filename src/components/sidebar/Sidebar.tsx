@@ -91,10 +91,10 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
     return activeMenu === path || location.pathname === path;
   };
 
-  const bottomMenuItems = [
-    { icon: <Settings />, label: 'Settings', path: '/admin/settings' },
-    { icon: <HelpCenter />, label: 'Help Center', path: '/help' },
-  ];
+  // const bottomMenuItems = [
+  //   { icon: <Settings />, label: 'Settings', path: '/admin/settings' },
+  //   { icon: <HelpCenter />, label: 'Help Center', path: '/help' },
+  // ];
 
   return (
     <Box
@@ -223,7 +223,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
       </List>
 
       {/* Bottom Menu */}
-      <List sx={{ px: 1 }}>
+      {/* <List sx={{ px: 1 }}>
         {bottomMenuItems.map((item) => (
           <ListItemButton
             key={item.label}
@@ -250,7 +250,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
             />
           </ListItemButton>
         ))}
-      </List>
+      </List> */}
 
       {/* User Profile */}
       <Box

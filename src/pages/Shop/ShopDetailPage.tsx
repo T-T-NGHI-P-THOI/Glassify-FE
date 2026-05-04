@@ -384,6 +384,8 @@ const ShopDetailPage: React.FC = () => {
             )}
           </Box>
         )}
+
+
       </Box>
     </Box>
   );

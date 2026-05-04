@@ -56,6 +56,7 @@ import {
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '@/hooks/useCart';
 import { orderApi } from '@/api/order-api';
 import { paymentApi } from '@/api/payment-api';
 import { ghnApi } from '@/api/ghnApi';
@@ -411,12 +412,14 @@ const OrderStepper = ({ status }: OrderStepperProps) => {
 const MyOrdersPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { addItem: addToCart, loadCart } = useCart();
   const [activeTab, setActiveTab] = useState(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [buyingAgainOrderId, setBuyingAgainOrderId] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelReasons, setCancelReasons] = useState<string[]>([]);
@@ -605,13 +608,52 @@ const MyOrdersPage = () => {
   };
 
   const handleReOrder = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    // Only top-level, non-gift items with a productId can be re-added
+    const addableItems = order.items.filter(
+      item => !item.parentItemId && item.productId && item.itemType !== 'GIFT' && item.itemStatus !== 'CANCELLED'
+    );
+    if (addableItems.length === 0) {
+      toast.info('No items available to add to cart');
+      return;
+    }
+
+    setBuyingAgainOrderId(orderId);
     try {
-      await orderApi.reOrder(orderId);
-      toast.success('Re-order created successfully');
-      await fetchOrders();
+      const productTypeMap: Record<string, string> = {
+        FRAME: 'FRAME',
+        ACCESSORY: 'ACCESSORIES',
+        LENS: 'LENSES',
+      };
+
+      for (const item of addableItems) {
+        await addToCart({
+          productId: item.productId!,
+          productName: item.productName,
+          productSlug: '',
+          productType: productTypeMap[item.itemType] ?? 'FRAME',
+          shopId: item.shopId,
+          shopName: item.shopName,
+          unitPrice: item.unitPrice,
+          itemType: item.itemType,
+          imageUrl: item.productImageUrl,
+          sku: item.productSku,
+          color: item.variantInfo?.color as string | undefined,
+          size: item.variantInfo?.size as string | undefined,
+        });
+      }
+
+      // Enrich product slugs in cache before navigating so "View Detail" works immediately
+      await loadCart();
+      toast.success(`${addableItems.length} item${addableItems.length > 1 ? 's' : ''} added to cart`);
+      navigate(PAGE_ENDPOINTS.CART.MAIN);
     } catch (error) {
-      console.error('Failed to re-order:', error);
-      toast.error('Failed to re-order');
+      console.error('Failed to add to cart:', error);
+      toast.error('Failed to add items to cart');
+    } finally {
+      setBuyingAgainOrderId(null);
     }
   };
 
@@ -1624,7 +1666,7 @@ const MyOrdersPage = () => {
                     {order.status === 'COMPLETED' && (
                       <Button
                         variant="contained"
-                        disabled={cancellingOrderId === order.id}
+                        disabled={buyingAgainOrderId === order.id}
                         onClick={() => handleReOrder(order.id)}
                         sx={{
                           textTransform: 'none',
@@ -1636,7 +1678,7 @@ const MyOrdersPage = () => {
                           '&:hover': { bgcolor: '#333' },
                         }}
                       >
-                        Buy Again
+                        {buyingAgainOrderId === order.id ? 'Adding...' : 'Buy Again'}
                       </Button>
                     )}
                     <Button
@@ -2324,6 +2366,7 @@ const MyOrdersPage = () => {
                     </Button>
                     <Button
                       variant="contained"
+                      disabled={buyingAgainOrderId === selectedOrder.id}
                       onClick={() => handleReOrder(selectedOrder.id)}
                       sx={{
                         textTransform: 'none',
@@ -2332,13 +2375,14 @@ const MyOrdersPage = () => {
                         '&:hover': { bgcolor: '#333' },
                       }}
                     >
-                      Buy Again
+                      {buyingAgainOrderId === selectedOrder.id ? 'Adding...' : 'Buy Again'}
                     </Button>
                   </>
                 )}
                 {selectedOrder.status === 'COMPLETED' && (
                   <Button
                     variant="contained"
+                    disabled={buyingAgainOrderId === selectedOrder.id}
                     onClick={() => handleReOrder(selectedOrder.id)}
                     sx={{
                       textTransform: 'none',
@@ -2347,7 +2391,7 @@ const MyOrdersPage = () => {
                       '&:hover': { bgcolor: '#333' },
                     }}
                   >
-                    Buy Again
+                    {buyingAgainOrderId === selectedOrder.id ? 'Adding...' : 'Buy Again'}
                   </Button>
                 )}
                 {selectedOrder.status === 'SHIPPED' && (

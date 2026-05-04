@@ -1065,6 +1065,79 @@ const ShopWarrantyPage = () => {
                   </Box>
                 </Grid>
               </Grid>
+
+              {/* Saved Policies List */}
+              {policies.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 1.5, letterSpacing: 0.5 }}>
+                    Saved Policies ({policies.length})
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {policies.map((p) => {
+                      const isSelected = editingPolicy?.id === p.id;
+                      return (
+                        <Box
+                          key={p.id}
+                          onClick={() => {
+                            setEditingPolicy(p);
+                            setPolicyFormData({
+                              name: p.name,
+                              durationMonths: p.durationMonths,
+                              coverageDescription: p.coverageDescription || '',
+                              excludedIssues: p.excludedIssues || [],
+                              isDefault: p.isDefault,
+                              isActive: p.isActive,
+                            });
+                          }}
+                          sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: isSelected ? theme.palette.primary.main : theme.palette.custom.border.light,
+                            bgcolor: isSelected ? theme.palette.custom.status.info.light + '30' : theme.palette.custom.neutral[50],
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            '&:hover': { borderColor: theme.palette.primary.main, bgcolor: theme.palette.custom.status.info.light + '20' },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                              {p.name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+                              {p.isDefault && (
+                                <Chip label="Default" size="small" sx={{ fontSize: 11, height: 20, bgcolor: '#667eea', color: '#fff' }} />
+                              )}
+                              <Chip
+                                label={p.isActive ? 'Active' : 'Inactive'}
+                                size="small"
+                                sx={{
+                                  fontSize: 11, height: 20,
+                                  bgcolor: p.isActive ? theme.palette.custom.status.success.light : theme.palette.custom.neutral[100],
+                                  color: p.isActive ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[500],
+                                }}
+                              />
+                              <Chip label={`${p.durationMonths}mo`} size="small" sx={{ fontSize: 11, height: 20, bgcolor: theme.palette.custom.neutral[100] }} />
+                            </Box>
+                          </Box>
+                          {p.coverageDescription && (
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: p.excludedIssues?.length > 0 ? 0.75 : 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.coverageDescription}
+                            </Typography>
+                          )}
+                          {p.excludedIssues?.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                              {p.excludedIssues.map((issue: string, i: number) => (
+                                <Chip key={i} label={issue} size="small" sx={{ fontSize: 11, height: 18, bgcolor: '#fee2e2', color: '#991b1b' }} />
+                              ))}
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              )}
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: theme.palette.custom.status.info.light + '20', borderStyle: 'dashed' }}>

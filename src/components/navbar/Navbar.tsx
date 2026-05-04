@@ -335,7 +335,7 @@ export const Navbar = () => {
                 </IconButton>
               )}
 
-              {!isAdmin && (
+              {/* {!isAdmin && (
                 <IconButton
                   size="small"
                   sx={{
@@ -347,7 +347,7 @@ export const Navbar = () => {
                   <Favorite sx={{ fontSize: 24 }} />
                   <Box sx={{ fontSize: "0.7rem", mt: 0.25 }}>Favorites</Box>
                 </IconButton>
-              )}
+              )} */}
 
               <IconButton
                 size="small"

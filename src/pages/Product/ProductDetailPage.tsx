@@ -7,6 +7,7 @@ import ProductInfo from '../../components/ProductDetailPage/ProductInfo';
 import ProductDetails from '../../components/ProductDetailPage/ProductDetails';
 import RecommendedProducts from '../../components/ProductDetailPage/RecommendedProducts';
 import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
+import ShopWarrantyPolicies from '@/components/Warranty/ShopWarrantyPolicies';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
@@ -826,7 +827,19 @@ const ProductDetailPage: React.FC = () => {
 
       <RecommendedProducts products={recommendedProducts} />
 
-      <div className="newsletter-section">
+      {product.shopId && (
+        // <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px 40px' }}>
+        <div>
+          <div>
+            <p style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 20px' }}>
+              Warranty Policies
+            </p>
+            <ShopWarrantyPolicies shopId={product.shopId} />
+          </div>
+        </div>
+      )}
+
+      {/* <div className="newsletter-section">
         <h2>Get 10% off your first order</h2>
         <p>Sign up now for exclusive news and savings</p>
         <form className="newsletter-form">
@@ -836,7 +849,7 @@ const ProductDetailPage: React.FC = () => {
         <p className="newsletter-terms">
           10% off only applies to full price items. Zenni reserves the right to modify or cancel at any time.
         </p>
-      </div>
+      </div> */}
 
       <Snackbar
         open={snackbar.open}
