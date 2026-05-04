@@ -291,7 +291,7 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                     '&:hover': { borderColor: theme.palette.custom.status.info.main + '60' },
                                 }}
                             >
-                                
+
                                 {/* Variant name */}
                                 {v.name && (
                                     <Typography
@@ -614,6 +614,15 @@ const AccessoryCard = ({
 
     const variants = accessory.variants ?? [];
     const totalStock = variants.reduce((sum, v) => sum + (v.productResponse?.stockQuantity ?? v.stock ?? 0), 0);
+    const totalViews = variants?.reduce(
+        (sum, v) => sum + (v.productResponse.viewCount ?? 0),
+        0
+    ) ?? 0;
+
+    const totalSale = variants?.reduce(
+        (sum, v) => sum + (v.productResponse.soldCount ?? 0),
+        0
+    ) ?? 0;
     const hasOut = variants.some((v) => (v.stock ?? v.productResponse?.stockQuantity ?? 0) === 0);
     const hasLow = variants.some((v) => {
         const s = v.stock ?? v.productResponse?.stockQuantity ?? 0;
@@ -848,8 +857,8 @@ const AccessoryCard = ({
                     }}
                 >
                     {[
-                        { label: 'Views', value: '—' },
-                        { label: 'Sales', value: '—' },
+                        { label: 'Views', value: totalViews },
+                        { label: 'Sales', value: totalSale },
                         { label: 'Variants', value: String(variants.length) },
                     ].map(({ label, value }) => (
                         <Box key={label} sx={{ textAlign: 'center' }}>
