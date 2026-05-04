@@ -289,7 +289,7 @@ const AdminRefundsPage = () => {
                           <Typography sx={{ fontSize: 13 }}>{r.shopName}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography sx={{ fontSize: 13 }}>{r.userName}</Typography>
+                          <Typography sx={{ fontSize: 13 }}>{r.orderName}</Typography>
                         </TableCell>
                         <TableCell>
                           <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(r.refundAmount)}</Typography>

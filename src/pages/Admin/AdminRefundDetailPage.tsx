@@ -40,6 +40,7 @@ const isVideoFile = (url?: string) => {
 
 const REFUND_STATUS_LABEL: Record<string, string> = {
   REQUESTED: 'Requested', APPROVED: 'Approved', REJECTED: 'Rejected',
+  RETURN_READY_TO_PICK: 'Ready for Pickup',
   RETURN_SHIPPING: 'Return Shipping', ITEM_RECEIVED: 'Item Received',
   COMPLETED: 'Completed', CANCELLED: 'Cancelled',
 };
@@ -67,6 +68,22 @@ const RETURN_REASON_LABEL: Record<string, string> = {
 
 const statusColor = (s: string): 'warning' | 'info' | 'success' | 'error' | 'default' =>
   s === 'REQUESTED' ? 'warning' : s === 'COMPLETED' ? 'success' : s === 'REJECTED' || s === 'CANCELLED' ? 'error' : 'info';
+
+const humanizeStatusText = (value?: string) => {
+  if (!value) return '—';
+
+  return (
+    REFUND_STATUS_LABEL[value] ??
+    value
+      .replace(/[_-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+};
+
+const getRefundStatusLabel = (status?: string) => humanizeStatusText(status);
 
 const formatDate = (v?: string) => {
   if (!v) return '—';
@@ -222,7 +239,7 @@ const AdminRefundDetailPage = () => {
 
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <Chip label={RETURN_TYPE_LABEL[refund.returnType] ?? refund.returnType} variant="outlined" sx={{ fontWeight: 600 }} />
-                <Chip label={REFUND_STATUS_LABEL[refund.status] ?? refund.status} color={statusColor(refund.status)} sx={{ fontWeight: 600 }} />
+                <Chip label={getRefundStatusLabel(refund.status)} color={statusColor(refund.status)} sx={{ fontWeight: 600 }} />
               </Stack>
             </Box>
 
@@ -264,11 +281,21 @@ const AdminRefundDetailPage = () => {
 
               <Divider />
 
+              {/* Row 1.5: Customer Information */}
+              <Box sx={{ p: 3 }}>
+                <SectionLabel>Customer Information</SectionLabel>
+                <FieldRow label="Customer name" value={refund.orderName || '—'} />
+                <FieldRow label="Phone" value={refund.orderPhone || '—'} />
+                <FieldRow label="Address" value={refund.orderAddress || '—'} />
+              </Box>
+
+              <Divider />
+
               {/* Row 2: Resolution | Timeline */}
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                 <Box sx={{ p: 3, borderRight: `1px solid ${theme.palette.custom.border.light}` }}>
                   <SectionLabel>Resolution</SectionLabel>
-                  <FieldRow label="Status" value={<Chip size="small" label={REFUND_STATUS_LABEL[refund.status] ?? refund.status} color={statusColor(refund.status)} />} />
+                  <FieldRow label="Status" value={<Chip size="small" label={getRefundStatusLabel(refund.status)} color={statusColor(refund.status)} />} />
                   <FieldRow label="Approved at" value={formatDate(refund.approvedAt)} />
                   <FieldRow label="Completed at" value={formatDate(refund.completedAt)} />
                   <FieldRow label="Rejected at" value={formatDate(refund.rejectedAt)} />

@@ -109,13 +109,15 @@ export interface AdminRefundResponse {
   orderId: string;
   orderNumber: string;
   orderItemId: string;
+  orderName: string;
+  orderAddress: string;
+  orderPhone: string;
   productName: string;
   productSku: string;
   productImageUrl?: string;
   shopId: string;
   shopName: string;
   userId: string;
-  userName: string;
   returnType: string;
   reason: string;
   reasonDetail?: string;
