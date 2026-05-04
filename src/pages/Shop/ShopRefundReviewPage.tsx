@@ -80,6 +80,7 @@ const ShopRefundReviewPage = () => {
       const response = await listReturnRequests({
         // status: status || undefined,
         shopId: shop?.id,
+        viewAsShop: true,
         sortBy: 'requestedAt',
         sortDirection: 'DESC',
       });
