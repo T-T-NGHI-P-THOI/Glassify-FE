@@ -92,6 +92,7 @@ export interface ShopDetailResponse {
   ownerId: string;
   ownerName: string;
   ownerEmail: string;
+  ownerAvatarUrl?: string;
 
   // Latest registration request info
   latestRequestStatus?: string;
