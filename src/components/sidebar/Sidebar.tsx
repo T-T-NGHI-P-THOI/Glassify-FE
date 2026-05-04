@@ -15,22 +15,14 @@ import { useTheme } from '@mui/material/styles';
 import {
   Dashboard,
   LocalShipping,
-  Inventory,
   AccountBalance,
-  Widgets,
-  People,
-  Notifications,
-  Message,
   Settings,
   HelpCenter,
   ExpandLess,
   ExpandMore,
   AdminPanelSettings,
-  CardTravel,
   Logout,
   ShoppingCart,
-  AssignmentReturn,
-  VerifiedUser,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -93,11 +85,6 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
         { label: 'Finance', path: PAGE_ENDPOINTS.ADMIN.TRANSACTIONS },
       ],
     },
-    { icon: <AccountBalance />, label: 'Cashflow', path: '/cashflow' },
-    { icon: <Widgets />, label: 'Unit', path: '/unit' },
-    { icon: <People />, label: 'Customers', path: '/customers' },
-    { icon: <Notifications />, label: 'Notification', path: '/notification' },
-    { icon: <Message />, label: 'Message', path: '/message' },
   ];
 
   const isActive = (path: string) => {

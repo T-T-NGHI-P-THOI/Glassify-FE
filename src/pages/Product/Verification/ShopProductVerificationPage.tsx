@@ -11,6 +11,7 @@ import {
     VerifiedUser, Schedule,
     Inventory2, ViewInAr, Collections,
     Star,
+    WarningAmberOutlined,
 } from '@mui/icons-material';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
@@ -26,13 +27,13 @@ import type {
     FrameGroupInfo,
     VerifyPayload,
 } from '@/types/verifications';
-import { REJECT_REASONS } from '@/types/verifications';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { ShopDetailResponse } from '@/models/Shop';
-import ProductAPI from '@/api/product-api';
 import { shopApi } from '@/api/shopApi';
 import { ShopOwnerSidebar } from '@/components/sidebar/ShopOwnerSidebar';
 import { useAuth } from '@/hooks/useAuth';
+import RejectionDialog from '@/components/ProductVerification/RejectionPopover';
+import ProductDetailDialog from '@/components/ProductVerification/ProductDetailDialog';
 
 // ─── Styled chips ─────────────────────────────────────────────────────────────
 
@@ -67,269 +68,6 @@ const isFrame = (item: ProductVerificationItem): item is ProductVerificationItem
     variantInfo: FrameVariantInfo; groupInfo: FrameGroupInfo;
 } => item.productType === 'FRAME';
 
-// ─── Product Detail Dialog ────────────────────────────────────────────────────
-function ProductDetailDialog({
-    open, onClose, item,
-}: { open: boolean; onClose: () => void; item: ProductVerificationItem }) {
-
-    const theme = useTheme();
-    const [imgIdx, setImgIdx] = useState(0);
-
-    const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-        <Box sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            py: 0.75
-        }}>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary', minWidth: 160 }}>
-                {label}
-            </Typography>
-            {typeof value === 'string'
-                ? <Typography sx={{ fontSize: 13, fontWeight: 600, textAlign: 'right' }}>{value || '—'}</Typography>
-                : value}
-        </Box>
-    );
-
-    const SectionLabel = ({ title }: { title: string }) => (
-        <Typography sx={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'text.secondary',
-            textTransform: 'uppercase',
-            letterSpacing: 0.8,
-            mb: 1.5,
-            mt: 2
-        }}>
-            {title}
-        </Typography>
-    );
-
-    const isFrame = item.productType === 'FRAME';
-
-    useEffect(() => {
-        if (open) setImgIdx(0);
-    }, [open]);
-
-    return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
-            PaperProps={{ sx: { borderRadius: 3, maxHeight: '90vh' } }}
-        >
-            <DialogTitle sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                py: 2
-            }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <TypeChip label={item.productType} ptype={item.productType} />
-                    {item.verificationType === 'UPDATE' && (
-                        <Chip label="Update Request" size="small"
-                            sx={{ height: 20, fontSize: 10, fontWeight: 600, bgcolor: '#FEF3C7', color: '#92400E' }}
-                        />
-                    )}
-                    <Typography fontWeight={700} fontSize={16}>
-                        {item.productName}
-                    </Typography>
-                </Box>
-                <IconButton size="small" onClick={onClose}>
-                    <Close fontSize="small" />
-                </IconButton>
-            </DialogTitle>
-
-            <DialogContent sx={{ px: 3, py: 2.5 }}>
-                <Grid container spacing={3}>
-
-                    {/* LEFT */}
-                    <Grid size={{ xs: 12, md: 5 }}>
-                        <Box sx={{
-                            borderRadius: 2,
-                            overflow: 'hidden',
-                            height: 220,
-                            position: 'relative',
-                            bgcolor: '#F1F5F9',
-                            border: `1px solid ${theme.palette.divider}`
-                        }}>
-                            {item.productImages?.length > 0 ? (
-                                <Box component="img"
-                                    src={item.productImages[imgIdx]}
-                                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                            ) : (
-                                <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Collections sx={{ fontSize: 40, color: '#CBD5E1' }} />
-                                </Box>
-                            )}
-
-                            {item.productImages?.length > 1 && (
-                                <>
-                                    <Box onClick={() => setImgIdx(p => (p - 1 + item.productImages.length) % item.productImages.length)}
-                                        sx={navBtnLeft}>
-                                        ‹
-                                    </Box>
-                                    <Box onClick={() => setImgIdx(p => (p + 1) % item.productImages.length)}
-                                        sx={navBtnRight}>
-                                        ›
-                                    </Box>
-                                </>
-                            )}
-                        </Box>
-
-                        {/* thumbnails */}
-                        {item.productImages?.length > 1 && (
-                            <Box sx={{ display: 'flex', gap: 0.75, mt: 1 }}>
-                                {item.productImages.slice(0, 4).map((img, i) => (
-                                    <Box key={i} component="img"
-                                        src={img}
-                                        onClick={() => setImgIdx(i)}
-                                        sx={{
-                                            width: 56,
-                                            height: 44,
-                                            objectFit: 'cover',
-                                            borderRadius: 1.5,
-                                            cursor: 'pointer',
-                                            border: i === imgIdx
-                                                ? `2px solid ${theme.palette.primary.main}`
-                                                : `1px solid ${theme.palette.divider}`
-                                        }}
-                                    />
-                                ))}
-                            </Box>
-                        )}
-
-                        {/* pricing */}
-                        <Paper elevation={0} sx={card}>
-                            <SectionLabel title="Pricing & Stock" />
-                            <Row label="Base Price" value={formatPrice(item.basePrice)} />
-                            <Row label="Cost Price" value={formatPrice(item.costPrice)} />
-                            <Row label="Stock" value={`${item.stockQuantity} units`} />
-                            <Row label="SKU" value={item.sku ?? '—'} />
-                        </Paper>
-                    </Grid>
-
-                    {/* RIGHT */}
-                    <Grid size={{ xs: 12, md: 7 }}>
-
-                        {/* FRAME */}
-                        {isFrame && item.frameGroupResponse && item.frameVariantResponse && (
-                            <>
-                                <Paper elevation={0} sx={card}>
-                                    <SectionLabel title="Frame Group" />
-                                    <Row label="Name" value={item.frameGroupResponse.frameName} />
-                                    <Row label="Shape" value={item.frameGroupResponse.frameShape} />
-                                    <Row label="Structure" value={item.frameGroupResponse.frameStructure} />
-                                    <Row label="Material" value={item.frameGroupResponse.frameMaterial} />
-                                    <Row label="Gender" value={item.frameGroupResponse.genderTarget} />
-                                    <Row label="Age" value={item.frameGroupResponse.ageGroup} />
-                                </Paper>
-
-                                <Paper elevation={0} sx={card}>
-                                    <SectionLabel title="Frame Variant" />
-
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                        <Box sx={{
-                                            width: 16,
-                                            height: 16,
-                                            borderRadius: '50%',
-                                            bgcolor: item.frameVariantResponse.colorHex
-                                        }} />
-                                        <Typography fontWeight={600}>
-                                            {item.frameVariantResponse.colorName}
-                                        </Typography>
-                                    </Box>
-
-                                    <Row label="Size" value={item.frameVariantResponse.size} />
-                                    <Row label="Frame Width" value={`${item.frameVariantResponse.frameWidthMm} mm`} />
-                                    <Row label="Lens"
-                                        value={`${item.frameVariantResponse.lensWidthMm} x ${item.frameVariantResponse.lensHeightMm} mm`} />
-                                    <Row label="Bridge" value={`${item.frameVariantResponse.bridgeWidthMm} mm`} />
-                                    <Row label="Temple" value={`${item.frameVariantResponse.templeLengthMm} mm`} />
-                                    <Row label="Stock" value={item.frameVariantResponse.qtyAvailable} />
-                                </Paper>
-                            </>
-                        )}
-
-                        {/* ACCESSORY */}
-                        {!isFrame && item.accessoryResponse && item.accessoryVariantResponse && (
-                            <>
-                                <Paper elevation={0} sx={card}>
-                                    <SectionLabel title="Accessory" />
-                                    <Row label="Name" value={item.accessoryResponse.name} />
-                                    <Row label="Type" value={item.accessoryResponse.type} />
-                                    <Row label="Description" value={item.accessoryResponse.description ?? '—'} />
-                                </Paper>
-
-                                <Paper elevation={0} sx={card}>
-                                    <SectionLabel title="Accessory Variant" />
-                                    <Row label="Name" value={item.accessoryVariantResponse.name} />
-
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        {item.accessoryVariantResponse.colorHex && (
-                                            <Box sx={{
-                                                width: 14,
-                                                height: 14,
-                                                borderRadius: '50%',
-                                                bgcolor: item.accessoryVariantResponse.colorHex
-                                            }} />
-                                        )}
-                                        <Typography fontWeight={600}>
-                                            {item.accessoryVariantResponse.color}
-                                        </Typography>
-                                    </Box>
-
-                                    <Row label="Size" value={item.accessoryVariantResponse.size ?? '—'} />
-                                </Paper>
-                            </>
-                        )}
-
-                    </Grid>
-                </Grid>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/* styles */
-const card = {
-    mt: 2,
-    p: 2,
-    borderRadius: 2,
-    bgcolor: '#F8FAFC',
-    border: '1px solid #E2E8F0'
-};
-
-const navBtnLeft = {
-    position: 'absolute',
-    left: 8,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    bgcolor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff'
-};
-
-const navBtnRight = {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: 28,
-    height: 28,
-    borderRadius: '50%',
-    bgcolor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: '#fff'
-};
 
 // ─── Product Row Card ─────────────────────────────────────────────────────────
 
@@ -342,6 +80,7 @@ interface ProductRowCardProps {
 function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
     const theme = useTheme();
     const [detailOpen, setDetailOpen] = useState(false);
+    const [reasonOpen, setReasonOpen] = useState(false);
 
     const frame = isFrame(item);
     const thumb = item.productImages[0] ?? null;
@@ -373,7 +112,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                 {/* Thumbnail */}
                 <Box sx={{ width: 96, flexShrink: 0, bgcolor: '#F1F5F9', position: 'relative', overflow: 'hidden' }}>
                     {thumb ? (
-                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 88 }} />
+                        <Box component="img" src={thumb} sx={{ width: '100%', height: '100%', objectFit: 'contain', minHeight: 88 }} />
                     ) : (
                         <Box sx={{ height: '100%', minHeight: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Inventory2 sx={{ fontSize: 28, color: '#CBD5E1' }} />
@@ -400,8 +139,7 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                             {item.productName}
                         </Typography>
                         <Typography fontSize={12} color="text.secondary" noWrap sx={{ mt: 0.25 }}>
-                            {variantSummary}
-                            {item.sku ? ` · ${item.sku}` : ''}
+                            {item.sku ? `SKU: ${item.sku}` : ''}
                         </Typography>
                     </Box>
 
@@ -461,12 +199,36 @@ function ProductRowCard({ item, isVerifying, onVerify }: ProductRowCardProps) {
                                 <Visibility sx={{ fontSize: 16 }} />
                             </IconButton>
                         </Tooltip>
+                        {item.status === 'REJECTED' && (
+                            <Tooltip title="View rejection reason">
+                                <IconButton
+                                    size="small"
+                                    onClick={() => setReasonOpen(true)}
+                                    sx={{
+                                        bgcolor: '#FEF2F2',
+                                        color: '#DC2626',
+                                        '&:hover': { bgcolor: '#FEE2E2' },
+                                        borderRadius: 1.5,
+                                        width: 32,
+                                        height: 32
+                                    }}
+                                >
+                                    <WarningAmberOutlined sx={{ fontSize: 16 }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Box>
                 </Box>
             </Paper>
 
             {/* Dialogs */}
             <ProductDetailDialog open={detailOpen} onClose={() => setDetailOpen(false)} item={item} />
+            <RejectionDialog
+                open={reasonOpen}
+                onClose={() => setReasonOpen(false)}
+                reason={item.rejectionReason}
+                note={item.rejectionNote}
+            />
         </>
     );
 }

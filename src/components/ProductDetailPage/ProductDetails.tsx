@@ -71,7 +71,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
         }
 
         // ACCESSORIES
-        const detail = await ProductAPI.getProductById(lookupId);
+        const detail = await ProductAPI.getAccessoryByVariantId(lookupId);
         if (!cancelled) {
           setAccessoryDetail({
             name: detail.name,
@@ -82,6 +82,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
             weightGrams: undefined,
             compatibleWith: detail.brandId ? [detail.brandId] : [],
           });
+          setActiveTab('description');
         }
       } catch (error) {
         console.error('Failed to load product detail data:', error);
@@ -118,151 +119,153 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
     setGalleryOpen(true);
   };
 
-    const closeGallery = () => setGalleryOpen(false);
-    const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
-    const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  const closeGallery = () => setGalleryOpen(false);
+  const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
+  const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
 
-    const formatMeasurement = (mm: number, inches: number): string => {
-        if (!mm || mm <= 0) return 'N/A';
-        return `${mm} mm / ${inches} in`;
-    };
+  const formatMeasurement = (mm: number, inches: number): string => {
+    if (!mm || mm <= 0) return 'N/A';
+    return `${mm} mm / ${inches} in`;
+  };
 
-    const safeValue = (value?: string | number | null): string => {
-        if (value === undefined || value === null || value === '') return 'N/A';
-        return String(value);
-    };
+  const safeValue = (value?: string | number | null): string => {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    return String(value);
+  };
 
-    return (
-        <div className="product-details-section">
-            <div className="details-tabs">
-                <button className={`tab ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
-                    Details
-                </button>
-                <button className={`tab ${activeTab === 'description' ? 'active' : ''}`} onClick={() => setActiveTab('description')}>
-                    Description
-                </button>
-                <button className={`tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>
-                    Reviews
-                </button>
+  return (
+    <div className="product-details-section">
+      <div className="details-tabs">
+        {normalizedProductType !== 'ACCESSORIES' && (
+          <button className={`tab ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
+            Details
+          </button>
+        )}
+        <button className={`tab ${activeTab === 'description' ? 'active' : ''}`} onClick={() => setActiveTab('description')}>
+          Description
+        </button>
+        <button className={`tab ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => setActiveTab('reviews')}>
+          Reviews
+        </button>
+      </div>
+
+      {activeTab === 'details' && (
+        <div className="details-content">
+          {normalizedProductType === 'FRAME' && (
+            <div className="details-grid">
+              <div className="details-column">
+                <h3>Frame Measurements <Info className="info-icon" /></h3>
+                <div className="measurement-item"><Visibility className="icon" /><span><strong>Frame Width:</strong> {formatMeasurement(product.frameMeasurements.frameWidth.mm, product.frameMeasurements.frameWidth.inches)}</span></div>
+                <div className="measurement-item"><Visibility className="icon" /><span><strong>Bridge:</strong> {formatMeasurement(product.frameMeasurements.bridge.mm, product.frameMeasurements.bridge.inches)}</span></div>
+                <div className="measurement-item"><Visibility className="icon" /><span><strong>Lens Width:</strong> {formatMeasurement(product.frameMeasurements.lensWidth.mm, product.frameMeasurements.lensWidth.inches)}</span></div>
+                <div className="measurement-item"><Visibility className="icon" /><span><strong>Lens Height:</strong> {formatMeasurement(product.frameMeasurements.lensHeight.mm, product.frameMeasurements.lensHeight.inches)}</span></div>
+                <div className="measurement-item"><Visibility className="icon" /><span><strong>Temple Length:</strong> {formatMeasurement(product.frameMeasurements.templeLength.mm, product.frameMeasurements.templeLength.inches)}</span></div>
+              </div>
+
+              <div className="details-column">
+                <h3>Frame Details</h3>
+                <p><strong>Size:</strong> {safeValue(product.frameDetails.size)} ({safeValue(product.frameDetails.sizeRange)})</p>
+                <p><strong>Material:</strong> {safeValue(product.frameDetails.material)}</p>
+                <p><strong>Weight:</strong> {product.frameDetails.weightGrams > 0 ? `${product.frameDetails.weightGrams} grams` : safeValue(product.frameDetails.weight)}</p>
+                <p><strong>Rim:</strong> {safeValue(product.frameDetails.rim)}</p>
+                <p><strong>Shape:</strong> {safeValue(product.frameDetails.shape)}</p>
+                <p><strong>Feature:</strong> {product.features.length > 0 ? product.features.join(', ') : 'N/A'}</p>
+              </div>
+
+              <div className="details-column">
+                <h3>Prescription Details <Info className="info-icon" /></h3>
+                <p><strong>PD Range:</strong> {product.prescriptionDetails.pdRange}</p>
+                {product.prescriptionDetails.pdRangeNote && <p className="note">{product.prescriptionDetails.pdRangeNote}</p>}
+                <p><strong>Prescription Range:</strong> {product.prescriptionDetails.prescriptionRange}</p>
+                <p><strong>Available as <a href="#">Progressive</a> / <a href="#">Bifocal</a>:</strong> {product.prescriptionDetails.progressive && product.prescriptionDetails.bifocal ? 'Yes' : 'No'}</p>
+                <p><strong>Available as <a href="#">Readers</a>:</strong> {product.prescriptionDetails.readers ? 'Yes' : 'No'}</p>
+              </div>
             </div>
+          )}
 
-            {activeTab === 'details' && (
-                <div className="details-content">
-                    {normalizedProductType === 'FRAME' && (
-                        <div className="details-grid">
-                            <div className="details-column">
-                                <h3>Frame Measurements <Info className="info-icon" /></h3>
-                                <div className="measurement-item"><Visibility className="icon" /><span><strong>Frame Width:</strong> {formatMeasurement(product.frameMeasurements.frameWidth.mm, product.frameMeasurements.frameWidth.inches)}</span></div>
-                                <div className="measurement-item"><Visibility className="icon" /><span><strong>Bridge:</strong> {formatMeasurement(product.frameMeasurements.bridge.mm, product.frameMeasurements.bridge.inches)}</span></div>
-                                <div className="measurement-item"><Visibility className="icon" /><span><strong>Lens Width:</strong> {formatMeasurement(product.frameMeasurements.lensWidth.mm, product.frameMeasurements.lensWidth.inches)}</span></div>
-                                <div className="measurement-item"><Visibility className="icon" /><span><strong>Lens Height:</strong> {formatMeasurement(product.frameMeasurements.lensHeight.mm, product.frameMeasurements.lensHeight.inches)}</span></div>
-                                <div className="measurement-item"><Visibility className="icon" /><span><strong>Temple Length:</strong> {formatMeasurement(product.frameMeasurements.templeLength.mm, product.frameMeasurements.templeLength.inches)}</span></div>
-                            </div>
+          {(normalizedProductType === 'LENSES' || normalizedProductType === 'LENS') && (
+            <div className="details-grid">
+              <div className="details-column">
+                <h3>Lens Details</h3>
+                <p><strong>Category:</strong> {safeValue(lensDetail?.lens.category)}</p>
+                <p><strong>Progressive Type:</strong> {safeValue(lensDetail?.lens.progressiveType)}</p>
+              </div>
 
-                            <div className="details-column">
-                                <h3>Frame Details</h3>
-                                <p><strong>Size:</strong> {safeValue(product.frameDetails.size)} ({safeValue(product.frameDetails.sizeRange)})</p>
-                                <p><strong>Material:</strong> {safeValue(product.frameDetails.material)}</p>
-                                <p><strong>Weight:</strong> {product.frameDetails.weightGrams > 0 ? `${product.frameDetails.weightGrams} grams` : safeValue(product.frameDetails.weight)}</p>
-                                <p><strong>Rim:</strong> {safeValue(product.frameDetails.rim)}</p>
-                                <p><strong>Shape:</strong> {safeValue(product.frameDetails.shape)}</p>
-                                <p><strong>Feature:</strong> {product.features.length > 0 ? product.features.join(', ') : 'N/A'}</p>
-                            </div>
+              <div className="details-column">
+                <h3>Lens Catalog</h3>
+                <div className="lens-options-row">
+                  {lensUsageRules.length > 0 && (
+                    <div className="detail-option-switcher">
+                      <div className="detail-option-switcher-header">
+                        <strong>Usage Rule {activeLensUsageIndex + 1} of {lensUsageRules.length}</strong>
+                        {lensUsageRules.length > 1 && (
+                          <div className="detail-option-switcher-actions">
+                            <button type="button" onClick={() => setActiveLensUsageIndex((prev) => cycleIndex(prev, -1, lensUsageRules.length))}>Prev</button>
+                            <button type="button" onClick={() => setActiveLensUsageIndex((prev) => cycleIndex(prev, 1, lensUsageRules.length))}>Next</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {lensTintOptions.length > 0 && (
+                    <div className="detail-option-switcher">
+                      <div className="detail-option-switcher-header">
+                        <strong>Tint Option {activeLensTintIndex + 1} of {lensTintOptions.length}</strong>
+                        {lensTintOptions.length > 1 && (
+                          <div className="detail-option-switcher-actions">
+                            <button type="button" onClick={() => setActiveLensTintIndex((prev) => cycleIndex(prev, -1, lensTintOptions.length))}>Prev</button>
+                            <button type="button" onClick={() => setActiveLensTintIndex((prev) => cycleIndex(prev, 1, lensTintOptions.length))}>Next</button>
+                          </div>
+                        )}
+                      </div>
+                      <p><strong>Name:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.tintName ?? lensTintOptions[activeLensTintIndex]?.tintCode)}</p>
+                      <p><strong>Behavior:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.tintBehavior)}</p>
+                      <p><strong>Extra Price:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.extraPrice)}</p>
+                      <p><strong>Default:</strong> {lensTintOptions[activeLensTintIndex]?.isDefault ? 'Yes' : 'No'}</p>
+                    </div>
+                  )}
+                  {lensFeatureMappings.length > 0 && (
+                    <div className="detail-option-switcher">
+                      <div className="detail-option-switcher-header">
+                        <strong>Feature Option {activeLensFeatureIndex + 1} of {lensFeatureMappings.length}</strong>
+                        {lensFeatureMappings.length > 1 && (
+                          <div className="detail-option-switcher-actions">
+                            <button type="button" onClick={() => setActiveLensFeatureIndex((prev) => cycleIndex(prev, -1, lensFeatureMappings.length))}>Prev</button>
+                            <button type="button" onClick={() => setActiveLensFeatureIndex((prev) => cycleIndex(prev, 1, lensFeatureMappings.length))}>Next</button>
+                          </div>
+                        )}
+                      </div>
+                      <p><strong>SKU:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.sku)}</p>
+                      <p><strong>Name:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.name)}</p>
+                      <p><strong>Description:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.description)}</p>
+                      <p><strong>Extra Price:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.extraPrice)}</p>
+                      <p><strong>Default:</strong> {lensFeatureMappings[activeLensFeatureIndex]?.isDefault ? 'Yes' : 'No'}</p>
+                    </div>
+                  )}
+                  {lensProgressiveOptions.length > 0 && (
+                    <div className="detail-option-switcher">
+                      <div className="detail-option-switcher-header">
+                        <strong>Progressive Option {activeLensProgressiveIndex + 1} of {lensProgressiveOptions.length}</strong>
+                        {lensProgressiveOptions.length > 1 && (
+                          <div className="detail-option-switcher-actions">
+                            <button type="button" onClick={() => setActiveLensProgressiveIndex((prev) => cycleIndex(prev, -1, lensProgressiveOptions.length))}>Prev</button>
+                            <button type="button" onClick={() => setActiveLensProgressiveIndex((prev) => cycleIndex(prev, 1, lensProgressiveOptions.length))}>Next</button>
+                          </div>
+                        )}
+                      </div>
+                      <p><strong>Name:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.name)}</p>
+                      <p><strong>Description:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.description)}</p>
+                      <p><strong>Type:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.progressiveType)}</p>
+                      <p><strong>Extra Price:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.extraPrice)}</p>
+                      <p><strong>Recommended:</strong> {lensProgressiveOptions[activeLensProgressiveIndex]?.isRecommended ? 'Yes' : 'No'}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
-                            <div className="details-column">
-                                <h3>Prescription Details <Info className="info-icon" /></h3>
-                                <p><strong>PD Range:</strong> {product.prescriptionDetails.pdRange}</p>
-                                {product.prescriptionDetails.pdRangeNote && <p className="note">{product.prescriptionDetails.pdRangeNote}</p>}
-                                <p><strong>Prescription Range:</strong> {product.prescriptionDetails.prescriptionRange}</p>
-                                <p><strong>Available as <a href="#">Progressive</a> / <a href="#">Bifocal</a>:</strong> {product.prescriptionDetails.progressive && product.prescriptionDetails.bifocal ? 'Yes' : 'No'}</p>
-                                <p><strong>Available as <a href="#">Readers</a>:</strong> {product.prescriptionDetails.readers ? 'Yes' : 'No'}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {(normalizedProductType === 'LENSES' || normalizedProductType === 'LENS') && (
-                        <div className="details-grid">
-                            <div className="details-column">
-                                <h3>Lens Details</h3>
-                                <p><strong>Category:</strong> {safeValue(lensDetail?.lens.category)}</p>
-                                <p><strong>Progressive Type:</strong> {safeValue(lensDetail?.lens.progressiveType)}</p>
-                            </div>
-
-                            <div className="details-column">
-                                <h3>Lens Catalog</h3>
-                                <div className="lens-options-row">
-                                    {lensUsageRules.length > 0 && (
-                                        <div className="detail-option-switcher">
-                                            <div className="detail-option-switcher-header">
-                                                <strong>Usage Rule {activeLensUsageIndex + 1} of {lensUsageRules.length}</strong>
-                                                {lensUsageRules.length > 1 && (
-                                                    <div className="detail-option-switcher-actions">
-                                                        <button type="button" onClick={() => setActiveLensUsageIndex((prev) => cycleIndex(prev, -1, lensUsageRules.length))}>Prev</button>
-                                                        <button type="button" onClick={() => setActiveLensUsageIndex((prev) => cycleIndex(prev, 1, lensUsageRules.length))}>Next</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {lensTintOptions.length > 0 && (
-                                        <div className="detail-option-switcher">
-                                            <div className="detail-option-switcher-header">
-                                                <strong>Tint Option {activeLensTintIndex + 1} of {lensTintOptions.length}</strong>
-                                                {lensTintOptions.length > 1 && (
-                                                    <div className="detail-option-switcher-actions">
-                                                        <button type="button" onClick={() => setActiveLensTintIndex((prev) => cycleIndex(prev, -1, lensTintOptions.length))}>Prev</button>
-                                                        <button type="button" onClick={() => setActiveLensTintIndex((prev) => cycleIndex(prev, 1, lensTintOptions.length))}>Next</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p><strong>Name:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.tintName ?? lensTintOptions[activeLensTintIndex]?.tintCode)}</p>
-                                            <p><strong>Behavior:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.tintBehavior)}</p>
-                                            <p><strong>Extra Price:</strong> {safeValue(lensTintOptions[activeLensTintIndex]?.extraPrice)}</p>
-                                            <p><strong>Default:</strong> {lensTintOptions[activeLensTintIndex]?.isDefault ? 'Yes' : 'No'}</p>
-                                        </div>
-                                    )}
-                                    {lensFeatureMappings.length > 0 && (
-                                        <div className="detail-option-switcher">
-                                            <div className="detail-option-switcher-header">
-                                                <strong>Feature Option {activeLensFeatureIndex + 1} of {lensFeatureMappings.length}</strong>
-                                                {lensFeatureMappings.length > 1 && (
-                                                    <div className="detail-option-switcher-actions">
-                                                        <button type="button" onClick={() => setActiveLensFeatureIndex((prev) => cycleIndex(prev, -1, lensFeatureMappings.length))}>Prev</button>
-                                                        <button type="button" onClick={() => setActiveLensFeatureIndex((prev) => cycleIndex(prev, 1, lensFeatureMappings.length))}>Next</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p><strong>SKU:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.sku)}</p>
-                                            <p><strong>Name:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.name)}</p>
-                                            <p><strong>Description:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.description)}</p>
-                                            <p><strong>Extra Price:</strong> {safeValue(lensFeatureMappings[activeLensFeatureIndex]?.extraPrice)}</p>
-                                            <p><strong>Default:</strong> {lensFeatureMappings[activeLensFeatureIndex]?.isDefault ? 'Yes' : 'No'}</p>
-                                        </div>
-                                    )}
-                                    {lensProgressiveOptions.length > 0 && (
-                                        <div className="detail-option-switcher">
-                                            <div className="detail-option-switcher-header">
-                                                <strong>Progressive Option {activeLensProgressiveIndex + 1} of {lensProgressiveOptions.length}</strong>
-                                                {lensProgressiveOptions.length > 1 && (
-                                                    <div className="detail-option-switcher-actions">
-                                                        <button type="button" onClick={() => setActiveLensProgressiveIndex((prev) => cycleIndex(prev, -1, lensProgressiveOptions.length))}>Prev</button>
-                                                        <button type="button" onClick={() => setActiveLensProgressiveIndex((prev) => cycleIndex(prev, 1, lensProgressiveOptions.length))}>Next</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p><strong>Name:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.name)}</p>
-                                            <p><strong>Description:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.description)}</p>
-                                            <p><strong>Type:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.progressiveType)}</p>
-                                            <p><strong>Extra Price:</strong> {safeValue(lensProgressiveOptions[activeLensProgressiveIndex]?.extraPrice)}</p>
-                                            <p><strong>Recommended:</strong> {lensProgressiveOptions[activeLensProgressiveIndex]?.isRecommended ? 'Yes' : 'No'}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {normalizedProductType === 'ACCESSORIES' && (
+          {/* {normalizedProductType === 'ACCESSORIES' && (
                         <div className="details-grid">
                             <div className="details-column">
                                 <h3>Accessory Details</h3>
@@ -273,9 +276,9 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
                                 <p><strong>Compatible With:</strong> {accessoryDetail?.compatibleWith && accessoryDetail.compatibleWith.length > 0 ? accessoryDetail.compatibleWith.join(', ') : 'N/A'}</p>
                             </div>
                         </div>
-                    )}
-                </div>
-            )}
+                    )} */}
+        </div>
+      )}
 
       {activeTab === 'description' && (
         <div className="description-content">
@@ -284,9 +287,14 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
               ? (frameGroup?.description || product.description
                 ? <p>{frameGroup?.description || product.description}</p>
                 : <p>Description is currently unavailable for this product.</p>)
-              : (product.description
-                ? <p>{product.description}</p>
-                : <p>Description is currently unavailable for this product.</p>)}
+              : normalizedProductType === 'ACCESSORIES'
+                ? (accessoryDetail?.description
+                  ? <p>{accessoryDetail?.description || product.description}</p>
+                  : <p>Description is currently unavailable for this product.</p>)
+                : (accessoryDetail?.description
+                  ? <p>{accessoryDetail.description}</p>
+                  : <p>Description is currently unavailable for this product.</p>)
+            }
           </div>
         </div>
       )}
@@ -301,8 +309,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
                   {[...Array(5)].map((_, i) => (i < Math.floor(product.rating) ? <Star key={i} className="star filled" /> : <StarBorder key={i} className="star" />))}
                   {[...Array(5)].map((_, i) => (
                     i < Math.floor(summary.avgRating) ?
-                    <Star key={i} className="star filled" /> :
-                    <StarBorder key={i} className="star" />
+                      <Star key={i} className="star filled" /> :
+                      <StarBorder key={i} className="star" />
                   ))}
                 </div>
                 <span className="total-reviews">{summary.total} reviews</span>
@@ -345,13 +353,16 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
                     </div>
                     <h4 className="review-title">{review.title}</h4>
                     <p className="review-comment">{review.comment}</p>
-                    {review.imageUrls && review.imageUrls.length > 0 && review.imageUrls[0] !== 'string' && (
-                      <div className="review-images">
-                        {review.imageUrls.map((imageUrl, index) => (
-                          <img key={index} src={imageUrl} alt={`Review ${index + 1}`} className="review-image-thumbnail" onClick={() => openGallery(review.imageUrls, index)} />
-                        ))}
-                      </div>
-                    )}
+                    {(() => {
+                      const validUrls = (review.imageUrls ?? []).filter(url => url && url !== 'string');
+                      return validUrls.length > 0 ? (
+                        <div className="review-images">
+                          {validUrls.map((imageUrl, index) => (
+                            <img key={index} src={imageUrl} alt={`Review ${index + 1}`} className="review-image-thumbnail" onClick={() => openGallery(validUrls, index)} />
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                     {review.shopResponse && <div className="shop-response"><strong>Shop Response:</strong> {review.shopResponse}</div>}
                   </div>
                 );
@@ -366,6 +377,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, reviewData, is
           )}
         </div>
       )}
+
 
       {galleryOpen && (
         <div className="gallery-modal" onClick={closeGallery}>

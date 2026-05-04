@@ -11,6 +11,14 @@ import type {
 import axiosInstance from '@/api/axios.config';
 import { API_ENDPOINTS } from '@/api/endpoints';
 
+export interface AdminMonthlyRevenue {
+  month: number;
+  grossRevenue: number;
+  shippingSubsidy: number;
+  netRevenue: number;
+  orderCount: number;
+}
+
 export interface AdminOverviewStats {
   totalOrders: number;
   totalRevenue: number;
@@ -107,6 +115,7 @@ export interface AdminRefundResponse {
   shopId: string;
   shopName: string;
   userId: string;
+  userName: string;
   returnType: string;
   reason: string;
   reasonDetail?: string;
@@ -325,6 +334,14 @@ export const adminApi = {
   getShopStats: async (): Promise<ApiResponse<AdminShopStats[]>> => {
     const response = await axiosInstance.get<ApiResponse<AdminShopStats[]>>(
       API_ENDPOINTS.ADMIN.STATS.SHOPS,
+    );
+    return response.data;
+  },
+
+  getMonthlyRevenue: async (year?: number): Promise<ApiResponse<AdminMonthlyRevenue[]>> => {
+    const response = await axiosInstance.get<ApiResponse<AdminMonthlyRevenue[]>>(
+      API_ENDPOINTS.ADMIN.STATS.MONTHLY_REVENUE,
+      { params: year ? { year } : undefined },
     );
     return response.data;
   },

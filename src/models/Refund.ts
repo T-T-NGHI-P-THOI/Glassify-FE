@@ -25,7 +25,9 @@ export enum ReturnStatus {
   REQUESTED = 'REQUESTED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  RETURN_READY_TO_PICK = 'RETURN_READY_TO_PICK',
   RETURN_SHIPPING = 'RETURN_SHIPPING',
+  RETURN_DELIVERED = 'RETURN_DELIVERED',
   ITEM_RECEIVED = 'ITEM_RECEIVED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
@@ -118,6 +120,11 @@ export interface RefundRequest {
   adminAppealReviewNote?: string;
   shopCompensationAmount?: number;
   shopCompensatedAt?: string;
+  proposalStatus?: string;
+  proposedPartialAmount?: number;
+  proposalReason?: string;
+  proposalCreatedAt?: string;
+  proposalUpdatedAt?: string;
   buyerName?: string;
   buyerEmail?: string;
   buyerPhone?: string;
@@ -183,6 +190,11 @@ export interface ProcessRefundDto {
   partialAmount?: number;
 }
 
+export interface ProposeRefundDto {
+  proposedAmount: number;
+  reason?: string;
+}
+
 export interface SubmitShopAppealDto {
   appealReason: ShopAppealReason;
   appealDetail?: string;
@@ -207,6 +219,7 @@ export interface RefundRequestFilter {
   orderNumber?: string;
   requestedAfter?: string;
   requestedBefore?: string;
+  viewAsShop?: boolean;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }
@@ -233,7 +246,9 @@ export const RETURN_STATUS_LABELS: Record<ReturnStatus, string> = {
   [ReturnStatus.REQUESTED]: 'Requested',
   [ReturnStatus.APPROVED]: 'Approved',
   [ReturnStatus.REJECTED]: 'Rejected',
+  [ReturnStatus.RETURN_READY_TO_PICK]: 'Ready for Pickup',
   [ReturnStatus.RETURN_SHIPPING]: 'Returning Item',
+  [ReturnStatus.RETURN_DELIVERED]: 'Item Returned',
   [ReturnStatus.ITEM_RECEIVED]: 'Item Received',
   [ReturnStatus.COMPLETED]: 'Completed',
   [ReturnStatus.CANCELLED]: 'Cancelled',
@@ -243,7 +258,9 @@ export const REFUND_STATUS_OPTIONS: ReturnStatus[] = [
   ReturnStatus.REQUESTED,
   ReturnStatus.APPROVED,
   ReturnStatus.REJECTED,
+  ReturnStatus.RETURN_READY_TO_PICK,
   ReturnStatus.RETURN_SHIPPING,
+  ReturnStatus.RETURN_DELIVERED,
   ReturnStatus.ITEM_RECEIVED,
   ReturnStatus.COMPLETED,
   ReturnStatus.CANCELLED,

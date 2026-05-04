@@ -84,7 +84,7 @@ const ShopDashboardPage = () => {
   const [analyticsSummary, setAnalyticsSummary] = useState<ShopAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   
-  useLayoutConfig({showNavbar: false, showFooter: false});
+  useLayoutConfig({ showNavbar: false, showFooter: false });
 
   useEffect(() => {
     fetchShopDetail();
@@ -259,19 +259,19 @@ const ShopDashboardPage = () => {
     {
       icon: <ShoppingCart sx={{ color: theme.palette.custom.status.info.main }} />,
       label: 'Total Orders',
-      value: (shop.totalOrders ?? 0).toLocaleString(),
+      value: analyticsLoading ? '...' : (analyticsSummary?.totalOrders ?? 0).toLocaleString(),
       bgColor: theme.palette.custom.status.info.light,
     },
     {
       icon: <Inventory sx={{ color: theme.palette.custom.status.purple.main }} />,
       label: 'Total Products',
-      value: (shop.totalProducts ?? 0).toLocaleString(),
+      value: analyticsLoading ? '...' : (analyticsSummary?.totalProducts ?? 0).toLocaleString(),
       bgColor: theme.palette.custom.status.purple.light,
     },
     {
       icon: <Star sx={{ color: theme.palette.custom.status.warning.main }} />,
       label: 'Avg Rating',
-      value: shop.avgRating != null ? shop.avgRating.toFixed(1) : '0.0',
+      value: analyticsLoading ? '...' : (analyticsSummary?.avgRating ?? 0).toFixed(1),
       bgColor: theme.palette.custom.status.warning.light,
     },
     {
@@ -840,7 +840,7 @@ const ShopDashboardPage = () => {
                 Owner
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[200] }}>
+                <Avatar src={shop.ownerAvatarUrl} sx={{ width: 48, height: 48, bgcolor: theme.palette.custom.neutral[200] }}>
                   <Person />
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
@@ -861,10 +861,10 @@ const ShopDashboardPage = () => {
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography sx={{ fontSize: 40, fontWeight: 700, color: theme.palette.custom.neutral[800], lineHeight: 1 }}>
-                  {shop.avgRating != null ? shop.avgRating.toFixed(1) : '0.0'}
+                  {analyticsLoading ? '...' : (analyticsSummary?.avgRating ?? 0).toFixed(1)}
                 </Typography>
                 <Box>
-                  <Rating value={shop.avgRating ?? 0} precision={0.1} readOnly size="small" />
+                  <Rating value={analyticsSummary?.avgRating ?? 0} precision={0.1} readOnly size="small" />
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
                     Based on customer reviews
                   </Typography>
@@ -915,6 +915,7 @@ const ShopDashboardPage = () => {
         getStatusColor={getStatusColor}
         formatDate={formatDate}
         ghnNames={ghnNames}
+        analyticsSummary={analyticsSummary}
       />
     </Box>
   );
@@ -928,6 +929,7 @@ interface ShopDetailDialogProps {
   getStatusColor: (status: ShopStatus) => { bg: string; color: string };
   formatDate: (dateString: string | null | undefined) => string;
   ghnNames: { province: string; district: string; ward: string };
+  analyticsSummary: ShopAnalyticsSummary | null;
 }
 
 const ShopDetailDialog = ({
@@ -937,6 +939,7 @@ const ShopDetailDialog = ({
   getStatusColor,
   formatDate,
   ghnNames,
+  analyticsSummary,
 }: ShopDetailDialogProps) => {
   const theme = useTheme();
   const statusStyle = getStatusColor(shop.status);
@@ -1127,10 +1130,10 @@ const ShopDetailDialog = ({
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <InfoRow label="Total Orders" value={(shop.totalOrders ?? 0).toLocaleString()} />
+                <InfoRow label="Total Orders" value={(analyticsSummary?.totalOrders ?? 0).toLocaleString()} />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <InfoRow label="Total Products" value={(shop.totalProducts ?? 0).toLocaleString()} />
+                <InfoRow label="Total Products" value={(analyticsSummary?.totalProducts ?? 0).toLocaleString()} />
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
                 <Box sx={{ mb: 2 }}>
@@ -1139,9 +1142,9 @@ const ShopDetailDialog = ({
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                      {shop.avgRating != null ? shop.avgRating.toFixed(1) : '0.0'}
+                      {(analyticsSummary?.avgRating ?? 0).toFixed(1)}
                     </Typography>
-                    <Rating value={shop.avgRating ?? 0} precision={0.1} readOnly size="small" />
+                    <Rating value={analyticsSummary?.avgRating ?? 0} precision={0.1} readOnly size="small" />
                   </Box>
                 </Box>
               </Grid>

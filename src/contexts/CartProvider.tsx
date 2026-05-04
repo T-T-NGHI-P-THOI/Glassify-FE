@@ -99,6 +99,7 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
             itemType: params.itemType,
             parentItemId: params.parentItemId,
             isFree: params.isFree,
+            createNew: params.createNew,
             giftNote: params.giftNote,
             shopId: params.shopId,
             variantId: params.variantId,
@@ -119,8 +120,8 @@ const CartProvider: FC<PropsWithChildren> = ({ children }) => {
             navigate('/login');
             return;
         }
-        // Step 1: Add frame
-        const frameItemId = await addItem(frameParams);
+        // Step 1: Add frame — always force a new item so it doesn't merge with a standalone frame
+        const frameItemId = await addItem({ ...frameParams, createNew: true });
         // Step 2: Add lens as child of frame
         await CartService.addItem({
             ...lensParams,

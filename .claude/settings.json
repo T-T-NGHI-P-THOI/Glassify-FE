@@ -9,7 +9,9 @@
       "Bash(npx --yes tsc --noEmit)",
       "Bash(grep -E \"\\\\.\\(java\\)$\")",
       "Bash(sed -n '883,908p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)",
-      "Bash(sed -n '1010,1030p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)"
+      "Bash(sed -n '1010,1030p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)",
+      "Bash(grep -n \"GET_BY_ID\\\\|getById\\\\|shops/\\\\${\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/api/shopApi.ts)",
+      "Bash(grep -n \"GET_BY_ID\\\\|getPublic\\\\|/shops/\\\\${id}\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/api/shopApi.ts)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces",
@@ -18,7 +20,10 @@
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/repository",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/service/impl",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/controller",
-      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations"
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/order/response",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/prescription/request",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/shop"
     ]
   }
 }

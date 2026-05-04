@@ -110,7 +110,7 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     warrantyMonths: 0,
     costPrice: 0,
     basePrice: 0,
-    isFeatured: false,
+    isFeatured: true,
     isReturnable: false,
     images: [],
     textureFile: null,
@@ -275,6 +275,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 e.stock = 'Stock must be greater than 0';
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
+            if (
+                formData.basePrice != null &&
+                formData.costPrice != null &&
+                formData.basePrice < formData.costPrice
+            ) {
+                e.basePrice = 'Base price must be greater than or equal to cost price';
+            }
 
             const dimensionFields: (keyof CreateFrameVariantFormData)[] = [
                 "frameWidthMm",
@@ -653,6 +660,8 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 const raw = parseNumber(e.target.value);
                                 setField('basePrice', raw);
                             }}
+                            error={!!errors.basePrice}
+                            helperText={errors.basePrice}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
@@ -833,7 +842,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                         width: 56,
                                         height: 56,
                                         borderRadius: 1,
-                                        objectFit: 'cover',
+                                        objectFit: 'contain',
                                         flexShrink: 0,
                                         border: `1px solid ${theme.palette.custom.border.light}`,
                                     }}
@@ -914,7 +923,7 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                     <Box
                                         component="img"
                                         src={formData.textureFile.preview}
-                                        sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }}
+                                        sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'contain' }}
                                     />
                                     <Typography sx={{ fontSize: 11, color: '#fff' }}>
                                         {formData.textureFile.name}

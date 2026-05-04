@@ -149,6 +149,13 @@ const EditAccessoryVariantDialog = ({
             e.basePrice = 'Base price must be greater than 0';
         if (!formData.stock || Number(formData.stock) <= 0)
             e.stock = 'Stock must be greater than 0';
+        if (
+            formData.basePrice != null &&
+            formData.costPrice != null &&
+            formData.basePrice < formData.costPrice
+        ) {
+            e.basePrice = 'Base price must be greater than or equal to cost price';
+        }
         const totalImages = formData.keepImageUrls.length + formData.newImages.length;
         if (totalImages === 0) e.newImages = 'Please keep or upload at least 1 image';
         setErrors(e);

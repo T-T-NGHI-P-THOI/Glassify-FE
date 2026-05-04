@@ -59,7 +59,7 @@ export interface EditFrameVariantFormData {
 
     newImages: ProductImageFile[];
     keepImageUrls: string[];
-    
+
     newTextureFile: TextureFileLocal | null;
     keepTextureUrl: string | null;
 }
@@ -263,6 +263,13 @@ const EditFrameVariantDialog = ({
             e.basePrice = 'Base price must be greater than 0';
         if (!formData.stock || Number(formData.stock) <= 0)
             e.stock = 'Stock must be greater than 0';
+        // if (
+        //     formData.basePrice != null &&
+        //     formData.costPrice != null &&
+        //     formData.basePrice < formData.costPrice
+        // ) {
+        //     e.basePrice = 'Base price must be greater than or equal to cost price';
+        // }
 
         const totalImages = formData.keepImageUrls.length + formData.newImages.length;
         if (totalImages === 0) e.newImages = 'Please keep or upload at least 1 image';
@@ -336,7 +343,7 @@ const EditFrameVariantDialog = ({
             toast.success('Frame variant updated successfully!');
             onSaved?.(variant.id, formData);
             onClose();
-            
+
         } catch (error: any) {
             const msgs: string[] = error?.errors ?? [];
             if (msgs.length) msgs.forEach(m => toast.error(m));
@@ -850,90 +857,199 @@ const EditFrameVariantDialog = ({
                     </Typography>
                 )}
 
-                <Divider sx={{ my: 3 }} />
 
-                {/* ── Texture Map ── */}
-                <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ViewInArIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-                    Texture Map
-                    <Typography component="span" sx={{ fontSize: 13, fontWeight: 400, color: theme.palette.custom.neutral[500] }}>
-                        (optional)
-                    </Typography>
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: 2 }}>
-                    {modelFile ? 'Replace or remove the texture applied to the 3D model.' : 'No 3D model in this frame group.'}
-                </Typography>
 
-                {!displayTexture ? (
+                {modelFile?.file && (
                     <>
-                        <input type="file" id="edit-texture-upload" accept=".png,.jpg,.jpeg,.webp" style={{ display: 'none' }} onChange={handleTextureUpload} />
-                        <label htmlFor="edit-texture-upload">
-                            <UploadArea sx={{ py: 2.5, ...(errors.newTextureFile ? { borderColor: theme.palette.error.main } : {}) }}>
-                                <CloudUpload sx={{ fontSize: 32, color: theme.palette.custom.neutral[400], mb: 1 }} />
-                                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[600] }}>
-                                    Click to upload texture
-                                </Typography>
-                                {variant.textureFile && (
-                                    <Typography
-                                        component="span"
-                                        onClick={e => { e.preventDefault(); handleRestoreTexture(); }}
-                                        sx={{ fontSize: 12, color: theme.palette.primary.main, cursor: 'pointer', textDecoration: 'underline', display: 'block', mt: 0.5 }}
-                                    >
-                                        Restore current texture
-                                    </Typography>
-                                )}
-                            </UploadArea>
-                        </label>
-                        {errors.newTextureFile && (
-                            <Typography color="error" fontSize={12} sx={{ mt: 1 }}>{errors.newTextureFile}</Typography>
-                        )}
-                    </>
-                ) : (
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            p: 1.5,
-                            mb: 2,
-                            borderRadius: 2,
-                            border: `1px solid ${theme.palette.custom.border.light}`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 2,
-                        }}
-                    >
-                        <Box
-                            component="img"
-                            src={displayTexture.src}
-                            sx={{ width: 48, height: 48, borderRadius: 1, objectFit: 'cover', flexShrink: 0, border: `1px solid ${theme.palette.custom.border.light}` }}
-                        />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {displayTexture.label}
-                            </Typography>
-                            {!displayTexture.isUrl && formData.newTextureFile && (
-                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
-                                    {formatFileSize(formData.newTextureFile.size)}
-                                </Typography>
-                            )}
-                        </Box>
-
-                        <label htmlFor="edit-texture-upload" style={{ cursor: 'pointer' }}>
-                            <input type="file" id="edit-texture-upload" accept=".png,.jpg,.jpeg,.webp" style={{ display: 'none' }} onChange={handleTextureUpload} />
-                            <Button
+                        {/* ── Texture Map ── */}
+                        <Divider sx={{ my: 3 }} />
+                        <Typography
+                            sx={{
+                                fontSize: 15,
+                                fontWeight: 600,
+                                color: theme.palette.custom.neutral[800],
+                                mb: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1
+                            }}
+                        >
+                            <ViewInArIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                            Texture Map
+                            <Typography
                                 component="span"
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Refresh sx={{ fontSize: 14 }} />}
-                                sx={{ fontSize: 12, textTransform: 'none', mr: 1 }}
+                                sx={{
+                                    fontSize: 13,
+                                    fontWeight: 400,
+                                    color: theme.palette.custom.neutral[500]
+                                }}
                             >
-                                Replace
-                            </Button>
-                        </label>
+                                (optional)
+                            </Typography>
+                        </Typography>
 
-                        <IconButton size="small" onClick={handleRemoveTexture} sx={{ color: theme.palette.custom.status.error.main }}>
-                            <Delete fontSize="small" />
-                        </IconButton>
-                    </Paper>
+                        <Typography
+                            sx={{
+                                fontSize: 13,
+                                color: theme.palette.custom.neutral[500],
+                                mb: 2
+                            }}
+                        >
+                            {modelFile
+                                ? 'Replace or remove the texture applied to the 3D model.'
+                                : 'No 3D model in this frame group.'}
+                        </Typography>
+
+                        {(() => {
+                            const inputId = `edit-texture-upload-${variant.id}`;
+
+                            return !displayTexture ? (
+                                <>
+                                    <input
+                                        type="file"
+                                        id={inputId}
+                                        accept=".png,.jpg,.jpeg,.webp"
+                                        style={{ display: 'none' }}
+                                        onChange={handleTextureUpload}
+                                    />
+
+                                    <label htmlFor={inputId}>
+                                        <UploadArea
+                                            sx={{
+                                                py: 2.5,
+                                                ...(errors.newTextureFile
+                                                    ? { borderColor: theme.palette.error.main }
+                                                    : {})
+                                            }}
+                                        >
+                                            <CloudUpload
+                                                sx={{
+                                                    fontSize: 32,
+                                                    color: theme.palette.custom.neutral[400],
+                                                    mb: 1
+                                                }}
+                                            />
+
+                                            <Typography
+                                                sx={{
+                                                    fontSize: 13,
+                                                    color: theme.palette.custom.neutral[600]
+                                                }}
+                                            >
+                                                Click to upload texture
+                                            </Typography>
+
+                                            {variant.textureFile && (
+                                                <Typography
+                                                    component="span"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        handleRestoreTexture();
+                                                    }}
+                                                    sx={{
+                                                        fontSize: 12,
+                                                        color: theme.palette.primary.main,
+                                                        cursor: 'pointer',
+                                                        textDecoration: 'underline',
+                                                        display: 'block',
+                                                        mt: 0.5
+                                                    }}
+                                                >
+                                                    Restore current texture
+                                                </Typography>
+                                            )}
+                                        </UploadArea>
+                                    </label>
+
+                                    {errors.newTextureFile && (
+                                        <Typography color="error" fontSize={12} sx={{ mt: 1 }}>
+                                            {errors.newTextureFile}
+                                        </Typography>
+                                    )}
+                                </>
+                            ) : (
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        p: 1.5,
+                                        mb: 2,
+                                        borderRadius: 2,
+                                        border: `1px solid ${theme.palette.custom.border.light}`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 2,
+                                    }}
+                                >
+                                    <Box
+                                        component="img"
+                                        src={displayTexture.src}
+                                        sx={{
+                                            width: 48,
+                                            height: 48,
+                                            borderRadius: 1,
+                                            objectFit: 'contain',
+                                            flexShrink: 0,
+                                            border: `1px solid ${theme.palette.custom.border.light}`
+                                        }}
+                                    />
+
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Typography
+                                            sx={{
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                color: theme.palette.custom.neutral[800],
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap'
+                                            }}
+                                        >
+                                            {displayTexture.label}
+                                        </Typography>
+
+                                        {!displayTexture.isUrl && formData.newTextureFile && (
+                                            <Typography
+                                                sx={{
+                                                    fontSize: 11,
+                                                    color: theme.palette.custom.neutral[400]
+                                                }}
+                                            >
+                                                {formatFileSize(formData.newTextureFile.size)}
+                                            </Typography>
+                                        )}
+                                    </Box>
+
+                                    <label htmlFor={inputId} style={{ cursor: 'pointer' }}>
+                                        <input
+                                            type="file"
+                                            id={inputId}
+                                            accept=".png,.jpg,.jpeg,.webp"
+                                            style={{ display: 'none' }}
+                                            onChange={handleTextureUpload}
+                                        />
+
+                                        <Button
+                                            component="span"
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={<Refresh sx={{ fontSize: 14 }} />}
+                                            sx={{ fontSize: 12, textTransform: 'none', mr: 1 }}
+                                        >
+                                            Replace
+                                        </Button>
+                                    </label>
+
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleRemoveTexture}
+                                        sx={{ color: theme.palette.custom.status.error.main }}
+                                    >
+                                        <Delete fontSize="small" />
+                                    </IconButton>
+                                </Paper>
+                            );
+                        })()}
+                    </>
                 )}
 
                 {/* ── Local 3D Viewer ── */}
@@ -958,7 +1074,7 @@ const EditFrameVariantDialog = ({
                                 display: 'flex', alignItems: 'center', gap: 1,
                                 bgcolor: 'rgba(0,0,0,0.5)', borderRadius: 1, px: 1.5, py: 0.5, pointerEvents: 'none',
                             }}>
-                                <Box component="img" src={displayTexture.src} sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'cover' }} />
+                                <Box component="img" src={displayTexture.src} sx={{ width: 18, height: 18, borderRadius: 0.5, objectFit: 'contain' }} />
                                 <Typography sx={{ fontSize: 11, color: '#fff' }}>{displayTexture.label}</Typography>
                             </Box>
                         )}
@@ -1009,7 +1125,7 @@ const EditFrameVariantDialog = ({
                     {loading ? 'Saving...' : 'Save changes'}
                 </Button>
             </DialogActions>
-        </Dialog>
+        </Dialog >
     );
 };
 

@@ -36,6 +36,7 @@ import {
   CheckCircle,
   LocationOn,
   Close,
+  Visibility,
 } from '@mui/icons-material';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
@@ -1138,6 +1139,28 @@ const CheckoutPage = () => {
                         + {item.children.map(c => c.product?.name || c.item_type).join(', ')}
                       </Typography>
                     )}
+                    {item.lens_selection?.prescription && (item.lens_selection.prescription.right_eye?.sphere || item.lens_selection.prescription.left_eye?.sphere) && (() => {
+                      const rx = item.lens_selection.prescription;
+                      return (
+                        <Box sx={{ mt: 0.75, p: 1, bgcolor: '#e1f5fe', borderRadius: 1.5, border: '1px solid rgba(2,136,209,0.2)' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <Visibility sx={{ fontSize: 11, color: '#0288d1' }} />
+                            <Typography sx={{ fontSize: 10, color: '#0288d1', fontWeight: 700, letterSpacing: '0.4px' }}>Prescription</Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: 10, color: '#01579b', fontFamily: 'monospace' }}>
+                            R: SPH {rx.right_eye?.sphere ?? '—'} · CYL {rx.right_eye?.cylinder ?? '—'} · PD {rx.right_eye?.pd ?? '—'}
+                          </Typography>
+                          <Typography sx={{ fontSize: 10, color: '#01579b', fontFamily: 'monospace' }}>
+                            L: SPH {rx.left_eye?.sphere ?? '—'} · CYL {rx.left_eye?.cylinder ?? '—'} · PD {rx.left_eye?.pd ?? '—'}
+                          </Typography>
+                          {(rx.right_eye?.add || rx.left_eye?.add) && (
+                            <Typography sx={{ fontSize: 10, color: '#01579b', fontFamily: 'monospace' }}>
+                              Add: {rx.right_eye?.add ?? rx.left_eye?.add}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })()}
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#111', mt: 0.5 }}>
                       {formatCurrency(calculateItemTotal(item))}
                     </Typography>

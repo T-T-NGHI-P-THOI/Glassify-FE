@@ -10,9 +10,11 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import Loading from '../../layouts/Loading';
 import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
+import PrescriptionAPI from '@/api/prescription-api';
 import ProductAPI, {
   type ApiProduct,
   type ApiFrameVariant,
@@ -121,6 +123,8 @@ const ProductDetailPage: React.FC = () => {
         setIsLoading(true);
         setIsNotFound(false);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
+        console.log("ID PRODUCT: ",apiProduct.id)
+        ProductAPI.addViewForProduct(apiProduct.id).catch(console.error);
         const normalizedProductType = (apiProduct.productType || '').toUpperCase();
         const frameProduct = normalizedProductType === 'FRAME';
         setIsFrameProduct(frameProduct);
@@ -477,12 +481,12 @@ const ProductDetailPage: React.FC = () => {
 
   const loadMoreReviews = async () => {
     if (!product || isLoadingReviews) return;
-    
+
     try {
       setIsLoadingReviews(true);
       const nextPage = currentReviewPage + 1;
       const response = await ProductAPI.getProductReviews(product.id, { page: nextPage, unitPerPage: 10 });
-      
+
       // Append new reviews to existing ones
       setReviewData(prev => ({
         reviews: [...prev.reviews, ...response.reviews],
@@ -544,7 +548,7 @@ const ProductDetailPage: React.FC = () => {
           sku: product.sku,
           imageUrl: product.images?.[0],
           unitPrice: product.price,
-          itemType: product.productType === 'ACCESSORIES' ? 'ACCESSORY' : 'FRAME',
+          itemType: product.productType === 'ACCESSORIES' ? 'ACCESSORY' : product.productType === 'LENSES' ? 'LENS' : 'FRAME',
           shopId: product.shopId,
           shopName: product.shop?.shopName,
           variantId: product.variantId,
@@ -571,9 +575,44 @@ const ProductDetailPage: React.FC = () => {
 
   const handleLensSelection = async (selection: LensSelection) => {
     if (!product) return;
+    const toNumberOrUndefined = (val: any) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const num = Number(val);
+      return isNaN(num) ? undefined : num;
+    };
 
     try {
       setSelectedLens(selection);
+
+      let autoPrescriptionId: string | undefined;
+      if (selection.savedPrescriptionId) {
+        // isSaved=true: user picked an existing saved prescription — use its ID directly
+        autoPrescriptionId = selection.savedPrescriptionId;
+        console.log('selection.prescription:', selection.prescription);
+      } else if (selection.prescription) {
+        // isSaved=false: manual entry — auto-create a hidden prescription record
+        try {
+          const rx = selection.prescription;
+          const created = await PrescriptionAPI.createPrescription({
+            isSaved: false,
+            sphR: Number(rx.right_eye.sphere) || 0,
+            cylR: Number(rx.right_eye.cylinder) || 0,
+            axisR: toNumberOrUndefined(rx.right_eye.axis),
+            sphL: Number(rx.left_eye.sphere) || 0,
+            cylL: Number(rx.left_eye.cylinder) || 0,
+            axisL: toNumberOrUndefined(rx.left_eye.axis),
+            pdRight: rx.right_eye.pd ? Number(rx.right_eye.pd) : undefined,
+            pdLeft: rx.left_eye.pd ? Number(rx.left_eye.pd) : undefined,
+            pdSingle: !(rx.right_eye.pd && rx.left_eye.pd) ? toNumberOrUndefined(rx.right_eye.pd || rx.left_eye.pd) : undefined,
+            addPower: rx.right_eye.add ? Number(rx.right_eye.add) : undefined,
+            prescriptionDate: new Date().toISOString().split('T')[0],
+          });
+          autoPrescriptionId = created.id;
+        } catch (err) {
+          console.error('[Cart] Failed to auto-create prescription record:', err);
+          throw new Error('Không thể tạo prescription. Vui lòng kiểm tra lại thông tin.');
+        }
+      }
 
       const frameParams = {
         productName: product.name,
@@ -588,6 +627,7 @@ const ProductDetailPage: React.FC = () => {
         shopName: product.shop?.shopName,
         variantId: product.variantId,
         stockQuantity: product.stockQuantity,
+        prescriptionId: autoPrescriptionId,
       };
 
       // Calculate lens-only price (total_price includes framePrice, so subtract it)
@@ -636,7 +676,7 @@ const ProductDetailPage: React.FC = () => {
   }
 
   if (!product || isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <Loading />;
   }
 
   const isAuthenticated = TokenManager.isAuthenticated();
@@ -654,8 +694,8 @@ const ProductDetailPage: React.FC = () => {
       <div className="product-content">
         <div className="product-left-column">
           <div className="product-preview-column">
-            <ImageGallery 
-              images={product.images} 
+            <ImageGallery
+              images={product.images}
               productName={product.name}
               onTryOn={handleOpenTryOn}
               showTryOn={Boolean(product.vrEnabled && product.frameGroupId && isAuthenticated)}

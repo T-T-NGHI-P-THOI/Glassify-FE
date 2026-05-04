@@ -85,8 +85,9 @@ export const Navbar = () => {
   const isAdmin = user?.roles?.includes('ADMIN');
 
   const mainCategories = [
-    { label: 'Eyeglasses', path: '/products', category: 'Frames' },
-    { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
+    // { label: 'Eyeglasses', path: '/products', category: 'Frames' },
+    // { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
+    { label: 'Frames', path: '/products', category: 'Frames' },
     { label: 'Lenses', path: '/products', category: 'Lenses' },
     { label: 'Accessories', path: '/products', category: 'Accessories' },
     { label: 'Collabs & Partners', path: '/collabs', category: null },
@@ -104,18 +105,27 @@ export const Navbar = () => {
   const handleCategoryClick = (item: typeof mainCategories[0]) => {
     if (item.label === 'Eyeglasses' || item.label === 'Sunglasses') {
       navigate(`/products?productType=FRAME`, { state: { resetFilters: 'FRAME' } });
-    } else if (item.label === 'Lenses') {
+    }
+    else if (item.label === 'Frames') {
+      navigate(`/products?productType=FRAME`, { state: { resetFilters: 'FRAME' } });
+    }
+    else if (item.label === 'Lenses') {
       navigate(`/products?productType=LENSES`, { state: { resetFilters: 'LENSES' } });
-    } else if (item.category) {
+    }
+    else if (item.label === 'Accessories') {
+      navigate(`/products?productType=ACCESSORIES`, { state: { resetFilters: 'ACCESSORIES' } });
+    }
+    else if (item.category) {
       navigate(`${item.path}?category=${encodeURIComponent(item.category)}`, { replace: true, state: { resetFilters: item.category } });
-    } else {
+    } 
+    else {
       navigate(item.path, { replace: true, state: { resetFilters: null } });
     }
   };
 
   return (
     <>
-    <AppBar
+      <AppBar
         position="static"
         elevation={0}
         sx={{

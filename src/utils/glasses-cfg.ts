@@ -79,7 +79,7 @@ export function buildVideoCfg(m: GlassesMeasurements) {
     const glassesScale = m.frameWidthMm / REF_FACE_WIDTH_MM;
 
     const pixelPerMm = REF_HEAD_WIDTH_PX / REF_FACE_WIDTH_MM;
-    const lensOffsetPx = m.lensHeightMm * pixelPerMm *0.5 ;
+    const lensOffsetPx = m.lensHeightMm * pixelPerMm * 0.1;
 
     // ── 2. glassesDown (Y-offset, pixel-space) ────────────────────────────────
     const glassesDown = -lensOffsetPx
@@ -104,7 +104,7 @@ export function buildImageCfg(m: GlassesMeasurements) {
 
     // ── 2. glassesDown (Y-offset, pixel-space) ────────────────────────────────
     const pixelPerMm = REF_HEAD_WIDTH_PX / REF_FACE_WIDTH_MM;
-    const lensOffsetPx = m.lensHeightMm * 0.1 * pixelPerMm +20;
+    const lensOffsetPx = m.lensHeightMm * 0.1 * pixelPerMm + 20;
 
     // VIDEO: glassesDown âm = đẩy lên (trục Y lật); IMAGE: dương = đẩy xuống
     const glassesDown = +(lensOffsetPx);

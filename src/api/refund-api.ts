@@ -7,11 +7,19 @@ import type {
   UpdateReturnTrackingDto,
   ConfirmItemReceivedDto,
   ProcessRefundDto,
+  ProposeRefundDto,
   SubmitShopAppealDto,
   RefundRequestFilter,
 } from '../models/Refund';
 
 const REFUND_BASE_URL = '/api/v1/refunds';
+
+const isUnsupportedRefundEvidenceFile = (file: File): boolean => {
+  const normalizedType = file.type?.toLowerCase() ?? '';
+  const normalizedName = file.name.toLowerCase();
+
+  return normalizedType === 'image/gif' || normalizedName.endsWith('.gif');
+};
 
 const ensureRefundApiSuccess = <T>(responseData: ApiResponse<T>): ApiResponse<T> => {
   if (responseData.status >= 400 || responseData.success === false) {
@@ -109,6 +117,38 @@ export const processRefund = async (
   return response.data;
 };
 
+export const proposeRefund = async (
+  requestId: string,
+  data: ProposeRefundDto
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/propose-refund`,
+    data
+  );
+  return response.data;
+};
+
+// Customer response to shop proposal
+export const acceptProposal = async (
+  requestId: string
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/proposal/accept`
+  );
+  return response.data;
+};
+
+export const rejectProposal = async (
+  requestId: string,
+  data?: { reason?: string }
+): Promise<ApiResponse<RefundRequest>> => {
+  const response = await axios.post<ApiResponse<RefundRequest>>(
+    `${REFUND_BASE_URL}/${requestId}/proposal/reject`,
+    data ?? {}
+  );
+  return response.data;
+};
+
 export const submitShopAppeal = async (
   requestId: string,
   data: SubmitShopAppealDto
@@ -124,6 +164,11 @@ export const uploadRefundEvidenceImages = async (
   requestId: string,
   files: File[]
 ): Promise<ApiResponse<RefundRequest>> => {
+  const unsupportedFile = files.find(isUnsupportedRefundEvidenceFile);
+  if (unsupportedFile) {
+    throw new Error('Unsupported file type: image/gif. Please upload JPG, PNG, WEBP, or video files.');
+  }
+
   const formData = new FormData();
   files.forEach((file) => {
     formData.append('files', file);
