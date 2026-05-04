@@ -148,6 +148,10 @@ const CreateFrameGroupPage = forwardRef<CreateFrameGroupPageRef, CreateFrameGrou
 
             setLoading(true);
             try {
+                if (formData.vrEnabled && !formData.model3dFile?.file) {
+                    toast.error("Model 3D is required when VR is enabled")
+                    throw new Error("Model 3D is required when VR is enabled");
+                }
                 const payload = new FormData();
                 payload.append('shopId', shopId ?? '');
                 payload.append('frameName', formData.frameName.trim());

@@ -21,6 +21,7 @@ import {
     Star,
     StarBorder,
     CheckCircleOutline,
+    CameraAlt,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
@@ -685,6 +686,7 @@ export interface FrameGroupCardProps {
     onEdit: () => void;
     onDelete: () => void;
     onViewAnalytics?: () => void;
+    onTryOn: () => void;
     onPreview?: () => void;
     setFrameGroups: React.Dispatch<React.SetStateAction<FrameGroup[]>>;
 }
@@ -697,6 +699,7 @@ const FrameGroupCard = ({
     onEdit,
     onDelete,
     onViewAnalytics,
+    onTryOn,
     onPreview,
     setFrameGroups
 }: FrameGroupCardProps) => {
@@ -1073,8 +1076,15 @@ const FrameGroupCard = ({
                     {/* Row 1 */}
                     <ActionBtn icon={<Edit sx={{ fontSize: 12 }} />} label="Edit" onClick={onEdit} />
                     <ActionBtn icon={<Visibility sx={{ fontSize: 12 }} />} label="Preview" onClick={onPreview} />
-                    <ActionBtn icon={<BarChart sx={{ fontSize: 12 }} />} label="Analytics" onClick={onViewAnalytics} />
-
+                    {/* <ActionBtn icon={<BarChart sx={{ fontSize: 12 }} />} label="Analytics" onClick={onViewAnalytics} /> */}
+                    {fg.vrEnabled === true && (
+                        <ActionBtn
+                            icon={<CameraAlt sx={{ fontSize: 12 }} />}
+                            label="Try On"
+                            onClick={onTryOn}
+                        />
+                    )}
+                    
                     {/* Row 2 */}
                     <ActionBtn
                         icon={
@@ -1086,7 +1096,6 @@ const FrameGroupCard = ({
                         onClick={onToggle}
                         active={isExpanded}
                     />
-                    <ActionBtn icon={<ViewInAr sx={{ fontSize: 12 }} />} label="3D Model" onClick={() => { }} />
                     <ActionBtn
                         icon={<DeleteOutline sx={{ fontSize: 12 }} />}
                         label="Delete"
