@@ -17,6 +17,7 @@ import userApi from "@/api/service/userApi";
 import { toast } from "react-toastify";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/services/ThreeJsService";
 import type { FrameShape } from "@/types/user-recommendation.enum";
+import { usePopupSingleInstance } from "@/hooks/usePopupSingleInstance";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,11 @@ const GlassesTryOnPopup = ({
 
     const drawerOpen = drawer !== null;
 
+    const handleBlockedByOtherTab = useCallback(() => {
+        toast.warning("Virtual Try-On is open in another tab. Please close it before continuing.");
+        onClose(); // đóng ngay tại tab này vì không được phép mở
+    }, [onClose]);
+
     const toggleDrawer = (type: NonNullable<DrawerType>) => {
         setDrawer((prev) => (prev === type ? null : type));
     };
@@ -366,6 +372,8 @@ const GlassesTryOnPopup = ({
         setFengShuiResult(null);
         setReloadSignal((n) => n + 1);
     };
+
+    usePopupSingleInstance(isTryOn ? open : false, handleBlockedByOtherTab, handleClose);
 
     useEffect(() => {
         // Only fetch textures when in try-on mode

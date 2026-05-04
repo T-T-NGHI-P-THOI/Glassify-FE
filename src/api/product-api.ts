@@ -628,4 +628,10 @@ export default class ProductAPI {
     );
     return response.data.data;
   }
+
+  static async addViewForProduct(id: string) {
+    await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.ADD_VIEW_PRODUCT(id),
+    );
+  }
 }

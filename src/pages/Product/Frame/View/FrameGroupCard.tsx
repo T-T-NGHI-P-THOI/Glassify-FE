@@ -98,6 +98,7 @@ export interface FrameGroup {
     hasSpringHinge: boolean;
     description: string;
     vrEnabled?: boolean;
+    modelUrl: string;
     suitableFaceShapes: string[] | null;
     createdAt: string;
     frameVariantResponses: FrameVariantResponse[];
@@ -703,6 +704,15 @@ const FrameGroupCard = ({
 
     const variants = fg.frameVariantResponses;
     const totalStock = variants.reduce((sum, v) => sum + (v.qtyAvailable || 0), 0);
+    const totalViews = variants?.reduce(
+        (sum, v) => sum + (v.productResponse.viewCount ?? 0),
+        0
+    ) ?? 0;
+
+    const totalSale = variants?.reduce(
+        (sum, v) => sum + (v.productResponse.soldCount ?? 0),
+        0
+    ) ?? 0;
     const hasOut = variants.some((v) => v.stock === 0);
     const hasLow = variants.some((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD);
     const featuredFrameVariant = fg.frameVariantResponses.find(
@@ -1041,8 +1051,8 @@ const FrameGroupCard = ({
                     }}
                 >
                     {[
-                        { label: 'Views', value: featuredFrameVariant?.productResponse ? '—' : '—' },
-                        { label: 'Sales', value: '—' },
+                        { label: 'Views', value: totalViews },
+                        { label: 'Sales', value: totalSale },
                         { label: 'Variants', value: String(variants.length) },
                     ].map(({ label, value }) => (
                         <Box key={label} sx={{ textAlign: 'center' }}>

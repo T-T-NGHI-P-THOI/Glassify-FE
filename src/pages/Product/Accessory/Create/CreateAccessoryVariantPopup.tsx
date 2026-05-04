@@ -130,6 +130,13 @@ export default function CreateAccessoryVariantPopup({
             e.stock = 'Stock must be greater than 0';
         if (formData.productImages.length === 0)
             e.productImages = 'Please upload at least 1 image';
+        if (
+            formData.basePrice != null &&
+            formData.costPrice != null &&
+            formData.basePrice < formData.costPrice
+        ) {
+            e.basePrice = 'Base price must be greater than or equal to cost price';
+        }
         setErrors(e);
         return Object.keys(e).length === 0;
     };

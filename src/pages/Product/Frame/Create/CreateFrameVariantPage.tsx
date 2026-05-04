@@ -110,7 +110,7 @@ const DEFAULT_FORM: CreateFrameVariantFormData = {
     warrantyMonths: 0,
     costPrice: 0,
     basePrice: 0,
-    isFeatured: false,
+    isFeatured: true,
     isReturnable: false,
     images: [],
     textureFile: null,
@@ -275,6 +275,13 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                 e.stock = 'Stock must be greater than 0';
             if (formData.images.length === 0)
                 e.images = 'Please upload at least 1 image';
+            if (
+                formData.basePrice != null &&
+                formData.costPrice != null &&
+                formData.basePrice < formData.costPrice
+            ) {
+                e.basePrice = 'Base price must be greater than or equal to cost price';
+            }
 
             const dimensionFields: (keyof CreateFrameVariantFormData)[] = [
                 "frameWidthMm",
@@ -653,6 +660,8 @@ const CreateFrameVariantPage = forwardRef<CreateFrameVariantPageRef, CreateFrame
                                 const raw = parseNumber(e.target.value);
                                 setField('basePrice', raw);
                             }}
+                            error={!!errors.basePrice}
+                            helperText={errors.basePrice}
                             InputProps={{
                                 startAdornment: <InputAdornment position="start">₫</InputAdornment>,
                             }}
