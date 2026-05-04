@@ -219,6 +219,7 @@ export interface RefundRequestFilter {
   orderNumber?: string;
   requestedAfter?: string;
   requestedBefore?: string;
+  viewAsShop?: boolean;
   sortBy?: string;
   sortDirection?: 'ASC' | 'DESC';
 }

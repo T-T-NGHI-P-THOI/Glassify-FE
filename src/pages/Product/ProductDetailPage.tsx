@@ -547,7 +547,7 @@ const ProductDetailPage: React.FC = () => {
           sku: product.sku,
           imageUrl: product.images?.[0],
           unitPrice: product.price,
-          itemType: product.productType === 'ACCESSORIES' ? 'ACCESSORY' : 'FRAME',
+          itemType: product.productType === 'ACCESSORIES' ? 'ACCESSORY' : product.productType === 'LENSES' ? 'LENS' : 'FRAME',
           shopId: product.shopId,
           shopName: product.shop?.shopName,
           variantId: product.variantId,
@@ -602,6 +602,7 @@ const ProductDetailPage: React.FC = () => {
             axisL: toNumberOrUndefined(rx.left_eye.axis),
             pdRight: rx.right_eye.pd ? Number(rx.right_eye.pd) : undefined,
             pdLeft: rx.left_eye.pd ? Number(rx.left_eye.pd) : undefined,
+            pdSingle: !(rx.right_eye.pd && rx.left_eye.pd) ? toNumberOrUndefined(rx.right_eye.pd || rx.left_eye.pd) : undefined,
             addPower: rx.right_eye.add ? Number(rx.right_eye.add) : undefined,
             prescriptionDate: new Date().toISOString().split('T')[0],
           });

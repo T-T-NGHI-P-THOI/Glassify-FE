@@ -231,6 +231,7 @@ export const API_ENDPOINTS = {
     STATS: {
       OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
       SHOPS: `${API_ENDPOINT}/admin/stats/shops`,
+      MONTHLY_REVENUE: `${API_ENDPOINT}/admin/stats/monthly-revenue`,
     },
     COMMISSION_TIERS: {
       LIST: `${API_ENDPOINT}/admin/commission-tiers`,
