@@ -87,7 +87,7 @@ const ShopWarrantyPolicies: React.FC<ShopWarrantyPoliciesProps> = ({ shopId, sho
                       key={i}
                       label={issue}
                       size="small"
-                      sx={{ fontSize: 11, height: 20, bgcolor: '#fee2e2', color: '#991b1b' }}
+                      sx={{ fontSize: 11, height: 20, bgcolor: '#00838f', color: '#ffffff' }}
                     />
                   ))}
                 </Box>
