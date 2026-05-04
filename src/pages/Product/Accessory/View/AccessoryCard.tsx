@@ -125,22 +125,22 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
     const [activeOpen, setActiveOpen] = useState(false);
     const [selectedActiveVariant, setSelectedActiveVariant] = useState<AccessoryVariantResponse | null>(null);
 
-    if (variants.length === 0) {
-        return (
-            <Box
-                sx={{
-                    mx: 2, mb: 2, py: 2.5, borderRadius: 2,
-                    bgcolor: theme.palette.custom.neutral[50],
-                    border: `1px dashed ${theme.palette.custom.border.light}`,
-                    textAlign: 'center',
-                }}
-            >
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
-                    No variants for this accessory
-                </Typography>
-            </Box>
-        );
-    }
+    // if (variants.length === 0) {
+    //     return (
+    //         <Box
+    //             sx={{
+    //                 mx: 2, mb: 2, py: 2.5, borderRadius: 2,
+    //                 bgcolor: theme.palette.custom.neutral[50],
+    //                 border: `1px dashed ${theme.palette.custom.border.light}`,
+    //                 textAlign: 'center',
+    //             }}
+    //         >
+    //             <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>
+    //                 No variants for this accessory
+    //             </Typography>
+    //         </Box>
+    //     );
+    // }
 
     const handleAddVariant = (variantId: string, productId: string, data: any) => {
         setAccessories(prev =>
