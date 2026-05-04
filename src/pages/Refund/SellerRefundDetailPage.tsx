@@ -207,7 +207,15 @@ const getMinRequiredAmountFromError = (error: unknown): number | null => {
   );
 };
 
-const getStatusSteps = (status: ReturnStatus): StepItem[] => {
+const getStatusSteps = (status: ReturnStatus, adminDecision?: string): StepItem[] => {
+  if (adminDecision === 'REFUND_WITHOUT_RETURN') {
+    return [
+      { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
+      { label: 'Approved (No Return Needed)', status: ReturnStatus.APPROVED },
+      { label: 'Completed', status: ReturnStatus.COMPLETED },
+    ];
+  }
+
   const normalSteps: StepItem[] = [
     { label: 'Request Submitted', status: ReturnStatus.REQUESTED },
     { label: 'Approved', status: ReturnStatus.APPROVED },
@@ -230,11 +238,23 @@ const getStatusSteps = (status: ReturnStatus): StepItem[] => {
   return normalSteps;
 };
 
-const getActiveStep = (status: ReturnStatus, steps: StepItem[]) => {
-  const normalizedStatus =
-    status === ReturnStatus.RETURN_READY_TO_PICK
-      ? ReturnStatus.RETURN_SHIPPING
-      : status;
+const getActiveStep = (status: ReturnStatus, steps: StepItem[], adminDecision?: string) => {
+  let normalizedStatus = status;
+
+  if (adminDecision === 'REFUND_WITHOUT_RETURN') {
+    if (normalizedStatus === ReturnStatus.COMPLETED) {
+      normalizedStatus = ReturnStatus.COMPLETED;
+    } else if (normalizedStatus === ReturnStatus.APPROVED) {
+      normalizedStatus = ReturnStatus.APPROVED;
+    } else {
+      normalizedStatus = ReturnStatus.REQUESTED;
+    }
+  } else {
+    normalizedStatus =
+      normalizedStatus === ReturnStatus.RETURN_READY_TO_PICK
+        ? ReturnStatus.RETURN_SHIPPING
+        : normalizedStatus;
+  }
 
   const index = steps.findIndex((step) => step.status === normalizedStatus);
   return index >= 0 ? index : 0;
@@ -534,6 +554,7 @@ const SellerRefundDetailPage = () => {
   if (!request) return <Typography>Not Found</Typography>;
 
   const rawStatus = request.status as ReturnStatus;
+  const isDirectRefundDecision = request.adminDecision === 'REFUND_WITHOUT_RETURN';
   const buyerShipmentDeadlineDays =
     platformSetting?.refundBuyerShipmentReminderAfterDays ??
     platformSetting?.returnWindowDays ??
@@ -626,8 +647,8 @@ const SellerRefundDetailPage = () => {
     setMinRequiredAmount(null);
     setRefundDialogOpen(true);
   };
-  const steps = getStatusSteps(rawStatus as ReturnStatus);
-  const activeStep = getActiveStep(rawStatus, steps);
+  const steps = getStatusSteps(rawStatus as ReturnStatus, request.adminDecision);
+  const activeStep = getActiveStep(rawStatus, steps, request.adminDecision);
   const evidenceFiles = request.evidenceImages || [];
 
   return (
@@ -881,7 +902,8 @@ const SellerRefundDetailPage = () => {
                 </Paper>
 
                 {/* Logistics Info */}
-                <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
+                {!isDirectRefundDecision && (
+                  <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
                   <Typography sx={{ fontWeight: 700, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LocalShipping sx={{ color: theme.palette.primary.main }} /> Logistics Details
                   </Typography>
@@ -897,7 +919,8 @@ const SellerRefundDetailPage = () => {
                   ) : (
                     <Typography variant="body2" color="text.secondary">Waiting for buyer to return item...</Typography>
                   )}
-                </Paper>
+                  </Paper>
+                )}
 
                 {isReturnAndRefundDecision && (
                   <Paper elevation={0} sx={{ borderRadius: 4, border: `1px solid ${theme.palette.custom.border.light}`, p: 3 }}>
