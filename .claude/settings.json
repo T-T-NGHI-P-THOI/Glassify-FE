@@ -22,7 +22,8 @@
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/controller",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations",
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/order/response",
-      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/prescription/request"
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/prescription/request",
+      "/Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/java/sep390/glassify/dto/shop"
     ]
   }
 }

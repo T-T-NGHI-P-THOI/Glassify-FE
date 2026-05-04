@@ -14,6 +14,7 @@ import {
   IconButton,
   Tab,
   Tabs,
+  Button,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -43,12 +44,14 @@ import {
   Pie,
   Cell,
   Legend,
+  Area,
+  ComposedChart,
 } from 'recharts';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
-import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse, type AdminShopStats } from '@/api/adminApi';
+import { adminApi, type AdminOverviewStats, type AdminOrderResponse, type AdminRefundResponse, type AdminShopStats, type AdminMonthlyRevenue } from '@/api/adminApi';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
 import type { AdminShopItem, ShopRequest } from '@/models/Shop';
 import { RETURN_REASON_LABELS, type ReturnReason } from '@/models/Refund';
@@ -76,6 +79,8 @@ const DashboardPage = () => {
   const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<AdminOrderResponse[]>([]);
   const [shopStats, setShopStats] = useState<AdminShopStats[]>([]);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<AdminMonthlyRevenue[]>([]);
+  const [revenueYear, setRevenueYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     adminApi.getShops().then((res) => { if (res.data) setShops(res.data); }).catch(() => {});
@@ -84,6 +89,7 @@ const DashboardPage = () => {
     adminApi.getOverviewStats().then((res) => { if (res.data) setOverviewStats(res.data); }).catch(() => {});
     adminApi.getOrders(undefined, 0, 5).then((res) => { if (res.data) setRecentOrders(res.data.content); }).catch(() => {});
     adminApi.getShopStats().then((res) => { if (res.data) setShopStats(res.data); }).catch(() => {});
+    adminApi.getMonthlyRevenue(new Date().getFullYear()).then((res) => { if (res.data) setMonthlyRevenue(res.data); }).catch(() => {});
   }, []);
 
   const totalShops = shops.length;
@@ -207,7 +213,7 @@ const DashboardPage = () => {
               </Box>
 
               {/* Main Content Grid */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 3, mb: 3 }}>
                 {/* Left */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {/* Recent Orders */}
@@ -364,55 +370,59 @@ const DashboardPage = () => {
                     </Box>
                   </Paper>
 
-                  {/* Order Status */}
-                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 3 }}>Order Status Overview</Typography>
-                    {(() => {
-                      const s = overviewStats;
-                      const total = s ? (s.pendingOrders + s.confirmedOrders + s.processingOrders + s.shippedOrders + s.deliveredOrders + s.cancelledOrders) : 0;
-                      const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
-                      const items = s ? [
-                        { label: 'Delivered', count: s.deliveredOrders, color: theme.palette.custom.status.success.main },
-                        { label: 'Shipped', count: s.shippedOrders, color: theme.palette.custom.status.info.main },
-                        { label: 'Processing', count: s.processingOrders, color: theme.palette.custom.status.warning.main },
-                        { label: 'Confirmed', count: s.confirmedOrders, color: theme.palette.custom.status.teal.main },
-                        { label: 'Pending', count: s.pendingOrders, color: theme.palette.custom.neutral[400] },
-                        { label: 'Cancelled', count: s.cancelledOrders, color: theme.palette.custom.status.error.main },
-                      ] : [];
-                      return items.map((item, index) => (
-                        <Box key={item.label} sx={{ mb: index < items.length - 1 ? 2 : 0 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
-                            <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                              {formatCount(item.count)} <span style={{ color: theme.palette.custom.neutral[400], fontWeight: 400 }}>({pct(item.count)}%)</span>
-                            </Typography>
-                          </Box>
-                          <LinearProgress variant="determinate" value={pct(item.count)} sx={{ height: 7, borderRadius: 4, backgroundColor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { borderRadius: 4, backgroundColor: item.color } }} />
-                        </Box>
-                      ));
-                    })()}
-                  </Paper>
-
-                  {/* Today's Highlights */}
-                  <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>Today's Highlights</Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {[
-                        { icon: <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />, label: 'Orders Completed', value: overviewStats?.todayCompletedOrders ?? 0, color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
-                        { icon: <LocalShipping sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }} />, label: 'Shipments Sent', value: overviewStats?.todayShipmentsSent ?? 0, color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
-                        { icon: <People sx={{ fontSize: 20, color: theme.palette.custom.status.purple.main }} />, label: 'New Customers', value: overviewStats?.todayNewCustomers ?? 0, color: theme.palette.custom.status.purple.main, bg: theme.palette.custom.status.purple.light },
-                      ].map((item) => (
-                        <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 1, bgcolor: item.bg }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {item.icon}
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
-                          </Box>
-                          <Typography sx={{ fontSize: 16, fontWeight: 700, color: item.color }}>{formatCount(item.value)}</Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Paper>
                 </Box>
+              </Box>
+
+              {/* Bottom Row — Order Status + Today's Highlights */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                {/* Order Status */}
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 3 }}>Order Status Overview</Typography>
+                  {(() => {
+                    const s = overviewStats;
+                    const total = s ? (s.pendingOrders + s.confirmedOrders + s.processingOrders + s.shippedOrders + s.deliveredOrders + s.cancelledOrders) : 0;
+                    const pct = (n: number) => total > 0 ? Math.round((n / total) * 100) : 0;
+                    const items = s ? [
+                      { label: 'Delivered', count: s.deliveredOrders, color: theme.palette.custom.status.success.main },
+                      { label: 'Shipped', count: s.shippedOrders, color: theme.palette.custom.status.info.main },
+                      { label: 'Processing', count: s.processingOrders, color: theme.palette.custom.status.warning.main },
+                      { label: 'Confirmed', count: s.confirmedOrders, color: theme.palette.custom.status.teal.main },
+                      { label: 'Pending', count: s.pendingOrders, color: theme.palette.custom.neutral[400] },
+                      { label: 'Cancelled', count: s.cancelledOrders, color: theme.palette.custom.status.error.main },
+                    ] : [];
+                    return items.map((item, index) => (
+                      <Box key={item.label} sx={{ mb: index < items.length - 1 ? 2 : 0 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
+                          <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                            {formatCount(item.count)} <span style={{ color: theme.palette.custom.neutral[400], fontWeight: 400 }}>({pct(item.count)}%)</span>
+                          </Typography>
+                        </Box>
+                        <LinearProgress variant="determinate" value={pct(item.count)} sx={{ height: 7, borderRadius: 4, backgroundColor: theme.palette.custom.neutral[100], '& .MuiLinearProgress-bar': { borderRadius: 4, backgroundColor: item.color } }} />
+                      </Box>
+                    ));
+                  })()}
+                </Paper>
+
+                {/* Today's Highlights */}
+                <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 2 }}>Today's Highlights</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {[
+                      { icon: <CheckCircle sx={{ fontSize: 20, color: theme.palette.custom.status.success.main }} />, label: 'Orders Completed', value: overviewStats?.todayCompletedOrders ?? 0, color: theme.palette.custom.status.success.main, bg: theme.palette.custom.status.success.light },
+                      { icon: <LocalShipping sx={{ fontSize: 20, color: theme.palette.custom.status.info.main }} />, label: 'Shipments Sent', value: overviewStats?.todayShipmentsSent ?? 0, color: theme.palette.custom.status.info.main, bg: theme.palette.custom.status.info.light },
+                      { icon: <People sx={{ fontSize: 20, color: theme.palette.custom.status.purple.main }} />, label: 'New Customers', value: overviewStats?.todayNewCustomers ?? 0, color: theme.palette.custom.status.purple.main, bg: theme.palette.custom.status.purple.light },
+                    ].map((item) => (
+                      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 1, bgcolor: item.bg }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {item.icon}
+                          <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[700] }}>{item.label}</Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: 16, fontWeight: 700, color: item.color }}>{formatCount(item.value)}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
               </Box>
             </>
           )}
@@ -557,7 +567,7 @@ const DashboardPage = () => {
           {activeTab === 1 && (
             <>
               {/* 3 stat cards */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 4 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
                 {revenueStatCards.map((item) => (
                   <Paper key={item.label} elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
                     <Box sx={{ display: 'inline-flex', px: 1.5, py: 0.5, borderRadius: 1, bgcolor: item.bg, mb: 1.5 }}>
@@ -571,20 +581,88 @@ const DashboardPage = () => {
                 ))}
               </Box>
 
-              {/* Charts row */}
+              {/* Monthly Revenue Chart */}
+              <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>Monthly Revenue</Typography>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>Gross revenue, net amount and shipping subsidy by month</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button size="small" variant="outlined" sx={{ minWidth: 32, px: 1, fontSize: 13 }}
+                      onClick={() => {
+                        const y = revenueYear - 1;
+                        setRevenueYear(y);
+                        adminApi.getMonthlyRevenue(y).then((res) => { if (res.data) setMonthlyRevenue(res.data); }).catch(() => {});
+                      }}
+                    >‹</Button>
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, minWidth: 40, textAlign: 'center' }}>{revenueYear}</Typography>
+                    <Button size="small" variant="outlined" sx={{ minWidth: 32, px: 1, fontSize: 13 }}
+                      disabled={revenueYear >= new Date().getFullYear()}
+                      onClick={() => {
+                        const y = revenueYear + 1;
+                        setRevenueYear(y);
+                        adminApi.getMonthlyRevenue(y).then((res) => { if (res.data) setMonthlyRevenue(res.data); }).catch(() => {});
+                      }}
+                    >›</Button>
+                  </Box>
+                </Box>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart
+                    data={monthlyRevenue.map((d) => ({
+                      name: `T${d.month}`,
+                      gross: d.grossRevenue,
+                      net: d.netRevenue,
+                      subsidy: d.shippingSubsidy,
+                      orders: d.orderCount,
+                    }))}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="gradGross" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.palette.custom.status.info.main} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={theme.palette.custom.status.info.main} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradNet" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={theme.palette.custom.status.success.main} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={theme.palette.custom.status.success.main} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={(v: number) => v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : String(v)}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [
+                        formatVND(value),
+                        name === 'gross' ? 'Gross Revenue' : name === 'net' ? 'Net Revenue' : 'Shipping Subsidy',
+                      ]}
+                      contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 12 }}
+                    />
+                    <Legend formatter={(v) => v === 'gross' ? 'Gross Revenue' : v === 'net' ? 'Net Revenue' : 'Shipping Subsidy'} wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="gross" stroke={theme.palette.custom.status.info.main} strokeWidth={2} fill="url(#gradGross)" dot={false} />
+                    <Area type="monotone" dataKey="net" stroke={theme.palette.custom.status.success.main} strokeWidth={2} fill="url(#gradNet)" dot={false} />
+                    <Bar dataKey="subsidy" fill={theme.palette.custom.status.error.main} opacity={0.6} radius={[3, 3, 0, 0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Paper>
+
+              {/* Bottom: bar comparison + pie breakdown */}
               <Box sx={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 3 }}>
                 {/* Bar chart */}
                 <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                  <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>Revenue Comparison</Typography>
-                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 3 }}>Gross revenue, net amount and shipping subsidy</Typography>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>Total Revenue Comparison</Typography>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 3 }}>Gross revenue, net amount and shipping subsidy (all-time, delivered orders)</Typography>
+                  <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={barChartData} barCategoryGap="40%" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.custom.border.light} vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 12, fill: theme.palette.custom.neutral[500] }} axisLine={false} tickLine={false} />
                       <YAxis
                         tick={{ fontSize: 11, fill: theme.palette.custom.neutral[400] }}
-                        axisLine={false}
-                        tickLine={false}
+                        axisLine={false} tickLine={false}
                         tickFormatter={(v: number) => v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(0)}M` : String(v)}
                       />
                       <Tooltip formatter={chartTooltipFormatter} contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 13 }} />
@@ -599,58 +677,37 @@ const DashboardPage = () => {
 
                 {/* Pie chart */}
                 <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                  <Typography sx={{ fontSize: 16, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>Revenue Breakdown</Typography>
+                  <Typography sx={{ fontSize: 15, fontWeight: 600, color: theme.palette.custom.neutral[800], mb: 0.5 }}>Revenue Breakdown</Typography>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400], mb: 2 }}>Net vs Shipping Subsidy share of Gross</Typography>
                   {gross === 0 ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260 }}>
-                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>No data available</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[400] }}>No delivered orders yet</Typography>
                     </Box>
                   ) : (
-                    <ResponsiveContainer width="100%" height={260}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
-                        <Pie
-                          data={pieChartData}
-                          cx="50%"
-                          cy="45%"
-                          innerRadius={70}
-                          outerRadius={105}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {pieChartData.map((_, i) => (
-                            <Cell key={i} fill={PIE_COLORS[i]} />
-                          ))}
+                        <Pie data={pieChartData} cx="50%" cy="45%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                          {pieChartData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                         </Pie>
                         <Tooltip formatter={chartTooltipFormatter} contentStyle={{ borderRadius: 8, border: `1px solid ${theme.palette.custom.border.light}`, fontSize: 13 }} />
-                        <Legend
-                          formatter={(value) => <span style={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>{value}</span>}
-                          iconType="circle"
-                        />
+                        <Legend formatter={(value) => <span style={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>{value}</span>} iconType="circle" />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
-
-                  {/* Percentage breakdown */}
                   {gross > 0 && (
                     <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PIE_COLORS[0] }} />
-                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Net After Subsidy</Typography>
+                      {[
+                        { label: 'Net After Subsidy', pct: (net / gross) * 100, color: PIE_COLORS[0] },
+                        { label: 'Shipping Subsidy', pct: (subsidy / gross) * 100, color: PIE_COLORS[1] },
+                      ].map((row) => (
+                        <Box key={row.label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: row.color }} />
+                            <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>{row.label}</Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>{row.pct.toFixed(1)}%</Typography>
                         </Box>
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                          {((net / gross) * 100).toFixed(1)}%
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: PIE_COLORS[1] }} />
-                          <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[600] }}>Shipping Subsidy</Typography>
-                        </Box>
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                          {((subsidy / gross) * 100).toFixed(1)}%
-                        </Typography>
-                      </Box>
+                      ))}
                     </Box>
                   )}
                 </Paper>

@@ -404,7 +404,7 @@ export const CartService = {
         const beRequest: BeCartItemRequest = {
             parentItemId: params.parentItemId,
             shopId: params.shopId || '',
-            productId: params.itemType !== 'LENS' ? params.productId : undefined,
+            productId: (params.itemType !== 'LENS' || !params.lensId) ? params.productId : undefined,
             variantId: params.variantId,
             lensId: params.lensId,
             lensTintId: params.lensTintId,
