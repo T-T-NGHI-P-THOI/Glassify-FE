@@ -10,6 +10,7 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import Loading from '../../layouts/Loading';
 import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
@@ -122,6 +123,8 @@ const ProductDetailPage: React.FC = () => {
         setIsLoading(true);
         setIsNotFound(false);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
+        console.log("ID PRODUCT: ",apiProduct.id)
+        ProductAPI.addViewForProduct(apiProduct.id).catch(console.error);
         const normalizedProductType = (apiProduct.productType || '').toUpperCase();
         const frameProduct = normalizedProductType === 'FRAME';
         setIsFrameProduct(frameProduct);
@@ -478,12 +481,12 @@ const ProductDetailPage: React.FC = () => {
 
   const loadMoreReviews = async () => {
     if (!product || isLoadingReviews) return;
-    
+
     try {
       setIsLoadingReviews(true);
       const nextPage = currentReviewPage + 1;
       const response = await ProductAPI.getProductReviews(product.id, { page: nextPage, unitPerPage: 10 });
-      
+
       // Append new reviews to existing ones
       setReviewData(prev => ({
         reviews: [...prev.reviews, ...response.reviews],
@@ -572,11 +575,11 @@ const ProductDetailPage: React.FC = () => {
 
   const handleLensSelection = async (selection: LensSelection) => {
     if (!product) return;
-  const toNumberOrUndefined = (val: any) => {
-    if (val === '' || val === null || val === undefined) return undefined;
-    const num = Number(val);
-    return isNaN(num) ? undefined : num;
-};
+    const toNumberOrUndefined = (val: any) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const num = Number(val);
+      return isNaN(num) ? undefined : num;
+    };
 
     try {
       setSelectedLens(selection);
@@ -673,7 +676,7 @@ const ProductDetailPage: React.FC = () => {
   }
 
   if (!product || isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <Loading />;
   }
 
   const isAuthenticated = TokenManager.isAuthenticated();
@@ -691,8 +694,8 @@ const ProductDetailPage: React.FC = () => {
       <div className="product-content">
         <div className="product-left-column">
           <div className="product-preview-column">
-            <ImageGallery 
-              images={product.images} 
+            <ImageGallery
+              images={product.images}
               productName={product.name}
               onTryOn={handleOpenTryOn}
               showTryOn={Boolean(product.vrEnabled && product.frameGroupId && isAuthenticated)}

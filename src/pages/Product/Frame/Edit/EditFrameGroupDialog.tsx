@@ -164,6 +164,10 @@ const EditFrameGroupDialog = ({
 
     const handleUpdateFrameGroup = async (id: string, data: EditFrameGroupFormData) => {
         try {
+            if (data.vrEnabled && !data.model3dFile?.file) {
+                toast.error("Model 3D is required when VR is enabled")
+                return;
+            }
             const formData = new FormData();
 
             formData.append("frameName", data.frameName);

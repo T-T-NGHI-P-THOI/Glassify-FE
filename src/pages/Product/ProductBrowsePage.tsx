@@ -128,7 +128,19 @@ const ProductBrowsePage: React.FC = () => {
           sortBy: 'popular'
         });
         setSearchParams({ productType: 'LENSES' });
-      } else {
+      }
+      else if (location.state.resetFilters === 'ACCESSORIES') {
+        setActiveFilters({
+          productType: 'ACCESSORIES',
+          brandIds: [],
+          categoryNames: [],
+          shopCities: [],
+          searchQuery: '',
+          sortBy: 'popular'
+        });
+        setSearchParams({ productType: 'ACCESSORIES' });
+      }
+      else {
         setActiveFilters({
           productType: undefined,
           brandIds: [],

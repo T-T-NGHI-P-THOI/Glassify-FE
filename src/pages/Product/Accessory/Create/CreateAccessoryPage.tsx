@@ -121,7 +121,7 @@ const formatFileSize = (bytes: number) => {
 const registrationSteps = [
     { label: 'Accessory Info', key: 'ACCESSORY_INFO' },
     { label: 'Accessory Variant', key: 'VARIANT' },
-    { label: 'Review & Submit', key: 'REVIEW' },
+    // { label: 'Review & Submit', key: 'REVIEW' },
 ];
 
 // ─── Step 0: Accessory Info ───────────────────────────────────────────────────
@@ -509,7 +509,7 @@ const CreateAccessoryPage = () => {
     const [groupErrors, setGroupErrors] = useState<Partial<Record<keyof CreateAccessoryFormData, string>>>({});
 
     const [variantData, setVariantData] = useState<CreateAccessoryVariantFormData>({
-        name: '', color: '', colorHex: '', size: ProductSize.MEDIUM, isFeatured: false,
+        name: '', color: '', colorHex: '', size: ProductSize.MEDIUM, isFeatured: true,
         stock: 0, stockThreshold: 0, warrantyMonths: 0,
         costPrice: 0, basePrice: 0, isReturnable: false, productImages: [],
     });
@@ -551,7 +551,7 @@ const CreateAccessoryPage = () => {
     const validateStep0 = () => {
         const e: typeof groupErrors = {};
         if (!groupData.name.trim() || groupData.name.trim().length < 3) e.name = 'Name must be at least 3 characters';
-        if (!groupData.type) e.type = 'Please select a type';
+        if (!groupData.type.trim()) e.type = 'Please select a type';
         setGroupErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -577,15 +577,6 @@ const CreateAccessoryPage = () => {
                 console.log("API Res:", response.id)
                 setAccessoryId(response.id);
                 toast.success('Accessory info saved!');
-            } else if (activeStep === 1) {
-                if (!validateStep1()) return;
-
-                const payload = toFormData(variantData);
-                if (shop?.id) payload.append("shopId", shop.id);
-                if (accessoryId) payload.append("accessoryId", accessoryId);
-                await ProductAPI.createAccessoryVariant(payload)
-
-                toast.success('Variant saved!');
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         }
@@ -597,7 +588,20 @@ const CreateAccessoryPage = () => {
     const handleBack = () => setActiveStep(prev => Math.max(prev - 1, 0));
 
     const handleSubmit = async () => {
-        navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY ?? PAGE_ENDPOINTS.SHOP.PRODUCTS);
+        try {
+            if (!validateStep1()) return;
+
+            const payload = toFormData(variantData);
+            if (shop?.id) payload.append("shopId", shop.id);
+            if (accessoryId) payload.append("accessoryId", accessoryId);
+            await ProductAPI.createAccessoryVariant(payload)
+
+            toast.success('Variant saved!');
+            navigate(PAGE_ENDPOINTS.SHOP.PRODUCT_ACCESSORY ?? PAGE_ENDPOINTS.SHOP.PRODUCTS);
+        }
+        catch (err: any) {
+            err?.errors.map((message: any) => toast.error(message))
+        }
     };
 
     const sidebarProps = {

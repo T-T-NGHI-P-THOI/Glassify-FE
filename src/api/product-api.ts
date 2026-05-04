@@ -564,6 +564,28 @@ export default class ProductAPI {
   // ------------------------------------------------------------
   // ----------------------- ACCESSORY --------------------------
   // ------------------------------------------------------------
+  static async getAccessoryByProductId(id: string): Promise<ApiProduct> {
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.PRODUCTS.GET_ACCESSORY_BY_PRODUCT_ID(id)
+      );
+      return ProductAPI.normalizeSingleProductPayload(response.data);
+    } catch (error) {
+      console.error(`Error fetching product ${id}:`, error);
+      throw error;
+    }
+  }
+  static async getAccessoryByVariantId(id: string): Promise<ApiProduct> {
+    try {
+      const response = await api.get(
+        API_ENDPOINTS.PRODUCTS.GET_ACCESSORY_BY_VARIANT_ID(id)
+      );
+      return ProductAPI.normalizeSingleProductPayload(response.data);
+    } catch (error) {
+      console.error(`Error fetching product ${id}:`, error);
+      throw error;
+    }
+  }
   static async getAccessoriesFromShopId(shopId: string) {
     const response = await axiosInstance.get(
       API_ENDPOINTS.PRODUCTS.GET_SHOP_ACCESSORY(shopId)
@@ -627,5 +649,11 @@ export default class ProductAPI {
       API_ENDPOINTS.PRODUCTS.UPDATE_PRODUCT_ACTIVITAION(id, isActive),
     );
     return response.data.data;
+  }
+
+  static async addViewForProduct(id: string) {
+    await axiosInstance.post(
+      API_ENDPOINTS.PRODUCTS.ADD_VIEW_PRODUCT(id),
+    );
   }
 }
