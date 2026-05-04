@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { listReturnRequests } from '../../../api/refund-api';
-import { RefundRequest, ReturnStatus, RETURN_STATUS_LABELS } from '../../../models/Refund';
+import { type RefundRequest, ReturnStatus, RETURN_STATUS_LABELS } from '../../../models/Refund';
 import { formatCurrency } from '../../../utils/formatCurrency';
 
 const ReturnRequestListPage = () => {

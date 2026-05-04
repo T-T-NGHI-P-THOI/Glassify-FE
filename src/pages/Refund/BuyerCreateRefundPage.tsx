@@ -103,6 +103,8 @@ const BuyerCreateRefundPage = () => {
   const [quantity, setQuantity] = useState(1);
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [evidenceVideos, setEvidenceVideos] = useState<string[]>([]);
+  const [videoFiles, setVideoFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (!orderItem?.id) {
@@ -184,6 +186,36 @@ const BuyerCreateRefundPage = () => {
     setEvidenceImages([...evidenceImages, ...previewUrls]);
   };
 
+  const handleVideoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const newFiles = Array.from(files);
+
+    // limit total video count to 2
+    if (videoFiles.length + newFiles.length > 2) {
+      toast.error('Maximum 2 videos can be uploaded');
+      return;
+    }
+
+    // enforce 25 MB per file
+    const maxBytes = 25 * 1024 * 1024;
+    for (const f of newFiles) {
+      if (f.size > maxBytes) {
+        toast.error(`${f.name} exceeds the 25 MB size limit`);
+        return;
+      }
+      if (!f.type.startsWith('video/')) {
+        toast.error(`${f.name} is not a valid video file`);
+        return;
+      }
+    }
+
+    const previewUrls = newFiles.map((file) => URL.createObjectURL(file));
+    setVideoFiles([...videoFiles, ...newFiles]);
+    setEvidenceVideos([...evidenceVideos, ...previewUrls]);
+  };
+
   const handleRemoveImage = (index: number) => {
     const newFiles = [...imageFiles];
     const newUrls = [...evidenceImages];
@@ -191,6 +223,15 @@ const BuyerCreateRefundPage = () => {
     newUrls.splice(index, 1);
     setImageFiles(newFiles);
     setEvidenceImages(newUrls);
+  };
+
+  const handleRemoveVideo = (index: number) => {
+    const newFiles = [...videoFiles];
+    const newUrls = [...evidenceVideos];
+    newFiles.splice(index, 1);
+    newUrls.splice(index, 1);
+    setVideoFiles(newFiles);
+    setEvidenceVideos(newUrls);
   };
 
   const handleSubmit = async () => {
@@ -491,6 +532,22 @@ const BuyerCreateRefundPage = () => {
                   onChange={handleImageChange}
                 />
               </Button>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<CloudUpload />}
+                disabled={videoFiles.length >= 2}
+                sx={{ mt: 1, ml: 2 }}
+              >
+                Upload Video
+                <input
+                  type="file"
+                  hidden
+                  accept="video/*"
+                  multiple
+                  onChange={handleVideoChange}
+                />
+              </Button>
               
               {/* Image preview */}
               {evidenceImages.length > 0 && (
@@ -525,6 +582,36 @@ const BuyerCreateRefundPage = () => {
                     </Grid>
                   ))}
                 </Grid>
+              )}
+
+              {/* Video preview */}
+              {evidenceVideos.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    Videos ({evidenceVideos.length})
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {evidenceVideos.map((url, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Box position="relative">
+                          <video
+                            src={url}
+                            controls
+                            style={{ width: '100%', height: 180, borderRadius: 8, background: '#000' }}
+                          />
+                          <IconButton
+                            size="small"
+                            color="error"
+                            sx={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'white' }}
+                            onClick={() => handleRemoveVideo(index)}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
               )}
             </Box>
           </Box>

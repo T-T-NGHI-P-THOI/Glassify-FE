@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
     CREATE_ACCESSORY_VARIANT: `${API_ENDPOINT}/product/accessory/variant`,
 
     ACTIVATE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/${id}/activate`,
+    UPDATE_PRODUCT_ACTIVITAION: (id: string, isActive: boolean) => `${API_ENDPOINT}/product/${id}/activate/${isActive}`,
     SET_FEATURE_PRODUCT: (id: string) => `${API_ENDPOINT}/product/feature/${id}`,
     UPDATE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
     DELETE_FRAME_GROUP: (id: string) => `${API_ENDPOINT}/product/frame-group/${id}`,
@@ -92,6 +93,7 @@ export const API_ENDPOINTS = {
     CREATE: `${API_ENDPOINT}/prescriptions`,
     UPDATE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
     DELETE: (id: string) => `${API_ENDPOINT}/prescriptions/${id}`,
+    SCAN: `${API_ENDPOINT}/prescriptions/scan`,
   },
   VALIDATION: {
     BASE: `${API_ENDPOINT}/validation`,
@@ -206,6 +208,7 @@ export const API_ENDPOINTS = {
     WITHDRAWALS: `${API_ENDPOINT}/shop/wallet/withdrawals`,
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
+    ESCROWS: `${API_ENDPOINT}/shop/wallet/escrows`,
   },
   SHOP_BANK_ACCOUNTS: {
     BASE: `${API_ENDPOINT}/shops/bank-accounts`,

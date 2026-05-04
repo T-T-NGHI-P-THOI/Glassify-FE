@@ -52,6 +52,8 @@ const getStatusIcon = (status: ReturnStatus) => {
     case ReturnStatus.RETURN_SHIPPING:
       return <LocalShipping />;
     case ReturnStatus.ITEM_RECEIVED:
+    case ReturnStatus.RETURN_READY_TO_PICK:
+    case ReturnStatus.RETURN_DELIVERED:
       return <Replay />;
     case ReturnStatus.COMPLETED:
       return <CheckCircle />;
@@ -71,6 +73,8 @@ const getStatusColor = (status: ReturnStatus) => {
     case ReturnStatus.APPROVED:
     case ReturnStatus.RETURN_SHIPPING:
     case ReturnStatus.ITEM_RECEIVED:
+    case ReturnStatus.RETURN_READY_TO_PICK:
+    case ReturnStatus.RETURN_DELIVERED:
       return 'info';
     case ReturnStatus.COMPLETED:
       return 'success';
@@ -87,25 +91,53 @@ const BuyerRefundListPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<RefundRequest[]>([]);
+  // track image validity per request id
+  const [productImageOkMap, setProductImageOkMap] = useState<Record<string, boolean>>({});
   const [selectedTab, setSelectedTab] = useState<number>(0);
 
-  const statusTabs = [
+  // Group RETURN_READY_TO_PICK, RETURN_SHIPPING, RETURN_DELIVERED into one combined tab
+  type TabStatus = ReturnStatus | null | 'RETURN_IN_TRANSIT';
+  const statusTabs: { label: string; value: TabStatus }[] = [
     { label: 'All', value: null },
     { label: 'In Progress', value: ReturnStatus.REQUESTED },
     { label: 'Approved', value: ReturnStatus.APPROVED },
+    { label: 'In Transit', value: 'RETURN_IN_TRANSIT' },
+    { label: 'Item Received', value: ReturnStatus.ITEM_RECEIVED },
     { label: 'Completed', value: ReturnStatus.COMPLETED },
     { label: 'Cancelled', value: ReturnStatus.CANCELLED },
+    { label: 'Rejected', value: ReturnStatus.REJECTED },
   ];
 
-  const fetchRequests = async (status?: ReturnStatus | null) => {
+  const fetchRequests = async (status?: ReturnStatus | null | 'RETURN_IN_TRANSIT') => {
     try {
       setLoading(true);
-      const response = await listReturnRequests({
-        status: status || undefined,
-        sortBy: 'requestedAt',
-        sortDirection: 'DESC',
+      let response;
+      // If combined in-transit tab requested, fetch without status and filter client-side
+      if (status === 'RETURN_IN_TRANSIT') {
+        response = await listReturnRequests({ sortBy: 'requestedAt', sortDirection: 'DESC' });
+      } else {
+        response = await listReturnRequests({
+          status: (status as ReturnStatus) || undefined,
+          sortBy: 'requestedAt',
+          sortDirection: 'DESC',
+        });
+      }
+      let data = response.data || [];
+      if (status === 'RETURN_IN_TRANSIT') {
+        const inTransitSet = new Set([
+          ReturnStatus.RETURN_READY_TO_PICK,
+          ReturnStatus.RETURN_SHIPPING,
+          ReturnStatus.RETURN_DELIVERED,
+        ]);
+        data = data.filter((r: RefundRequest) => inTransitSet.has(r.status));
+      }
+      setRequests(data);
+      // initialize image ok map for each request
+      const map: Record<string, boolean> = {};
+      data.forEach((r: RefundRequest) => {
+        map[r.id] = !!r.productImageUrl;
       });
-      setRequests(response.data || []);
+      setProductImageOkMap(map);
     } catch (error: any) {
       console.error('Failed to fetch return requests:', error);
       toast.error(getApiErrorMessage(error, 'Failed to load refund requests'));
@@ -238,13 +270,33 @@ const BuyerRefundListPage = () => {
                   {/* Product info */}
                   <Grid container spacing={2} alignItems="center">
                     <Grid size={{ xs: 12, sm: 2 }}>
-                      <Avatar
-                        src={request.productImageUrl}
-                        variant="rounded"
-                        sx={{ width: 80, height: 80 }}
+                      <Box
+                        sx={{
+                          borderRadius: 1,
+                          height: 120,
+                          width: '100%',
+                          bgcolor: theme.palette.custom.neutral[50],
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}
                       >
-                        <AssignmentReturn />
-                      </Avatar>
+                        {request.productImageUrl && productImageOkMap[request.id] ? (
+                          <img
+                            src={request.productImageUrl}
+                            alt={request.productName}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            onError={(e) => {
+                              // mark this specific request image as invalid
+                              setProductImageOkMap(prev => ({ ...prev, [request.id]: false }));
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <AssignmentReturn sx={{ fontSize: 60, color: theme.palette.custom.neutral[400] }} />
+                        )}
+                      </Box>
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
@@ -280,13 +332,16 @@ const BuyerRefundListPage = () => {
                   </Grid>
 
                   {/* Progress indicator for certain statuses */}
-                  {request.status === ReturnStatus.RETURN_SHIPPING && request.returnTrackingNumber && (
-                    <Alert severity="info" sx={{ mt: 2 }}>
-                      <Typography variant="body2">
-                        Tracking Number: <strong>{request.returnTrackingNumber}</strong>
-                      </Typography>
-                    </Alert>
-                  )}
+                  {(request.status === ReturnStatus.RETURN_SHIPPING ||
+                    request.status === ReturnStatus.ITEM_RECEIVED ||
+                    request.status === ReturnStatus.RETURN_DELIVERED ||
+                    request.status === ReturnStatus.RETURN_READY_TO_PICK) && request.returnTrackingNumber && (
+                      <Alert severity="info" sx={{ mt: 2 }}>
+                        <Typography variant="body2">
+                          Tracking Number: <strong>{request.returnTrackingNumber}</strong>
+                        </Typography>
+                      </Alert>
+                    )}
 
                   {request.status === ReturnStatus.REJECTED && request.rejectionReason && (
                     <Alert severity="error" sx={{ mt: 2 }}>

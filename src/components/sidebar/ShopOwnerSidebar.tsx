@@ -126,7 +126,7 @@ export const ShopOwnerSidebar = ({
     },
     { icon: <Verified />, label: 'Product Verification', path: PAGE_ENDPOINTS.SHOP.PRODUCT_VERIFICATION },
     { icon: <ShoppingCart />, label: 'Orders', path: '/shop/orders' },
-    { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.SHOP.REFUND_REVIEW },
+    { icon: <AssignmentReturn />, label: 'Refund Review', path: PAGE_ENDPOINTS.REFUND.SELLER_LIST },
     { icon: <AccountBalance />, label: 'Bank Accounts', path: PAGE_ENDPOINTS.SHOP.BANK_ACCOUNTS },
     { icon: <AccountBalanceWallet />, label: 'Wallet', path: PAGE_ENDPOINTS.SHOP.WALLET },
     {

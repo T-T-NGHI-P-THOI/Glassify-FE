@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Visibility } from '@mui/icons-material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -106,6 +106,8 @@ const AdminRefundsPage = () => {
   const [refunds, setRefunds] = useState<AdminRefundResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('requestedAt');
+  const [sortDirection, setSortDirection] = useState<'DESC' | 'ASC'>('DESC');
   const [page, setPage] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const pageSize = 20;
@@ -128,6 +130,42 @@ const AdminRefundsPage = () => {
   useEffect(() => {
     fetchRefunds(statusFilter, page);
   }, [statusFilter, page]);
+
+  // when sortBy changes reset sortDirection to default for that field
+  useEffect(() => {
+    if (sortBy === 'refundAmount') setSortDirection('DESC');
+    else setSortDirection('DESC');
+    // keep page reset when changing sort settings
+    setPage(0);
+  }, [sortBy]);
+
+  // client-side sorted list based on UI controls
+  const sortedRefunds = useMemo(() => {
+    const copy = [...refunds];
+    const dir = sortDirection === 'DESC' ? -1 : 1;
+    copy.sort((a, b) => {
+      const field = sortBy;
+      let va: any = (a as any)[field];
+      let vb: any = (b as any)[field];
+
+      // handle dates
+      if (field.toLowerCase().includes('date') || field.toLowerCase().includes('at') || field === 'requestedAt') {
+        va = va ? new Date(va).getTime() : 0;
+        vb = vb ? new Date(vb).getTime() : 0;
+      }
+
+      // handle numeric
+      if (field === 'refundAmount') {
+        va = Number(va ?? 0);
+        vb = Number(vb ?? 0);
+      }
+
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+    return copy;
+  }, [refunds, sortBy, sortDirection]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.custom.neutral[50] }}>
@@ -154,12 +192,50 @@ const AdminRefundsPage = () => {
             <Select
               size="small"
               value={statusFilter}
+              displayEmpty
               onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              renderValue={(val) => {
+                const v = String(val ?? '');
+                const found = STATUS_OPTIONS.find((o) => o.value === v);
+                return found ? found.label : 'All';
+              }}
               sx={{ minWidth: 180, fontSize: 14 }}
             >
               {STATUS_OPTIONS.map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
               ))}
+            </Select>
+            <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[600], ml: 2 }}>
+              Sort by:
+            </Typography>
+            <Select
+              size="small"
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); setPage(0); }}
+              sx={{ minWidth: 160, fontSize: 14 }}
+            >
+              <MenuItem value="requestedAt">Requested At</MenuItem>
+              <MenuItem value="refundAmount">Amount</MenuItem>
+              <MenuItem value="status">Status</MenuItem>
+            </Select>
+            <Select
+              size="small"
+              value={sortDirection}
+              onChange={(e) => { setSortDirection(e.target.value); setPage(0); }}
+              sx={{ minWidth: 110, fontSize: 14 }}
+              renderValue={(val) => {
+                const v = String(val);
+                if (sortBy === 'refundAmount') {
+                  return v === 'DESC' ? 'Largest' : 'Smallest';
+                }
+                if (sortBy === 'requestedAt') {
+                  return v === 'DESC' ? 'Newest' : 'Oldest';
+                }
+                return v === 'DESC' ? 'Z-A' : 'A-Z';
+              }}
+            >
+              <MenuItem value="DESC">{sortBy === 'refundAmount' ? 'Largest' : sortBy === 'requestedAt' ? 'Newest' : 'Z-A'}</MenuItem>
+              <MenuItem value="ASC">{sortBy === 'refundAmount' ? 'Smallest' : sortBy === 'requestedAt' ? 'Oldest' : 'A-Z'}</MenuItem>
             </Select>
             <Typography sx={{ ml: 'auto', fontSize: 13, color: theme.palette.custom.neutral[500] }}>
               {totalElements} requests
@@ -188,7 +264,7 @@ const AdminRefundsPage = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {refunds.map((r) => {
+                    {sortedRefunds.map((r) => {
                       const decision = getResolvedDecision(r);
                       return (
                       <TableRow
@@ -213,7 +289,7 @@ const AdminRefundsPage = () => {
                           <Typography sx={{ fontSize: 13 }}>{r.shopName}</Typography>
                         </TableCell>
                         <TableCell>
-                          <Typography sx={{ fontSize: 13 }}>{r.userId}</Typography>
+                          <Typography sx={{ fontSize: 13 }}>{r.userName}</Typography>
                         </TableCell>
                         <TableCell>
                           <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(r.refundAmount)}</Typography>

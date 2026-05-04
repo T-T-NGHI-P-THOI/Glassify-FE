@@ -107,6 +107,7 @@ export interface AdminRefundResponse {
   shopId: string;
   shopName: string;
   userId: string;
+  userName: string;
   returnType: string;
   reason: string;
   reasonDetail?: string;

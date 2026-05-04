@@ -204,7 +204,7 @@ function transformSingleItem(
         product: {
             id: beItem.productId || '',
             product_type: productType as ProductType,
-            name: meta?.productName || 'Product',
+            name: meta?.productName || beItem.lensName || 'Product',
             slug: meta?.productSlug || '',
             description: meta?.description,
             is_active: true,
@@ -227,7 +227,14 @@ function transformSingleItem(
         },
         is_gift: beItem.isFree || meta?.isFree || false,
         children: children.map(child => transformSingleItem(child, childrenMap, cache)),
-        lens_selection: meta?.lensSelection,
+        lens_selection: meta?.lensSelection ?? (beItem.lensId ? {
+            lensId: beItem.lensId,
+            lensName: beItem.lensName ?? undefined,
+            lensTintId: beItem.lensTintId ?? undefined,
+            lensTintName: beItem.lensTintName ?? undefined,
+            lensTintColor: beItem.lensTintColor ?? undefined,
+            lensFeatureIds: beItem.lensFeatureIds?.length ? beItem.lensFeatureIds : undefined,
+        } : undefined),
         // Prefer live qtyAvailable from BE (real-time inventory); fall back to cached value
         stock_quantity: beItem.qtyAvailable ?? meta?.stockQuantity,
     };
@@ -366,6 +373,7 @@ export interface AddToCartMockParams {
     prescriptionId?: string;
     lensSelection?: LensSelection;
     stockQuantity?: number;
+    createNew?: boolean;
 }
 
 export const CartService = {
@@ -406,6 +414,7 @@ export const CartService = {
             unitPrice: params.unitPrice,
             lineTotal: params.unitPrice,
             isFree: params.isFree,
+            createNew: params.createNew,
             giftNote: params.giftNote,
             itemType: params.itemType,
         };

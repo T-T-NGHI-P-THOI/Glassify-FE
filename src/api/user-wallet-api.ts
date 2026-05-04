@@ -10,6 +10,23 @@ export interface UserWalletResponse {
     availableBalance: number;
     totalTopUp: number;
     totalSpent: number;
+    totalRefunded: number;
+}
+
+export interface OrderTransactionSummary {
+    orderNumber: string;
+    shippingFee: number;
+    subtotal: number;
+    totalAmount: number;
+    items: Array<{
+        productName: string;
+        itemType: string;
+        quantity: number;
+        unitPrice: number;
+        lineTotal: number;
+        isFree: boolean;
+        parentItemId?: string;
+    }>;
 }
 
 // UserTransactionType: TOP_UP | ORDER_PAYMENT | REFUND | WITHDRAWAL
@@ -25,6 +42,7 @@ export interface UserTransactionResponse {
     referenceId: string;
     description: string;
     createdAt: string;
+    orderSummary?: OrderTransactionSummary;
 }
 
 export type WithdrawalStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';

@@ -20,6 +20,7 @@ import {
     Inventory2,
     Star,
     StarBorder,
+    CheckCircleOutline,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import type { CreateFrameVariantFormData } from '../Create/CreateFrameVariantPage';
@@ -31,6 +32,7 @@ import type { EditFrameGroupFormData } from '../Edit/EditFrameGroupDialog';
 import DeleteVariantDialog from '../Delete/DeleteVariantDialog';
 import type { ProductSize } from '@/types/product.enums';
 import SetFeaturedDialog from '../Edit/SetFeaturedDialog';
+import SetActiveDialog from '@/components/Product/SetActiveDialog';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -45,7 +47,6 @@ export interface FrameVariantResponse {
     bridgeWidthMm: number;
     templeLengthMm: number;
     size: ProductSize;
-    isActive: boolean | null;
     productId: string | null;
     productName: string | null;
     slug: string | null;
@@ -70,6 +71,7 @@ export interface ProductResponse {
     costPrice: number;
     stockQuantity: number;
     isActive: boolean;
+    isVerified: boolean;
     isFeatured: boolean;
     isReturnable: boolean;
     warrantyMonths: number;
@@ -159,6 +161,8 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
     const [featuredOpen, setFeaturedOpen] = useState(false);
     const [selectedFeaturedVariant, setSelectedFeaturedVariant] =
         useState<FrameVariantResponse | null>(null);
+    const [activeOpen, setActiveOpen] = useState(false);
+    const [selectedActiveVariant, setSelectedActiveVariant] = useState<FrameVariantResponse | null>(null);
 
     const handleVariantCreated = (
         variantId: string,
@@ -183,7 +187,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                     bridgeWidthMm: data.bridgeWidthMm,
                     templeLengthMm: data.templeLengthMm,
 
-                    isActive: true,
                     productId: productId,
                     productName: null,
                     slug: null,
@@ -208,7 +211,8 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                         basePrice: data.basePrice,
                         costPrice: data.costPrice,
                         stockQuantity: data.stock,
-                        isActive: true,
+                        isActive: false,
+                        isVerified: false,
                         isFeatured: data.isFeatured,
                         isReturnable: data.isReturnable,
                         warrantyMonths: data.warrantyMonths,
@@ -321,18 +325,6 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                                     },
                                 }}
                             >
-                                {/* Stock dot */}
-                                <Box
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 8,
-                                        right: 8,
-                                        width: 7,
-                                        height: 7,
-                                        borderRadius: '50%',
-                                        bgcolor: sc.color,
-                                    }}
-                                />
 
                                 {/* Color swatch + name */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
@@ -385,17 +377,17 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                                 {/* Stock */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>{v.stock}</Box>
+                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>{v.qtyAvailable}</Box>
                                     </Typography>
                                     <Chip
-                                        label={sc.label}
+                                        label={v.productResponse.isVerified ? "Verified" : "Not verified"}
                                         size="small"
                                         sx={{
                                             height: 16,
                                             fontSize: 9,
                                             fontWeight: 600,
-                                            bgcolor: sc.bg,
-                                            color: sc.color,
+                                            bgcolor: v.productResponse.isVerified ? '#dcfce7' : '#f1f5f9',
+                                            color: v.productResponse.isVerified ? '#16a34a' : '#64748b',
                                             border: 'none',
                                             '& .MuiChip-label': { px: 0.5 },
                                         }}
@@ -486,6 +478,35 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                                             }}
                                         >
                                             <Edit className="ve" sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={v.productResponse.isActive ? "Already active" : "Set as active"}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                setSelectedActiveVariant(v);
+                                                setActiveOpen(true);
+                                            }}
+                                            sx={{
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: 0.75,
+                                                bgcolor: v.productResponse.isActive
+                                                    ? '#dcfce7'
+                                                    : theme.palette.custom.neutral[100],
+                                                '&:hover': {
+                                                    bgcolor: v.productResponse.isActive ? '#fecaca' : theme.palette.custom.neutral[200],
+                                                },
+                                            }}
+                                        >
+                                            <CheckCircleOutline
+                                                sx={{
+                                                    fontSize: 12,
+                                                    color: v.productResponse.isActive
+                                                        ? '#16a34a'
+                                                        : theme.palette.custom.neutral[500],
+                                                }}
+                                            />
                                         </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Delete variant">
@@ -623,6 +644,32 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                     setImages(selectedFeaturedVariant?.productResponse.productImages ?? []);
                 }}
             />
+            {selectedActiveVariant && (
+                <SetActiveDialog
+                    open={activeOpen}
+                    name={`${selectedActiveVariant?.colorName} - ${selectedActiveVariant?.size}`}
+                    productId={selectedActiveVariant?.productResponse.id}
+                    isCurrentlyActive={selectedActiveVariant.productResponse.isActive}
+                    onClose={() => {
+                        setActiveOpen(false);
+                        setSelectedActiveVariant(null);
+                    }}
+                    onSuccess={(newActiveState) => {
+                        setFrameGroups(prev =>
+                            prev.map(group => ({
+                                ...group,
+                                frameVariantResponses: group.frameVariantResponses.map(v => ({
+                                    ...v,
+                                    productResponse: {
+                                        ...v.productResponse,
+                                        isActive: newActiveState
+                                    }
+                                }))
+                            }))
+                        );
+                    }}
+                />
+            )}
         </>
     );
 };
@@ -655,7 +702,7 @@ const FrameGroupCard = ({
     const theme = useTheme();
 
     const variants = fg.frameVariantResponses;
-    const totalStock = variants.reduce((sum, v) => sum + (v.productResponse?.stockQuantity || 0), 0);
+    const totalStock = variants.reduce((sum, v) => sum + (v.qtyAvailable || 0), 0);
     const hasOut = variants.some((v) => v.stock === 0);
     const hasLow = variants.some((v) => v.stock > 0 && v.stock <= LOW_STOCK_THRESHOLD);
     const featuredFrameVariant = fg.frameVariantResponses.find(
@@ -666,7 +713,7 @@ const FrameGroupCard = ({
 
     const isActive =
         featuredFrameVariant?.productResponse.isActive ||
-        variants.some((v) => v.isActive === true);
+        variants.some((v) => v.productResponse.isActive === true);
 
     const price = (() => {
         const p = featuredFrameVariant?.productResponse;
@@ -722,7 +769,7 @@ const FrameGroupCard = ({
                         sx={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover',
+                            objectFit: 'contain',
                             transition: 'transform 0.25s',
                             '&:hover': {
                                 transform: 'scale(1.05)',
@@ -764,6 +811,7 @@ const FrameGroupCard = ({
                 <Chip
                     label={isActive ? 'Active' : 'Inactive'}
                     size="small"
+                    color={isActive ? 'success' : 'default'}
                     sx={{
                         position: 'absolute',
                         top: 8,

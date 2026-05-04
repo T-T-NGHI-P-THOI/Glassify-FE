@@ -16,7 +16,8 @@ import {
     InfoOutlined,
     BarChart,
     Category,
-    Star, StarBorder
+    Star, StarBorder,
+    CheckCircleOutline
 } from '@mui/icons-material';
 import { useState } from 'react';
 import AccessoryVariantDetailDialog from './AccessoryVariantDetailDialog';
@@ -26,6 +27,7 @@ import { } from '@mui/icons-material';
 import DeleteAccessoryVariantDialog from '../Delete/DeleteAccessoryVariantDialog';
 import SetAccessoryFeaturedDialog from '../Edit/SetAccessoryFeaturedDialog';
 import type { ProductSize } from '@/types/product.enums';
+import SetActiveDialog from '@/components/Product/SetActiveDialog';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AccessoryVariantResponse {
@@ -60,6 +62,7 @@ export interface AccessoryProductResponse {
     costPrice: number;
     stockQuantity: number;
     isActive: boolean;
+    isVerified: boolean;
     isFeatured: boolean;
     isReturnable: boolean;
     warrantyMonths: number;
@@ -119,7 +122,8 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
     const [selectedDeleteVariant, setSelectedDeleteVariant] = useState<AccessoryVariantResponse | null>(null);
     const [featuredOpen, setFeaturedOpen] = useState(false);
     const [selectedFeaturedVariant, setSelectedFeaturedVariant] = useState<AccessoryVariantResponse | null>(null);
-
+    const [activeOpen, setActiveOpen] = useState(false);
+    const [selectedActiveVariant, setSelectedActiveVariant] = useState<AccessoryVariantResponse | null>(null);
 
     if (variants.length === 0) {
         return (
@@ -173,7 +177,8 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                         basePrice: data.basePrice ?? 0,
                         costPrice: data.costPrice ?? 0,
                         stockQuantity: data.stock ?? 0,
-                        isActive: true,
+                        isActive: false,
+                        isVerified: false,
                         isFeatured: data.isFeatured ?? false,
                         isReturnable: data.isReturnable ?? false,
                         warrantyMonths: data.warrantyMonths ?? 0,
@@ -286,15 +291,7 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                     '&:hover': { borderColor: theme.palette.custom.status.info.main + '60' },
                                 }}
                             >
-                                {/* Stock dot */}
-                                <Box
-                                    sx={{
-                                        position: 'absolute', top: 8, right: 8,
-                                        width: 7, height: 7, borderRadius: '50%',
-                                        bgcolor: sc.color,
-                                    }}
-                                />
-
+                                
                                 {/* Variant name */}
                                 {v.name && (
                                     <Typography
@@ -354,16 +351,18 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                 {/* Stock */}
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                                     <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>
-                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>
-                                            {v.qtyAvailable ?? 0}
-                                        </Box>
+                                        Stock: <Box component="span" sx={{ fontWeight: 600, color: sc.color }}>{v.qtyAvailable}</Box>
                                     </Typography>
                                     <Chip
-                                        label={sc.label}
+                                        label={v.productResponse.isVerified ? "Verified" : "Not verified"}
                                         size="small"
                                         sx={{
-                                            height: 16, fontSize: 9, fontWeight: 600,
-                                            bgcolor: sc.bg, color: sc.color, border: 'none',
+                                            height: 16,
+                                            fontSize: 9,
+                                            fontWeight: 600,
+                                            bgcolor: v.productResponse.isVerified ? '#dcfce7' : '#f1f5f9',
+                                            color: v.productResponse.isVerified ? '#16a34a' : '#64748b',
+                                            border: 'none',
                                             '& .MuiChip-label': { px: 0.5 },
                                         }}
                                     />
@@ -426,6 +425,35 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                                             }}
                                         >
                                             <Edit className="ve" sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={v.productResponse.isActive ? "Already active" : "Set as active"}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                setSelectedActiveVariant(v);
+                                                setActiveOpen(true);
+                                            }}
+                                            sx={{
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: 0.75,
+                                                bgcolor: v.productResponse.isActive
+                                                    ? '#dcfce7'
+                                                    : theme.palette.custom.neutral[100],
+                                                '&:hover': {
+                                                    bgcolor: v.productResponse.isActive ? '#fecaca' : theme.palette.custom.neutral[200],
+                                                },
+                                            }}
+                                        >
+                                            <CheckCircleOutline
+                                                sx={{
+                                                    fontSize: 12,
+                                                    color: v.productResponse.isActive
+                                                        ? '#16a34a'
+                                                        : theme.palette.custom.neutral[500],
+                                                }}
+                                            />
                                         </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Delete variant">
@@ -527,6 +555,32 @@ const VariantPanel = ({ accessoryId, shopId, variants, setAccessories }: Variant
                     setSelectedFeaturedVariant(null);
                 }}
             />
+            {selectedActiveVariant && (
+                <SetActiveDialog
+                    open={activeOpen}
+                    name={`${selectedActiveVariant?.name} - ${selectedActiveVariant?.size}`}
+                    productId={selectedActiveVariant?.productResponse.id}
+                    isCurrentlyActive={selectedActiveVariant.productResponse.isActive}
+                    onClose={() => {
+                        setActiveOpen(false);
+                        setSelectedActiveVariant(null);
+                    }}
+                    onSuccess={(newActiveState) => {
+                        setAccessories(prev =>
+                            prev.map(a => ({
+                                ...a,
+                                variants: a.variants.map(v => ({
+                                    ...v,
+                                    productResponse: {
+                                        ...v.productResponse,
+                                        isActive: newActiveState
+                                    }
+                                }))
+                            }))
+                        );
+                    }}
+                />
+            )}
         </>
     );
 };
@@ -608,7 +662,7 @@ const AccessoryCard = ({
                         src={images[imgIndex]}
                         alt={accessory.name}
                         sx={{
-                            width: '100%', height: '100%', objectFit: 'cover',
+                            width: '100%', height: '100%', objectFit: 'contain',
                             transition: 'transform 0.25s',
                             '&:hover': { transform: 'scale(1.05)' },
                         }}

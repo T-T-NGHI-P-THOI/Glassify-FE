@@ -15,27 +15,29 @@ export interface Prescription {
   prescriptionDate: string;
   imageUrl: string;
   isDefault: boolean;
+  isSaved: boolean;
   prescriptionUsage: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreatePrescriptionData {
-  name: string;
+  name?: string;
+  isSaved?: boolean;
   sphR: number;
   cylR: number;
-  axisR: number;
+  axisR?: number;
   sphL: number;
   cylL: number;
-  axisL: number;
+  axisL?: number;
   pdSingle?: number;
   pdLeft?: number;
   pdRight?: number;
   addPower?: number;
-  prescriptionDate: string;
+  prescriptionDate?: string;
   imageUrl?: string;
   isDefault?: boolean;
-  prescriptionUsage: string;
+  prescriptionUsage?: string;
 }
 
 export interface UpdatePrescriptionData extends Partial<CreatePrescriptionData> {
