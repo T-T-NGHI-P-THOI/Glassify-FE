@@ -78,7 +78,7 @@ import { getApiErrorMessage } from '@/utils/api-error';
 
 type BuyerInfo = {
   name: string;
-  email: string;
+  address: string;
   phone: string;
 };
 
@@ -286,7 +286,7 @@ const SellerRefundDetailPage = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<RefundRequest | null>(null);
-  const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', email: 'N/A', phone: 'N/A' });
+  const [buyerInfo, setBuyerInfo] = useState<BuyerInfo>({ name: 'N/A', phone: 'N/A', address: 'N/A' });
   const [buyerLoading, setBuyerLoading] = useState(false);
   
   const [submitting, setSubmitting] = useState(false);
@@ -372,19 +372,16 @@ const SellerRefundDetailPage = () => {
       if (!request?.userId) return;
       try {
         setBuyerLoading(true);
-        const response = await userApi.getUserByIdentifier(request.userId);
-        const rawData = response.data as any;
-        const u = rawData?.user ?? rawData;
         setBuyerInfo({
-          name: u?.fullName || request.buyerName || 'N/A',
-          email: u?.email || request.buyerEmail || 'N/A',
-          phone: u?.phone || u?.phoneNumber || request.buyerPhone || 'N/A',
+          name: request.orderName || 'N/A',
+          address: request.orderAddress || 'N/A',
+          phone: request.orderPhone || 'N/A',
         });
       } catch (error) {
         setBuyerInfo({
-          name: request.buyerName || 'N/A',
-          email: request.buyerEmail || 'N/A',
-          phone: request.buyerPhone || 'N/A',
+          name: request.orderName || 'N/A',
+          address: request.orderAddress || 'N/A',
+          phone: request.orderPhone || 'N/A',
         });
       } finally {
         setBuyerLoading(false);
@@ -1035,7 +1032,7 @@ const SellerRefundDetailPage = () => {
                     </Avatar>
                     <Box>
                       <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{buyerLoading ? <Skeleton width={100} /> : buyerInfo.name}</Typography>
-                      <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500] }}>{buyerInfo.email}</Typography>
+                      <Typography variant="body2" sx={{ color: theme.palette.custom.neutral[500] }}>{buyerInfo.address}</Typography>
                     </Box>
                   </Box>
                   
