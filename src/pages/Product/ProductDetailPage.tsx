@@ -10,6 +10,7 @@ import ShopInfo from '../../components/ProductDetailPage/ShopInfo';
 import Product3DPreviewDialog, { type Product3DVariantOption } from '../../components/ProductDetailPage/Product3DPreviewDialog';
 import { LensSelectionDialog } from '../../components/LensSelection/LensSelectionDialog';
 import GlassesTryOnPopup from '../Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
+import Loading from '../../layouts/Loading';
 import NotFoundPage from '../NotFoundPage';
 import type { Product, RecommendedProduct } from '../../types/product';
 import type { LensSelection } from '../../models/Lens';
@@ -675,7 +676,7 @@ const ProductDetailPage: React.FC = () => {
   }
 
   if (!product || isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <Loading />;
   }
 
   const isAuthenticated = TokenManager.isAuthenticated();
