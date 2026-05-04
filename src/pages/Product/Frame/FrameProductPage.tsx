@@ -37,6 +37,7 @@ import { sanitizeSearchInput } from '@/utils/text-input';
 import DeleteConfirmDialog from './Delete/DeleteConfirmDialog';
 import FrameGroupCard, { type FrameGroup } from './View/FrameGroupCard';
 import ViewFrameGroupDialog from './View/ViewFrameGroupDialog';
+import GlassesTryOnPopup from '@/pages/Virtrual-Try-On/GlassesTryOn/GlassesTryOnPopup';
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -63,6 +64,7 @@ const FrameProductPage = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FrameGroup | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [tryOnTarget, setTryOnTarget] = useState<FrameGroup | null>(null);
 
   useEffect(() => {
     setShowNavbar(false);
@@ -292,7 +294,8 @@ const FrameProductPage = () => {
                     onToggle={() => toggleRow(fg.id)}
                     onEdit={() => setEditTarget(fg)}
                     onDelete={() => setDeleteTarget(fg)}
-                    onPreview={() => {setViewTarget(fg) }}
+                    onPreview={() => { setViewTarget(fg) }}
+                    onTryOn={() => setTryOnTarget(fg)}
                     setFrameGroups={setFrameGroups}
                     onViewAnalytics={() => { }}
                   />
@@ -334,7 +337,7 @@ const FrameProductPage = () => {
         )}
       </Box>
 
-      
+
 
       {/* Dialogs */}
       <ViewFrameGroupDialog
@@ -355,6 +358,12 @@ const FrameProductPage = () => {
         onConfirm={handleDeleteConfirm}
         itemName={deleteTarget?.frameName}
         frameGroupId={deleteTarget?.id}
+      />
+      <GlassesTryOnPopup
+        frameGroupId={tryOnTarget?.id ?? ''}
+        open={!!tryOnTarget}
+        onClose={() => setTryOnTarget(null)}
+        isTryOn={true}
       />
     </Box>
   );
