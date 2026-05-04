@@ -95,6 +95,8 @@ export interface SalesByCategoryItem {
 export interface ShopAnalyticsSummary {
   totalRevenue: number;
   totalOrders: number;
+  totalProducts: number;
+  avgRating: number;
   avgOrderValue: number;
 }
 
