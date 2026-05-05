@@ -665,6 +665,7 @@ const MyOrdersPage = () => {
       if (order.paymentMethod === 'VNPAY') {
         const res = await paymentApi.createVnpayPayment({ orderId: order.id });
         if (res.data) {
+          sessionStorage.setItem('pending_vnpay_order_id', order.id);
           window.location.href = res.data;
         }
       } else if (order.paymentMethod === 'E_WALLET') {

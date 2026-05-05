@@ -788,6 +788,7 @@ const CheckoutPage = () => {
           });
           const paymentUrl = paymentResponse.data;
           if (paymentUrl) {
+            sessionStorage.setItem('pending_vnpay_order_id', order.id);
             window.location.href = paymentUrl;
             return;
           }
