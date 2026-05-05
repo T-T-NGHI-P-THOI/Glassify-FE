@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../../components/sidebar/Sidebar';
 import { PAGE_ENDPOINTS } from '@/api/endpoints';
 import { adminApi } from '@/api/adminApi';
+import type { AdminShopStats } from '@/api/adminApi';
 import type { AdminShopItem } from '@/models/Shop';
 import { toast } from 'react-toastify';
 import { useLayoutConfig } from '@/hooks/useLayoutConfig';
@@ -41,15 +42,22 @@ const ShopTrackingPage = () => {
   useLayoutConfig({ showNavbar: false, showFooter: false });
 
   const [shops, setShops] = useState<AdminShopItem[]>([]);
+  const [shopStatsMap, setShopStatsMap] = useState<Map<string, AdminShopStats>>(new Map());
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const fetchShops = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminApi.getShops();
-      if (response.data) {
-        setShops(response.data);
+      const [shopsRes, statsRes] = await Promise.all([
+        adminApi.getShops(),
+        adminApi.getShopStats(),
+      ]);
+      if (shopsRes.data) setShops(shopsRes.data);
+      if (statsRes.data) {
+        const map = new Map<string, AdminShopStats>();
+        statsRes.data.forEach((s) => map.set(s.shopId.toString(), s));
+        setShopStatsMap(map);
       }
     } catch (error) {
       console.error('Failed to fetch shops:', error);
@@ -71,7 +79,7 @@ const ShopTrackingPage = () => {
 
   const activeCount = shops.filter((s) => s.status === 'ACTIVE').length;
   const verifiedCount = shops.filter((s) => s.isVerified).length;
-  const totalProducts = shops.reduce((sum, s) => sum + (s.totalProducts ?? 0), 0);
+  const totalProducts = Array.from(shopStatsMap.values()).reduce((sum, s) => sum + (s.totalProducts ?? 0), 0);
 
   const stats = [
     {
@@ -212,6 +220,7 @@ const ShopTrackingPage = () => {
                   </TableRow>
                 ) : filteredShops.map((shop) => {
                   const statusColor = getStatusColor(shop.status);
+                  const stats = shopStatsMap.get(shop.id);
                   return (
                     <TableRow
                       key={shop.id}
@@ -270,16 +279,16 @@ const ShopTrackingPage = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Inventory sx={{ fontSize: 16, color: theme.palette.custom.neutral[500] }} />
                           <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                            {(shop.totalProducts ?? 0).toLocaleString()}
+                            {(stats?.totalProducts ?? 0).toLocaleString()}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        {shop.avgRating != null && shop.avgRating > 0 ? (
+                        {stats?.avgRating != null && stats.avgRating > 0 ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Star sx={{ fontSize: 16, color: theme.palette.custom.status.warning.main }} />
                             <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                              {shop.avgRating.toFixed(1)}
+                              {Number(stats.avgRating).toFixed(1)}
                             </Typography>
                           </Box>
                         ) : (
@@ -288,7 +297,7 @@ const ShopTrackingPage = () => {
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontSize: 13, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                          {(shop.totalOrders ?? 0).toLocaleString()}
+                          {(stats?.totalOrders ?? 0).toLocaleString()}
                         </Typography>
                       </TableCell>
                       <TableCell>

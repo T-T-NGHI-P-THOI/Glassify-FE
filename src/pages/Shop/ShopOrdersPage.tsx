@@ -269,9 +269,9 @@ const ShopOrdersPage = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: theme.palette.custom.neutral[50] }}>
-                    <TableCell padding="checkbox">
+                    {/* <TableCell padding="checkbox">
                       <Checkbox size="small" />
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>
                       <TableSortLabel>
                         <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.text.secondary }}>
@@ -346,9 +346,9 @@ const ShopOrdersPage = () => {
                             },
                           }}
                         >
-                          <TableCell padding="checkbox">
+                          {/* <TableCell padding="checkbox">
                             <Checkbox size="small" onClick={(e) => e.stopPropagation()} />
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell>
                             <Typography
                               sx={{

@@ -109,13 +109,15 @@ export interface AdminRefundResponse {
   orderId: string;
   orderNumber: string;
   orderItemId: string;
+  orderName: string;
+  orderAddress: string;
+  orderPhone: string;
   productName: string;
   productSku: string;
   productImageUrl?: string;
   shopId: string;
   shopName: string;
   userId: string;
-  userName: string;
   returnType: string;
   reason: string;
   reasonDetail?: string;
@@ -321,6 +323,36 @@ export interface AdminShopStats {
   deliveryRate: number;
   cancelRate: number;
   avgRating: number | null;
+  totalProducts: number | null;
+}
+
+export interface AdminCommissionStats {
+  totalCommission: number;
+  totalSubtotal: number;
+  totalShopEarning: number;
+  totalOrders: number;
+  avgCommissionRate: number;
+}
+
+export interface AdminMonthlyCommission {
+  month: number;
+  commission: number;
+  subtotal: number;
+  shopEarning: number;
+  orderCount: number;
+}
+
+export interface AdminOrderCommission {
+  shopOrderId: string;
+  orderNumber: string;
+  shopOrderNumber: string;
+  shopName: string;
+  shopCode: string;
+  subtotal: number;
+  commissionRate: number;
+  commissionAmount: number;
+  shopEarning: number;
+  completedAt: string | null;
 }
 
 export const adminApi = {
@@ -342,6 +374,29 @@ export const adminApi = {
     const response = await axiosInstance.get<ApiResponse<AdminMonthlyRevenue[]>>(
       API_ENDPOINTS.ADMIN.STATS.MONTHLY_REVENUE,
       { params: year ? { year } : undefined },
+    );
+    return response.data;
+  },
+
+  getCommissionStats: async (): Promise<ApiResponse<AdminCommissionStats>> => {
+    const response = await axiosInstance.get<ApiResponse<AdminCommissionStats>>(
+      API_ENDPOINTS.ADMIN.STATS.COMMISSION,
+    );
+    return response.data;
+  },
+
+  getMonthlyCommission: async (year?: number): Promise<ApiResponse<AdminMonthlyCommission[]>> => {
+    const response = await axiosInstance.get<ApiResponse<AdminMonthlyCommission[]>>(
+      API_ENDPOINTS.ADMIN.STATS.MONTHLY_COMMISSION,
+      { params: year ? { year } : undefined },
+    );
+    return response.data;
+  },
+
+  getOrderCommissions: async (page = 0, size = 20): Promise<ApiResponse<AdminOrderCommission[]>> => {
+    const response = await axiosInstance.get<ApiResponse<AdminOrderCommission[]>>(
+      API_ENDPOINTS.ADMIN.STATS.ORDER_COMMISSIONS,
+      { params: { page, size } },
     );
     return response.data;
   },

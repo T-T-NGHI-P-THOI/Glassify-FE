@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { warrantyApi } from '@/api/warranty-api';
+import ShopWarrantyPolicies from '@/components/Warranty/ShopWarrantyPolicies';
 import { paymentApi } from '@/api/payment-api';
 import { userWalletApi } from '@/api/user-wallet-api';
 import type { UserWalletResponse } from '@/api/user-wallet-api';
@@ -885,10 +886,29 @@ const WarrantyPage = () => {
               <Tab label={`Active (${activeCount})`} />
               <Tab label={`Completed (${completedCount})`} />
               <Tab label={`Rejected (${rejectedCount})`} />
+              <Tab label="Warranty Policies" />
             </Tabs>
           </Box>
 
+          {/* Warranty Policies Tab */}
+          {activeTab === 5 && (
+            <Box sx={{ p: 3 }}>
+              {claims.length === 0 ? (
+                <Typography sx={{ fontSize: 14, color: '#6b7280', textAlign: 'center', py: 4 }}>
+                  No warranty claims found. Policies will appear here after you submit a claim.
+                </Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {Array.from(new Map(claims.map(c => [c.shopId, { shopId: c.shopId, shopName: c.shopName }])).values()).map(({ shopId, shopName }) => (
+                    <ShopWarrantyPolicies key={shopId} shopId={shopId} shopName={shopName} />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+
           {/* Claim Cards */}
+          {activeTab !== 5 && (
           <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {loading && (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -1113,6 +1133,7 @@ const WarrantyPage = () => {
               </Box>
             )}
           </Box>
+          )}
         </Paper>
       </Container>
 

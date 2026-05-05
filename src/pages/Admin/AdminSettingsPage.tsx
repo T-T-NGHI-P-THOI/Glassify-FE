@@ -894,7 +894,7 @@ const AdminSettingsPage = () => {
       </Paper>
 
       {/* Reset shortcuts */}
-      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>Quick Resets</Typography>
           <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>
@@ -907,7 +907,7 @@ const AdminSettingsPage = () => {
         <Button variant="outlined" size="small" color="warning" startIcon={<RestartAlt />} onClick={() => setResetConfirm('refund')}>
           Reset Refund Policy Defaults
         </Button>
-      </Paper>
+      </Paper> */}
 
       {/* ── Edit Dialog ─────────────────────────────────────────────────────── */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 2 } } }}>

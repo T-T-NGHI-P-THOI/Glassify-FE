@@ -11,7 +11,12 @@
       "Bash(sed -n '883,908p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)",
       "Bash(sed -n '1010,1030p' /Users/lamiee/Study/CapstoneProject/Glassify-BE/src/main/resources/db/migrations/V202601271820__init.sql)",
       "Bash(grep -n \"GET_BY_ID\\\\|getById\\\\|shops/\\\\${\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/api/shopApi.ts)",
-      "Bash(grep -n \"GET_BY_ID\\\\|getPublic\\\\|/shops/\\\\${id}\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/api/shopApi.ts)"
+      "Bash(grep -n \"GET_BY_ID\\\\|getPublic\\\\|/shops/\\\\${id}\" /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/api/shopApi.ts)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/admin/stats/commission -H \"Authorization: Bearer test\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/admin/stats/overview -H \"Authorization: Bearer test\")",
+      "Bash(lsof -iTCP -sTCP:LISTEN)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/admin/stats/commission)",
+      "Bash(curl -s http://localhost:8081/api/v1/admin/stats/commission -H \"Authorization: Bearer $\\(grep -r 'token\\\\|TOKEN' /Users/lamiee/Study/CapstoneProject/Glassify-FE/.env.local)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces",

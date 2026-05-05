@@ -69,9 +69,9 @@ const RecommendedProducts: React.FC<RecommendedProductsProps> = ({ products }) =
               to={`/product/${product.slug}/${product.sku}`}
               className="product-card"
             >
-              <button className="favorite-btn" onClick={(e) => e.preventDefault()}>
+              {/* <button className="favorite-btn" onClick={(e) => e.preventDefault()}>
                 <FavoriteBorder />
-              </button>
+              </button> */}
               <img src={product.image} alt={product.name} className="product-image" />
               <div className="product-card-info">
                 <p className="product-name"><b>{product.name}</b></p>

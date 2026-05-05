@@ -317,7 +317,7 @@ const AdminOrderDetailPage = () => {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ bgcolor: theme.palette.custom.neutral[50] }}>
-                        {['Product', 'SKU', 'Type', 'Qty', 'Unit Price', 'Total'].map((h) => (
+                        {['Product', 'SKU', 'Type', 'Qty', 'Unit Price'].map((h) => (
                           <TableCell key={h} sx={{ fontWeight: 600, fontSize: 12, color: theme.palette.custom.neutral[500] }}>{h}</TableCell>
                         ))}
                       </TableRow>
@@ -337,7 +337,6 @@ const AdminOrderDetailPage = () => {
                           <TableCell><Chip size="small" variant="outlined" label={item.itemType} /></TableCell>
                           <TableCell><Typography sx={{ fontSize: 13 }}>{item.quantity}</Typography></TableCell>
                           <TableCell><Typography sx={{ fontSize: 13 }}>{formatCurrency(item.unitPrice)}</Typography></TableCell>
-                          <TableCell><Typography sx={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(item.totalPrice)}</Typography></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
