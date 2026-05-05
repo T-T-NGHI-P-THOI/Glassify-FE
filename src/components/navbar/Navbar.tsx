@@ -89,9 +89,9 @@ export const Navbar = () => {
     { label: 'Sunglasses', path: '/products', category: 'Sunglasses' },
     { label: 'Lenses', path: '/products', category: 'Lenses' },
     { label: 'Accessories', path: '/products', category: 'Accessories' },
-    { label: 'Collabs & Partners', path: '/collabs', category: null },
-    { label: '✨ Discover', path: '/discover', special: true, category: null },
-    { label: '🏷️ Sale', path: '/sale', special: true, category: null },
+    // { label: 'Collabs & Partners', path: '/collabs', category: null },
+    // { label: '✨ Discover', path: '/discover', special: true, category: null },
+    // { label: '🏷️ Sale', path: '/sale', special: true, category: null },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
