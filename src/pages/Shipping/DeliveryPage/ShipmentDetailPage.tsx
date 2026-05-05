@@ -560,18 +560,6 @@ const ShipmentDetailPage = () => {
                 {order.ghnOrderCode ?? '—'}
               </Typography>
             </Box>
-            {/* <Box sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>TRACKING NUMBER</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 600, color: order.trackingNumber ? theme.palette.custom.status.info.main : theme.palette.custom.neutral[400] }}>
-                {order.trackingNumber ?? '—'}
-              </Typography>
-            </Box> */}
-            <Box>
-              <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[400], mb: 0.5 }}>SHIPPED AT</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: theme.palette.custom.neutral[800] }}>
-                {formatDate(order.shippedAt)}
-              </Typography>
-            </Box>
           </Paper>
         </Box>
 

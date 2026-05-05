@@ -179,18 +179,18 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
 
       
 
-      <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
+      {/* <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
         <Favorite /> Add to favorites
-      </button>
+      </button> */}
 
-      <div className="share-section">
+      {/* <div className="share-section">
         <p className="share-label">Share</p>
         <div className="share-buttons">
           <button className="share-btn"><Facebook /></button>
           <button className="share-btn"><Pinterest /></button>
           <button className="share-btn"><Twitter /></button>
         </div>
-      </div>
+      </div> */}
 
       {showSizeChart && (
         <div className="modal-overlay" onClick={() => setShowSizeChart(false)}>

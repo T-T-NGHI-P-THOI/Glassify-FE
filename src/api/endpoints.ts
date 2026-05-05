@@ -212,6 +212,7 @@ export const API_ENDPOINTS = {
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
     ESCROWS: `${API_ENDPOINT}/shop/wallet/escrows`,
+    TOP_UP_VNPAY: `${API_ENDPOINT}/shop/wallet/top-up/vnpay`,
   },
   SHOP_BANK_ACCOUNTS: {
     BASE: `${API_ENDPOINT}/shops/bank-accounts`,
@@ -234,6 +235,9 @@ export const API_ENDPOINTS = {
       OVERVIEW: `${API_ENDPOINT}/admin/stats/overview`,
       SHOPS: `${API_ENDPOINT}/admin/stats/shops`,
       MONTHLY_REVENUE: `${API_ENDPOINT}/admin/stats/monthly-revenue`,
+      COMMISSION: `${API_ENDPOINT}/admin/stats/commission`,
+      MONTHLY_COMMISSION: `${API_ENDPOINT}/admin/stats/monthly-commission`,
+      ORDER_COMMISSIONS: `${API_ENDPOINT}/admin/stats/order-commissions`,
     },
     COMMISSION_TIERS: {
       LIST: `${API_ENDPOINT}/admin/commission-tiers`,

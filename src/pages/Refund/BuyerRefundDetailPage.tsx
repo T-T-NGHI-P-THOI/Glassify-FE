@@ -101,11 +101,27 @@ const getStatusSteps = (request: RefundRequest) => {
   ] satisfies RefundStep[];
 };
 
-const getActiveStep = (currentStatus: ReturnStatus, steps: RefundStep[]) => {
-  const normalizedStatus =
-    currentStatus === ReturnStatus.RETURN_READY_TO_PICK
-      ? ReturnStatus.RETURN_SHIPPING
-      : currentStatus;
+const getActiveStep = (
+  currentStatus: ReturnStatus,
+  steps: RefundStep[],
+  adminDecision?: RefundReviewDecision,
+) => {
+  let normalizedStatus = currentStatus;
+
+  if (adminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN) {
+    if (normalizedStatus === ReturnStatus.COMPLETED) {
+      normalizedStatus = ReturnStatus.COMPLETED;
+    } else if (normalizedStatus === ReturnStatus.APPROVED) {
+      normalizedStatus = ReturnStatus.APPROVED;
+    } else {
+      normalizedStatus = ReturnStatus.REQUESTED;
+    }
+  } else {
+    normalizedStatus =
+      normalizedStatus === ReturnStatus.RETURN_READY_TO_PICK
+        ? ReturnStatus.RETURN_SHIPPING
+        : normalizedStatus;
+  }
 
   const index = steps.findIndex((step) => step.statuses.includes(normalizedStatus));
   return index >= 0 ? index : 0;
@@ -257,7 +273,7 @@ const BuyerRefundDetailPage = () => {
   }
 
   const steps = getStatusSteps(request);
-  const activeStep = getActiveStep(request.status, steps);
+  const activeStep = getActiveStep(request.status, steps, request.adminDecision);
   const resolvedAdminDecision = request.adminDecision;
   const isDirectRefundDecision =
     resolvedAdminDecision === RefundReviewDecision.REFUND_WITHOUT_RETURN;
@@ -646,7 +662,7 @@ const BuyerRefundDetailPage = () => {
                     <Typography variant="body1">{request.reasonDetail}</Typography>
                   </Grid>
                 )}
-                {(request.returnInstruction || request.returnInstructions) && (
+                {!isDirectRefundDecision && (request.returnInstruction || request.returnInstructions) && (
                   <Grid size={{ xs: 12 }}>
                     <Typography variant="body2" color="text.secondary">
                       Return Instruction
@@ -656,7 +672,7 @@ const BuyerRefundDetailPage = () => {
                     </Typography>
                   </Grid>
                 )}
-                {request.returnTrackingNumber && (
+                {!isDirectRefundDecision && request.returnTrackingNumber && (
                   <>
                     <Grid size={{ xs: 6 }}>
                       <Typography variant="body2" color="text.secondary">

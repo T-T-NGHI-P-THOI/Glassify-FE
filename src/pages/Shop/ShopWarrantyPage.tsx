@@ -188,38 +188,38 @@ const WarrantyStepper = ({ status }: { status: string }) => {
     <CheckCircle key="4" sx={{ fontSize: 18 }} />,
   ];
 
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', py: 1, mt: 2 }}>
-      {CLAIM_STEPS.map((label, index) => {
-        const isCompleted = index <= activeStep;
-        const isActive = index === activeStep;
+  // return (
+  //   <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', py: 1, mt: 2 }}>
+  //     {CLAIM_STEPS.map((label, index) => {
+  //       const isCompleted = index <= activeStep;
+  //       const isActive = index === activeStep;
 
-        return (
-          <Box key={label} sx={{ display: 'flex', alignItems: 'center', flex: index < CLAIM_STEPS.length - 1 ? 1 : 'none' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
-              <Box
-                sx={{
-                  width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  bgcolor: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200],
-                  color: isCompleted ? '#fff' : theme.palette.custom.neutral[400],
-                  boxShadow: isActive ? `0 0 0 4px ${theme.palette.custom.status.success.light}` : 'none',
-                  transition: 'all 0.3s',
-                }}
-              >
-                {stepIcons[index]}
-              </Box>
-              <Typography sx={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[400], mt: 0.75, textAlign: 'center' }}>
-                {label}
-              </Typography>
-            </Box>
-            {index < CLAIM_STEPS.length - 1 && (
-              <Box sx={{ flex: 1, height: 3, bgcolor: index < activeStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200], mx: 0.5, mb: 2.5, borderRadius: 2 }} />
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  );
+  //       return (
+  //         <Box key={label} sx={{ display: 'flex', alignItems: 'center', flex: index < CLAIM_STEPS.length - 1 ? 1 : 'none' }}>
+  //           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60 }}>
+  //             <Box
+  //               sx={{
+  //                 width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  //                 bgcolor: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200],
+  //                 color: isCompleted ? '#fff' : theme.palette.custom.neutral[400],
+  //                 boxShadow: isActive ? `0 0 0 4px ${theme.palette.custom.status.success.light}` : 'none',
+  //                 transition: 'all 0.3s',
+  //               }}
+  //             >
+  //               {stepIcons[index]}
+  //             </Box>
+  //             <Typography sx={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isCompleted ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[400], mt: 0.75, textAlign: 'center' }}>
+  //               {label}
+  //             </Typography>
+  //           </Box>
+  //           {index < CLAIM_STEPS.length - 1 && (
+  //             <Box sx={{ flex: 1, height: 3, bgcolor: index < activeStep ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[200], mx: 0.5, mb: 2.5, borderRadius: 2 }} />
+  //           )}
+  //         </Box>
+  //       );
+  //     })}
+  //   </Box>
+  // );
 };
 
 const ShopWarrantyPage = () => {
@@ -947,18 +947,6 @@ const ShopWarrantyPage = () => {
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {editingPolicy && (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<Cancel />}
-                      onClick={() => handleDeletePolicy(editingPolicy.id)}
-                      disabled={actioning}
-                      sx={{ borderRadius: 1.5, textTransform: 'none' }}
-                    >
-                      Delete
-                    </Button>
-                  )}
                   <Button
                     variant="outlined"
                     startIcon={<Add />}
@@ -1065,9 +1053,88 @@ const ShopWarrantyPage = () => {
                   </Box>
                 </Grid>
               </Grid>
+
+              {/* Saved Policies List */}
+              {policies.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', mb: 1.5, letterSpacing: 0.5 }}>
+                    Saved Policies ({policies.length})
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {policies.map((p) => {
+                      const isSelected = editingPolicy?.id === p.id;
+                      return (
+                        <Box
+                          key={p.id}
+                          onClick={() => {
+                            setEditingPolicy(p);
+                            setPolicyFormData({
+                              name: p.name,
+                              durationMonths: p.durationMonths,
+                              coverageDescription: p.coverageDescription || '',
+                              excludedIssues: p.excludedIssues || [],
+                              isDefault: p.isDefault,
+                              isActive: p.isActive,
+                            });
+                          }}
+                          sx={{
+                            p: 2,
+                            // bgcolor: isSelected ? theme.palette.custom.status.info.light + '30' : theme.palette.custom.neutral[50],
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            '&:hover': { borderColor: theme.palette.primary.main, bgcolor: theme.palette.custom.status.info.light + '20' },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                              {p.name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+                              {p.isDefault && (
+                                <Chip label="Default" size="small" sx={{ fontSize: 11, height: 20, bgcolor: '#667eea', color: '#fff' }} />
+                              )}
+                              <Chip
+                                label={p.isActive ? 'Active' : 'Inactive'}
+                                size="small"
+                                sx={{
+                                  fontSize: 11, height: 20,
+                                  bgcolor: p.isActive ? theme.palette.custom.status.success.light : theme.palette.custom.neutral[100],
+                                  color: p.isActive ? theme.palette.custom.status.success.main : theme.palette.custom.neutral[500],
+                                }}
+                              />
+                              <Chip label={`${p.durationMonths}mo`} size="small" sx={{ fontSize: 11, height: 20, bgcolor: theme.palette.custom.neutral[100] }} />
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={actioning}
+                                onClick={(e) => { e.stopPropagation(); handleDeletePolicy(p.id); }}
+                                sx={{ ml: 0.5, p: 0.5 }}
+                              >
+                                <Cancel sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                          {p.coverageDescription && (
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: p.excludedIssues?.length > 0 ? 0.75 : 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.coverageDescription}
+                            </Typography>
+                          )}
+                          {p.excludedIssues?.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                              {p.excludedIssues.map((issue: string, i: number) => (
+                                <Chip key={i} label={issue} size="small" sx={{ fontSize: 11, height: 18, bgcolor: '#fee2e2', color: '#991b1b' }} />
+                              ))}
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              )}
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: theme.palette.custom.status.info.light + '20', borderStyle: 'dashed' }}>
+            {/* <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, bgcolor: theme.palette.custom.status.info.light + '20', borderStyle: 'dashed' }}>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Info sx={{ color: theme.palette.custom.status.info.main }} />
                 <Box>
@@ -1081,7 +1148,7 @@ const ShopWarrantyPage = () => {
                   </Typography>
                 </Box>
               </Box>
-            </Paper>
+            </Paper> */}
           </Box>
         )}
 

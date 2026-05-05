@@ -72,6 +72,9 @@ export interface RefundRequest {
   requestNumber: string;
   orderId: string;
   orderNumber: string;
+  orderName: string;
+  orderAddress: string;
+  orderPhone: string;
   orderItemId: string;
   productName: string;
   productSku: string;
