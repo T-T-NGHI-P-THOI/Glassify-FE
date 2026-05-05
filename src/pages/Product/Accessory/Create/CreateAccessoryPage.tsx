@@ -404,7 +404,7 @@ const Step1Variant = ({ formData, setFormData, errors, setErrors }: Step1Props) 
                                 <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{file.name}</Typography>
                                 <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{formatFileSize(file.size)}</Typography>
                             </Box>
-                            <IconButton size="small" onClick={() => setFormData(prev => ({ ...prev, images: prev.productImages.filter((_, i) => i !== index) }))} sx={{ color: theme.palette.custom.status.error.main }}>
+                            <IconButton size="small" onClick={() => setFormData(prev => ({ ...prev, productImages: prev.productImages.filter((_, i) => i !== index) }))} sx={{ color: theme.palette.custom.status.error.main }}>
                                 <Delete />
                             </IconButton>
                         </Paper>
@@ -572,16 +572,26 @@ const CreateAccessoryPage = () => {
 
                 const payload = toFormData(groupData);
                 if (shop?.id) payload.append("shopId", shop.id);
-                const response = await ProductAPI.createAccessory(payload);
 
-                console.log("API Res:", response.id)
-                setAccessoryId(response.id);
-                toast.success('Accessory info saved!');
+                // ← BRANCH: update vs create
+                if (accessoryId) {
+                    await ProductAPI.updateAccessory(accessoryId, {
+                        shopId: shop?.id ?? '',
+                        name: groupData.name,
+                        type: groupData.type,
+                        description: groupData.description,
+                    });
+                    toast.success('Accessory info updated!');
+                } else {
+                    const response = await ProductAPI.createAccessory(payload);
+                    setAccessoryId(response.id);
+                    toast.success('Accessory info saved!');
+                }
             }
             setActiveStep(prev => Math.min(prev + 1, registrationSteps.length - 1));
         }
         catch (err: any) {
-            err?.errors.map((message: any) => toast.error(message))
+            err?.errors?.map((message: any) => toast.error(message));
         }
     };
 

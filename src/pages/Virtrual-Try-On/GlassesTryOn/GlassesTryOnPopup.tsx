@@ -580,7 +580,6 @@ const GlassesTryOnPopup = ({
                                     </svg>
                                 </CanvasIconBtn>
                             )} */}
-                            z
                             {!isTryOn && (
                                 <CanvasIconBtn
                                     onClick={() => toggleDrawer("rec")}
