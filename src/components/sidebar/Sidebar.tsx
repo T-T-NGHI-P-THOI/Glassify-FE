@@ -93,7 +93,7 @@ export const Sidebar = ({ activeMenu }: SidebarProps) => {
 
   const bottomMenuItems = [
     { icon: <Settings />, label: 'Settings', path: '/admin/settings' },
-    { icon: <HelpCenter />, label: 'Help Center', path: '/help' },
+    // { icon: <HelpCenter />, label: 'Help Center', path: '/help' },
   ];
 
   return (

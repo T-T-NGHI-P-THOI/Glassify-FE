@@ -275,18 +275,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({
 
                   <p className="product-grid-price">{formatCurrency(selectedVariant?.price ?? displayProduct.price)}</p>
                 </div>
-                {/* favorite button inside card top-right, below variants */}
-                <button
-                  className="favorite-btn-grid"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (onAddToFavorites) onAddToFavorites(mainProduct.id);
-                  }}
-                  style={{ position: 'absolute', top: 0, right: 48, zIndex: 8, transform: 'translateX(36px)' }}
-                >
-                  <FavoriteBorder />
-                </button>
               </Link>
               {/* variant icons rendered outside the anchor to avoid triggering outer link on click */}
               <div
