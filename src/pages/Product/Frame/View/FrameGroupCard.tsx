@@ -34,6 +34,7 @@ import DeleteVariantDialog from '../Delete/DeleteVariantDialog';
 import type { ProductSize } from '@/types/product.enums';
 import SetFeaturedDialog from '../Edit/SetFeaturedDialog';
 import SetActiveDialog from '@/components/Product/SetActiveDialog';
+import { frameGroup } from 'three/src/nodes/TSL.js';
 
 // ─── Types (re-used from FrameProductPage) ────────────────────────────────────
 
@@ -586,6 +587,7 @@ const VariantPanel = ({ frameGroupId, shopId, variants, vrEnabled, setFrameGroup
                     open={updateVaraintOpen}
                     variant={editingVariant}
                     frameGroupId={frameGroupId}
+                    vrEnabled={vrEnabled ?? false}
                     shopId={shopId}
                     onClose={() => {
                         setUpdateVaraintOpen(false);

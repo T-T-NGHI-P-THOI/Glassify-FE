@@ -147,7 +147,7 @@ export const RecommendationSearchButton = () => {
                             Recommendations
                         </Typography>
                         <Typography sx={{ fontSize: 12, color: '#9ca3af' }}>
-                            Choose a recommedation profile to find suitable products
+                            Choose a recommendation profile to find suitable products
                         </Typography>
                     </Box>
                     <IconButton size="small" onClick={handleClose}>
@@ -159,7 +159,7 @@ export const RecommendationSearchButton = () => {
                     {loading ? (
                         <Box sx={{ py: 6, textAlign: 'center' }}>
                             <CircularProgress size={32} />
-                            <Typography sx={{ mt: 1, fontSize: 14, color: '#6b7280' }}>Đang tải...</Typography>
+                            <Typography sx={{ mt: 1, fontSize: 14, color: '#6b7280' }}>Loading...</Typography>
                         </Box>
                     ) : recs.length === 0 ? (
                         // 👉 EMPTY STATE
