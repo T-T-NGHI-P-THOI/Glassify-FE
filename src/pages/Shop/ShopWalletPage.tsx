@@ -37,6 +37,9 @@ import {
   Inventory2,
   Undo,
   Schedule,
+  LocalShipping,
+  Warning,
+  AddCard,
 } from '@mui/icons-material';
 import { useEffect, useState, useCallback } from 'react';
 import { ShopOwnerSidebar } from '../../components/sidebar/ShopOwnerSidebar';
@@ -117,6 +120,7 @@ const ShopWalletPage = () => {
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellingWithdrawal, setCancellingWithdrawal] = useState<WithdrawalResponse | null>(null);
+  const [topUpLoading, setTopUpLoading] = useState(false);
 
   useLayoutConfig({ showNavbar: false, showFooter: false });
 
@@ -225,6 +229,21 @@ const ShopWalletPage = () => {
     }
   };
 
+  const handleShopTopUp = async (amount: number) => {
+    try {
+      setTopUpLoading(true);
+      const response = await shopWalletApi.createShopTopUpUrl({ amount });
+      if (response.data) {
+        window.location.href = response.data;
+      }
+    } catch (error) {
+      console.error('Failed to create top-up URL:', error);
+      toast.error('Failed to initiate top-up. Please try again.');
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
+
   const handleCancelWithdrawal = async () => {
     if (!cancellingWithdrawal) return;
     try {
@@ -297,6 +316,15 @@ const ShopWalletPage = () => {
           color: theme.palette.custom.status.error.main,
           bgColor: theme.palette.custom.status.error.light,
           tooltip: 'Total amount refunded to buyers from orders linked to your escrow.',
+          primary: false,
+        },
+        {
+          label: 'COD Received',
+          value: wallet.codReceivedAmount ?? 0,
+          icon: <LocalShipping sx={{ fontSize: 22 }} />,
+          color: theme.palette.custom.status.purple?.main ?? theme.palette.primary.main,
+          bgColor: theme.palette.custom.status.purple?.light ?? theme.palette.primary.light,
+          tooltip: 'Total cash collected directly from customers for delivered COD orders (after commission).',
           primary: false,
         },
       ]
@@ -396,7 +424,7 @@ const ShopWalletPage = () => {
             </Paper>
 
             {/* Secondary stat cards grid */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, mb: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 2, mb: 3 }}>
               {statCards.slice(1).map((card) => (
                 <Paper
                   key={card.label}
@@ -423,7 +451,7 @@ const ShopWalletPage = () => {
                       {card.icon}
                     </Box>
                     <Tooltip title={card.tooltip} arrow placement="top">
-                      <Info sx={{ fontSize: 15, color: theme.palette.custom.neutral[350], cursor: 'pointer' }} />
+                      <Info sx={{ fontSize: 15, color: theme.palette.custom.neutral[400], cursor: 'pointer' }} />
                     </Tooltip>
                   </Box>
                   <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], fontWeight: 500, mb: 0.5 }}>
@@ -435,6 +463,88 @@ const ShopWalletPage = () => {
                 </Paper>
               ))}
             </Box>
+
+            {/* COD Pending Commission Alert */}
+            {((wallet.codPendingCommission ?? 0) > 0) && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  mb: 2,
+                  borderRadius: 2,
+                  border: `1.5px solid ${theme.palette.custom.status.error.main}`,
+                  bgcolor: theme.palette.custom.status.error.light,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <Warning sx={{ fontSize: 22, color: theme.palette.custom.status.error.main, mt: 0.25, flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.status.error.main }}>
+                      Unpaid COD Commission — {formatCurrency(wallet.codPendingCommission ?? 0)}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.status.error.main, mt: 0.25 }}>
+                      Your available balance was insufficient to cover the platform commission for recent COD orders.
+                      Please top up within <strong>3 days</strong> to avoid shop suspension.
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={topUpLoading ? <CircularProgress size={14} color="inherit" /> : <AddCard />}
+                  disabled={topUpLoading}
+                  onClick={() => handleShopTopUp(Math.ceil(wallet.codPendingCommission ?? 0))}
+                  sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  Top Up Now
+                </Button>
+              </Paper>
+            )}
+
+            {/* Low Balance Warning */}
+            {((wallet.codPendingCommission ?? 0) === 0) && (wallet.availableBalance < 10_000_000) && (
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 2,
+                  border: `1.5px solid ${theme.palette.custom.status.warning.main}`,
+                  bgcolor: theme.palette.custom.status.warning.light,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Warning sx={{ fontSize: 20, color: theme.palette.custom.status.warning.main, flexShrink: 0 }} />
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: theme.palette.custom.status.warning.main }}>
+                      Low Balance — below 10,000,000 VND
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: theme.palette.custom.status.warning.main }}>
+                      Your available balance is low. Top up now so you can cover platform commission for COD orders.
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  size="small"
+                  startIcon={topUpLoading ? <CircularProgress size={13} color="inherit" /> : <AddCard />}
+                  disabled={topUpLoading}
+                  onClick={() => handleShopTopUp(10_000_000)}
+                  sx={{ whiteSpace: 'nowrap', flexShrink: 0, borderColor: theme.palette.custom.status.warning.main, color: theme.palette.custom.status.warning.main }}
+                >
+                  Top Up
+                </Button>
+              </Paper>
+            )}
 
             {/* Tabs */}
             <Paper

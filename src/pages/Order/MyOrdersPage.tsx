@@ -73,7 +73,7 @@ import { getApiErrorMessage } from '@/utils/api-error';
 import { getCurrentPlatformSetting, type PlatformSetting } from '@/api/platform-settings-api';
 
 // ==================== ENUMS (matching backend) ====================
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER';
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_TO_SHIP' | 'SHIPPED' | 'TRANSPORTING' | 'DELIVERED' | 'COMPLETED' | 'DELIVERY_FAILED' | 'CANCELLED' | 'REFUNDED' | 'RETURN_IN_TRANSIT' | 'REJECTED_BY_CUSTOMER' | 'PARTIALLY_RETURNED' | 'RETURNED';
 type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
 type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'COD' | 'E_WALLET' | 'PAYPAL' | 'VNPAY';
 type ItemType = 'FRAME' | 'LENS' | 'ACCESSORY' | 'BUNDLE' | 'GIFT';
@@ -1084,6 +1084,8 @@ const MyOrdersPage = () => {
         return { bg: theme.palette.custom.status.info.light, color: theme.palette.custom.status.info.main };
       case 'RETURN_IN_TRANSIT':
       case 'REJECTED_BY_CUSTOMER':
+      case 'PARTIALLY_RETURNED':
+      case 'RETURNED':
         return { bg: theme.palette.custom.status.rose.light, color: theme.palette.custom.status.rose.main };
       default:
         return { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
@@ -1135,6 +1137,8 @@ const MyOrdersPage = () => {
       case 'REJECTED_BY_CUSTOMER': return 'Rejected by Customer';
       case 'DELIVERY_FAILED':      return 'Delivery Failed';
       case 'COMPLETED':            return 'Completed';
+      case 'PARTIALLY_RETURNED':   return 'Partially Returned';
+      case 'RETURNED':             return 'Returned';
       default: return status;
     }
   };
@@ -1192,11 +1196,11 @@ const MyOrdersPage = () => {
     if (activeTab === 2) return order.status === 'CONFIRMED';
     if (activeTab === 3) return order.status === 'PROCESSING';
     if (activeTab === 4) return ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(order.status);
-    if (activeTab === 5) return order.status === 'DELIVERED';
+    if (activeTab === 5) return ['DELIVERED', 'PARTIALLY_RETURNED'].includes(order.status);
     if (activeTab === 6) return order.status === 'CANCELLED';
     if (activeTab === 7) return order.status === 'DELIVERY_FAILED';
     if (activeTab === 8) return order.status === 'COMPLETED';
-    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(order.status);
+    if (activeTab === 9) return ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT', 'RETURNED'].includes(order.status);
     return true;
   });
 
@@ -1204,11 +1208,11 @@ const MyOrdersPage = () => {
   const confirmedCount = orders.filter((o) => o.status === 'CONFIRMED').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
   const shippedCount = orders.filter((o) => ['READY_TO_SHIP', 'SHIPPED', 'TRANSPORTING'].includes(o.status)).length;
-  const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
+  const deliveredCount = orders.filter((o) => ['DELIVERED', 'PARTIALLY_RETURNED'].includes(o.status)).length;
   const cancelledCount = orders.filter((o) => o.status === 'CANCELLED').length;
   const deliveryFailedCount = orders.filter((o) => o.status === 'DELIVERY_FAILED').length;
   const completedCount = orders.filter((o) => o.status === 'COMPLETED').length;
-  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT'].includes(o.status)).length;
+  const returnedCount = orders.filter((o) => ['REJECTED_BY_CUSTOMER', 'RETURN_IN_TRANSIT', 'RETURNED'].includes(o.status)).length;
 
   const handleViewDetails = async (order: Order) => {
     setSelectedOrder(order);
@@ -1333,33 +1337,65 @@ const MyOrdersPage = () => {
                     borderBottom: `1px solid ${theme.palette.custom.border.light}`,
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Store sx={{ fontSize: 16, color: theme.palette.custom.neutral[600] }} />
-                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
-                      {[...new Set(order.items.map(i => i.shopName).filter(Boolean))].join(', ') || order.orderNumber}
-                    </Typography>
-                    <Chip
-                      label={getStatusLabel(order.status)}
-                      size="small"
-                      sx={{
-                        bgcolor: statusStyle.bg,
-                        color: statusStyle.color,
-                        fontWeight: 600,
-                        fontSize: 12,
-                        height: 24,
-                      }}
-                    />
-                    <Chip
-                      label={getPaymentStatusLabel(order.paymentStatus)}
-                      size="small"
-                      sx={{
-                        bgcolor: paymentStyle.bg,
-                        color: paymentStyle.color,
-                        fontWeight: 600,
-                        fontSize: 11,
-                        height: 22,
-                      }}
-                    />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Store sx={{ fontSize: 16, color: theme.palette.custom.neutral[600] }} />
+                      <Typography sx={{ fontSize: 14, fontWeight: 600, color: theme.palette.custom.neutral[800] }}>
+                        {[...new Set(order.items.map(i => i.shopName).filter(Boolean))].join(', ') || order.orderNumber}
+                      </Typography>
+                      <Chip
+                        label={getStatusLabel(order.status)}
+                        size="small"
+                        sx={{
+                          bgcolor: statusStyle.bg,
+                          color: statusStyle.color,
+                          fontWeight: 600,
+                          fontSize: 12,
+                          height: 24,
+                        }}
+                      />
+                      <Chip
+                        label={getPaymentStatusLabel(order.paymentStatus)}
+                        size="small"
+                        sx={{
+                          bgcolor: paymentStyle.bg,
+                          color: paymentStyle.color,
+                          fontWeight: 600,
+                          fontSize: 11,
+                          height: 22,
+                        }}
+                      />
+                    </Box>
+                    {/* Per-shop status row — only shown for multi-shop orders */}
+                    {(() => {
+                      const shopGroups = groupItemsByShop(order.items);
+                      if (shopGroups.length <= 1) return null;
+                      const hasAnyShopStatus = shopGroups.some(g => !!g.shopOrderStatus);
+                      if (!hasAnyShopStatus) return null;
+                      return (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, pl: 0.25 }}>
+                          {shopGroups.map((sg) => {
+                            const sc = sg.shopOrderStatus ? getStatusColor(sg.shopOrderStatus as OrderStatus) : null;
+                            return (
+                              <Box key={sg.shopId} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[600], fontWeight: 500 }}>
+                                  {sg.shopName}:
+                                </Typography>
+                                {sc ? (
+                                  <Chip
+                                    label={getStatusLabel(sg.shopOrderStatus as OrderStatus)}
+                                    size="small"
+                                    sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 600, fontSize: 10, height: 18, '& .MuiChip-label': { px: 0.75 } }}
+                                  />
+                                ) : (
+                                  <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>—</Typography>
+                                )}
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      );
+                    })()}
                   </Box>
                   <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500] }}>
                     {formatDate(order.orderedAt)}
@@ -1393,6 +1429,16 @@ const MyOrdersPage = () => {
                               <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[700] }}>
                                 {shopGroup.shopName}
                               </Typography>
+                              {shopGroup.shopOrderStatus && (() => {
+                                const sc = getStatusColor(shopGroup.shopOrderStatus as OrderStatus);
+                                return (
+                                  <Chip
+                                    label={getStatusLabel(shopGroup.shopOrderStatus as OrderStatus)}
+                                    size="small"
+                                    sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 600, fontSize: 11, height: 20, '& .MuiChip-label': { px: 0.75 } }}
+                                  />
+                                );
+                              })()}
                             </Box>
                           )}
 
@@ -1457,6 +1503,14 @@ const MyOrdersPage = () => {
                                           <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500], mt: 0.25 }}>
                                             {formatVariantInfo(item.variantInfo)}
                                           </Typography>
+                                        )}
+                                        {isCancelled && item.cancelReason && (
+                                          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 0.5, px: 1, py: 0.5, bgcolor: theme.palette.custom.status.error.light, borderRadius: '6px' }}>
+                                            <Cancel sx={{ fontSize: 12, color: theme.palette.custom.status.error.main, mt: '1px', flexShrink: 0 }} />
+                                            <Typography sx={{ fontSize: 11, color: theme.palette.custom.status.error.main, lineHeight: 1.4 }}>
+                                              {item.cancelReason}
+                                            </Typography>
+                                          </Box>
                                         )}
                                         <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[500] }}>x{item.quantity}</Typography>
                                       </Box>
@@ -1533,7 +1587,7 @@ const MyOrdersPage = () => {
                                                     <Typography sx={{ fontSize: 10, color: '#00838f', opacity: 0.75, mt: 0.25 }}>
                                                       {lens.lensTintName ?? ''}
                                                       {(lens.lensFeaturesSnapshot?.names as string[] | undefined)?.length
-                                                        ? `${lens.lensTintName ? ' • ' : ''}${(lens.lensFeaturesSnapshot.names as string[]).join(' · ')}`
+                                                        ? `${lens.lensTintName ? ' • ' : ''}${(lens.lensFeaturesSnapshot?.names as string[]).join(' · ')}`
                                                         : ''}
                                                     </Typography>
                                                   )}
@@ -1645,7 +1699,7 @@ const MyOrdersPage = () => {
                         </DemoActionButton>
                       </>
                     )}
-                    {order.status === 'DELIVERED' && (
+                    {['DELIVERED', 'PARTIALLY_RETURNED'].includes(order.status) && (
                       <Button
                         variant="contained"
                         color="success"
@@ -1770,7 +1824,63 @@ const MyOrdersPage = () => {
                 </Box> */}
 
                 {/* Payment Deadline Alert */}
-                {/* {isUnpaidPrePayment(selectedOrder) && (() => {
+                {/* Multi-shop status overview — shown immediately so user sees mixed statuses without scrolling */}
+                {(() => {
+                  const shopGroups = groupItemsByShop(selectedOrder.items);
+                  if (shopGroups.length <= 1) return null;
+                  const hasAnyStatus = shopGroups.some(g => !!g.shopOrderStatus);
+                  if (!hasAnyStatus) return null;
+                  return (
+                    <Box
+                      sx={{
+                        mb: 2,
+                        p: 2,
+                        bgcolor: theme.palette.custom.neutral[50],
+                        borderRadius: '10px',
+                        border: `1px solid ${theme.palette.custom.border.light}`,
+                      }}
+                    >
+                      <Typography sx={{ fontSize: 11, fontWeight: 700, color: theme.palette.custom.neutral[500], textTransform: 'uppercase', letterSpacing: '0.6px', mb: 1.25 }}>
+                        Shop Breakdown
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {shopGroups.map((shop) => {
+                          const sc = shop.shopOrderStatus
+                            ? getStatusColor(shop.shopOrderStatus as OrderStatus)
+                            : { bg: theme.palette.custom.neutral[100], color: theme.palette.custom.neutral[500] };
+                          const sl = shop.shopOrderStatus
+                            ? getStatusLabel(shop.shopOrderStatus as OrderStatus)
+                            : 'Pending';
+                          const topLevelCount = shop.items.filter(i => !i.parentItemId).length;
+                          const cancelledCount = shop.items.filter(i => !i.parentItemId && i.itemStatus === 'CANCELLED').length;
+                          return (
+                            <Box key={shop.shopOrderId ?? shop.shopId} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Avatar src={shop.shopLogoUrl} sx={{ width: 22, height: 22, bgcolor: theme.palette.custom.neutral[200] }}>
+                                <Store sx={{ fontSize: 13 }} />
+                              </Avatar>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography sx={{ fontSize: 13, fontWeight: 600, color: theme.palette.custom.neutral[800] }} noWrap>
+                                  {shop.shopName}
+                                </Typography>
+                                <Typography sx={{ fontSize: 11, color: theme.palette.custom.neutral[400] }}>
+                                  {topLevelCount} item{topLevelCount > 1 ? 's' : ''}
+                                  {cancelledCount > 0 && ` · ${cancelledCount} cancelled`}
+                                </Typography>
+                              </Box>
+                              <Chip
+                                label={sl}
+                                size="small"
+                                sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 600, fontSize: 11, height: 22, '& .MuiChip-label': { px: 1 }, flexShrink: 0 }}
+                              />
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  );
+                })()}
+
+                {isUnpaidPrePayment(selectedOrder) && (() => {
                   const deadline = getPaymentDeadline(selectedOrder.orderedAt);
                   const now = new Date();
                   const msLeft = deadline.getTime() - now.getTime();
@@ -1787,7 +1897,7 @@ const MyOrdersPage = () => {
                       Hạn chót: {deadline.toLocaleString('vi-VN')}.
                     </Alert>
                   );
-                })()} */}
+                })()}
 
                 {/* <Divider sx={{ mb: 3 }} /> */}
 
@@ -1984,19 +2094,16 @@ const MyOrdersPage = () => {
                               <Typography sx={{ fontSize: 13, fontWeight: 600, color: isShopOrderCancelled ? theme.palette.custom.neutral[400] : theme.palette.custom.neutral[700], flex: 1, textDecoration: isShopOrderCancelled ? 'line-through' : 'none' }}>
                                 {shopGroup.shopName}
                               </Typography>
-                              {isShopOrderCancelled && (
-                                <Chip
-                                  label="Cancelled"
-                                  size="small"
-                                  sx={{
-                                    bgcolor: theme.palette.custom.status.error.light,
-                                    color: theme.palette.custom.status.error.main,
-                                    fontWeight: 700,
-                                    fontSize: 11,
-                                    height: 22,
-                                  }}
-                                />
-                              )}
+                              {shopGroup.shopOrderStatus && (() => {
+                                const sc = getStatusColor(shopGroup.shopOrderStatus as OrderStatus);
+                                return (
+                                  <Chip
+                                    label={getStatusLabel(shopGroup.shopOrderStatus as OrderStatus)}
+                                    size="small"
+                                    sx={{ bgcolor: sc.bg, color: sc.color, fontWeight: 700, fontSize: 11, height: 22 }}
+                                  />
+                                );
+                              })()}
                             </Box>
 
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -2115,7 +2222,7 @@ const MyOrdersPage = () => {
                                                 {cancellingItemId === item.id ? 'Cancelling...' : 'Cancel Item'}
                                               </Button>
                                             )}
-                                            {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && (
+                                            {selectedOrder.status === 'COMPLETED' && item.itemStatus !== 'CANCELLED' && shopGroup.shopOrderStatus !== 'REJECTED_BY_CUSTOMER' && (
                                               <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-end' }}>
                                                 {itemRefundLookup[item.id]?.status && (
                                                   <Chip
@@ -2352,7 +2459,7 @@ const MyOrdersPage = () => {
                 >
                   Close
                 </Button>
-                {selectedOrder.status === 'DELIVERED' && (
+                {['DELIVERED', 'PARTIALLY_RETURNED'].includes(selectedOrder.status) && (
                   <>
                     <Button
                       variant="contained"

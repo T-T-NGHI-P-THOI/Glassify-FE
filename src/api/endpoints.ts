@@ -212,6 +212,7 @@ export const API_ENDPOINTS = {
     CANCEL_WITHDRAWAL: (id: string) => `${API_ENDPOINT}/shop/wallet/withdrawals/${id}/cancel`,
     TRANSACTIONS: `${API_ENDPOINT}/shop/wallet/transactions`,
     ESCROWS: `${API_ENDPOINT}/shop/wallet/escrows`,
+    TOP_UP_VNPAY: `${API_ENDPOINT}/shop/wallet/top-up/vnpay`,
   },
   SHOP_BANK_ACCOUNTS: {
     BASE: `${API_ENDPOINT}/shops/bank-accounts`,
