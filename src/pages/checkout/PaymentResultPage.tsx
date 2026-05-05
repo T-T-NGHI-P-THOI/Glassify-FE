@@ -148,8 +148,8 @@ const PaymentResultPage = () => {
             icon={<AccessTime fontSize="small" />}
             sx={{ mb: 3, textAlign: 'left', fontSize: 13 }}
           >
-            <strong>Đơn hàng chưa được thanh toán.</strong> Nếu không hoàn tất thanh toán trong vòng{' '}
-            <strong>24 giờ</strong> kể từ khi đặt hàng, đơn hàng sẽ tự động bị huỷ.
+            <strong>The order has not been paid.</strong>  If payment is not completed within {' '}
+            <strong>24 hours</strong> from the time the order is placed, the order will be automatically cancelled.
           </Alert>
         )}
 
@@ -198,7 +198,7 @@ const PaymentResultPage = () => {
                 '&:hover': { bgcolor: '#333' },
               }}
             >
-              {payingAgain ? 'Đang chuyển hướng...' : 'Thanh toán ngay'}
+              {payingAgain ? 'Redirecting...' : 'Pay now'}
             </Button>
             <Button
               variant="outlined"
@@ -214,7 +214,7 @@ const PaymentResultPage = () => {
                 '&:hover': { borderColor: '#bbb', bgcolor: '#f5f5f5' },
               }}
             >
-              Xem đơn hàng của tôi
+              View my order
             </Button>
           </Box>
         ) : (

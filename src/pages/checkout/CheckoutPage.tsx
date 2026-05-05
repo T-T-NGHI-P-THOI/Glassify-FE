@@ -1367,14 +1367,14 @@ const CheckoutPage = () => {
             <DialogTitle>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography sx={{ fontWeight: 700, fontSize: 16, color: '#d32f2f' }}>
-                  Vượt quá số lượng tồn kho
+                  Out of stock
                 </Typography>
                 <IconButton size="small" onClick={() => setShowStockDialog(false)}><Close /></IconButton>
               </Box>
             </DialogTitle>
             <DialogContent dividers>
               <Typography sx={{ fontSize: 13, color: '#555', mb: 1.5 }}>
-                Một số sản phẩm trong giỏ hàng vượt quá số lượng còn lại. Vui lòng điều chỉnh số lượng trước khi đặt hàng:
+                Some items in your cart exceed the available stock. Please adjust the quantity before placing your order:
               </Typography>
               {exceededItems.map((item) => (
                 <Box
@@ -1382,10 +1382,10 @@ const CheckoutPage = () => {
                   sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f0f0f0' }}
                 >
                   <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#111', flex: 1 }} noWrap>
-                    {item.product?.name || 'Sản phẩm'}
+                    {item.product?.name || 'Product'}
                   </Typography>
                   <Typography sx={{ fontSize: 12, color: '#d32f2f', flexShrink: 0, ml: 2 }}>
-                    Yêu cầu {item.quantity} / Còn {item.stock_quantity ?? 0}
+                    Request {item.quantity} /Available {item.stock_quantity ?? 0}
                   </Typography>
                 </Box>
               ))}
@@ -1397,7 +1397,7 @@ const CheckoutPage = () => {
                 onClick={() => { setShowStockDialog(false); navigate('/cart'); }}
                 sx={{ bgcolor: '#d32f2f', color: '#fff', '&:hover': { bgcolor: '#b71c1c' }, textTransform: 'none', fontWeight: 600 }}
               >
-                Về giỏ hàng
+                Back to Cart
               </Button>
             </DialogActions>
           </Dialog>

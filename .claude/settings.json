@@ -16,7 +16,10 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/admin/stats/overview -H \"Authorization: Bearer test\")",
       "Bash(lsof -iTCP -sTCP:LISTEN)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/api/v1/admin/stats/commission)",
-      "Bash(curl -s http://localhost:8081/api/v1/admin/stats/commission -H \"Authorization: Bearer $\\(grep -r 'token\\\\|TOKEN' /Users/lamiee/Study/CapstoneProject/Glassify-FE/.env.local)"
+      "Bash(curl -s http://localhost:8081/api/v1/admin/stats/commission -H \"Authorization: Bearer $\\(grep -r 'token\\\\|TOKEN' /Users/lamiee/Study/CapstoneProject/Glassify-FE/.env.local)",
+      "Bash(awk 'NR>=588 && NR<=592' /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Dashboard/DashboardPage.tsx)",
+      "Bash(awk 'NR>=585 && NR<=595' /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Dashboard/DashboardPage.tsx)",
+      "Bash(awk 'NR>=730 && NR<=745' /Users/lamiee/Study/CapstoneProject/Glassify-FE/src/pages/Dashboard/DashboardPage.tsx)"
     ],
     "additionalDirectories": [
       "/Users/lamiee/Study/CapstoneProject/Glassify-BE/glassify/src/main/java/sep390/glassify/service/interfaces",

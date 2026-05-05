@@ -377,21 +377,21 @@ const LensProductPage = () => {
       const shouldSendUsageRules = usageDialogMode === 'edit' && Boolean(selectedUsage?.id);
       const usageDetailData = selectedLensIds.length
         ? {
-            shopId: shop.id,
-            lensIds: selectedLensIds,
-            ...(shouldSendUsageRules
-              ? {
-                  usageRules: selectedLensIds.map((lensId) => ({
-                    shopId: shop.id,
-                    usageId: selectedUsage?.id,
-                    lensId,
-                    allowTint: usageForm.allowTint,
-                    allowProgressive: usageForm.allowProgressive,
-                    minPriceAdjustment: Number(usageForm.minPriceAdjustment || 0),
-                  })),
-                }
-              : {}),
-          }
+          shopId: shop.id,
+          lensIds: selectedLensIds,
+          ...(shouldSendUsageRules
+            ? {
+              usageRules: selectedLensIds.map((lensId) => ({
+                shopId: shop.id,
+                usageId: selectedUsage?.id,
+                lensId,
+                allowTint: usageForm.allowTint,
+                allowProgressive: usageForm.allowProgressive,
+                minPriceAdjustment: Number(usageForm.minPriceAdjustment || 0),
+              })),
+            }
+            : {}),
+        }
         : {
           shopId: shop.id,
           lensIds: [],
@@ -541,7 +541,7 @@ const LensProductPage = () => {
               Lens Management
             </Typography>
             <Typography sx={{ fontSize: 14, color: theme.palette.custom.neutral[500] }}>
-              Quản lý và theo dõi lens catalog của cửa hàng
+              Manage and track the store’s lens catalog
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -566,41 +566,41 @@ const LensProductPage = () => {
 
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', xl: 'repeat(4, 1fr)' }, gap: 2 }}>
-          {stats.map((stat) => (
-            <Box
-              key={stat.label}
-              sx={{
-                p: 2.5,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.custom.border.light}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-              }}
-            >
+            {stats.map((stat) => (
               <Box
+                key={stat.label}
                 sx={{
-                  width: 48,
-                  height: 48,
+                  p: 2.5,
                   borderRadius: 2,
-                  bgcolor: stat.bgColor,
+                  border: `1px solid ${theme.palette.custom.border.light}`,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 2,
                 }}
               >
-                {stat.icon}
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    bgcolor: stat.bgColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {stat.icon}
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
+                    {stat.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                    {stat.value.toLocaleString()}
+                  </Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500 }}>
-                  {stat.label}
-                </Typography>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
-                  {stat.value.toLocaleString()}
-                </Typography>
-              </Box>
-            </Box>
-          ))}
+            ))}
           </Box>
         </Box>
 
@@ -744,7 +744,7 @@ const LensProductPage = () => {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 1 }}>
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Category</Typography>
-                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
                     {lens.category ? formatEnumLabel(String(lens.category)) : '-'}
                   </Typography>
 
@@ -764,7 +764,7 @@ const LensProductPage = () => {
                   </Typography>
 
                   <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>Progressive</Typography>
-                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: theme.palette.custom.neutral[800], textAlign: 'right' }}>
                     {(lens.category === 'PROGRESSIVE') ? (lens.progressiveType ? formatEnumLabel(String(lens.progressiveType)) : 'Yes') : 'No'}
                   </Typography>
 

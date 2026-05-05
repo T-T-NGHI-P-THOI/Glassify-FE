@@ -377,7 +377,7 @@ const InternalTransferPage = () => {
             Internal Transfers
           </Typography>
           <Typography sx={{ color: theme.palette.custom.neutral[500], fontSize: 14 }}>
-            Quản lý điều chuyển hàng hóa giữa các chi nhánh
+            Manage stock transfers between branches
           </Typography>
         </Box>
 
