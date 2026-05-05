@@ -17,7 +17,7 @@ const Loading = () => {
             <CircularProgress size={56} thickness={4} />
             <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h6" fontWeight={600} color="text.primary">
-                    Loading product details
+                    Loading
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                     Please wait while we prepare everything for you.
