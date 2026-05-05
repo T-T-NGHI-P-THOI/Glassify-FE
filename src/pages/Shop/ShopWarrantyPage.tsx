@@ -1079,14 +1079,15 @@ const ShopWarrantyPage = () => {
                           }}
                           sx={{
                             p: 2,
+                            overflow: 'hidden',
                             // bgcolor: isSelected ? theme.palette.custom.status.info.light + '30' : theme.palette.custom.neutral[50],
                             cursor: 'pointer',
                             transition: 'all 0.15s',
                             '&:hover': { borderColor: theme.palette.primary.main, bgcolor: theme.palette.custom.status.info.light + '20' },
                           }}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800] }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, gap: 1 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: theme.palette.custom.neutral[800], minWidth: 0, flex: 1, wordBreak: 'break-word' }}>
                               {p.name}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
@@ -1115,7 +1116,7 @@ const ShopWarrantyPage = () => {
                             </Box>
                           </Box>
                           {p.coverageDescription && (
-                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: p.excludedIssues?.length > 0 ? 0.75 : 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], mb: p.excludedIssues?.length > 0 ? 0.75 : 0, wordBreak: 'break-word', whiteSpace: 'normal', overflowWrap: 'break-word' }}>
                               {p.coverageDescription}
                             </Typography>
                           )}
