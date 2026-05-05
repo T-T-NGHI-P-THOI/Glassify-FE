@@ -152,7 +152,7 @@ const DashboardPage = () => {
   const mainStats = [
     { icon: <Storefront sx={{ color: theme.palette.custom.status.info.main }} />, label: 'Total Shops', value: formatCount(totalShops), subValue: `${activeShops} active`, bgColor: theme.palette.custom.status.info.light },
     { icon: <ShoppingCart sx={{ color: theme.palette.custom.status.success.main }} />, label: 'Total Orders', value: formatCount(overviewStats?.totalOrders ?? 0), subValue: null, bgColor: theme.palette.custom.status.success.light },
-    { icon: <AttachMoney sx={{ color: theme.palette.custom.status.warning.main }} />, label: 'Total Revenue', value: formatVND(overviewStats?.totalRevenue ?? 0), subValue: null, bgColor: theme.palette.custom.status.warning.light },
+    // { icon: <AttachMoney sx={{ color: theme.palette.custom.status.warning.main }} />, label: 'Total Revenue', value: formatVND(overviewStats?.totalRevenue ?? 0), subValue: null, bgColor: theme.palette.custom.status.warning.light },
     { icon: <People sx={{ color: theme.palette.custom.status.purple.main }} />, label: 'Total Customers', value: formatCount(overviewStats?.totalCustomers ?? 0), subValue: null, bgColor: theme.palette.custom.status.purple.light },
   ];
 
@@ -188,7 +188,7 @@ const DashboardPage = () => {
             sx={{ '& .MuiTab-root': { textTransform: 'none', fontWeight: 500, fontSize: 14 } }}
           >
             <Tab label="Overview" />
-            <Tab label="Revenue & Shipping" icon={<TrendingUp sx={{ fontSize: 16 }} />} iconPosition="start" />
+            {/* <Tab label="Revenue & Shipping" icon={<TrendingUp sx={{ fontSize: 16 }} />} iconPosition="start" /> */}
             <Tab label="Shop Performance" icon={<Storefront sx={{ fontSize: 16 }} />} iconPosition="start" />
             <Tab label="Commission" icon={<AccountBalance sx={{ fontSize: 16 }} />} iconPosition="start" />
           </Tabs>
@@ -199,21 +199,21 @@ const DashboardPage = () => {
           {activeTab === 0 && (
             <>
               {/* Main Stats */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
                 {mainStats.map((stat, index) => (
-                  <Paper key={index} elevation={0} sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}` }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-                      <Box sx={{ width: 44, height: 44, borderRadius: 2, backgroundColor: stat.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {stat.icon}
-                      </Box>
+                  <Paper key={index} elevation={0} sx={{ p: 3, borderRadius: 2, border: `1px solid ${theme.palette.custom.border.light}`, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box sx={{ width: 56, height: 56, borderRadius: 2, backgroundColor: stat.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {stat.icon}
                     </Box>
-                    <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500, mb: 0.5 }}>{stat.label}</Typography>
-                    <Typography sx={{ fontSize: stat.label === 'Total Revenue' ? 20 : 28, fontWeight: 700, color: theme.palette.custom.neutral[800], mb: 0.5, wordBreak: 'break-all' }}>
-                      {stat.value}
-                    </Typography>
-                    {stat.subValue && (
-                      <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500] }}>{stat.subValue}</Typography>
-                    )}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 13, color: theme.palette.custom.neutral[500], fontWeight: 500, mb: 0.25 }}>{stat.label}</Typography>
+                      <Typography sx={{ fontSize: 30, fontWeight: 700, color: theme.palette.custom.neutral[800], lineHeight: 1.2, wordBreak: 'break-all' }}>
+                        {stat.value}
+                      </Typography>
+                      {stat.subValue && (
+                        <Typography sx={{ fontSize: 12, color: theme.palette.custom.neutral[500], mt: 0.25 }}>{stat.subValue}</Typography>
+                      )}
+                    </Box>
                   </Paper>
                 ))}
               </Box>
@@ -448,8 +448,8 @@ const DashboardPage = () => {
             </>
           )}
 
-          {/* ═══════════════ TAB 2 — SHOP PERFORMANCE ═══════════════ */}
-          {activeTab === 2 && (
+          {/* ═══════════════ TAB 1 — SHOP PERFORMANCE ═══════════════ */}
+          {activeTab === 1 && (
             <>
               {/* Charts row */}
               {shopStats.length > 0 && (() => {
@@ -585,8 +585,8 @@ const DashboardPage = () => {
             </>
           )}
 
-          {/* ═══════════════ TAB 1 — REVENUE & SHIPPING ═══════════════ */}
-          {activeTab === 1 && (
+          {/* ═══════════════ TAB 1 — REVENUE & SHIPPING (commented out) ═══════════════ */}
+          {false && (
             <>
               {/* 3 stat cards */}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 3 }}>
@@ -736,8 +736,8 @@ const DashboardPage = () => {
               </Box>
             </>
           )}
-          {/* ═══════════════ TAB 3 — COMMISSION ═══════════════ */}
-          {activeTab === 3 && (
+          {/* ═══════════════ TAB 2 — COMMISSION ═══════════════ */}
+          {activeTab === 2 && (
             <>
               {/* Stat cards */}
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
