@@ -90,9 +90,9 @@ export const Navbar = () => {
     { label: 'Frames', path: '/products', category: 'Frames' },
     { label: 'Lenses', path: '/products', category: 'Lenses' },
     { label: 'Accessories', path: '/products', category: 'Accessories' },
-    { label: 'Collabs & Partners', path: '/collabs', category: null },
-    { label: '✨ Discover', path: '/discover', special: true, category: null },
-    { label: '🏷️ Sale', path: '/sale', special: true, category: null },
+    // { label: 'Collabs & Partners', path: '/collabs', category: null },
+    // { label: '✨ Discover', path: '/discover', special: true, category: null },
+    // { label: '🏷️ Sale', path: '/sale', special: true, category: null },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
