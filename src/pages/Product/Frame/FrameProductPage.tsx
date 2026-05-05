@@ -195,7 +195,7 @@ const FrameProductPage = () => {
               Frame Management
             </Typography>
             <Typography sx={{ color: theme.palette.custom.neutral[500], fontSize: 14 }}>
-              Quản lý và theo dõi thông tin gọng kính có trong cửa hàng
+              Manage and track eyeglass frame inventory in the store
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5 }}>

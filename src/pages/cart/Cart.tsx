@@ -118,7 +118,7 @@ const QuantitySelector: React.FC<QuantitySelectorProps> = ({
             </Box>
             {atMax && (
                 <Typography sx={{ fontSize: '0.65rem', color: '#e57373', fontWeight: 500, letterSpacing: '0.2px' }}>
-                    Hết hàng tồn kho
+                    Out of stock
                 </Typography>
             )}
         </Box>
@@ -308,7 +308,7 @@ const ChildItem: React.FC<ChildItemProps> = ({
                             {item.lens_selection.usage?.name}
                             {item.lens_selection.tint ? ` • ${item.lens_selection.tint.name}` : ''}
                             {(item.lens_selection.features?.length ?? 0) > 0
-                                ? ` • ${item.lens_selection.features.length} tính năng`
+                                ? ` • ${item.lens_selection.features.length} features`
                                 : ''}
                         </Typography>
                     )}
@@ -738,7 +738,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                 }}
             >
                 <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#111' }}>
-                    Chi tiết tròng kính & gọng kính
+                    Lens & Frame Details
                 </Typography>
                 <IconButton size="small" onClick={onClose} sx={{ color: '#999' }}>
                     <CloseIcon sx={{ fontSize: 20 }} />
@@ -750,7 +750,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                 <Box sx={{ mb: 3 }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
                         <Chip
-                            label="GỌNG KÍNH"
+                            label="Eyeglass Frame"
                             size="small"
                             sx={{
                                 height: 22,
@@ -844,7 +844,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                 <Box sx={{ mb: 3 }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
                         <Chip
-                            label="TRÒNG KÍNH"
+                            label="Lens"
                             size="small"
                             sx={{
                                 height: 22,
@@ -891,7 +891,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                         {/* Usage */}
                                         {lensItem.lens_selection.usage && (
                                         <Typography sx={{ fontSize: '0.8rem', color: '#666', mb: 0.5 }}>
-                                            Mục đích: <strong>{lensItem.lens_selection.usage.name}</strong>
+                                            Purpose: <strong>{lensItem.lens_selection.usage.name}</strong>
                                         </Typography>
                                         )}
 
@@ -899,17 +899,17 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                         {lensItem.lens_selection.prescription && (
                                             <Box sx={{ mb: 0.75, p: 1, bgcolor: 'rgba(0,131,143,0.04)', borderRadius: '6px' }}>
                                                 <Typography sx={{ fontSize: '0.75rem', color: '#555', fontWeight: 600, mb: 0.25 }}>
-                                                    Đơn kính:
+                                                    Prescription:
                                                 </Typography>
                                                 <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
-                                                    Mắt phải: SPH {lensItem.lens_selection.prescription.right_eye.sphere}
+                                                    Right eye: SPH {lensItem.lens_selection.prescription.right_eye.sphere}
                                                     {lensItem.lens_selection.prescription.right_eye.cylinder
                                                         ? ` / CYL ${lensItem.lens_selection.prescription.right_eye.cylinder}` : ''}
                                                     {lensItem.lens_selection.prescription.right_eye.axis
                                                         ? ` / Axis ${lensItem.lens_selection.prescription.right_eye.axis}°` : ''}
                                                 </Typography>
                                                 <Typography sx={{ fontSize: '0.75rem', color: '#666' }}>
-                                                    Mắt trái: SPH {lensItem.lens_selection.prescription.left_eye.sphere}
+                                                    Left eye: SPH {lensItem.lens_selection.prescription.left_eye.sphere}
                                                     {lensItem.lens_selection.prescription.left_eye.cylinder
                                                         ? ` / CYL ${lensItem.lens_selection.prescription.left_eye.cylinder}` : ''}
                                                     {lensItem.lens_selection.prescription.left_eye.axis
@@ -932,7 +932,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                         {lensItem.lens_selection.tint && (
                                             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
                                                 <Typography sx={{ fontSize: '0.8rem', color: '#666' }}>
-                                                    Màu kính: <strong>{lensItem.lens_selection.tint.name}</strong>
+                                                    Lens color: <strong>{lensItem.lens_selection.tint.name}</strong>
                                                 </Typography>
                                                 {lensItem.lens_selection.tint.cssValue !== 'transparent' && (
                                                     <Box sx={{
@@ -951,7 +951,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                                         {(lensItem.lens_selection.features?.length ?? 0) > 0 && (
                                             <Box sx={{ mb: 0.5 }}>
                                                 <Typography sx={{ fontSize: '0.8rem', color: '#666', fontWeight: 600, mb: 0.25 }}>
-                                                    Tính năng:
+                                                    Features:
                                                 </Typography>
                                                 {lensItem.lens_selection.features.map(f => (
                                                     <Typography key={f.id} sx={{ fontSize: '0.75rem', color: '#666', pl: 1 }}>
@@ -986,7 +986,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                 <Divider sx={{ mb: 2 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography sx={{ fontWeight: 500, fontSize: '0.95rem', color: '#666' }}>
-                        Tổng cộng
+                        Total
                     </Typography>
                     <Typography sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#111' }}>
                         {formatCurrency(totalPrice)}
@@ -1010,7 +1010,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                         fontWeight: 500,
                     }}
                 >
-                    Đóng
+                    Close
                 </Button>
                 <Button
                     variant="contained"
@@ -1030,7 +1030,7 @@ const LensDetailDialog: React.FC<LensDetailDialogProps> = ({
                         '&:hover': { bgcolor: '#333' },
                     }}
                 >
-                    Chỉnh sửa
+                    Edit
                 </Button>
             </DialogActions>
         </Dialog>
@@ -1116,7 +1116,7 @@ const ShoppingCart: React.FC = () => {
     const handleEditItem = useCallback((item: CartItemWithDetails) => {
         const slug = item.product.slug;
         if (!slug) {
-            setSnackbar({ open: true, message: 'Không thể mở sản phẩm này. Vui lòng tải lại trang.', severity: 'error' });
+            setSnackbar({ open: true, message: 'Unable to open this product. Please reload the page.', severity: 'error' });
             return;
         }
         const sku = item.variant_details?.sku || 'default';
@@ -1534,7 +1534,7 @@ const ShoppingCart: React.FC = () => {
                 <DialogTitle>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography sx={{ fontWeight: 700, fontSize: 16, color: '#d32f2f' }}>
-                            Vượt quá số lượng tồn kho
+                            Exceeds available stock
                         </Typography>
                         <IconButton size="small" onClick={() => setShowStockDialog(false)}>
                             <CloseIcon />
@@ -1543,7 +1543,7 @@ const ShoppingCart: React.FC = () => {
                 </DialogTitle>
                 <DialogContent dividers>
                     <Typography sx={{ fontSize: 13, color: '#555', mb: 1.5 }}>
-                        Một số sản phẩm vượt quá số lượng còn lại. Vui lòng điều chỉnh số lượng trước khi thanh toán:
+                        Some items exceed the available stock. Please adjust the quantity before checkout:
                     </Typography>
                     {exceededItems.map((item) => (
                         <Box
@@ -1551,10 +1551,10 @@ const ShoppingCart: React.FC = () => {
                             sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, borderBottom: '1px solid #f0f0f0' }}
                         >
                             <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#111', flex: 1 }} noWrap>
-                                {item.product?.name || 'Sản phẩm'}
+                                {item.product?.name || 'Product'}
                             </Typography>
                             <Typography sx={{ fontSize: 12, color: '#d32f2f', flexShrink: 0, ml: 2 }}>
-                                Yêu cầu {item.quantity} / Còn {item.stock_quantity ?? 0}
+                                Requested {item.quantity} / Available {item.stock_quantity ?? 0}
                             </Typography>
                         </Box>
                     ))}
@@ -1566,7 +1566,7 @@ const ShoppingCart: React.FC = () => {
                         onClick={() => setShowStockDialog(false)}
                         sx={{ bgcolor: '#d32f2f', color: '#fff', '&:hover': { bgcolor: '#b71c1c' }, textTransform: 'none', fontWeight: 600 }}
                     >
-                        Đóng & điều chỉnh
+                        Close & Adjust
                     </Button>
                 </DialogActions>
             </Dialog>

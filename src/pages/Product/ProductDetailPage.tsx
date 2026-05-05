@@ -124,7 +124,7 @@ const ProductDetailPage: React.FC = () => {
         setIsLoading(true);
         setIsNotFound(false);
         const apiProduct = await ProductAPI.getProductBySlug(slug);
-        console.log("ID PRODUCT: ",apiProduct.id)
+        console.log("ID PRODUCT: ", apiProduct.id)
         ProductAPI.addViewForProduct(apiProduct.id).catch(console.error);
         const normalizedProductType = (apiProduct.productType || '').toUpperCase();
         const frameProduct = normalizedProductType === 'FRAME';
@@ -447,7 +447,7 @@ const ProductDetailPage: React.FC = () => {
       setSnackbar({ open: true, message: `Da them ${accessory.name} vao gio hang!`, severity: 'success' });
     } catch (error) {
       console.error('Error adding accessory to cart:', error);
-      const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm phụ kiện vào giỏ hàng.';
+      const msg = (error as { message?: string }).message || 'An error occurred while adding the accessory to the cart.';
       setSnackbar({ open: true, message: msg, severity: 'error' });
     }
   };
@@ -559,13 +559,13 @@ const ProductDetailPage: React.FC = () => {
         if (isEditMode && editCartItemId) {
           await removeItem(editCartItemId);
         }
-        setSnackbar({ open: true, message: `Đã thêm ${product.name} (chỉ gọng) vào giỏ hàng!`, severity: 'success' });
+        setSnackbar({ open: true, message: `Added ${product.name} (frame only) to cart!`, severity: 'success' });
         if (isEditMode) {
           navigate('/cart');
         }
       } catch (error) {
         console.error('Error adding frame to cart:', error);
-        const msg = (error as { message?: string }).message || 'Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!';
+        const msg = (error as { message?: string }).message || 'An error occurred while adding to cart. Please try again!';
         setSnackbar({ open: true, message: msg, severity: 'error' });
       }
     } else {
@@ -611,7 +611,7 @@ const ProductDetailPage: React.FC = () => {
           autoPrescriptionId = created.id;
         } catch (err) {
           console.error('[Cart] Failed to auto-create prescription record:', err);
-          throw new Error('Không thể tạo prescription. Vui lòng kiểm tra lại thông tin.');
+          throw new Error('Unable to create prescription. Please check the information and try again.');
         }
       }
 

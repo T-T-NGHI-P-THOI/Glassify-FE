@@ -1892,9 +1892,9 @@ const MyOrdersPage = () => {
                       sx={{ mb: 2, fontSize: 13 }}
                       icon={<AccessTime fontSize="small" />}
                     >
-                      <strong>Chờ thanh toán</strong> — Đơn hàng sẽ tự động huỷ sau{' '}
-                      <strong>{hoursLeft}h {minutesLeft}m</strong> nếu không thanh toán.
-                      Hạn chót: {deadline.toLocaleString('vi-VN')}.
+                      <strong>Pending payment</strong> — The order will be automatically cancelled after{' '}
+                      <strong>{hoursLeft}h {minutesLeft}m</strong> if payment is not completed.
+                      Deadline: {deadline.toLocaleString('vi-VN')}.
                     </Alert>
                   );
                 })()}

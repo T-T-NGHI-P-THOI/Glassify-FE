@@ -329,12 +329,12 @@ const ShopWarrantyPage = () => {
   const [policyFormData, setPolicyFormData] = useState({
     name: 'General Warranty Policy',
     durationMonths: 12,
-    coverageDescription: 'Sản phẩm được bảo hành miễn phí nếu Sản phẩm bị lỗi kỹ thuật do nhà sản xuất.',
+    coverageDescription: 'The product is covered by free warranty if it has technical defects caused by the manufacturer.',
     excludedIssues: [
-      'Khách hàng tự ý can thiệp sửa chữa sản phẩm',
-      'Sửa chữa tại những trung tâm bảo hành không được sự ủy nhiệm của Hãng',
-      'Sản phẩm bị hư hỏng do lỗi người sử dụng',
-      'Lỗi hư không nằm trong phạm vi bảo hành của nhà sản xuất'
+      'Unauthorized repair or modification by the customer',
+      'Repairs performed at service centers not authorized by the manufacturer',
+      'Damage caused by user misuse',
+      'Issues not covered under the manufacturer’s warranty'
     ] as string[],
     isDefault: true,
     isActive: true,
@@ -1873,8 +1873,8 @@ const ShopWarrantyPage = () => {
                       <Alert severity="info" sx={{ mb: 3, borderRadius: '8px', '& .MuiAlert-message': { fontSize: 13 } }}>
                         <strong>Warranty Policy Reminder:</strong>
                         <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-                          <li>Sản phẩm được bảo hành miễn phí nếu lỗi kỹ thuật do nhà sản xuất.</li>
-                          <li>Không bảo hành nếu khách tự ý sửa chữa hoặc do lỗi người sử dụng.</li>
+                          <li>The product is covered by free warranty if it has technical defects caused by the manufacturer.</li>
+                          <li>Warranty is void if the product is self-repaired or damaged due to user misuse.</li>
                         </ul>
                       </Alert>
                       <SectionLabel>Resolution Type</SectionLabel>
