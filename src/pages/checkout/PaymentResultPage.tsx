@@ -55,11 +55,13 @@ const PaymentResultPage = () => {
       })
       .catch(() => {
         const amount = searchParams.get('vnp_Amount');
+        const pendingOrderId = sessionStorage.getItem('pending_vnpay_order_id') || '';
+        sessionStorage.removeItem('pending_vnpay_order_id');
         setResult({
           status: vnpResponseCode === '00' ? 'SUCCESS' : 'FAILED',
           message: vnpResponseCode === '00' ? 'Payment completed successfully!' : 'Payment failed.',
           txnRef: searchParams.get('vnp_TxnRef') || '',
-          orderId: '',
+          orderId: pendingOrderId,
           orderNumber: searchParams.get('vnp_OrderInfo') || '',
           amount: amount ? parseInt(amount) / 100 : 0,
           transactionNo: searchParams.get('vnp_TransactionNo') || '',
