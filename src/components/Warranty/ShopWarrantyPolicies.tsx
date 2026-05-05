@@ -52,11 +52,11 @@ const ShopWarrantyPolicies: React.FC<ShopWarrantyPoliciesProps> = ({ shopId, sho
               position: 'relative',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 14, color: '#111827', minWidth: 0, flex: 1, wordBreak: 'break-word' }}>
                 {policy.name}
               </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
                 {policy.isDefault && (
                   <Chip label="Default" size="small" sx={{ bgcolor: '#667eea', color: '#fff', fontSize: 11, height: 20 }} />
                 )}
@@ -70,7 +70,7 @@ const ShopWarrantyPolicies: React.FC<ShopWarrantyPoliciesProps> = ({ shopId, sho
             </Box>
 
             {policy.coverageDescription && (
-              <Typography sx={{ fontSize: 13, color: '#4b5563', mb: policy.excludedIssues.length > 0 ? 1 : 0 }}>
+              <Typography sx={{ fontSize: 13, color: '#4b5563', mb: policy.excludedIssues.length > 0 ? 1 : 0, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {policy.coverageDescription}
               </Typography>
             )}
