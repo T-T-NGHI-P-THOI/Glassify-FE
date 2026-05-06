@@ -444,7 +444,7 @@ const ProductDetailPage: React.FC = () => {
         stockQuantity: accessory.stockQuantity,
       });
 
-      setSnackbar({ open: true, message: `Da them ${accessory.name} vao gio hang!`, severity: 'success' });
+      setSnackbar({ open: true, message: `Added ${accessory.name} to your cart!`, severity: 'success' });
     } catch (error) {
       console.error('Error adding accessory to cart:', error);
       const msg = (error as { message?: string }).message || 'An error occurred while adding the accessory to the cart.';
