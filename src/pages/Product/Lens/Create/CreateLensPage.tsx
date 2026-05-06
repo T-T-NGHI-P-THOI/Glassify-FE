@@ -1246,7 +1246,7 @@ const CreateLensPage = () => {
         code: x.code.trim(),
         name: x.name.trim(),
         cssValue: x.cssValue.trim(),
-        opacity: Number(x.opacity || 0),
+        opacity: Math.max(0, Math.min(1, Number(x.opacity || 0))),
         basePrice: Number(x.basePrice || 0),
         isActive: x.isActive,
         behavior: x.behavior,
@@ -2357,6 +2357,7 @@ const CreateLensPage = () => {
                                   expandIcon={<ExpandMore />}
                                   sx={{
                                     bgcolor: theme.palette.custom.neutral[50],
+                                    alignItems: 'flex-start',
                                     '&:hover': {
                                       bgcolor: theme.palette.custom.neutral[100],
                                     },
@@ -2749,38 +2750,21 @@ const CreateLensPage = () => {
                                           }
                                         />
                                       </Grid>
-                                      <Grid size={{ xs: 12, md: 1.5 }}>
+                                      <Grid size={{ xs: 12, md: 2.5 }}>
                                         <TextField
                                           fullWidth
                                           type="number"
+                                          inputProps={{ min: 0, max: 1, step: 0.01 }}
                                           label="Opacity"
                                           value={editingData.opacity || 0.4}
                                           onChange={(e) =>
                                             setEditingExistingTint((prev) =>
                                               prev
-                                                ? { ...prev, opacity: Number(e.target.value) }
+                                                ? { ...prev, opacity: Math.max(0, Math.min(1, Number(e.target.value))) }
                                                 : null,
                                             )
                                           }
-                                        />
-                                      </Grid>
-                                      <Grid size={{ xs: 12, md: 1.5 }}>
-                                        <TextField
-                                          fullWidth
-                                          type="text"
-                                          label="Base Price"
-                                          value={editingData.basePrice ? formatNumber(parseNumber(String(editingData.basePrice))) : ''}
-                                          onChange={(e) =>
-                                            setEditingExistingTint((prev) =>
-                                              prev
-                                                ? { ...prev, basePrice: Number(parseNumber(e.target.value)) }
-                                                : null,
-                                            )
-                                          }
-                                          onKeyDown={(e) => {
-                                            if (shouldBlockNonNumericKey(e)) e.preventDefault();
-                                          }}
-                                          inputProps={{ inputMode: 'numeric' }}
+                                          helperText="Range: 0 to 1 only"
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12, md: 2 }}>
@@ -2806,7 +2790,26 @@ const CreateLensPage = () => {
                                           </Select>
                                         </FormControl>
                                       </Grid>
-                                      <Grid size={{ xs: 12, md: 1.5 }}>
+                                      <Grid size={{ xs: 12, md: 2 }}>
+                                        <TextField
+                                          fullWidth
+                                          type="text"
+                                          label="Base Price"
+                                          value={editingData.basePrice ? formatNumber(parseNumber(String(editingData.basePrice))) : ''}
+                                          onChange={(e) =>
+                                            setEditingExistingTint((prev) =>
+                                              prev
+                                                ? { ...prev, basePrice: Number(parseNumber(e.target.value)) }
+                                                : null,
+                                            )
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (shouldBlockNonNumericKey(e)) e.preventDefault();
+                                          }}
+                                          inputProps={{ inputMode: 'numeric' }}
+                                        />
+                                      </Grid>
+                                      <Grid size={{ xs: 12, md: 2.5 }}>
                                         <TextField
                                           fullWidth
                                           type="text"
@@ -2825,7 +2828,7 @@ const CreateLensPage = () => {
                                           inputProps={{ inputMode: 'numeric' }}
                                         />
                                       </Grid>
-                                      <Grid size={{ xs: 12, md: 1.5 }}>
+                                      <Grid size={{ xs: 12, md: 1.75 }}>
                                         <FormControlLabel
                                           control={
                                             <Switch
@@ -2840,7 +2843,7 @@ const CreateLensPage = () => {
                                           label="Active"
                                         />
                                       </Grid>
-                                      <Grid size={{ xs: 12, md: 1 }}>
+                                      <Grid size={{ xs: 12, md: 1.75 }}>
                                         <FormControlLabel
                                           control={
                                             <Switch
@@ -2927,23 +2930,23 @@ const CreateLensPage = () => {
                                   ) : (
                                     <Box>
                                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                                        <Typography sx={{ fontSize: 14 }}>
+                                        <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                           <strong>Code:</strong> {tintCode}
                                         </Typography>
-                                        <Typography sx={{ fontSize: 14 }}>
+                                        <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                           <strong>Name:</strong> {tintName}
                                         </Typography>
-                                        <Typography sx={{ fontSize: 14 }}>
+                                        <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                           <strong>CSS Value:</strong> {tintCssValue || 'N/A'}
                                         </Typography>
-                                        <Typography sx={{ fontSize: 14 }}>
+                                        <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                           <strong>Opacity:</strong> {tintOpacity ?? 'N/A'}
                                         </Typography>
-                                        <Typography sx={{ fontSize: 14 }}>
+                                        <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                           <strong>Base Price:</strong> {tintBasePrice ?? 'N/A'}
                                         </Typography>
                                         {tintBehavior && (
-                                          <Typography sx={{ fontSize: 14 }}>
+                                          <Typography sx={{ fontSize: 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                             <strong>Behavior:</strong> {tintBehavior}
                                           </Typography>
                                         )}
@@ -3011,10 +3014,10 @@ const CreateLensPage = () => {
                         {form.tintsToCreate.map((item, index) => (
                           <Paper key={`tint-${index}`} variant="outlined" sx={{ p: 2, mb: 1.5 }}>
                             <Grid container spacing={2}>
-                              <Grid size={{ xs: 12, md: 2 }}>
+                              <Grid size={{ xs: 12, md: 2.5 }}>
                                 <TextField fullWidth label="Code" value={item.code} onChange={(e) => setTintAt(index, 'code', e.target.value)} />
                               </Grid>
-                              <Grid size={{ xs: 12, md: 2 }}>
+                              <Grid size={{ xs: 12, md: 3 }}>
                                 <TextField
                                   fullWidth
                                   label="Name"
@@ -3024,11 +3027,19 @@ const CreateLensPage = () => {
                                   helperText={errors[`tintsToCreate.${index}.name`]}
                                 />
                               </Grid>
-                              <Grid size={{ xs: 12, md: 2 }}>
+                              <Grid size={{ xs: 12, md: 3 }}>
                                 <TextField fullWidth label="CSS Value" value={item.cssValue} onChange={(e) => setTintAt(index, 'cssValue', e.target.value)} />
                               </Grid>
                               <Grid size={{ xs: 12, md: 1.5 }}>
-                                <TextField fullWidth type="number" label="Opacity" value={item.opacity} onChange={(e) => setTintAt(index, 'opacity', e.target.value)} />
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  label="Opacity"
+                                  value={item.opacity}
+                                  onChange={(e) => setTintAt(index, 'opacity', Math.max(0, Math.min(1, Number(e.target.value))).toString())}
+                                  inputProps={{ min: 0, max: 1, step: 0.01 }}
+                                  helperText="Range: 0 to 1 only"
+                                />
                               </Grid>
                               <Grid size={{ xs: 12, md: 1.5 }}>
                                 <TextField
@@ -3043,7 +3054,7 @@ const CreateLensPage = () => {
                                   inputProps={{ inputMode: 'numeric' }}
                                 />
                               </Grid>
-                              <Grid size={{ xs: 12, md: 2 }}>
+                              <Grid size={{ xs: 12, md: 2.5 }}>
                                 <FormControl fullWidth>
                                   <InputLabel>Behavior</InputLabel>
                                   <Select value={item.behavior} label="Behavior" onChange={(e) => setTintAt(index, 'behavior', e.target.value as LensTintBehavior)}>
