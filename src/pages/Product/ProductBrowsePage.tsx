@@ -93,7 +93,7 @@ const ProductBrowsePage: React.FC = () => {
     productType: normalizeProductTypeParam(searchParams.get('productType')),
     brandIds: searchParams.get('brandId') ? [searchParams.get('brandId')!] : [],
     categoryNames: searchParams.get('categoryName') ? [searchParams.get('categoryName')!] : [],
-    shopCities: searchParams.get('shopCity') ? [searchParams.get('shopCity')!] : [],
+    shopCities: searchParams.getAll('shopCity').length > 0 ? searchParams.getAll('shopCity') : [],
     searchQuery: searchParams.get('q') || '',
     sortBy: (searchParams.get('sortBy') as ActiveFilters['sortBy']) || 'popular',
     priceMax: searchParams.get('maxPrice') ? parseInt(searchParams.get('maxPrice')!) : undefined,
@@ -178,8 +178,9 @@ const ProductBrowsePage: React.FC = () => {
           updates.categoryNames = [category];
         }
 
-        if (shopCity) {
-          updates.shopCities = [shopCity];
+        const shopCities = searchParams.getAll('shopCity');
+        if (shopCities.length > 0) {
+          updates.shopCities = shopCities;
         }
 
         const ageGroupsParam = searchParams.get('ageGroups');
@@ -486,7 +487,7 @@ const ProductBrowsePage: React.FC = () => {
       if (activeFilters.priceMax !== undefined) params.set('maxPrice', String(activeFilters.priceMax));
       if (activeFilters.minRating !== undefined) params.set('minRating', String(activeFilters.minRating));
       if (activeFilters.brandIds && activeFilters.brandIds.length > 0) params.set('brandId', activeFilters.brandIds[0]);
-      if (activeFilters.shopCities && activeFilters.shopCities.length > 0) params.set('shopCity', activeFilters.shopCities[0]);
+      if (activeFilters.shopCities?.length) activeFilters.shopCities.forEach(city => params.append('shopCity', city));
       if (activeFilters.frameShapes?.length) activeFilters.frameShapes.forEach(s => params.append('frameShapes', s));
       if (activeFilters.colors?.length) activeFilters.colors.forEach(c => params.append('colors', c));
       if (activeFilters.ageGroups?.length) params.set('ageGroups', activeFilters.ageGroups.join(','));
@@ -612,8 +613,8 @@ const ProductBrowsePage: React.FC = () => {
     if (newFilters.brandIds && newFilters.brandIds.length > 0) {
       params.set('brandId', newFilters.brandIds[0]);
     }
-    if (newFilters.shopCities && newFilters.shopCities.length > 0) {
-      params.set('shopCity', newFilters.shopCities[0]);
+    if (newFilters.shopCities?.length) {
+      newFilters.shopCities.forEach(city => params.append('shopCity', city));
     }
     if (newFilters.frameShapes?.length) {
       newFilters.frameShapes.forEach(s => params.append('frameShapes', s));
