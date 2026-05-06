@@ -456,7 +456,7 @@ const SellerRefundDetailPage = () => {
     
     try {
       setSubmitting(true);
-      if (isReturnAndRefundDecision) {
+      if (isReturnAndRefundDecision && !canProcessRefund) {
         const proposedAmount =
           selectedRefundType === RefundProcessType.FULL
             ? (request?.refundAmount || 0)
@@ -611,7 +611,8 @@ const SellerRefundDetailPage = () => {
       || rawStatus === ReturnStatus.RETURN_READY_TO_PICK
     );
   const hasExistingProposal = !!request.proposalStatus && request.proposalStatus !== 'NONE';
-  const isViewProposalMode = isReturnAndRefundDecision && hasExistingProposal;
+  const hasRejectedProposal = request.proposalStatus?.toUpperCase() === 'REJECTED';
+  const isViewProposalMode = isReturnAndRefundDecision && hasExistingProposal && !hasRejectedProposal;
   const proposedAmount = request.proposedPartialAmount;
   const proposedActionLabel =
     typeof proposedAmount === 'number'
@@ -621,7 +622,7 @@ const SellerRefundDetailPage = () => {
       : 'N/A';
 
   const openProposeDialog = () => {
-    if (hasExistingProposal) {
+    if (hasExistingProposal && request.proposalStatus?.toUpperCase() !== 'REJECTED' ) {
       const proposedAmount = request.proposedPartialAmount;
       const fullAmount = request.refundAmount || 0;
       const isPartialProposal = typeof proposedAmount === 'number' && proposedAmount < fullAmount;
@@ -641,6 +642,15 @@ const SellerRefundDetailPage = () => {
       setPartialAmount('');
     }
 
+    setMinRequiredAmount(null);
+    setRefundDialogOpen(true);
+  };
+
+  const openConfirmRefundDialog = () => {
+    setResolutionAction(RefundProcessType.FULL);
+    setRefundType(RefundProcessType.FULL);
+    setPartialAmount('');
+    setProposalReason('');
     setMinRequiredAmount(null);
     setRefundDialogOpen(true);
   };
@@ -702,11 +712,7 @@ const SellerRefundDetailPage = () => {
                 <Button 
                   variant="contained" 
                   color="success" 
-                  onClick={() => {
-                    setResolutionAction(RefundProcessType.FULL);
-                    setRefundType(RefundProcessType.FULL);
-                    setRefundDialogOpen(true);
-                  }}
+                  onClick={openConfirmRefundDialog}
                   sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 600 }}
                 >
                   Confirm Refund
@@ -1188,17 +1194,21 @@ const SellerRefundDetailPage = () => {
           {isViewProposalMode
             ? 'View Proposed Option'
             : isReturnAndRefundDecision
-              ? 'Propose Resolution Option'
-              : 'Finalize Refund'}
+              ? canProcessRefund
+                ? 'Process Refund'
+                : 'Propose Resolution Option'
+              : 'Confirm Refund'}
         </DialogTitle>
         <DialogContent sx={{ py: 2 }}>
           <Typography sx={{ color: 'text.secondary', mb: 3 }}>
             {isReturnAndRefundDecision
               ? 'Choose how you want to proceed with this Return & Refund case.'
-              : 'Select the refund type and complete the refund process.'}
+              : canProcessRefund
+                ? 'Review the refund details and process the refund now that the item has been received.'
+                : 'Review the refund details and confirm the refund execution.'}
           </Typography>
 
-          {isViewProposalMode && (
+              {isViewProposalMode && (
             <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5 }}>
                 Submitted proposal details
@@ -1243,7 +1253,7 @@ const SellerRefundDetailPage = () => {
             </Paper>
           )}
 
-          {isReturnAndRefundDecision && !isViewProposalMode && (
+          {isReturnAndRefundDecision && !isViewProposalMode && !canProcessRefund && (
             <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#fffbeb', borderRadius: 2, border: '1px solid #fde68a' }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
                 Return & Refund flow (default)
@@ -1256,7 +1266,7 @@ const SellerRefundDetailPage = () => {
             </Paper>
           )}
 
-          {isReturnAndRefundDecision && !isViewProposalMode && (
+          {isReturnAndRefundDecision && !isViewProposalMode && !canProcessRefund && (
             <FormControl fullWidth sx={{ mb: 3 }}>
               <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>Seller option</FormLabel>
               <RadioGroup
@@ -1320,7 +1330,7 @@ const SellerRefundDetailPage = () => {
           )}
           
           {/* Refund Type Selection */}
-          {!isViewProposalMode && (resolutionAction !== 'RETURN_AND_REFUND' || !isReturnAndRefundDecision) && (
+          {!isViewProposalMode && (resolutionAction !== 'RETURN_AND_REFUND' || !isReturnAndRefundDecision || canProcessRefund) && (
             <FormControl fullWidth sx={{ mb: 3 }}>
             <FormLabel sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>Refund Type</FormLabel>
             <RadioGroup 
@@ -1417,7 +1427,7 @@ const SellerRefundDetailPage = () => {
             />
           )}
 
-          {!isViewProposalMode && isReturnAndRefundDecision && resolutionAction !== 'RETURN_AND_REFUND' && (
+          {!isViewProposalMode && isReturnAndRefundDecision && !canProcessRefund && resolutionAction !== 'RETURN_AND_REFUND' && (
             <TextField
               label="Proposal Reason"
               multiline
@@ -1436,7 +1446,7 @@ const SellerRefundDetailPage = () => {
           )}
 
           {/* Refund Amount Display */}
-          {!isViewProposalMode && resolutionAction !== 'RETURN_AND_REFUND' && (
+          {!isViewProposalMode && (resolutionAction !== 'RETURN_AND_REFUND' || canProcessRefund) && (
             <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', textAlign: 'center' }}>
               <Typography variant="caption" sx={{ color: theme.palette.custom.neutral[500], fontWeight: 700, textTransform: 'uppercase' }}>
                 {resolutionAction === RefundProcessType.FULL ? 'Full Refund Amount' : 'Partial Refund Amount'}
@@ -1483,7 +1493,11 @@ const SellerRefundDetailPage = () => {
               }
               sx={{ borderRadius: 2, px: 4, textTransform: 'none', fontWeight: 700 }}
             >
-              {resolutionAction === 'RETURN_AND_REFUND' ? 'Keep Return & Refund' : 'Confirm & Issue Refund'}
+              {canProcessRefund
+                ? 'Process Refund'
+                : resolutionAction === 'RETURN_AND_REFUND'
+                  ? 'Keep Return & Refund'
+                  : 'Confirm & Issue Refund'}
             </Button>
           )}
         </DialogActions>
