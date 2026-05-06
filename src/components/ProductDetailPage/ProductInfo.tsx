@@ -31,6 +31,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
   );
 
   const inStock = product.stockQuantity !== undefined ? product.stockQuantity > 0 : false;
+  const currentSize = product.frameDetails.size;
 
   const handleSelectLenses = () => {
     if (!inStock) return;
@@ -46,7 +47,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
     <div className="product-info">
       <h1 className="product-title">{product.name}</h1>
       <p className="product-sku">{product.sku}</p>
-      
+
       <div className="product-reviews">
         <div className="rating">
           {[...Array(5)].map((_, i) => (
@@ -62,10 +63,12 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
       </div>
 
       <div className="size-selector">
+        <button className="size-btn active">{currentSize ?? 'Medium'}</button>
+        {/* 
         {product.sizes && product.sizes.length > 0 ? (
           product.sizes.map((size) => (
-            <button 
-              key={size} 
+            <button
+              key={size}
               className={`size-btn ${selectedSize === size ? 'active' : ''}`}
               onClick={() => setSelectedSize(size)}
             >
@@ -73,19 +76,18 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
             </button>
           ))
         ) : (
-          <button className="size-btn active">Medium</button>
-        )}
-
-        <button 
-          className="size-chart-link" 
+          <button className="size-btn active">{product.frameDetails.size ?? 'Medium'}</button>
+        )} */}
+        <button
+          className="size-chart-link"
           onClick={() => setShowSizeChart(true)}
         >
           <Straighten fontSize="small" /> Size Chart
         </button>
 
         <div className={`stock-status ${!inStock ? 'out-of-stock' : ''}`}>
-          {inStock 
-            ? `In stock (${product.stockQuantity} available)` 
+          {inStock
+            ? `In stock (${product.stockQuantity} available)`
             : 'Out of stock'}
         </div>
       </div>
@@ -177,7 +179,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
         </div>
       )}
 
-      
+
 
       {/* <button className="add-to-favorites-btn" onClick={onAddToFavorites}>
         <Favorite /> Add to favorites
@@ -209,11 +211,30 @@ const ProductInfo: React.FC<ProductInfoProps> = ({
 
               <table className="size-chart-table">
                 <tbody>
-                  <tr><td><strong>Extra Small</strong></td><td>110 - 118 mm</td></tr>
-                  <tr><td><strong>Small</strong></td><td>119 - 125 mm</td></tr>
-                  <tr className="highlight"><td><strong>Medium</strong></td><td>126 - 132 mm</td></tr>
-                  <tr><td><strong>Large</strong></td><td>133 - 140 mm</td></tr>
-                  <tr><td><strong>Extra Large</strong></td><td>141+ mm</td></tr>
+                  <tr className={currentSize === "Extra Small" ? "highlight" : ""}>
+                    <td><strong>Extra Small</strong></td>
+                    <td>110 - 118 mm</td>
+                  </tr>
+
+                  <tr className={currentSize === "Small" ? "highlight" : ""}>
+                    <td><strong>Small</strong></td>
+                    <td>119 - 125 mm</td>
+                  </tr>
+
+                  <tr className={currentSize === "Medium" ? "highlight" : ""}>
+                    <td><strong>Medium</strong></td>
+                    <td>126 - 132 mm</td>
+                  </tr>
+
+                  <tr className={currentSize === "Large" ? "highlight" : ""}>
+                    <td><strong>Large</strong></td>
+                    <td>133 - 140 mm</td>
+                  </tr>
+
+                  <tr className={currentSize === "Extra Large" ? "highlight" : ""}>
+                    <td><strong>Extra Large</strong></td>
+                    <td>141+ mm</td>
+                  </tr>
                 </tbody>
               </table>
 
