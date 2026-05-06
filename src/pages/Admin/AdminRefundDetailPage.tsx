@@ -297,6 +297,10 @@ const AdminRefundDetailPage = () => {
                   <SectionLabel>Resolution</SectionLabel>
                   <FieldRow label="Status" value={<Chip size="small" label={getRefundStatusLabel(refund.status)} color={statusColor(refund.status)} />} />
                   <FieldRow label="Approved at" value={formatDate(refund.approvedAt)} />
+                  <FieldRow label="Return tracking number" value={refund.returnTrackingNumber || '—'} />
+                  <FieldRow label="Return carrier" value={refund.returnCarrier || '—'} />
+                  <FieldRow label="Return instruction" value={refund.returnInstruction || refund.returnInstructions || '—'} />
+                  <FieldRow label="Seller pays shipping" value={typeof refund.sellerPaysShipping === 'boolean' ? (refund.sellerPaysShipping ? 'Yes' : 'No') : '—'} />
                   <FieldRow label="Completed at" value={formatDate(refund.completedAt)} />
                   <FieldRow label="Rejected at" value={formatDate(refund.rejectedAt)} />
                   {refund.rejectionReason && <FieldRow label="Rejection reason" value={<Typography sx={{ fontSize: 13, color: 'error.main' }}>{refund.rejectionReason}</Typography>} />}

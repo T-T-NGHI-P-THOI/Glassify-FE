@@ -126,6 +126,11 @@ export interface AdminRefundResponse {
   statusDisplay: string;
   requestedAt: string;
   approvedAt?: string;
+  returnTrackingNumber?: string;
+  returnCarrier?: string;
+  returnInstruction?: string;
+  returnInstructions?: string;
+  sellerPaysShipping?: boolean;
   adminDecision?: RefundReviewDecision;
   rejectedAt?: string;
   rejectionReason?: string;
