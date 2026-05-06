@@ -615,6 +615,110 @@ const CreateLensPage = () => {
     };
   }, [selectedLensImagePreview]);
 
+  const loadLensDetail = async (targetLensId: string) => {
+    const fetchedLensResult = await lensApi.getById(targetLensId);
+    const fetchedLens = fetchedLensResult.lens;
+    const fetchedProduct = fetchedLensResult.product;
+    setLens(fetchedLens);
+    setCurrentLensImageUrl(fetchedLens.imageUrl || '');
+    setSelectedLensImageFile(null);
+    setSelectedLensImagePreview('');
+
+    const rawFeatureMappings = (Array.isArray(fetchedLens.featureMappings) ? fetchedLens.featureMappings : []) as unknown[];
+    const rawTintOptions = (Array.isArray(fetchedLens.tintOptions) ? fetchedLens.tintOptions : []) as unknown[];
+    const rawUsageRules = (Array.isArray(fetchedLens.usageRules) ? fetchedLens.usageRules : []) as unknown[];
+
+    const featureMappings = (fetchedLens.featureMappings as Array<{ featureId: string }>) ?? [];
+    const tintOptions = (fetchedLens.tintOptions as Array<{ tintId: string }>) ?? [];
+    const usageRules = (fetchedLens.usageRules as Array<{ usageId: string }>) ?? [];
+    const progressiveOptions = (fetchedLens.progressiveOptions as Array<{
+      name: string;
+      description?: string;
+      maxViewDistanceFt?: number;
+      extraPrice?: number;
+      isRecommended?: boolean;
+      isActive?: boolean;
+      progressiveType?: string;
+    }>) ?? [];
+
+    const usageIds = usageRules.map((u) => u.usageId).filter(Boolean);
+
+    setInitialLinkedDetails({
+      featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
+      tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
+      usageIds,
+    });
+
+    const detailFeatures = rawFeatureMappings
+      .filter(isRecord)
+      .map((item) => normalizeFeatureOptionFromRecord(item))
+      .filter((item) => Boolean(item.id));
+    const detailTints = rawTintOptions
+      .filter(isRecord)
+      .map((item) => normalizeTintOptionFromRecord(item))
+      .filter((item) => Boolean(item.id));
+    const detailUsages = rawUsageRules
+      .filter(isRecord)
+      .map((item) => normalizeUsageOptionFromRecord(item))
+      .filter((item) => Boolean(item.id));
+
+    const detailUsageRuleDrafts = rawUsageRules
+      .map((item) =>
+        normalizeUsageRuleDraftFromRecord(item, {
+          allowTint: true,
+          allowProgressive: Boolean((fetchedLens.category === 'PROGRESSIVE')),
+          minPriceAdjustment: 0,
+        }),
+      )
+      .filter((item): item is UsageRuleDraft => Boolean(item));
+
+    if (detailUsageRuleDrafts.length > 0) {
+      setUsageRuleDrafts(
+        detailUsageRuleDrafts.reduce<Record<string, UsageRuleDraft>>((acc, item) => {
+          acc[item.usageId] = item;
+          return acc;
+        }, {}),
+      );
+    } else {
+      setUsageRuleDrafts({});
+    }
+
+    if (detailFeatures.length > 0) setExistingFeatures(detailFeatures);
+    if (detailTints.length > 0) setExistingTints(detailTints);
+    if (detailUsages.length > 0) setExistingUsages(detailUsages);
+
+    setForm((prev) => ({
+      ...prev,
+      sku: String(fetchedProduct?.sku || ''),
+      name: String(fetchedLens.name || ''),
+      basePrice: String(fetchedProduct?.basePrice ?? fetchedLens.basePrice ?? ''),
+      costPrice: String(fetchedProduct?.costPrice ?? ''),
+      compareAtPrice: String(fetchedProduct?.compareAtPrice ?? ''),
+      stockQuantity: String(fetchedProduct?.stockQuantity ?? ''),
+      lowStockThreshold: String(fetchedProduct?.lowStockThreshold ?? ''),
+      warrantyMonths: String(fetchedProduct?.warrantyMonths ?? ''),
+      isReturnable: fetchedProduct?.isReturnable ?? true,
+      isFeatured: fetchedProduct?.isFeatured ?? true,
+      isActive: Boolean(fetchedLens.isActive),
+      category: (fetchedLens.category as LensCategory) || 'SINGLE_VISION',
+      progressiveType: (fetchedLens.progressiveType as LensProgressiveType) || 'STANDARD',
+      featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
+      tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
+      usageIds,
+      featuresToCreate: [],
+      tintsToCreate: [],
+      progressiveOptions: progressiveOptions.map((item) => ({
+        name: item.name || '',
+        description: item.description || '',
+        maxViewDistanceFt: String(item.maxViewDistanceFt ?? 0),
+        extraPrice: String(item.extraPrice ?? 0),
+        isRecommended: Boolean(item.isRecommended),
+        isActive: Boolean(item.isActive),
+        progressiveType: (item.progressiveType as LensProgressiveType) || 'STANDARD',
+      })),
+    }));
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -640,106 +744,7 @@ const CreateLensPage = () => {
     (async () => {
       try {
         setLensLoading(true);
-        const fetchedLensResult = await lensApi.getById(lensId);
-        const fetchedLens = fetchedLensResult.lens;
-        const fetchedProduct = fetchedLensResult.product;
-        setLens(fetchedLens);
-        setCurrentLensImageUrl(fetchedLens.imageUrl || '');
-        setSelectedLensImageFile(null);
-        setSelectedLensImagePreview('');
-
-        const rawFeatureMappings = (Array.isArray(fetchedLens.featureMappings) ? fetchedLens.featureMappings : []) as unknown[];
-        const rawTintOptions = (Array.isArray(fetchedLens.tintOptions) ? fetchedLens.tintOptions : []) as unknown[];
-        const rawUsageRules = (Array.isArray(fetchedLens.usageRules) ? fetchedLens.usageRules : []) as unknown[];
-
-        const featureMappings = (fetchedLens.featureMappings as Array<{ featureId: string }>) ?? [];
-        const tintOptions = (fetchedLens.tintOptions as Array<{ tintId: string }>) ?? [];
-        const usageRules = (fetchedLens.usageRules as Array<{ usageId: string }>) ?? [];
-        const progressiveOptions = (fetchedLens.progressiveOptions as Array<{
-          name: string;
-          description?: string;
-          maxViewDistanceFt?: number;
-          extraPrice?: number;
-          isRecommended?: boolean;
-          isActive?: boolean;
-          progressiveType?: string;
-        }>) ?? [];
-
-        const usageIds = usageRules.map((u) => u.usageId).filter(Boolean);
-
-        setInitialLinkedDetails({
-          featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
-          tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
-          usageIds,
-        });
-
-        const detailFeatures = rawFeatureMappings
-          .filter(isRecord)
-          .map((item) => normalizeFeatureOptionFromRecord(item))
-          .filter((item) => Boolean(item.id));
-        const detailTints = rawTintOptions
-          .filter(isRecord)
-          .map((item) => normalizeTintOptionFromRecord(item))
-          .filter((item) => Boolean(item.id));
-        const detailUsages = rawUsageRules
-          .filter(isRecord)
-          .map((item) => normalizeUsageOptionFromRecord(item))
-          .filter((item) => Boolean(item.id));
-
-        const detailUsageRuleDrafts = rawUsageRules
-          .map((item) =>
-            normalizeUsageRuleDraftFromRecord(item, {
-              allowTint: true,
-              allowProgressive: Boolean((fetchedLens.category === 'PROGRESSIVE')),
-              minPriceAdjustment: 0,
-            }),
-          )
-          .filter((item): item is UsageRuleDraft => Boolean(item));
-
-        if (detailUsageRuleDrafts.length > 0) {
-          setUsageRuleDrafts(
-            detailUsageRuleDrafts.reduce<Record<string, UsageRuleDraft>>((acc, item) => {
-              acc[item.usageId] = item;
-              return acc;
-            }, {}),
-          );
-        }
-
-        if (detailFeatures.length > 0) setExistingFeatures(detailFeatures);
-        if (detailTints.length > 0) setExistingTints(detailTints);
-        if (detailUsages.length > 0) setExistingUsages(detailUsages);
-
-        setForm((prev) => ({
-          ...prev,
-          sku: String(fetchedProduct?.sku || ''),
-          name: String(fetchedLens.name || ''),
-          basePrice: String(fetchedProduct?.basePrice ?? fetchedLens.basePrice ?? ''),
-          costPrice: String(fetchedProduct?.costPrice ?? ''),
-          compareAtPrice: String(fetchedProduct?.compareAtPrice ?? ''),
-          stockQuantity: String(fetchedProduct?.stockQuantity ?? ''),
-          lowStockThreshold: String(fetchedProduct?.lowStockThreshold ?? ''),
-          warrantyMonths: String(fetchedProduct?.warrantyMonths ?? ''),
-          isReturnable: fetchedProduct?.isReturnable ?? true,
-          isFeatured: fetchedProduct?.isFeatured ?? true,
-
-          isActive: Boolean(fetchedLens.isActive),
-          category: (fetchedLens.category as LensCategory) || 'SINGLE_VISION',
-          progressiveType: (fetchedLens.progressiveType as LensProgressiveType) || 'STANDARD',
-          featureIds: featureMappings.map((m) => m.featureId).filter(Boolean),
-          tintIds: tintOptions.map((t) => t.tintId).filter(Boolean),
-          usageIds,
-          featuresToCreate: [],
-          tintsToCreate: [],
-          progressiveOptions: progressiveOptions.map((item) => ({
-            name: item.name || '',
-            description: item.description || '',
-            maxViewDistanceFt: String(item.maxViewDistanceFt ?? 0),
-            extraPrice: String(item.extraPrice ?? 0),
-            isRecommended: Boolean(item.isRecommended),
-            isActive: Boolean(item.isActive),
-            progressiveType: (item.progressiveType as LensProgressiveType) || 'STANDARD',
-          })),
-        }));
+        await loadLensDetail(lensId);
       } catch (error) {
         console.error('Failed to load lens detail:', error);
         toast.error('Unable to load lens details for editing');
@@ -1596,13 +1601,41 @@ const CreateLensPage = () => {
 
         // In edit mode, update endpoint handles lens core fields. New object links
         // (feature/tint/usage) must be created via dedicated mapping APIs.
-        const deltaPayload = toEditDeltaPayload(payload);
-        await createLensRelatedData(
-          updatedOrCreatedLens.id,
-          deltaPayload,
-          usageRuleDrafts,
-          setSubmitProgress,
-        );
+        // const deltaPayload = toEditDeltaPayload(payload);
+        // await createLensRelatedData(
+        //   updatedOrCreatedLens.id,
+        //   deltaPayload,
+        //   usageRuleDrafts,
+        //   setSubmitProgress,
+        // );
+
+        const responseLens = response?.data?.lens;
+        const responseProduct = response?.data?.product;
+        const lensToUse = responseLens ?? updatedOrCreatedLens;
+
+        setLens(lensToUse);
+        setCurrentLensImageUrl(lensToUse?.imageUrl || '');
+        setSelectedLensImageFile(null);
+        setSelectedLensImagePreview('');
+
+        if (responseProduct || responseLens) {
+          setForm((prev) => ({
+            ...prev,
+            sku: String(responseProduct?.sku ?? payload.sku ?? ''),
+            name: String(lensToUse?.name ?? payload.name ?? ''),
+            basePrice: String(responseProduct?.basePrice ?? lensToUse?.basePrice ?? payload.basePrice ?? ''),
+            costPrice: String(responseProduct?.costPrice ?? payload.costPrice ?? ''),
+            compareAtPrice: String(responseProduct?.compareAtPrice ?? payload.compareAtPrice ?? ''),
+            stockQuantity: String(responseProduct?.stockQuantity ?? payload.stockQuantity ?? ''),
+            lowStockThreshold: String(responseProduct?.lowStockThreshold ?? payload.lowStockThreshold ?? ''),
+            warrantyMonths: String(responseProduct?.warrantyMonths ?? payload.warrantyMonths ?? ''),
+            isReturnable: responseProduct?.isReturnable ?? payload.isReturnable,
+            isFeatured: responseProduct?.isFeatured ?? payload.isFeatured,
+            isActive: Boolean(lensToUse?.isActive ?? payload.isActive),
+            category: (lensToUse?.category as LensCategory) || payload.category,
+            progressiveType: (lensToUse?.progressiveType as LensProgressiveType) || payload.progressiveType || 'STANDARD',
+          }));
+        }
       }
 
       setSubmitProgress('Finalizing...');
