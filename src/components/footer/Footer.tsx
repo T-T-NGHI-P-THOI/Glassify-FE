@@ -304,6 +304,7 @@ export const Footer = () => {
                 backgroundColor: "rgba(15, 118, 110, 0.04)",
               },
             }}
+            onClick={() => window.open("https://drive.google.com/file/d/1quZLZm4HzC20LkeLJ7JNAHzmG9ujcbPc/view", "_blank")}
           >
             Download App
           </Button>
