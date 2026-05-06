@@ -204,7 +204,7 @@ const DEFAULT_TINT: TintDraft = {
   code: '',
   name: '',
   cssValue: '#b3b3b3',
-  opacity: '0.4',
+  opacity: '40',
   basePrice: '0',
 
   isActive: true,
@@ -1251,7 +1251,7 @@ const CreateLensPage = () => {
         code: x.code.trim(),
         name: x.name.trim(),
         cssValue: x.cssValue.trim(),
-        opacity: Math.max(0, Math.min(1, Number(x.opacity || 0))),
+        opacity: Math.max(0, Math.min(100, Number(x.opacity || 0))),
         basePrice: Number(x.basePrice || 0),
         isActive: x.isActive,
         behavior: x.behavior,
@@ -1493,7 +1493,7 @@ const CreateLensPage = () => {
 
     if (editingExistingTintId && editingExistingTint?.optionId) {
       onProgress?.('Saving tint changes...');
-      await lensApi.updateTint(editingExistingTintId, {
+      const tintResponse = await lensApi.updateTint(editingExistingTintId, {
         code: editingExistingTint.code.trim(),
         name: editingExistingTint.name.trim(),
         cssValue: editingExistingTint.cssValue?.trim(),
@@ -1502,6 +1502,43 @@ const CreateLensPage = () => {
         isActive: editingExistingTint.isActive,
         behavior: editingExistingTint.behavior,
       });
+
+      const updatedTint = tintResponse.data;
+      if (updatedTint?.id) {
+        setExistingTints((prev) => {
+          const next = [...prev];
+          const normalized: ExistingTintOption = {
+            id: updatedTint.id,
+            name: updatedTint.name ?? editingExistingTint.name,
+            code: updatedTint.code ?? editingExistingTint.code,
+            cssValue: updatedTint.cssValue ?? editingExistingTint.cssValue,
+            opacity: updatedTint.opacity ?? editingExistingTint.opacity,
+            basePrice: updatedTint.basePrice ?? editingExistingTint.basePrice,
+            isActive: updatedTint.isActive ?? editingExistingTint.isActive,
+            behavior: updatedTint.behavior ?? editingExistingTint.behavior,
+          };
+          const index = next.findIndex((item) => item.id === normalized.id);
+          if (index >= 0) next[index] = { ...next[index], ...normalized };
+          else next.push(normalized);
+          return next;
+        });
+
+        setEditingExistingTint((prev) =>
+          prev
+            ? {
+                ...prev,
+                code: updatedTint.code ?? prev.code,
+                name: updatedTint.name ?? prev.name,
+                cssValue: updatedTint.cssValue ?? prev.cssValue,
+                opacity: updatedTint.opacity ?? prev.opacity,
+                basePrice: updatedTint.basePrice ?? prev.basePrice,
+                isActive: updatedTint.isActive ?? prev.isActive,
+                behavior: updatedTint.behavior ?? prev.behavior,
+              }
+            : prev,
+        );
+      }
+
       await lensApi.updateTintOption(currentLensId, editingExistingTint.optionId, {
         shopId: shop.id,
         tintId: editingExistingTintId,
@@ -1613,6 +1650,60 @@ const CreateLensPage = () => {
         const responseProduct = response?.data?.product;
         const lensToUse = responseLens ?? updatedOrCreatedLens;
 
+        if (responseLens) {
+          const nextFeatureIds = (responseLens.featureMappings ?? [])
+            .map((mapping) => mapping.featureId)
+            .filter((id): id is string => Boolean(id));
+          const nextTintIds = (responseLens.tintOptions ?? [])
+            .map((option) => option.tintId)
+            .filter((id): id is string => Boolean(id));
+          const nextUsageIds = (responseLens.usageRules ?? [])
+            .map((rule) => rule.usageId)
+            .filter((id): id is string => Boolean(id));
+
+          setInitialLinkedDetails({
+            featureIds: nextFeatureIds,
+            tintIds: nextTintIds,
+            usageIds: nextUsageIds,
+          });
+
+          setExistingFeatures((prev) => {
+            const next = [...prev];
+            (responseLens.featureMappings ?? []).forEach((mapping) => {
+              const normalized = normalizeFeatureOptionFromRecord(mapping);
+              if (!normalized.id) return;
+              const index = next.findIndex((item) => item.id === normalized.id);
+              if (index >= 0) next[index] = { ...next[index], ...normalized };
+              else next.push(normalized);
+            });
+            return next;
+          });
+
+          setExistingTints((prev) => {
+            const next = [...prev];
+            (responseLens.tintOptions ?? []).forEach((option) => {
+              const normalized = normalizeTintOptionFromRecord(option);
+              if (!normalized.id) return;
+              const index = next.findIndex((item) => item.id === normalized.id);
+              if (index >= 0) next[index] = { ...next[index], ...normalized };
+              else next.push(normalized);
+            });
+            return next;
+          });
+
+          setExistingUsages((prev) => {
+            const next = [...prev];
+            (responseLens.usageRules ?? []).forEach((rule) => {
+              const normalized = normalizeUsageOptionFromRecord(rule);
+              if (!normalized.id) return;
+              const index = next.findIndex((item) => item.id === normalized.id);
+              if (index >= 0) next[index] = { ...next[index], ...normalized };
+              else next.push(normalized);
+            });
+            return next;
+          });
+        }
+
         setLens(lensToUse);
         setCurrentLensImageUrl(lensToUse?.imageUrl || '');
         setSelectedLensImageFile(null);
@@ -1634,6 +1725,9 @@ const CreateLensPage = () => {
             isActive: Boolean(lensToUse?.isActive ?? payload.isActive),
             category: (lensToUse?.category as LensCategory) || payload.category,
             progressiveType: (lensToUse?.progressiveType as LensProgressiveType) || payload.progressiveType || 'STANDARD',
+            featureIds: responseLens ? (responseLens.featureMappings ?? []).map((mapping) => mapping.featureId).filter((id): id is string => Boolean(id)) : prev.featureIds,
+            tintIds: responseLens ? (responseLens.tintOptions ?? []).map((option) => option.tintId).filter((id): id is string => Boolean(id)) : prev.tintIds,
+            usageIds: responseLens ? (responseLens.usageRules ?? []).map((rule) => rule.usageId).filter((id): id is string => Boolean(id)) : prev.usageIds,
           }));
         }
       }
@@ -2725,7 +2819,10 @@ const CreateLensPage = () => {
                                       height: 24,
                                       borderRadius: '4px',
                                       bgcolor: tintCssValue || '#ccc',
-                                      opacity: tintOpacity ?? 1,
+                                      opacity:
+                                        typeof tintOpacity === 'number'
+                                          ? Math.max(0, Math.min(100, tintOpacity)) / 100
+                                          : 1,
                                       border: '1px solid #ddd',
                                       mr: 1.5,
                                       flexShrink: 0,
@@ -2787,17 +2884,17 @@ const CreateLensPage = () => {
                                         <TextField
                                           fullWidth
                                           type="number"
-                                          inputProps={{ min: 0, max: 1, step: 0.01 }}
+                                          inputProps={{ min: 0, max: 100, step: 1 }}
                                           label="Opacity"
-                                          value={editingData.opacity || 0.4}
+                                          value={editingData.opacity ?? 40}
                                           onChange={(e) =>
                                             setEditingExistingTint((prev) =>
                                               prev
-                                                ? { ...prev, opacity: Math.max(0, Math.min(1, Number(e.target.value))) }
+                                                ? { ...prev, opacity: Math.max(0, Math.min(100, Number(e.target.value))) }
                                                 : null,
                                             )
                                           }
-                                          helperText="Range: 0 to 1 only"
+                                          helperText="Range: 0 to 100 only"
                                         />
                                       </Grid>
                                       <Grid size={{ xs: 12, md: 2 }}>
@@ -2904,7 +3001,7 @@ const CreateLensPage = () => {
                                             }
                                             try {
                                               setSubmitting(true);
-                                              await lensApi.updateTint(id, {
+                                              const tintResponse = await lensApi.updateTint(id, {
                                                 code: editingData.code.trim(),
                                                 name: editingData.name.trim(),
                                                 cssValue: editingData.cssValue?.trim(),
@@ -2913,6 +3010,61 @@ const CreateLensPage = () => {
                                                 isActive: editingData.isActive,
                                                 behavior: editingData.behavior,
                                               });
+
+                                              const updatedTint = tintResponse.data;
+                                              if (updatedTint?.id) {
+                                                setExistingTints((prev) => {
+                                                  const next = [...prev];
+                                                  const normalized = normalizeTintOptionFromRecord({
+                                                    ...updatedTint,
+                                                    tintId: updatedTint.id,
+                                                  });
+                                                  const index = next.findIndex((item) => item.id === normalized.id);
+                                                  if (index >= 0) next[index] = { ...next[index], ...normalized };
+                                                  else next.push(normalized);
+                                                  return next;
+                                                });
+
+                                                setLens((prev) => {
+                                                  if (!prev) return prev;
+                                                  const tintOptions = Array.isArray(prev.tintOptions) ? [...prev.tintOptions] : [];
+                                                  const nextTintOption = {
+                                                    ...(tintOptions.find((option) => option.tintId === id) ?? {}),
+                                                    tintId: updatedTint.id,
+                                                    tint: {
+                                                      ...(tintOptions.find((option) => option.tintId === id)?.tint ?? {}),
+                                                      id: updatedTint.id,
+                                                      code: updatedTint.code ?? editingData.code,
+                                                      name: updatedTint.name ?? editingData.name,
+                                                      cssValue: updatedTint.cssValue ?? editingData.cssValue,
+                                                      opacity: updatedTint.opacity ?? editingData.opacity,
+                                                      basePrice: updatedTint.basePrice ?? editingData.basePrice,
+                                                      isActive: updatedTint.isActive ?? editingData.isActive,
+                                                      behavior: updatedTint.behavior ?? editingData.behavior,
+                                                    },
+                                                  };
+                                                  const index = tintOptions.findIndex((option) => option.tintId === id);
+                                                  if (index >= 0) tintOptions[index] = { ...tintOptions[index], ...nextTintOption };
+                                                  else tintOptions.push(nextTintOption as any);
+                                                  return { ...prev, tintOptions };
+                                                });
+
+                                                setEditingExistingTint((prev) =>
+                                                  prev
+                                                    ? {
+                                                        ...prev,
+                                                        code: updatedTint.code ?? prev.code,
+                                                        name: updatedTint.name ?? prev.name,
+                                                        cssValue: updatedTint.cssValue ?? prev.cssValue,
+                                                        opacity: updatedTint.opacity ?? prev.opacity,
+                                                        basePrice: updatedTint.basePrice ?? prev.basePrice,
+                                                        isActive: updatedTint.isActive ?? prev.isActive,
+                                                        behavior: updatedTint.behavior ?? prev.behavior,
+                                                      }
+                                                    : prev,
+                                                );
+                                              }
+
                                               if (editingData.optionId) {
                                                 await lensApi.updateTintOption(
                                                   lensId || '',
@@ -3069,9 +3221,9 @@ const CreateLensPage = () => {
                                   type="number"
                                   label="Opacity"
                                   value={item.opacity}
-                                  onChange={(e) => setTintAt(index, 'opacity', Math.max(0, Math.min(1, Number(e.target.value))).toString())}
-                                  inputProps={{ min: 0, max: 1, step: 0.01 }}
-                                  helperText="Range: 0 to 1 only"
+                                  onChange={(e) => setTintAt(index, 'opacity', Math.max(0, Math.min(100, Number(e.target.value))).toString())}
+                                  inputProps={{ min: 0, max: 100, step: 1 }}
+                                  helperText="Range: 0 to 100 only"
                                 />
                               </Grid>
                               <Grid size={{ xs: 12, md: 1.5 }}>
