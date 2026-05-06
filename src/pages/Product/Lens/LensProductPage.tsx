@@ -60,7 +60,7 @@ type LensListItem = LensResponse & Partial<{
   isFeatured: boolean;
   productType: string;
   slug: string;
-  description: string;
+  description: string | null;
 }>;
 
 type UsageFormState = {
